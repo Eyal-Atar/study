@@ -4,6 +4,7 @@ Multi-Exam Study Scheduler with exclusive exam zones.
 Key rule: When an exam is within EXCLUSIVE_ZONE_DAYS (4 days),
 100% of study time goes to that exam only.
 """
+from __future__ import annotations
 
 from datetime import datetime, timedelta
 from collections import defaultdict

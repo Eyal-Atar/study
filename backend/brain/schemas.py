@@ -1,6 +1,7 @@
 """Brain chat schemas."""
 
 from pydantic import BaseModel
+from typing import Optional
 
 
 class BrainMessage(BaseModel):
@@ -9,11 +10,11 @@ class BrainMessage(BaseModel):
 
 class ScheduleBlock(BaseModel):
     task_id: int
-    exam_id: int | None
-    exam_name: str | None = None
+    exam_id: Optional[int]
+    exam_name: Optional[str] = None
     task_title: str
-    subject: str | None
+    subject: Optional[str]
     start_time: str
     end_time: str
-    day_date: str | None
+    day_date: Optional[str]
     block_type: str

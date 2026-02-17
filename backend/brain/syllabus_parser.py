@@ -1,4 +1,5 @@
 """Syllabus Parser — Extracts study tasks from PDF using PyMuPDF + Claude AI."""
+from __future__ import annotations
 
 import json
 import os

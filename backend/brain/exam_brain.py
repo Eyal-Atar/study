@@ -1,4 +1,5 @@
 """ExamBrain — AI core that analyzes exams and builds study roadmaps."""
+from __future__ import annotations
 
 import json
 import os
@@ -63,6 +64,7 @@ class ExamBrain:
             return self._generate_basic_tasks(exam_contexts)
 
     def _analyze_with_ai(self, exam_contexts: list[dict]) -> list[dict]:
+        valid_exam_ids = {ec["exam_id"] for ec in exam_contexts}
         prompt = self._build_mega_prompt(exam_contexts)
         message = self.client.messages.create(
             model="claude-sonnet-4-5-20250929",
@@ -79,8 +81,15 @@ class ExamBrain:
         for task in tasks:
             if not task.get("title"):
                 continue
+            exam_id = task.get("exam_id")
+            # Fix invalid exam_ids from AI
+            if exam_id not in valid_exam_ids:
+                if len(valid_exam_ids) == 1:
+                    exam_id = next(iter(valid_exam_ids))
+                else:
+                    continue
             validated.append({
-                "exam_id": task.get("exam_id"),
+                "exam_id": exam_id,
                 "title": task["title"],
                 "topic": task.get("topic"),
                 "subject": task.get("subject"),

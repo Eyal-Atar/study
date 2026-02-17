@@ -33,29 +33,54 @@ async def generate_roadmap(current_user: dict = Depends(get_current_user)):
         ).fetchall()
         exam_list.append({**dict(exam), "files": [dict(f) for f in files]})
 
-    # Clear old tasks for these exams
+    # Clear old schedule_blocks and tasks for these exams
     exam_ids = [e["id"] for e in exams]
+    valid_exam_ids = set(exam_ids)
     placeholders = ",".join("?" * len(exam_ids))
+
+    # Delete schedule_blocks first (no CASCADE on task_id FK)
+    old_task_ids = [
+        r["id"] for r in db.execute(
+            f"SELECT id FROM tasks WHERE exam_id IN ({placeholders})", exam_ids
+        ).fetchall()
+    ]
+    if old_task_ids:
+        task_placeholders = ",".join("?" * len(old_task_ids))
+        db.execute(f"DELETE FROM schedule_blocks WHERE task_id IN ({task_placeholders})", old_task_ids)
+
     db.execute(f"DELETE FROM tasks WHERE exam_id IN ({placeholders})", exam_ids)
     db.commit()
 
     # Run the AI Brain
     brain = ExamBrain(current_user, exam_list)
     ai_tasks = await brain.analyze_all_exams()
+    print(f"[ROADMAP] AI brain returned {len(ai_tasks)} tasks")
+    for t in ai_tasks[:3]:
+        print(f"  → exam_id={t.get('exam_id')}, title={t.get('title')}")
 
-    # Save tasks
+    # Save tasks — validate exam_ids from AI response
     saved_tasks = []
     for task in ai_tasks:
+        task_exam_id = task.get("exam_id")
+        # If AI returned an invalid exam_id, skip the task
+        if task_exam_id not in valid_exam_ids:
+            # If there's only one exam, assign to it
+            if len(valid_exam_ids) == 1:
+                task_exam_id = exam_ids[0]
+            else:
+                continue
+
         cursor = db.execute(
             """INSERT INTO tasks (user_id, exam_id, title, topic, subject,
                deadline, estimated_hours, difficulty)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (user_id, task["exam_id"], task["title"], task.get("topic"),
+            (user_id, task_exam_id, task["title"], task.get("topic"),
              task.get("subject"), task.get("deadline"),
              task.get("estimated_hours", 2.0), task.get("difficulty", 3))
         )
-        saved_tasks.append({**task, "id": cursor.lastrowid, "status": "pending"})
+        saved_tasks.append({**task, "exam_id": task_exam_id, "id": cursor.lastrowid, "status": "pending"})
     db.commit()
+    print(f"[ROADMAP] Saved {len(saved_tasks)} tasks to DB")
 
     # Generate schedule
     all_tasks = db.execute(
@@ -63,10 +88,14 @@ async def generate_roadmap(current_user: dict = Depends(get_current_user)):
         (user_id,)
     ).fetchall()
     db.close()
+    print(f"[ROADMAP] Fetched {len(all_tasks)} tasks from DB for scheduling")
 
     schedule = generate_multi_exam_schedule(
         current_user, [dict(e) for e in exams], [dict(t) for t in all_tasks]
     )
+    print(f"[ROADMAP] Scheduler produced {len(schedule)} blocks (study + breaks)")
+    study_blocks = [s for s in schedule if s.block_type == "study"]
+    print(f"[ROADMAP] Of which {len(study_blocks)} are study blocks")
     return {
         "message": f"Generated roadmap for {len(exams)} exams with {len(saved_tasks)} study tasks",
         "tasks": saved_tasks,
@@ -153,6 +182,7 @@ Rules:
 - Keep task IDs for existing tasks you want to keep (use "id" field)
 - For NEW tasks, set "id" to null
 - Every task must have: id, exam_id, title, topic, subject, deadline, estimated_hours, difficulty
+- exam_id MUST be one of: {', '.join(str(e['id']) for e in exams)}
 - Return ONLY valid JSON. No explanation.
 
 Also include a short "brain_reply" message to the student explaining what you changed.
@@ -181,8 +211,21 @@ Return format:
 
     # Replace pending tasks
     exam_ids = [e["id"] for e in exams]
+    valid_exam_ids = set(exam_ids)
     if exam_ids:
         placeholders = ",".join("?" * len(exam_ids))
+
+        # Delete schedule_blocks for tasks being removed
+        old_task_ids = [
+            r["id"] for r in db.execute(
+                f"SELECT id FROM tasks WHERE exam_id IN ({placeholders}) AND status != 'done'",
+                exam_ids
+            ).fetchall()
+        ]
+        if old_task_ids:
+            task_placeholders = ",".join("?" * len(old_task_ids))
+            db.execute(f"DELETE FROM schedule_blocks WHERE task_id IN ({task_placeholders})", old_task_ids)
+
         db.execute(
             f"DELETE FROM tasks WHERE exam_id IN ({placeholders}) AND status != 'done'",
             exam_ids
@@ -193,15 +236,21 @@ Return format:
     for task in new_tasks:
         if task.get("status") == "done":
             continue
+        task_exam_id = task.get("exam_id")
+        if task_exam_id not in valid_exam_ids:
+            if len(valid_exam_ids) == 1:
+                task_exam_id = exam_ids[0]
+            else:
+                continue
         cursor = db.execute(
             """INSERT INTO tasks (user_id, exam_id, title, topic, subject,
                deadline, estimated_hours, difficulty)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (user_id, task["exam_id"], task["title"], task.get("topic"),
+            (user_id, task_exam_id, task["title"], task.get("topic"),
              task.get("subject"), task.get("deadline"),
              task.get("estimated_hours", 2.0), task.get("difficulty", 3))
         )
-        saved_tasks.append({**task, "id": cursor.lastrowid, "status": "pending"})
+        saved_tasks.append({**task, "exam_id": task_exam_id, "id": cursor.lastrowid, "status": "pending"})
     db.commit()
 
     # Regenerate schedule
