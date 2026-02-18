@@ -13,6 +13,8 @@ class TaskResponse(BaseModel):
     topic: Optional[str]
     subject: Optional[str]
     deadline: Optional[str]
+    day_date: Optional[str] = None
+    sort_order: int = 0
     estimated_hours: float
     difficulty: int
     status: str

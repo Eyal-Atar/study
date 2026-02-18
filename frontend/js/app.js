@@ -5,6 +5,7 @@ let authToken = localStorage.getItem('studyflow_token');
 let currentUser = null;
 let currentExams = [];
 let currentTasks = [];
+// currentSchedule kept for compat but no longer used
 let currentSchedule = [];
 let pendingExamId = null;
 let pendingFiles = [];
@@ -175,16 +176,8 @@ async function loadExams() {
         if (tres.ok) {
             currentTasks = await tres.json();
             updateStats();
-        }
-        // Auto-load schedule if tasks exist but no schedule in memory
-        if (currentTasks.length > 0 && currentSchedule.length === 0) {
-            const sres = await authFetch(`${API}/regenerate-schedule`, { method: 'POST' });
-            if (sres.ok) {
-                const sdata = await sres.json();
-                currentSchedule = sdata.schedule || [];
-                renderRoadmap(currentSchedule);
-                renderTodayFocus(currentSchedule);
-            }
+            renderCalendar(currentTasks);
+            renderTodayFocus(currentTasks);
         }
     } catch (e) { console.error(e); }
 }
@@ -336,10 +329,8 @@ async function deleteExam(examId) {
     await authFetch(`${API}/exams/${examId}`, { method: 'DELETE' });
     await loadExams();
     if (currentExams.length === 0) {
-        currentTasks = []; currentSchedule = [];
-        document.getElementById('roadmap-container').innerHTML = `
-            <div class="absolute left-[15px] top-0 bottom-0 w-[2px] bg-gradient-to-b from-accent-500 via-mint-400 to-gold-400 opacity-20"></div>
-            <div class="text-center py-12 text-white/30"><p class="text-3xl mb-3">🧠</p><p class="text-lg mb-1">Add your exams first</p></div>`;
+        currentTasks = [];
+        renderCalendar([]);
     }
 }
 
@@ -353,10 +344,9 @@ async function generateRoadmap() {
         const data = await res.json();
         if (!res.ok) { alert(data.detail || 'Failed to generate roadmap'); return; }
         currentTasks = data.tasks;
-        currentSchedule = data.schedule;
         await loadExams();
-        renderRoadmap(currentSchedule);
-        renderTodayFocus(currentSchedule);
+        renderCalendar(currentTasks);
+        renderTodayFocus(currentTasks);
         updateStats();
     } catch (e) {
         console.error(e);
@@ -366,32 +356,36 @@ async function generateRoadmap() {
     }
 }
 
-// ─── Roadmap Rendering ───────────────────────────────
-function renderRoadmap(schedule) {
+// ─── Calendar Rendering ─────────────────────────────
+function renderCalendar(tasks) {
     const container = document.getElementById('roadmap-container');
-    if (!schedule || schedule.length === 0) {
+    if (!tasks || tasks.length === 0) {
         container.innerHTML = `
             <div class="absolute left-[15px] top-0 bottom-0 w-[2px] bg-gradient-to-b from-accent-500 via-mint-400 to-gold-400 opacity-20"></div>
-            <div class="text-center py-12 text-white/30"><p class="text-lg">No schedule generated yet</p></div>`;
+            <div class="text-center py-12 text-white/30"><p class="text-lg">No calendar generated yet</p></div>`;
         return;
     }
     const examIdx = {};
     currentExams.forEach((e, i) => { examIdx[e.id] = i; });
+
+    // Group tasks by day_date
     const days = {};
-    schedule.forEach(block => {
-        if (block.block_type === 'break') return;
-        const day = block.day_date || block.start_time.split('T')[0];
+    tasks.forEach(task => {
+        const day = task.day_date || task.deadline || 'unscheduled';
         if (!days[day]) days[day] = [];
-        days[day].push(block);
+        days[day].push(task);
     });
-    const dayKeys = Object.keys(days).sort();
+    // Sort activities within each day
+    Object.values(days).forEach(arr => arr.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)));
+
+    const dayKeys = Object.keys(days).filter(d => d !== 'unscheduled').sort();
     const today = new Date().toISOString().split('T')[0];
     const examDateSet = {};
     currentExams.forEach((e, i) => { examDateSet[e.exam_date] = { name: e.name, idx: i }; });
 
     let html = '<div class="absolute left-[15px] top-0 bottom-0 w-[2px] bg-gradient-to-b from-accent-500 via-mint-400 to-gold-400 opacity-20"></div>';
     dayKeys.forEach(day => {
-        const blocks = days[day];
+        const dayTasks = days[day];
         const isToday = day === today;
         const isPast = day < today;
         const date = new Date(day + 'T00:00:00');
@@ -399,11 +393,16 @@ function renderRoadmap(schedule) {
         const dayNum = date.getDate();
         const monthName = date.toLocaleDateString('en-US', { month: 'short' });
         const examOnDay = examDateSet[day];
+        const isExamDay = dayTasks.some(t => t.title && t.title.startsWith('EXAM DAY'));
 
-        // Check if this is an exclusive zone day
+        // Subject focus badge — find dominant subject
+        const subjects = dayTasks.map(t => t.subject).filter(Boolean);
+        const subjectFocus = subjects.length > 0 ? subjects[0] : null;
+
+        // Check if close to exam (exclusive zone)
         let zoneExam = null;
-        const uniqueExams = [...new Set(blocks.map(b => b.exam_id))];
-        if (uniqueExams.length === 1 && !examOnDay) {
+        const uniqueExams = [...new Set(dayTasks.map(t => t.exam_id).filter(Boolean))];
+        if (uniqueExams.length === 1 && !isExamDay) {
             const eid = uniqueExams[0];
             const exam = currentExams.find(e => e.id === eid);
             if (exam) {
@@ -412,73 +411,75 @@ function renderRoadmap(schedule) {
             }
         }
 
-        html += `<div class="fade-in relative mb-5">
+        html += `<div class="fade-in relative mb-5 ${isPast ? 'opacity-50' : ''}">
             <div class="absolute -left-8 top-1 w-[14px] h-[14px] rounded-full border-2
-                ${isToday ? 'border-accent-400 bg-accent-500 node-pulse' : isPast ? 'border-mint-400/50 bg-mint-500/50' : examOnDay ? 'border-gold-400 bg-gold-500' : 'border-white/20 bg-dark-700'}
+                ${isToday ? 'border-accent-400 bg-accent-500 node-pulse' : isPast ? 'border-mint-400/50 bg-mint-500/50' : isExamDay || examOnDay ? 'border-gold-400 bg-gold-500' : 'border-white/20 bg-dark-700'}
             "></div>
-            <div class="flex items-center gap-2 mb-2">
-                <span class="text-sm font-bold ${isToday ? 'text-accent-400' : examOnDay ? 'text-gold-400' : 'text-white/50'}">${isToday ? 'TODAY' : dayName}</span>
+            <div class="flex items-center gap-2 mb-2 flex-wrap">
+                <span class="text-sm font-bold ${isToday ? 'text-accent-400' : isExamDay || examOnDay ? 'text-gold-400' : 'text-white/50'}">${isToday ? 'TODAY' : dayName}</span>
                 <span class="text-xs text-white/30">${monthName} ${dayNum}</span>
                 ${isToday ? '<span class="text-xs bg-accent-500/20 text-accent-400 px-2 py-0.5 rounded-full">Active</span>' : ''}
+                ${subjectFocus && !isExamDay ? `<span class="text-xs bg-dark-900/50 text-white/50 px-2 py-0.5 rounded-full">${subjectFocus}</span>` : ''}
                 ${zoneExam ? `<span class="text-xs bg-coral-500/20 text-coral-400 px-2 py-0.5 rounded-full">Focus: ${zoneExam.name}</span>` : ''}
             </div>`;
 
-        if (examOnDay) {
-            html += `<div class="mb-2 px-3 py-2 rounded-xl ${examColorClass(examOnDay.idx,'bg20')} border ${examColorClass(examOnDay.idx,'border')}">
-                <span class="text-sm font-bold ${examColorClass(examOnDay.idx,'text')}">EXAM: ${examOnDay.name}</span>
+        // Exam day milestone
+        if (isExamDay || examOnDay) {
+            const idx = examOnDay ? examOnDay.idx : (examIdx[dayTasks[0].exam_id] ?? 0);
+            const examName = examOnDay ? examOnDay.name : (dayTasks[0].title.replace('EXAM DAY: ', ''));
+            html += `<div class="mb-2 px-3 py-2 rounded-xl ${examColorClass(idx,'bg20')} border ${examColorClass(idx,'border')}">
+                <span class="text-sm font-bold ${examColorClass(idx,'text')}">EXAM: ${examName}</span>
             </div>`;
         }
 
-        const grouped = [];
-        blocks.forEach(b => {
-            const last = grouped[grouped.length - 1];
-            if (last && last.task_id === b.task_id) { last.count++; last.end_time = b.end_time; }
-            else grouped.push({ ...b, count: 1 });
-        });
-
-        html += '<div class="space-y-1.5 ml-1">';
-        grouped.forEach(block => {
-            const startH = new Date(block.start_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-            const endH = new Date(block.end_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-            const eIdx = examIdx[block.exam_id] ?? 0;
-            const isDone = currentTasks.find(t => t.id === block.task_id)?.status === 'done';
-            html += `
-            <div class="card-hover bg-dark-600/60 rounded-xl p-3 border border-white/5 flex items-center gap-3 ${isDone ? 'opacity-40' : ''}">
-                <button onclick="toggleDone(${block.task_id},this)" class="flex-shrink-0 w-6 h-6 rounded-full border-2 ${isDone ? 'bg-mint-500 border-mint-500' : 'border-white/20 hover:border-accent-400'} flex items-center justify-center transition-all">
-                    ${isDone ? '<svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
-                </button>
-                <div class="w-2.5 h-8 rounded-full ${examColorClass(eIdx,'bg')} flex-shrink-0"></div>
-                <div class="flex-1 min-w-0">
-                    <div class="font-medium text-sm ${isDone ? 'line-through text-white/40' : ''} truncate">${block.task_title}</div>
-                    <div class="flex items-center gap-2 mt-0.5">
-                        <span class="text-xs ${examColorClass(eIdx,'text')}">${block.exam_name || ''}</span>
-                        <span class="text-xs text-white/30">${startH}–${endH}</span>
-                        ${block.count > 1 ? `<span class="text-xs bg-dark-900/60 px-1.5 py-0.5 rounded text-white/40">${block.count} blocks</span>` : ''}
+        // Activity cards
+        const activities = isExamDay ? dayTasks.filter(t => !t.title.startsWith('EXAM DAY')) : dayTasks;
+        if (activities.length > 0) {
+            const totalHours = activities.reduce((s, t) => s + (t.estimated_hours || 0), 0);
+            html += '<div class="space-y-1.5 ml-1">';
+            activities.forEach(task => {
+                const eIdx = examIdx[task.exam_id] ?? 0;
+                const isDone = task.status === 'done';
+                const diffDots = task.difficulty > 0 ? '●'.repeat(Math.min(task.difficulty, 5)) + '○'.repeat(Math.max(0, 5 - task.difficulty)) : '';
+                html += `
+                <div class="card-hover bg-dark-600/60 rounded-xl p-3 border border-white/5 flex items-center gap-3 ${isDone ? 'opacity-40' : ''}">
+                    <button onclick="toggleDone(${task.id},this)" class="flex-shrink-0 w-6 h-6 rounded-full border-2 ${isDone ? 'bg-mint-500 border-mint-500' : 'border-white/20 hover:border-accent-400'} flex items-center justify-center transition-all">
+                        ${isDone ? '<svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+                    </button>
+                    <div class="w-2.5 h-8 rounded-full ${examColorClass(eIdx,'bg')} flex-shrink-0"></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium text-sm ${isDone ? 'line-through text-white/40' : ''} truncate">${task.title}</div>
+                        <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                            ${task.topic ? `<span class="text-xs ${examColorClass(eIdx,'text')}">${task.topic}</span>` : ''}
+                            ${task.estimated_hours ? `<span class="text-xs text-white/30">${task.estimated_hours}h</span>` : ''}
+                            ${diffDots ? `<span class="text-xs text-white/20">${diffDots}</span>` : ''}
+                        </div>
                     </div>
-                </div>
-            </div>`;
-        });
-        html += '</div></div>';
+                </div>`;
+            });
+            if (totalHours > 0) {
+                html += `<div class="text-right text-xs text-white/20 mt-1 mr-1">${totalHours.toFixed(1)}h total</div>`;
+            }
+            html += '</div>';
+        }
+        html += '</div>';
     });
     container.innerHTML = html;
 }
 
-function renderTodayFocus(schedule) {
+function renderTodayFocus(tasks) {
     const el = document.getElementById('today-tasks');
     const today = new Date().toISOString().split('T')[0];
-    const todayBlocks = schedule.filter(b => b.block_type === 'study' && (b.day_date || b.start_time.split('T')[0]) === today);
-    if (!todayBlocks.length) { el.innerHTML = '<p class="text-white/30 text-sm">No study blocks for today</p>'; return; }
+    const todayTasks = tasks.filter(t => t.day_date === today && t.status !== 'done');
+    if (!todayTasks.length) { el.innerHTML = '<p class="text-white/30 text-sm">No tasks for today</p>'; return; }
     const examIdx = {};
     currentExams.forEach((e, i) => { examIdx[e.id] = i; });
-    const seen = new Set();
-    const unique = todayBlocks.filter(b => { if (seen.has(b.task_id)) return false; seen.add(b.task_id); return true; });
-    el.innerHTML = unique.map(b => {
-        const count = todayBlocks.filter(x => x.task_id === b.task_id).length;
-        const eIdx = examIdx[b.exam_id] ?? 0;
+    el.innerHTML = todayTasks.map(t => {
+        const eIdx = examIdx[t.exam_id] ?? 0;
         return `<div class="flex items-center gap-2 bg-dark-900/40 rounded-lg p-2.5">
             <div class="w-2.5 h-2.5 rounded-full ${examColorClass(eIdx,'bg')}"></div>
-            <div class="flex-1 text-sm truncate">${b.task_title}</div>
-            <div class="text-xs text-white/30">${count}x</div>
+            <div class="flex-1 text-sm truncate">${t.title}</div>
+            <div class="text-xs text-white/30">${t.estimated_hours || 0}h</div>
         </div>`;
     }).join('');
 }
@@ -493,8 +494,8 @@ async function toggleDone(taskId, btn) {
         task.status = isDone ? 'pending' : 'done';
         if (!isDone) spawnConfetti(btn);
         updateStats();
-        renderRoadmap(currentSchedule);
-        renderTodayFocus(currentSchedule);
+        renderCalendar(currentTasks);
+        renderTodayFocus(currentTasks);
         await loadExams();
     } catch (e) { console.error(e); }
 }
@@ -535,10 +536,9 @@ async function sendBrainMessage() {
         if (!res.ok) { addChatBubble('brain', data.detail || 'Something went wrong'); return; }
         addChatBubble('brain', data.brain_reply);
         currentTasks = data.tasks;
-        currentSchedule = data.schedule;
         await loadExams();
-        renderRoadmap(currentSchedule);
-        renderTodayFocus(currentSchedule);
+        renderCalendar(currentTasks);
+        renderTodayFocus(currentTasks);
         updateStats();
     } catch (e) {
         addChatBubble('brain', 'Failed to reach the brain. Check server.');

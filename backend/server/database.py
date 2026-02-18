@@ -61,7 +61,7 @@ def init_db():
             subject TEXT,
             deadline TEXT,
             estimated_hours REAL DEFAULT 1.0,
-            difficulty INTEGER DEFAULT 3 CHECK(difficulty BETWEEN 1 AND 5),
+            difficulty INTEGER DEFAULT 3 CHECK(difficulty BETWEEN 0 AND 5),
             status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'done')),
             created_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (user_id) REFERENCES users(id),
@@ -97,5 +97,14 @@ def init_db():
         conn.execute("ALTER TABLE users ADD COLUMN auth_token TEXT")
 
     conn.execute("CREATE INDEX IF NOT EXISTS idx_users_token ON users(auth_token)")
+
+    # Migrations: add calendar columns to tasks if missing
+    task_columns = {row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
+    if "day_date" not in task_columns:
+        conn.execute("ALTER TABLE tasks ADD COLUMN day_date TEXT")
+    if "sort_order" not in task_columns:
+        conn.execute("ALTER TABLE tasks ADD COLUMN sort_order INTEGER DEFAULT 0")
+
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_day ON tasks(day_date)")
     conn.commit()
     conn.close()

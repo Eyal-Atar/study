@@ -17,7 +17,7 @@ def get_tasks(current_user: dict = Depends(get_current_user)):
         FROM tasks t
         LEFT JOIN exams e ON t.exam_id = e.id
         WHERE t.user_id = ?
-        ORDER BY t.deadline
+        ORDER BY t.day_date, t.sort_order
     """, (current_user["id"],)).fetchall()
     db.close()
     return [TaskResponse(**dict(r)) for r in rows]
