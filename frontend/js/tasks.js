@@ -291,4 +291,9 @@ export function initTasks() {
 
     const btnSaveExam = document.getElementById('btn-save-exam');
     if (btnSaveExam) btnSaveExam.onclick = async () => { closeAddExamModal(); await loadExams(); };
+
+    window.addEventListener('task-toggle', (e) => {
+        const { taskId, btn } = e.detail;
+        toggleDone(taskId, btn);
+    });
 }
