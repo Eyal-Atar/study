@@ -42,6 +42,18 @@ export const setPendingFiles = (files) => { store.pendingFiles = files; };
 export const getBrainChatHistory = () => store.brainChatHistory;
 export const setBrainChatHistory = (history) => { store.brainChatHistory = history; };
 
+export const resetStore = () => {
+    store.authToken = null;
+    store.currentUser = null;
+    store.currentExams = [];
+    store.currentTasks = [];
+    store.currentSchedule = [];
+    store.pendingExamId = null;
+    store.pendingFiles = [];
+    store.brainChatHistory = [];
+    localStorage.removeItem('studyflow_token');
+};
+
 export function authHeaders() {
     const token = getAuthToken();
     return token ? { 'Authorization': `Bearer ${token}` } : {};
