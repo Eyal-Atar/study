@@ -7,12 +7,110 @@ let onAuthSuccess = () => {};
 export function initAuth(callbacks = {}) {
     if (callbacks.onSuccess) onAuthSuccess = callbacks.onSuccess;
 
+    // Welcome screen buttons
+    const btnShowRegister = document.getElementById('btn-show-register');
+    if (btnShowRegister) btnShowRegister.onclick = () => showScreen('screen-register');
+
+    const btnShowLogin = document.getElementById('btn-show-login');
+    if (btnShowLogin) btnShowLogin.onclick = () => showScreen('screen-login');
+
+    // Login screen
     const btnLogin = document.getElementById('btn-login');
     if (btnLogin) btnLogin.onclick = handleLogin;
+
+    const loginEmail = document.getElementById('login-email');
+    if (loginEmail) {
+        loginEmail.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                const passwordField = document.getElementById('login-password');
+                if (passwordField) passwordField.focus();
+            }
+        };
+    }
+
+    const loginPassword = document.getElementById('login-password');
+    if (loginPassword) {
+        loginPassword.onkeydown = (e) => {
+            if (e.key === 'Enter') handleLogin();
+        };
+    }
+
+    const linkToRegister = document.getElementById('link-to-register');
+    if (linkToRegister) {
+        linkToRegister.onclick = (e) => {
+            e.preventDefault();
+            showScreen('screen-register');
+            return false;
+        };
+    }
+
+    const linkLoginBack = document.getElementById('link-login-back');
+    if (linkLoginBack) {
+        linkLoginBack.onclick = (e) => {
+            e.preventDefault();
+            showScreen('screen-welcome');
+            return false;
+        };
+    }
+
+    // Register screen navigation
+    const linkToLogin = document.getElementById('link-to-login');
+    if (linkToLogin) {
+        linkToLogin.onclick = (e) => {
+            e.preventDefault();
+            showScreen('screen-login');
+            return false;
+        };
+    }
+
+    const linkRegBack = document.getElementById('link-reg-back');
+    if (linkRegBack) {
+        linkRegBack.onclick = (e) => {
+            e.preventDefault();
+            showScreen('screen-welcome');
+            return false;
+        };
+    }
+
+    // Register step buttons
+    const btnRegNext2 = document.getElementById('btn-reg-next-2');
+    if (btnRegNext2) btnRegNext2.onclick = () => regNext(2);
+
+    const btnRegNext3 = document.getElementById('btn-reg-next-3');
+    if (btnRegNext3) btnRegNext3.onclick = () => regNext(3);
 
     const btnRegister = document.getElementById('btn-register');
     if (btnRegister) btnRegister.onclick = handleRegister;
 
+    // Register keyboard navigation
+    const regName = document.getElementById('reg-name');
+    if (regName) {
+        regName.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                const emailField = document.getElementById('reg-email');
+                if (emailField) emailField.focus();
+            }
+        };
+    }
+
+    const regEmail = document.getElementById('reg-email');
+    if (regEmail) {
+        regEmail.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                const passwordField = document.getElementById('reg-password');
+                if (passwordField) passwordField.focus();
+            }
+        };
+    }
+
+    const regPassword = document.getElementById('reg-password');
+    if (regPassword) {
+        regPassword.onkeydown = (e) => {
+            if (e.key === 'Enter') regNext(2);
+        };
+    }
+
+    // Logout button
     const btnLogout = document.getElementById('btn-logout');
     if (btnLogout) btnLogout.onclick = handleLogout;
 }

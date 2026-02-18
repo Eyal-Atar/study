@@ -200,7 +200,7 @@ export function closeAddExamModal() {
     if (modal) modal.classList.remove('active');
 }
 
-async function modalToStep2() {
+export async function modalToStep2() {
     const name = document.getElementById('exam-name').value.trim();
     const subject = document.getElementById('exam-subject').value.trim();
     const date = document.getElementById('exam-date').value;
@@ -231,7 +231,7 @@ async function modalToStep2() {
     }
 }
 
-async function handleFileSelect(input) {
+export async function handleFileSelect(input) {
     const file = input.files[0];
     const pendingExamId = getPendingExamId();
     if (!file || !pendingExamId) return;
@@ -259,7 +259,7 @@ async function handleFileSelect(input) {
     input.value = '';
 }
 
-function renderUploadedFiles() {
+export function renderUploadedFiles() {
     const el = document.getElementById('uploaded-files-list');
     if (!el) return;
     const pendingFiles = getPendingFiles();
@@ -274,24 +274,45 @@ function renderUploadedFiles() {
 }
 
 export function initTasks() {
+    // Add exam buttons
+    const btnAddExamTop = document.getElementById('btn-add-exam-top');
+    if (btnAddExamTop) btnAddExamTop.onclick = openAddExamModal;
+
+    // Generate roadmap button
     const btnGenerate = document.getElementById('btn-generate-roadmap');
     if (btnGenerate) btnGenerate.onclick = generateRoadmap;
 
+    // Modal close buttons
     const btnCloseModal = document.getElementById('btn-close-exam-modal');
     if (btnCloseModal) btnCloseModal.onclick = closeAddExamModal;
 
+    const btnCloseModal2 = document.getElementById('btn-close-exam-modal-2');
+    if (btnCloseModal2) btnCloseModal2.onclick = closeAddExamModal;
+
+    // Modal background click
+    const modalBg = document.getElementById('modal-add-exam');
+    if (modalBg) {
+        modalBg.onclick = (e) => {
+            if (e.target === modalBg) closeAddExamModal();
+        };
+    }
+
+    // Modal step 2 button
     const btnStep2 = document.getElementById('btn-modal-to-step-2');
     if (btnStep2) btnStep2.onclick = modalToStep2;
 
+    // File upload
     const fileInput = document.getElementById('exam-file-input');
     if (fileInput) fileInput.onchange = () => handleFileSelect(fileInput);
 
+    // Skip and save buttons
     const btnSkipFiles = document.getElementById('btn-skip-files');
     if (btnSkipFiles) btnSkipFiles.onclick = async () => { closeAddExamModal(); await loadExams(); };
 
     const btnSaveExam = document.getElementById('btn-save-exam');
     if (btnSaveExam) btnSaveExam.onclick = async () => { closeAddExamModal(); await loadExams(); };
 
+    // Task toggle event listener
     window.addEventListener('task-toggle', (e) => {
         const { taskId, btn } = e.detail;
         toggleDone(taskId, btn);
