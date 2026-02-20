@@ -47,7 +47,11 @@
   3. Existing email/password login continues to work for legacy users
   4. Auth tokens stored in HttpOnly cookies (not localStorage) to prevent XSS attacks
   5. OAuth state parameter validates correctly to prevent CSRF attacks
-**Plans:** TBD
+**Plans:** 4 plans
+- [ ] 06-01-PLAN.md — Database migration + cookie auth foundation
+- [ ] 06-02-PLAN.md — Google OAuth routes with Authlib
+- [ ] 06-03-PLAN.md — Frontend cookie migration + Google Sign-In button + welcome screen
+- [ ] 06-04-PLAN.md — Human verification: full end-to-end OAuth flow
 
 ---
 
@@ -154,7 +158,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 5. Frontend Modularization | 3/3 | Complete    | 2026-02-18 |
-| 6. Google OAuth & Security | 0/? | Not started | - |
+| 6. Google OAuth & Security | 0/4 | Not started | - |
 | 7. User Profiles & Hobbies | 0/? | Not started | - |
 | 8. Hourly Time Slot Scheduling | 0/? | Not started | - |
 | 9. Interactive Task Management | 0/? | Not started | - |
