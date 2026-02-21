@@ -9,7 +9,7 @@ class BrainMessage(BaseModel):
 
 
 class ScheduleBlock(BaseModel):
-    task_id: int
+    task_id: Optional[int]
     exam_id: Optional[int]
     exam_name: Optional[str] = None
     task_title: str
@@ -18,3 +18,4 @@ class ScheduleBlock(BaseModel):
     end_time: str
     day_date: Optional[str]
     block_type: str
+    is_delayed: bool = False

@@ -26,6 +26,10 @@ def init_db():
             study_method TEXT DEFAULT 'pomodoro',
             session_minutes INTEGER DEFAULT 50,
             break_minutes INTEGER DEFAULT 10,
+            hobby_name TEXT,
+            neto_study_hours REAL DEFAULT 4.0,
+            peak_productivity TEXT DEFAULT 'Morning',
+            onboarding_completed INTEGER DEFAULT 0,
             created_at TEXT DEFAULT (datetime('now'))
         );
 
@@ -63,6 +67,7 @@ def init_db():
             estimated_hours REAL DEFAULT 1.0,
             difficulty INTEGER DEFAULT 3 CHECK(difficulty BETWEEN 0 AND 5),
             status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'done')),
+            is_delayed INTEGER DEFAULT 0,
             created_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (user_id) REFERENCES users(id),
             FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
@@ -71,13 +76,14 @@ def init_db():
         CREATE TABLE IF NOT EXISTS schedule_blocks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
-            task_id INTEGER NOT NULL,
+            task_id INTEGER,
             exam_id INTEGER,
             start_time TEXT NOT NULL,
             end_time TEXT NOT NULL,
             day_date TEXT,
-            block_type TEXT DEFAULT 'study' CHECK(block_type IN ('study', 'break')),
+            block_type TEXT DEFAULT 'study' CHECK(block_type IN ('study', 'break', 'hobby')),
             completed INTEGER DEFAULT 0,
+            is_delayed INTEGER DEFAULT 0,
             FOREIGN KEY (user_id) REFERENCES users(id),
             FOREIGN KEY (task_id) REFERENCES tasks(id),
             FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
@@ -95,8 +101,24 @@ def init_db():
         conn.execute("ALTER TABLE users ADD COLUMN password_hash TEXT DEFAULT ''")
     if "auth_token" not in columns:
         conn.execute("ALTER TABLE users ADD COLUMN auth_token TEXT")
+    if "google_id" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN google_id TEXT")
+    if "google_linked" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN google_linked INTEGER DEFAULT 0")
+    if "hobby_name" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN hobby_name TEXT")
+    if "neto_study_hours" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN neto_study_hours REAL DEFAULT 4.0")
+    if "peak_productivity" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN peak_productivity TEXT DEFAULT 'Morning'")
+    if "onboarding_completed" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN onboarding_completed INTEGER DEFAULT 0")
+    if "timezone_offset" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN timezone_offset INTEGER DEFAULT 0")
 
     conn.execute("CREATE INDEX IF NOT EXISTS idx_users_token ON users(auth_token)")
+    # Unique index: only one user per Google ID (CREATE UNIQUE INDEX ignores nulls in SQLite)
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL")
 
     # Migrations: add calendar columns to tasks if missing
     task_columns = {row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
@@ -104,7 +126,15 @@ def init_db():
         conn.execute("ALTER TABLE tasks ADD COLUMN day_date TEXT")
     if "sort_order" not in task_columns:
         conn.execute("ALTER TABLE tasks ADD COLUMN sort_order INTEGER DEFAULT 0")
+    if "is_delayed" not in task_columns:
+        conn.execute("ALTER TABLE tasks ADD COLUMN is_delayed INTEGER DEFAULT 0")
 
     conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_day ON tasks(day_date)")
+
+    # Migrations: add is_delayed to schedule_blocks
+    block_columns = {row[1] for row in conn.execute("PRAGMA table_info(schedule_blocks)").fetchall()}
+    if "is_delayed" not in block_columns:
+        conn.execute("ALTER TABLE schedule_blocks ADD COLUMN is_delayed INTEGER DEFAULT 0")
+
     conn.commit()
     conn.close()
