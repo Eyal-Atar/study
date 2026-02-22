@@ -24,6 +24,15 @@
         }
     </script>
     <link rel="stylesheet" href="/css/styles.css">
+    <script>
+        // Emergency debugger
+        window.onerror = function(msg, url, line, col, error) {
+            const errorMsg = 'CRITICAL ERROR: ' + msg + '\nFile: ' + url + '\nLine: ' + line;
+            console.error(errorMsg, error);
+            alert(errorMsg);
+        };
+        console.log('Index.html: Error tracker active');
+    </script>
 </head>
 <body class="font-sans text-white min-h-screen overflow-x-hidden">
     <div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div>
@@ -76,6 +85,20 @@
                         </div>
                         <div id="login-error" class="error-text"></div>
                         <button id="btn-login" class="w-full bg-accent-500 hover:bg-accent-600 font-semibold py-3 rounded-xl transition-all">Log In</button>
+                        <div class="flex items-center gap-3 my-4">
+                            <div class="flex-1 h-px bg-white/10"></div>
+                            <span class="text-white/30 text-xs">Or continue with</span>
+                            <div class="flex-1 h-px bg-white/10"></div>
+                        </div>
+                        <a href="/auth/google/login" id="btn-google-login" class="w-full flex items-center justify-center gap-3 bg-white hover:bg-white/90 text-gray-900 font-semibold py-3 rounded-xl transition-all border border-white/20">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24">
+                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                            </svg>
+                            Sign in with Google
+                        </a>
                     </div>
                     <p class="text-center text-white/40 text-sm mt-4">
                         Don't have an account? <a href="#" id="link-to-register" class="text-accent-400 hover:text-accent-300">Sign up</a>
@@ -170,6 +193,88 @@
         </div>
     </div>
 
+    <!-- ONBOARDING (multi-step wizard) -->
+    <div id="screen-onboarding" class="screen">
+        <div class="relative z-10 flex flex-col items-center justify-center min-h-screen px-4">
+            <div class="w-full max-w-xl">
+                <div class="bg-dark-700/60 backdrop-blur-sm rounded-3xl p-6 border border-white/5">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center">🧠</div>
+                            <div class="font-bold">Complete your profile</div>
+                        </div>
+                        <div class="text-sm text-white/40">Step <span id="onb-step-num">1</span>/3</div>
+                    </div>
+
+                    <!-- Step 1: Hobby -->
+                    <div id="onb-step-1" class="onb-step">
+                        <h3 class="text-xl font-bold mb-2">What's your main hobby?</h3>
+                        <p class="text-white/40 mb-4">Pick one that we can schedule around.</p>
+                        <div class="flex gap-2 flex-wrap mb-4">
+                            <button type="button" data-hobby="Gym" class="onb-hobby-tag px-4 py-2 rounded-xl bg-dark-900/50">🏋️‍♂️ Gym</button>
+                            <button type="button" data-hobby="Gaming" class="onb-hobby-tag px-4 py-2 rounded-xl bg-dark-900/50">🎮 Gaming</button>
+                            <button type="button" data-hobby="Reading" class="onb-hobby-tag px-4 py-2 rounded-xl bg-dark-900/50">📚 Reading</button>
+                            <button type="button" data-hobby="Other" class="onb-hobby-tag px-4 py-2 rounded-xl bg-dark-900/50">✍️ Other</button>
+                        </div>
+                        <input id="onb-hobby-other" type="text" placeholder="If other, tell us" class="input-field" style="display:none">
+                        <div class="mt-4 flex justify-between">
+                            <button id="onb-back-1" class="text-white/40 text-sm" disabled>Back</button>
+                            <button id="onb-next-1" class="bg-accent-500 px-4 py-2 rounded-lg">Next</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Neto hours & wake/sleep -->
+                    <div id="onb-step-2" class="onb-step" style="display:none">
+                        <h3 class="text-xl font-bold mb-2">Daily routine & study load</h3>
+                        <p class="text-white/40 mb-4">When are you awake, and how many hours can you study per day?</p>
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            <div>
+                                <label class="text-sm text-white/40 mb-1 block">Wake up</label>
+                                <input id="onb-wake" type="time" value="08:00" class="input-field">
+                            </div>
+                            <div>
+                                <label class="text-sm text-white/40 mb-1 block">Sleep</label>
+                                <input id="onb-sleep" type="time" value="23:00" class="input-field">
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <label class="text-sm text-white/40 mb-1 block">Neto study hours per day: <span id="onb-hours-label">4.0</span></label>
+                            <input id="onb-hours" type="range" min="0" max="12" step="0.5" value="4" class="w-full">
+                        </div>
+                        <div class="mt-4 flex justify-between">
+                            <button id="onb-back-2" class="text-white/40 text-sm">Back</button>
+                            <button id="onb-next-2" class="bg-accent-500 px-4 py-2 rounded-lg">Next</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Peak productivity -->
+                    <div id="onb-step-3" class="onb-step" style="display:none">
+                        <h3 class="text-xl font-bold mb-2">When are you most productive?</h3>
+                        <p class="text-white/40 mb-4">We'll prioritize study blocks during this time.</p>
+                        <div class="flex gap-2 flex-wrap mb-4">
+                            <button type="button" data-peak="Morning" class="onb-peak-tag px-4 py-2 rounded-xl bg-dark-900/50">🌅 Morning</button>
+                            <button type="button" data-peak="Afternoon" class="onb-peak-tag px-4 py-2 rounded-xl bg-dark-900/50">🌤 Afternoon</button>
+                            <button type="button" data-peak="Evening" class="onb-peak-tag px-4 py-2 rounded-xl bg-dark-900/50">🌇 Evening</button>
+                            <button type="button" data-peak="Night" class="onb-peak-tag px-4 py-2 rounded-xl bg-dark-900/50">🌙 Night</button>
+                        </div>
+                        <div class="mt-4 flex justify-between">
+                            <button id="onb-back-3" class="text-white/40 text-sm">Back</button>
+                            <button id="onb-submit" class="bg-gradient-to-r from-accent-500 to-mint-500 px-4 py-2 rounded-lg">Finish</button>
+                        </div>
+                    </div>
+
+                    <!-- Success / Feedback -->
+                    <div id="onb-success" style="display:none" class="text-center py-8">
+                        <div class="text-4xl mb-3">🎉</div>
+                        <div class="text-lg font-bold mb-2">Profile saved</div>
+                        <div class="text-white/40 mb-4">We're preparing your personalized study roadmap.</div>
+                        <button id="onb-done" class="bg-accent-500 px-6 py-3 rounded-lg">Go to Dashboard</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- DASHBOARD -->
     <div id="screen-dashboard" class="screen">
         <div class="relative z-10 max-w-6xl mx-auto px-4 py-6">
@@ -183,6 +288,9 @@
                 <div class="flex items-center gap-3">
                     <span id="user-greeting" class="text-white/50 text-sm"></span>
                     <div class="w-9 h-9 rounded-full bg-accent-500/20 border border-accent-500/30 flex items-center justify-center text-sm font-bold" id="user-avatar"></div>
+                    <button id="btn-show-settings" class="text-white/40 hover:text-accent-400 text-sm px-3 py-1.5 rounded-lg border border-white/10 hover:border-accent-400/30 transition-all">
+                        Settings
+                    </button>
                     <button id="btn-logout" class="text-white/40 hover:text-coral-400 text-sm px-3 py-1.5 rounded-lg border border-white/10 hover:border-coral-400/30 transition-all">
                         Logout
                     </button>
@@ -236,7 +344,7 @@
                                 Generate Roadmap
                             </button>
                         </div>
-                        <div id="roadmap-container" class="relative pl-8 stagger">
+                        <div id="roadmap-container" class="relative pl-14 stagger">
                             <div class="absolute left-[15px] top-0 bottom-0 w-[2px] bg-gradient-to-b from-accent-500 via-mint-400 to-gold-400 opacity-20"></div>
                             <div class="text-center py-12 text-white/30">
                                 <p class="text-3xl mb-3">🧠</p>
@@ -260,25 +368,28 @@
                         </div>
                     </div>
 
-                    <!-- Talk to the Brain -->
-                    <div class="bg-dark-700/60 backdrop-blur-sm rounded-3xl p-5 border border-white/5 fade-in">
-                        <h3 class="font-bold mb-3 flex items-center gap-2">
-                            <span class="w-6 h-6 rounded-lg bg-gradient-to-br from-accent-500 to-mint-500 flex items-center justify-center text-xs">🧠</span>
-                            Talk to the Brain
+                    <!-- Regenerate Schedule Command Bar (hidden by default, shown on constraint change) -->
+                    <div id="regen-command-bar" class="hidden bg-dark-700/60 backdrop-blur-sm rounded-3xl p-5 border border-accent-500/30 fade-in">
+                        <h3 class="font-bold mb-2 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-lg bg-gradient-to-br from-accent-500 to-mint-500 flex items-center justify-center text-xs">↺</span>
+                            Schedule Changed
                         </h3>
-                        <p class="text-white/40 text-xs mb-3">Ask to adjust your roadmap. e.g. "I need more time for eigenvalues"</p>
-                        <div id="brain-chat-history" class="space-y-2 mb-3 max-h-48 overflow-y-auto"></div>
+                        <p class="text-white/40 text-xs mb-3" id="regen-trigger-label">A constraint changed — tell the brain what happened.</p>
+                        <textarea id="regen-input" rows="2"
+                            placeholder="e.g. I moved my Linear Algebra exam to Friday, shift everything"
+                            class="w-full bg-dark-900/60 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-accent-500 resize-none mb-3"></textarea>
                         <div class="flex gap-2">
-                            <input id="brain-input" type="text" placeholder="Tell the brain what to change..."
-                                class="flex-1 bg-dark-900/60 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-accent-500">
-                            <button id="btn-brain-send"
-                                class="bg-gradient-to-r from-accent-500 to-mint-500 px-3 py-2.5 rounded-xl text-sm font-medium hover:opacity-90 transition-all flex-shrink-0">
-                                Send
+                            <button id="btn-regen-dismiss" class="px-3 py-2 rounded-xl text-xs text-white/40 hover:text-white/60 border border-white/10 hover:border-white/20 transition-all">
+                                Dismiss
+                            </button>
+                            <button id="btn-regen-send" class="flex-1 bg-gradient-to-r from-accent-500 to-mint-500 px-3 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition-all">
+                                Regenerate
                             </button>
                         </div>
-                        <div id="brain-loading" class="hidden mt-2 text-xs text-accent-400">
-                            <span class="loading-dots"><span>.</span><span>.</span><span>.</span></span> Brain is thinking...
+                        <div id="regen-loading" class="hidden mt-2 text-xs text-accent-400">
+                            <span>↺</span> Brain is regenerating your schedule...
                         </div>
+                        <div id="regen-result" class="hidden mt-2 text-xs text-mint-400"></div>
                     </div>
 
                     <!-- Exam Legend -->
@@ -378,6 +489,100 @@
         </div>
     </div>
 
-    <script type="module" src="/js/app.js?v=3"></script>
+    <!-- SETTINGS MODAL -->
+    <div id="modal-settings" class="modal-bg">
+        <div class="w-full max-w-lg mx-4 bg-dark-700 rounded-3xl border border-white/10 shadow-2xl overflow-hidden">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-bold">Profile Settings</h2>
+                    <button id="btn-close-settings" class="text-white/40 hover:text-white text-xl">✕</button>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-sm text-white/50 mb-1 block">Name</label>
+                        <input id="settings-name" type="text" class="input-field">
+                    </div>
+                    <div>
+                        <label class="text-sm text-white/50 mb-1 block">Main Hobby</label>
+                        <input id="settings-hobby" type="text" placeholder="e.g. Gym, Gaming..." class="input-field">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-sm text-white/50 mb-1 block">Wake up</label>
+                            <input id="settings-wake" type="time" class="input-field">
+                        </div>
+                        <div>
+                            <label class="text-sm text-white/50 mb-1 block">Sleep</label>
+                            <input id="settings-sleep" type="time" class="input-field">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-sm text-white/50 mb-1 block">Neto study hours per day: <span id="settings-hours-label">4.0</span></label>
+                        <input id="settings-hours" type="range" min="0" max="12" step="0.5" class="w-full">
+                    </div>
+                    <div>
+                        <label class="text-sm text-white/50 mb-1 block">Peak Productivity</label>
+                        <select id="settings-peak" class="input-field appearance-none">
+                            <option value="Morning">🌅 Morning</option>
+                            <option value="Afternoon">🌤 Afternoon</option>
+                            <option value="Evening">🌇 Evening</option>
+                            <option value="Night">🌙 Night</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 pb-6">
+                <button id="btn-save-settings" class="w-full bg-accent-500 hover:bg-accent-600 font-semibold py-3 rounded-xl transition-all">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT TASK MODAL -->
+    <div id="modal-edit-task" class="modal-bg">
+        <div class="w-full max-w-md mx-4 bg-dark-700 rounded-3xl border border-white/10 shadow-2xl overflow-hidden fade-in">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-bold">Edit Task</h2>
+                    <button id="btn-close-edit-modal" class="text-white/40 hover:text-white text-xl">✕</button>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-sm text-white/50 mb-1 block">Title</label>
+                        <input id="edit-task-title" type="text" class="input-field" dir="auto">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-sm text-white/50 mb-1 block">Start Time</label>
+                            <input id="edit-task-start" type="time" class="input-field">
+                        </div>
+                        <div>
+                            <label class="text-sm text-white/50 mb-1 block">Duration (min)</label>
+                            <input id="edit-task-duration" type="number" step="5" min="5" class="input-field">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 pb-6 flex gap-3">
+                <button id="btn-delete-task-modal" class="px-4 py-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all font-medium">Delete</button>
+                <button id="btn-save-task-edit" class="flex-1 bg-accent-500 hover:bg-accent-600 font-semibold py-3 rounded-xl transition-all">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONFIRMATION MODAL -->
+    <div id="modal-confirm" class="modal-bg">
+        <div class="w-full max-w-xs mx-4 bg-dark-700 rounded-2xl border border-white/10 shadow-2xl p-6 text-center fade-in">
+            <div id="confirm-icon" class="text-4xl mb-4">🤔</div>
+            <h3 id="confirm-title" class="text-lg font-bold mb-2 text-white">Are you sure?</h3>
+            <p id="confirm-msg" class="text-sm text-white/50 mb-6">This action cannot be undone.</p>
+            <div class="flex gap-3">
+                <button id="btn-confirm-cancel" class="flex-1 py-2.5 rounded-xl bg-dark-600 hover:bg-dark-500 text-white font-medium transition-all">Cancel</button>
+                <button id="btn-confirm-ok" class="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold transition-all">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+    <script type="module" src="/js/app.js?v=10"></script>
 </body>
 </html>
