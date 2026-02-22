@@ -106,7 +106,7 @@
   5. Updated tasks appear in calendar immediately after regeneration completes
 **Plans:** 3 plans
 Plans:
-- [ ] 10-01-PLAN.md — DB migration (is_manually_edited) + POST /regenerate-delta backend endpoint
+- [x] 10-01-PLAN.md — DB migration (is_manually_edited) + POST /regenerate-delta backend endpoint (completed 2026-02-22)
 - [ ] 10-02-PLAN.md — Remove brain chat UI, add conditional regeneration command bar
 - [ ] 10-03-PLAN.md — Human verification checkpoint
 
@@ -165,7 +165,7 @@ Plans:
 | 7. User Profiles & Hobbies | 3/3 | Complete    | 2026-02-20 |
 | 8. Hourly Time Slot Scheduling | 3/3 | Complete    | 2026-02-21 |
 | 9. Interactive Task Management | 3/3 | Complete    | 2026-02-22 |
-| 10. Regenerate Roadmap | 0/3 | Planned | - |
+| 10. Regenerate Roadmap | 1/3 | In Progress | - |
 | 11. Push Notifications | 0/3 | Not started | - |
 | 12. Internationalization | 0/3 | Not started | - |
 | 13. Production Deployment | 0/3 | Not started | - |
@@ -190,5 +190,5 @@ Plans:
 
 ---
 
-*Roadmap updated: 2026-02-21*
-*Current Focus: Phase 9*
+*Roadmap updated: 2026-02-22*
+*Current Focus: Phase 10*
