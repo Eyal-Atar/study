@@ -538,6 +538,27 @@
                             <option value="Night">🌙 Night</option>
                         </select>
                     </div>
+                    <div class="border-t border-white/10 pt-4">
+                        <label class="text-sm text-white/50 mb-3 block font-medium">Notifications</label>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="text-sm text-white/50 mb-1 block">Notify me</label>
+                                <select id="settings-notif-timing" class="input-field appearance-none">
+                                    <option value="at_start">At start time</option>
+                                    <option value="15_before">15 mins before</option>
+                                    <option value="30_before">30 mins before</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-white/60">Notify for every task</span>
+                                <input id="settings-notif-per-task" type="checkbox" class="w-4 h-4 accent-indigo-500" checked>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-white/60">Daily morning summary</span>
+                                <input id="settings-notif-daily-summary" type="checkbox" class="w-4 h-4 accent-indigo-500">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="px-6 pb-6">
@@ -589,6 +610,19 @@
                 <button id="btn-confirm-ok" class="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold transition-all">Yes, Delete</button>
             </div>
         </div>
+    </div>
+
+    <!-- NOTIFICATION PERMISSION MODAL -->
+    <div id="modal-notif-permission" class="modal-bg">
+      <div class="w-full max-w-sm mx-4 bg-dark-700 rounded-3xl border border-white/10 shadow-2xl p-6 text-center">
+        <div class="text-4xl mb-4">🔔</div>
+        <h2 class="text-xl font-bold mb-2">Great job finishing that task!</h2>
+        <p class="text-white/50 text-sm mb-6">Want a heads-up before your next study session? StudyFlow can send you motivational reminders.</p>
+        <div class="flex flex-col gap-3">
+          <button id="btn-notif-yes" class="w-full bg-accent-500 hover:bg-accent-600 font-semibold py-3 rounded-xl transition-all">Yes, remind me!</button>
+          <button id="btn-notif-no" class="w-full text-white/40 hover:text-white/70 text-sm py-2 transition-all">Not now</button>
+        </div>
+      </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
