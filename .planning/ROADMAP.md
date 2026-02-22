@@ -104,7 +104,7 @@
   3. AI returns only the delta — tasks that need to move — not a full schedule rebuild
   4. Fixed events (exams/classes) and manually-edited tasks are never overwritten by regeneration
   5. Updated tasks appear in calendar immediately after regeneration completes
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 Plans:
 - [x] 10-01-PLAN.md — DB migration (is_manually_edited) + POST /regenerate-delta backend endpoint (completed 2026-02-22)
 - [ ] 10-02-PLAN.md — Remove brain chat UI, add conditional regeneration command bar
@@ -165,7 +165,7 @@ Plans:
 | 7. User Profiles & Hobbies | 3/3 | Complete    | 2026-02-20 |
 | 8. Hourly Time Slot Scheduling | 3/3 | Complete    | 2026-02-21 |
 | 9. Interactive Task Management | 3/3 | Complete    | 2026-02-22 |
-| 10. Regenerate Roadmap | 1/3 | In Progress | - |
+| 10. Regenerate Roadmap | 2/3 | In Progress|  |
 | 11. Push Notifications | 0/3 | Not started | - |
 | 12. Internationalization | 0/3 | Not started | - |
 | 13. Production Deployment | 0/3 | Not started | - |
