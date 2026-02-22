@@ -118,3 +118,23 @@ if (document.readyState === 'loading') {
         console.error('CRITICAL: app.js initApp failed immediately:', err);
     });
 }
+
+// PWA: Register Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+            console.log('[SW] Registered:', reg.scope);
+        }).catch(err => {
+            console.warn('[SW] Registration failed:', err);
+        });
+    });
+}
+
+// PWA: Offline indicator
+const offlineBanner = document.getElementById('offline-banner');
+function updateOnlineStatus() {
+    if (offlineBanner) offlineBanner.style.display = navigator.onLine ? 'none' : 'block';
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus(); // run on load

@@ -24,6 +24,11 @@
         }
     </script>
     <link rel="stylesheet" href="/css/styles.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="StudyFlow">
     <script>
         // Emergency debugger
         window.onerror = function(msg, url, line, col, error) {
@@ -35,6 +40,10 @@
     </script>
 </head>
 <body class="font-sans text-white min-h-screen overflow-x-hidden">
+    <!-- PWA: Offline indicator (shown automatically when network is unavailable) -->
+    <div id="offline-banner" style="display:none;" class="fixed top-0 left-0 right-0 z-50 bg-red-500/90 text-white text-center text-sm py-2 font-medium">
+        You are offline — schedule is read-only
+    </div>
     <div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div>
 
     <!-- WELCOME -->
@@ -413,7 +422,7 @@
             <div id="modal-step-1">
                 <div class="p-6">
                     <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-xl font-bold">Add Exam</h2>
+                        <h2 class="text-xl font-bold" id="modal-step1-title">Add Exam</h2>
                         <button id="btn-close-exam-modal" class="text-white/40 hover:text-white text-xl">✕</button>
                     </div>
                     <div class="space-y-4">
