@@ -15,7 +15,7 @@
 - [x] **Phase 7: User Profiles & Hobbies** - Capture and manage user hobby preferences for schedule personalization (completed 2026-02-20)
 - [x] **Phase 8: Hourly Time Slot Scheduling** - Transform vague tasks into precise hourly schedules with timezone support (completed 2026-02-21)
 - [x] **Phase 9: Interactive Task Management** - Enable manual task editing and time adjustments in calendar (completed 2026-02-22)
-- [ ] **Phase 10: Regenerate Roadmap** - Replace brain chat with global regeneration input for schedule changes
+- [x] **Phase 10: Regenerate Roadmap** - Replace brain chat with global regeneration input for schedule changes (completed 2026-02-22)
 - [ ] **Phase 11: Push Notifications** - Add PWA installability and Claude-powered motivational notifications
 - [ ] **Phase 12: Internationalization** - Support English, Hebrew, Spanish, Arabic with RTL layout
 - [ ] **Phase 13: Production Deployment** - Deploy to Render with PostgreSQL and security hardening
@@ -104,11 +104,11 @@
   3. AI returns only the delta — tasks that need to move — not a full schedule rebuild
   4. Fixed events (exams/classes) and manually-edited tasks are never overwritten by regeneration
   5. Updated tasks appear in calendar immediately after regeneration completes
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 10-01-PLAN.md — DB migration (is_manually_edited) + POST /regenerate-delta backend endpoint (completed 2026-02-22)
-- [ ] 10-02-PLAN.md — Remove brain chat UI, add conditional regeneration command bar
-- [ ] 10-03-PLAN.md — Human verification checkpoint
+- [x] 10-02-PLAN.md — Remove brain chat UI, add conditional regeneration command bar (completed 2026-02-22)
+- [x] 10-03-PLAN.md — Human verification checkpoint (completed 2026-02-22)
 
 ---
 
@@ -122,7 +122,11 @@ Plans:
   3. User receives push notifications with Claude-powered motivational messages before study sessions
   4. User can disable/customize notification frequency from settings without losing other preferences
   5. Notification permission request appears AFTER first study session completion (not on initial load)
-**Plans:** TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 11-01-PLAN.md — PWA manifest + service worker (App Shell caching, offline mode, push event handler)
+- [ ] 11-02-PLAN.md — VAPID push backend: DB migration, /push/subscribe endpoint, APScheduler cron with Claude message generation
+- [ ] 11-03-PLAN.md — Permission onboarding flow (first-task-done trigger) + notification settings UI + human verify
 
 ---
 
@@ -165,12 +169,12 @@ Plans:
 | 7. User Profiles & Hobbies | 3/3 | Complete    | 2026-02-20 |
 | 8. Hourly Time Slot Scheduling | 3/3 | Complete    | 2026-02-21 |
 | 9. Interactive Task Management | 3/3 | Complete    | 2026-02-22 |
-| 10. Regenerate Roadmap | 2/3 | In Progress|  |
-| 11. Push Notifications | 0/3 | Not started | - |
+| 10. Regenerate Roadmap | 3/3 | Complete    | 2026-02-22 |
+| 11. Push Notifications | 0/3 | Planned     | - |
 | 12. Internationalization | 0/3 | Not started | - |
 | 13. Production Deployment | 0/3 | Not started | - |
 
-**Overall:** 44% complete (4/9 phases)
+**Overall:** 56% complete (5/9 phases)
 
 ---
 
