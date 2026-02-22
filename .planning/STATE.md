@@ -1,7 +1,7 @@
 # Project State: StudyFlow
 
 **Last Updated:** 2026-02-23
-**Status:** Phase 11 in progress - Plan 02 complete
+**Status:** Phase 11 in progress - Plan 03 complete (awaiting checkpoint verification)
 
 ---
 
@@ -15,9 +15,9 @@ Students open the app every day and know exactly what to study, when, and for ho
 ## Current Position
 
 **Phase:** 11 - Push Notifications
-**Plan:** 2 of 3 complete
-**Status:** Phase 11 in progress - Plan 02 complete (push notification backend engine)
-**Progress:** [███████░░░] 67%
+**Plan:** 3 of 3 complete
+**Status:** Phase 11 complete - Plan 03 done (awaiting checkpoint verification)
+**Progress:** [████████░░] 83%
 
 ---
 
@@ -29,6 +29,7 @@ Students open the app every day and know exactly what to study, when, and for ho
 - Blocks with is_manually_edited=1 are preserved during AI delta regeneration.
 - Phase 11 Plan 01 complete: PWA manifest.json, service worker sw.js, offline banner, FastAPI /manifest.json + /sw.js + /static routes.
 - Phase 11 Plan 02 complete: VAPID Web Push backend (pywebpush), POST /push/subscribe, DB migration for push columns, APScheduler cron with Claude WhatsApp-friend message generation.
+- Phase 11 Plan 03 complete: permission onboarding modal (first-task-done trigger), push subscription flow in auth.js, notification settings UI in settings modal with persistence.
 
 ---
 
@@ -49,6 +50,7 @@ Students open the app every day and know exactly what to study, when, and for ho
 - [Phase 11]: Startup/shutdown scheduler via @app.on_event (not lifespan context manager) — matches existing codebase pattern
 - [Phase 11]: No push notification fires unless VAPID_PRIVATE_KEY is set in .env — safe default for development
 - [Phase 11]: Claude claude-3-haiku-20240307 selected for WhatsApp-friend message generation (fast/cheap for per-minute scheduling)
+- [Phase 11]: Permission modal shown once ever via localStorage flag + Notification.permission guard; tasks.js -> auth.js decoupled via CustomEvent bus
 
 ## Performance Metrics
 
@@ -58,8 +60,9 @@ Students open the app every day and know exactly what to study, when, and for ho
 | 10 | 02 | 2 min | 2 | 5 |
 | 11 | 01 | 3min | 2 | 7 |
 | 11 | 02 | 3 min | 2 | 8 |
+| 11 | 03 | 10 min | 2 | 3 |
 
 ## Last Session
 
-**Stopped At:** Completed 11-02-PLAN.md
-**Timestamp:** 2026-02-22
+**Stopped At:** Completed 11-03-PLAN.md — awaiting human checkpoint verification
+**Timestamp:** 2026-02-23
