@@ -3,6 +3,52 @@ import { getAPI, setAuthToken, setCurrentUser, authFetch, resetStore, getCurrent
 import { showRegenBar } from './brain.js';
 import { showScreen, shakeEl, showError, hideError, spawnConfetti } from './ui.js';
 
+// ─── Push Notification Helpers ───────────────────────────────────────────────
+
+function _urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function subscribeToPush() {
+    try {
+        const API = getAPI();
+        // Get VAPID public key
+        const keyRes = await authFetch(`${API}/push/vapid-public-key`);
+        if (!keyRes.ok) { console.warn('[Push] VAPID key not available'); return; }
+        const { key } = await keyRes.json();
+
+        // Request browser permission
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            console.log('[Push] Permission denied or dismissed');
+            return;
+        }
+
+        // Subscribe via Service Worker
+        const reg = await navigator.serviceWorker.ready;
+        const subscription = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: _urlBase64ToUint8Array(key)
+        });
+
+        // Send to backend
+        await authFetch(`${API}/push/subscribe`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subscription: subscription.toJSON() })
+        });
+        console.log('[Push] Subscribed successfully');
+    } catch (e) {
+        console.warn('[Push] Subscription failed:', e);
+    }
+}
+
+// Listen for push permission request from tasks.js (dispatched when user clicks "Yes" in modal)
+window.addEventListener('request-push-permission', subscribeToPush);
+
 let onAuthSuccess = () => {};
 let onboardingState = {
     hobby: null,
@@ -221,6 +267,13 @@ export function initAuth(callbacks = {}) {
             document.getElementById('settings-hours').value = user.neto_study_hours || 4.0;
             document.getElementById('settings-hours-label').textContent = (user.neto_study_hours || 4.0).toFixed(1);
             document.getElementById('settings-peak').value = user.peak_productivity || 'Morning';
+            // Notification preferences
+            const notifTiming = document.getElementById('settings-notif-timing');
+            if (notifTiming) notifTiming.value = user.notif_timing || 'at_start';
+            const notifPerTask = document.getElementById('settings-notif-per-task');
+            if (notifPerTask) notifPerTask.checked = (user.notif_per_task ?? 1) === 1;
+            const notifDailySummary = document.getElementById('settings-notif-daily-summary');
+            if (notifDailySummary) notifDailySummary.checked = (user.notif_daily_summary ?? 0) === 1;
             modalSettings.classList.add('active');
         };
     }
@@ -451,7 +504,10 @@ export async function handleSaveSettings() {
         sleep_time: document.getElementById('settings-sleep').value,
         neto_study_hours: newHours,
         peak_productivity: document.getElementById('settings-peak').value,
-        timezone_offset: new Date().getTimezoneOffset()
+        timezone_offset: new Date().getTimezoneOffset(),
+        notif_timing: document.getElementById('settings-notif-timing')?.value || 'at_start',
+        notif_per_task: document.getElementById('settings-notif-per-task')?.checked ? 1 : 0,
+        notif_daily_summary: document.getElementById('settings-notif-daily-summary')?.checked ? 1 : 0,
     };
 
     try {
