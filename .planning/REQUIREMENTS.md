@@ -46,9 +46,9 @@ Requirements for feature-complete v1 public launch.
 
 ### Infrastructure
 
-- [ ] **INFRA-01**: App installable as PWA on mobile devices
+- [x] **INFRA-01**: App installable as PWA on mobile devices
 - [ ] **INFRA-02**: App deployed to production (Render/Railway) with real domain
-- [ ] **INFRA-03**: Basic offline support via service worker caching
+- [x] **INFRA-03**: Basic offline support via service worker caching
 
 ## v2 Requirements
 
