@@ -8,6 +8,10 @@ class BrainMessage(BaseModel):
     message: str
 
 
+class RegenerateDeltaRequest(BaseModel):
+    reason: str  # Natural language reason, e.g. "I moved my exam to Friday"
+
+
 class ScheduleBlock(BaseModel):
     task_id: Optional[int]
     exam_id: Optional[int]
