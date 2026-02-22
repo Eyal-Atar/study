@@ -286,10 +286,36 @@
 
     <!-- DASHBOARD -->
     <div id="screen-dashboard" class="screen">
-        <div class="relative z-10 max-w-6xl mx-auto px-4 py-6">
 
-            <!-- Top Bar -->
-            <div class="flex items-center justify-between mb-6 fade-in">
+        <!-- Mobile App Bar (inside dashboard — hidden on other screens automatically) -->
+        <div id="mobile-app-bar" class="md:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 bg-dark-900/95 backdrop-blur-sm border-b border-white/5">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-sm">🧠</div>
+                <span id="mobile-tab-title" class="font-bold text-sm">Roadmap</span>
+            </div>
+            <div id="mobile-user-avatar" class="w-8 h-8 rounded-full bg-accent-500/20 border border-accent-500/30 flex items-center justify-center text-xs font-bold"></div>
+        </div>
+
+        <!-- Mobile Bottom Tab Bar -->
+        <div id="mobile-tab-bar" class="md:hidden fixed bottom-0 left-0 right-0 z-30 flex bg-dark-900/95 backdrop-blur-sm border-t border-white/5">
+            <button data-tab="roadmap" class="mobile-tab-btn flex-1 flex flex-col items-center justify-center py-3 gap-0.5 text-accent-400 transition-colors">
+                <span class="text-lg leading-none">📅</span>
+                <span class="text-xs font-medium">Roadmap</span>
+            </button>
+            <button data-tab="focus" class="mobile-tab-btn flex-1 flex flex-col items-center justify-center py-3 gap-0.5 text-white/40 transition-colors">
+                <span class="text-lg leading-none">⚡</span>
+                <span class="text-xs font-medium">Focus</span>
+            </button>
+            <button data-tab="exams" class="mobile-tab-btn flex-1 flex flex-col items-center justify-center py-3 gap-0.5 text-white/40 transition-colors">
+                <span class="text-lg leading-none">📚</span>
+                <span class="text-xs font-medium">Exams</span>
+            </button>
+        </div>
+
+        <div class="relative z-10 max-w-6xl mx-auto px-4 pt-14 pb-24 md:py-6">
+
+            <!-- Desktop Top Bar (hidden on mobile) -->
+            <div class="hidden md:flex items-center justify-between mb-6 fade-in">
                 <div class="flex items-center gap-3">
                     <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-base">🧠</div>
                     <span class="text-lg font-bold">StudyFlow</span>
@@ -306,8 +332,8 @@
                 </div>
             </div>
 
-            <!-- Exam Cards Row -->
-            <div class="mb-6">
+            <!-- Desktop Exam Cards Row (hidden on mobile — shown in Exams tab) -->
+            <div class="mb-6 hidden md:block">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="text-lg font-bold">My Exams</h2>
                     <button id="btn-add-exam-top" class="text-sm bg-accent-500 hover:bg-accent-600 px-4 py-1.5 rounded-lg font-medium transition-all">+ Add Exam</button>
@@ -320,104 +346,135 @@
                 </div>
             </div>
 
-            <!-- Stats Row -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 stagger">
-                <div class="fade-in bg-dark-700/60 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
-                    <div class="text-white/40 text-xs font-medium mb-1">Nearest Exam</div>
-                    <div class="text-2xl font-bold" id="stat-days">—</div>
-                    <div class="text-xs text-white/30 mt-1" id="stat-days-label">days away</div>
-                </div>
-                <div class="fade-in bg-dark-700/60 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
-                    <div class="text-white/40 text-xs font-medium mb-1">Exams</div>
-                    <div class="text-2xl font-bold" id="stat-exams">0</div>
-                </div>
-                <div class="fade-in bg-dark-700/60 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
-                    <div class="text-white/40 text-xs font-medium mb-1">Study Hours Left</div>
-                    <div class="text-2xl font-bold" id="stat-hours">—</div>
-                </div>
-                <div class="fade-in bg-dark-700/60 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
-                    <div class="text-white/40 text-xs font-medium mb-1">Tasks Done</div>
-                    <div class="text-2xl font-bold text-mint-400" id="stat-done">0/0</div>
+            <!-- ═══ MOBILE FOCUS PANEL (hidden by default, shown on Focus tab) ═══ -->
+            <div id="mobile-focus-panel" class="hidden">
+                <h2 class="font-bold text-lg mb-4 flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg bg-gold-500/20 flex items-center justify-center">⚡</span>
+                    Today's Focus
+                </h2>
+                <div id="today-tasks-drawer" class="space-y-2">
+                    <p class="text-white/30 text-sm">Generate a roadmap to see today's plan</p>
                 </div>
             </div>
 
-            <!-- Main Grid -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- ═══ MOBILE EXAMS PANEL (hidden by default, shown on Exams tab) ═══ -->
+            <div id="mobile-exams-panel" class="hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-bold text-lg">My Exams</h2>
+                    <button id="btn-add-exam-drawer" class="text-xs bg-accent-500 hover:bg-accent-600 px-3 py-1.5 rounded-lg transition-all font-medium">+ Add</button>
+                </div>
+                <div id="exam-cards-drawer" class="space-y-2 mb-6">
+                    <p class="text-white/30 text-sm">No exams yet</p>
+                </div>
+                <div class="space-y-2">
+                    <button id="btn-show-settings-drawer" class="w-full py-3 rounded-2xl bg-dark-700/60 text-white/60 hover:text-white border border-white/10 text-sm font-medium transition-all">⚙️ Profile Settings</button>
+                    <button id="btn-logout-drawer" class="w-full py-3 rounded-2xl text-coral-400 border border-coral-500/20 text-sm font-medium transition-all">Sign Out</button>
+                </div>
+            </div>
 
-                <!-- Roadmap -->
-                <div class="lg:col-span-2">
-                    <div class="bg-dark-700/60 backdrop-blur-sm rounded-3xl p-6 border border-white/5">
-                        <div class="flex items-center justify-between mb-4">
-                            <h2 class="text-xl font-bold">Study Roadmap</h2>
-                            <button id="btn-generate-roadmap" class="text-sm bg-gradient-to-r from-accent-500 to-mint-500 px-4 py-1.5 rounded-lg font-medium hover:opacity-90 transition-all">
-                                Generate Roadmap
-                            </button>
+            <!-- ═══ ROADMAP CONTENT (stats + regen + calendar — hidden on mobile when other tabs active) ═══ -->
+            <div id="mobile-roadmap-content">
+
+                <!-- Stats Row -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 stagger">
+                    <div class="fade-in bg-dark-700/60 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
+                        <div class="text-white/40 text-xs font-medium mb-1">Nearest Exam</div>
+                        <div class="text-2xl font-bold" id="stat-days">—</div>
+                        <div class="text-xs text-white/30 mt-1" id="stat-days-label">days away</div>
+                    </div>
+                    <div class="fade-in bg-dark-700/60 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
+                        <div class="text-white/40 text-xs font-medium mb-1">Exams</div>
+                        <div class="text-2xl font-bold" id="stat-exams">0</div>
+                    </div>
+                    <div class="fade-in bg-dark-700/60 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
+                        <div class="text-white/40 text-xs font-medium mb-1">Study Hours Left</div>
+                        <div class="text-2xl font-bold" id="stat-hours">—</div>
+                    </div>
+                    <div class="fade-in bg-dark-700/60 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
+                        <div class="text-white/40 text-xs font-medium mb-1">Tasks Done</div>
+                        <div class="text-2xl font-bold text-mint-400" id="stat-done">0/0</div>
+                    </div>
+                </div>
+
+                <!-- Regenerate Schedule Command Bar -->
+                <div id="regen-command-bar" class="hidden bg-dark-700/60 backdrop-blur-sm rounded-3xl p-5 border border-accent-500/30 fade-in mb-6">
+                    <h3 class="font-bold mb-2 flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-lg bg-gradient-to-br from-accent-500 to-mint-500 flex items-center justify-center text-xs">↺</span>
+                        Schedule Changed
+                    </h3>
+                    <p class="text-white/40 text-xs mb-3" id="regen-trigger-label">A constraint changed — tell the brain what happened.</p>
+                    <textarea id="regen-input" rows="2"
+                        placeholder="e.g. I moved my Linear Algebra exam to Friday, shift everything"
+                        class="w-full bg-dark-900/60 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-accent-500 resize-none mb-3"></textarea>
+                    <div class="flex gap-2">
+                        <button id="btn-regen-dismiss" class="px-3 py-2 rounded-xl text-xs text-white/40 hover:text-white/60 border border-white/10 hover:border-white/20 transition-all">
+                            Dismiss
+                        </button>
+                        <button id="btn-regen-send" class="flex-1 bg-gradient-to-r from-accent-500 to-mint-500 px-3 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition-all">
+                            Regenerate
+                        </button>
+                    </div>
+                    <div id="regen-loading" class="hidden mt-2 text-xs text-accent-400">
+                        <span>↺</span> Brain is regenerating your schedule...
+                    </div>
+                    <div id="regen-result" class="hidden mt-2 text-xs text-mint-400"></div>
+                </div>
+
+                <!-- Main Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                    <!-- Roadmap -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-dark-700/60 backdrop-blur-sm rounded-3xl p-6 border border-white/5">
+                            <div class="flex items-center justify-between mb-4">
+                                <h2 class="text-xl font-bold">Study Roadmap</h2>
+                                <button id="btn-generate-roadmap" class="text-sm bg-gradient-to-r from-accent-500 to-mint-500 px-4 py-1.5 rounded-lg font-medium hover:opacity-90 transition-all">
+                                    Generate Roadmap
+                                </button>
+                            </div>
+                            <div id="roadmap-container" class="relative pl-14 stagger">
+                                <div class="absolute left-[15px] top-0 bottom-0 w-[2px] bg-gradient-to-b from-accent-500 via-mint-400 to-gold-400 opacity-20"></div>
+                                <div class="text-center py-12 text-white/30">
+                                    <p class="text-3xl mb-3">🧠</p>
+                                    <p class="text-lg mb-1">Add your exams first</p>
+                                    <p class="text-sm">Then hit "Generate Roadmap" and the brain does the rest</p>
+                                </div>
+                            </div>
                         </div>
-                        <div id="roadmap-container" class="relative pl-14 stagger">
-                            <div class="absolute left-[15px] top-0 bottom-0 w-[2px] bg-gradient-to-b from-accent-500 via-mint-400 to-gold-400 opacity-20"></div>
-                            <div class="text-center py-12 text-white/30">
-                                <p class="text-3xl mb-3">🧠</p>
-                                <p class="text-lg mb-1">Add your exams first</p>
-                                <p class="text-sm">Then hit "Generate Roadmap" and the brain does the rest</p>
+                    </div>
+
+                    <!-- Desktop Sidebar (hidden on mobile — content in tab panels) -->
+                    <div class="space-y-4 hidden lg:block">
+                        <!-- Today's Focus -->
+                        <div class="bg-dark-700/60 backdrop-blur-sm rounded-3xl p-5 border border-white/5 fade-in">
+                            <h3 class="font-bold mb-3 flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-lg bg-gold-500/20 flex items-center justify-center text-xs">⚡</span>
+                                Today's Focus
+                            </h3>
+                            <div id="today-tasks" class="space-y-2">
+                                <p class="text-white/30 text-sm">Generate a roadmap to see today's plan</p>
+                            </div>
+                        </div>
+
+                        <!-- Exam Legend -->
+                        <div class="bg-dark-700/60 backdrop-blur-sm rounded-3xl p-5 border border-white/5 fade-in">
+                            <h3 class="font-bold mb-3 flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-lg bg-accent-500/20 flex items-center justify-center text-xs">🎨</span>
+                                Exam Colors
+                            </h3>
+                            <div id="exam-legend" class="space-y-2">
+                                <p class="text-white/30 text-sm">Add exams to see legend</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Sidebar -->
-                <div class="space-y-4">
-                    <!-- Today's Focus -->
-                    <div class="bg-dark-700/60 backdrop-blur-sm rounded-3xl p-5 border border-white/5 fade-in">
-                        <h3 class="font-bold mb-3 flex items-center gap-2">
-                            <span class="w-6 h-6 rounded-lg bg-gold-500/20 flex items-center justify-center text-xs">⚡</span>
-                            Today's Focus
-                        </h3>
-                        <div id="today-tasks" class="space-y-2">
-                            <p class="text-white/30 text-sm">Generate a roadmap to see today's plan</p>
-                        </div>
-                    </div>
-
-                    <!-- Regenerate Schedule Command Bar (hidden by default, shown on constraint change) -->
-                    <div id="regen-command-bar" class="hidden bg-dark-700/60 backdrop-blur-sm rounded-3xl p-5 border border-accent-500/30 fade-in">
-                        <h3 class="font-bold mb-2 flex items-center gap-2">
-                            <span class="w-6 h-6 rounded-lg bg-gradient-to-br from-accent-500 to-mint-500 flex items-center justify-center text-xs">↺</span>
-                            Schedule Changed
-                        </h3>
-                        <p class="text-white/40 text-xs mb-3" id="regen-trigger-label">A constraint changed — tell the brain what happened.</p>
-                        <textarea id="regen-input" rows="2"
-                            placeholder="e.g. I moved my Linear Algebra exam to Friday, shift everything"
-                            class="w-full bg-dark-900/60 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-accent-500 resize-none mb-3"></textarea>
-                        <div class="flex gap-2">
-                            <button id="btn-regen-dismiss" class="px-3 py-2 rounded-xl text-xs text-white/40 hover:text-white/60 border border-white/10 hover:border-white/20 transition-all">
-                                Dismiss
-                            </button>
-                            <button id="btn-regen-send" class="flex-1 bg-gradient-to-r from-accent-500 to-mint-500 px-3 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition-all">
-                                Regenerate
-                            </button>
-                        </div>
-                        <div id="regen-loading" class="hidden mt-2 text-xs text-accent-400">
-                            <span>↺</span> Brain is regenerating your schedule...
-                        </div>
-                        <div id="regen-result" class="hidden mt-2 text-xs text-mint-400"></div>
-                    </div>
-
-                    <!-- Exam Legend -->
-                    <div class="bg-dark-700/60 backdrop-blur-sm rounded-3xl p-5 border border-white/5 fade-in">
-                        <h3 class="font-bold mb-3 flex items-center gap-2">
-                            <span class="w-6 h-6 rounded-lg bg-accent-500/20 flex items-center justify-center text-xs">🎨</span>
-                            Exam Colors
-                        </h3>
-                        <div id="exam-legend" class="space-y-2">
-                            <p class="text-white/30 text-sm">Add exams to see legend</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            </div><!-- /#mobile-roadmap-content -->
         </div>
     </div>
 
     <!-- ADD EXAM MODAL -->
-    <div id="modal-add-exam" class="modal-bg">
+    <div id="modal-add-exam" class="modal-bg modal-sheet">
         <div class="w-full max-w-lg mx-4 bg-dark-700 rounded-3xl border border-white/10 shadow-2xl overflow-hidden">
             <div id="modal-step-1">
                 <div class="p-6">
@@ -499,7 +556,7 @@
     </div>
 
     <!-- SETTINGS MODAL -->
-    <div id="modal-settings" class="modal-bg">
+    <div id="modal-settings" class="modal-bg modal-sheet">
         <div class="w-full max-w-lg mx-4 bg-dark-700 rounded-3xl border border-white/10 shadow-2xl overflow-hidden">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-6">
@@ -568,7 +625,7 @@
     </div>
 
     <!-- EDIT TASK MODAL -->
-    <div id="modal-edit-task" class="modal-bg">
+    <div id="modal-edit-task" class="modal-bg modal-sheet">
         <div class="w-full max-w-md mx-4 bg-dark-700 rounded-3xl border border-white/10 shadow-2xl overflow-hidden fade-in">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-6">
@@ -626,6 +683,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
-    <script type="module" src="/js/app.js?v=10"></script>
+    <script type="module" src="/js/app.js?v=14"></script>
 </body>
 </html>

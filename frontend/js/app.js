@@ -9,12 +9,12 @@ window.onerror = function(msg, url, line, col, error) {
     }
 };
 
-import { getCurrentUser, setCurrentUser, getAPI } from './store.js?v=10';
-import { initAuth, handleLogout } from './auth.js?v=10';
-import { initTasks, loadExams } from './tasks.js?v=10';
-import { initRegenerate } from './brain.js?v=10';
-import { initInteractions } from './interactions.js?v=10';
-import { showScreen } from './ui.js?v=10';
+import { getCurrentUser, setCurrentUser, getAPI } from './store.js?v=14';
+import { initAuth, handleLogout } from './auth.js?v=14';
+import { initTasks, loadExams } from './tasks.js?v=14';
+import { initRegenerate } from './brain.js?v=14';
+import { initInteractions } from './interactions.js?v=14';
+import { showScreen, initMobileTabBar } from './ui.js?v=14';
 
 // Initialize the application
 async function initApp() {
@@ -32,6 +32,7 @@ async function initApp() {
     try { initTasks(); } catch (e) { console.error('initTasks failed:', e); }
     try { initRegenerate(); } catch (e) { console.error('initRegenerate failed:', e); }
     try { initInteractions(); } catch (e) { console.error('initInteractions failed:', e); }
+    try { initMobileTabBar(); } catch (e) { console.error('initMobileTabBar failed:', e); }
 
     // Verification helper
     const checkAuthAndRoute = async (path, retry = false) => {
@@ -100,7 +101,10 @@ function initDashboard() {
     if (avatarEl && user.name) {
         // Safe access to first character for Hebrew or any other script
         const firstChar = Array.from(user.name)[0];
-        avatarEl.textContent = (firstChar || '?').toUpperCase();
+        const initial = (firstChar || '?').toUpperCase();
+        avatarEl.textContent = initial;
+        const mobileAvatarEl = document.getElementById('mobile-user-avatar');
+        if (mobileAvatarEl) mobileAvatarEl.textContent = initial;
     }
 
     loadExams(handleLogout);

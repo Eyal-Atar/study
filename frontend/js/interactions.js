@@ -3,14 +3,179 @@
  * Handles Apple-style Drag & Drop, Resizing, and Mobile Touch interactions.
  */
 
-import { authFetch, getAPI } from './store.js?v=10';
+import { authFetch, getAPI } from './store.js?v=14';
 
 const HOUR_HEIGHT = 160; // Match calendar.js scale
 const SNAP_MINUTES = 15;
 const SNAP_PIXELS = (SNAP_MINUTES / 60) * HOUR_HEIGHT;
 
+// ─── Touch Drag (long-press) ──────────────────────────────────────────────────
+// Mouse drag is handled by interact.js. Touch drag uses a custom handler so we
+// can distinguish a quick tap (→ edit modal) from a long-press (→ drag).
+
+const LONG_PRESS_MS = 300;
+let touchDragState = null; // { el, blockId, container, startY, currentY, timer, edgeRAF }
+
+function initTouchDrag() {
+    document.addEventListener('touchstart', onTouchStart, { passive: false });
+    document.addEventListener('touchmove',  onTouchMove,  { passive: false });
+    document.addEventListener('touchend',   onTouchEnd,   { passive: false });
+    document.addEventListener('touchcancel',cancelTouchDrag, { passive: true });
+}
+
+function onTouchStart(e) {
+    const block = e.target.closest('.schedule-block:not(.block-break):not(.is-completed)');
+    // Ignore taps on interactive children (checkbox, delete btn)
+    if (!block) return;
+    if (e.target.closest('.task-checkbox, .delete-reveal-btn')) return;
+
+    const touch = e.touches[0];
+    const container = block.closest('.grid-day-container');
+    if (!container) return;
+
+    touchDragState = {
+        el: block,
+        blockId: block.getAttribute('data-block-id'),
+        container,
+        startY: touch.clientY,
+        currentY: touch.clientY,
+        dragActive: false,
+        offsetY: touch.clientY - block.getBoundingClientRect().top,
+        timer: setTimeout(() => activateTouchDrag(), LONG_PRESS_MS),
+        edgeRAF: null,
+    };
+}
+
+function activateTouchDrag() {
+    if (!touchDragState) return;
+    const { el } = touchDragState;
+    touchDragState.dragActive = true;
+
+    if (navigator.vibrate) navigator.vibrate(50);
+    el.classList.add('dragging');
+    el.style.position = 'fixed';
+    el.style.width = el.getBoundingClientRect().width + 'px';
+    el.style.zIndex = '1001';
+    positionDragBlock();
+
+    document.body.style.overflow = 'hidden';
+    touchDragState.container.style.touchAction = 'none';
+
+    touchDragState.edgeRAF = requestAnimationFrame(edgeScroll);
+}
+
+function onTouchMove(e) {
+    if (!touchDragState) return;
+    const touch = e.touches[0];
+    touchDragState.currentY = touch.clientY;
+
+    if (!touchDragState.dragActive) {
+        // Cancel long-press if finger moves more than 8px (user is scrolling)
+        if (Math.abs(touch.clientY - touchDragState.startY) > 8) {
+            cancelTouchDrag();
+        }
+        return;
+    }
+
+    e.preventDefault();
+    positionDragBlock();
+}
+
+function positionDragBlock() {
+    const { el, currentY, offsetY } = touchDragState;
+    el.style.top = (currentY - offsetY) + 'px';
+}
+
+function edgeScroll() {
+    if (!touchDragState?.dragActive) return;
+    const { currentY, container } = touchDragState;
+    const vh = window.innerHeight;
+    const EDGE = vh * 0.10; // top/bottom 10% of viewport
+    const SPEED = 6;
+
+    const scrollable = container.closest('.overflow-y-auto, .overflow-auto') || window;
+    if (currentY < EDGE) {
+        if (scrollable === window) window.scrollBy(0, -SPEED);
+        else scrollable.scrollTop -= SPEED;
+    } else if (currentY > vh - EDGE) {
+        if (scrollable === window) window.scrollBy(0, SPEED);
+        else scrollable.scrollTop += SPEED;
+    }
+
+    touchDragState.edgeRAF = requestAnimationFrame(edgeScroll);
+}
+
+async function onTouchEnd(_e) {
+    if (!touchDragState) return;
+    clearTimeout(touchDragState.timer);
+    cancelAnimationFrame(touchDragState.edgeRAF);
+
+    if (!touchDragState.dragActive) {
+        touchDragState = null;
+        return;
+    }
+
+    const { el, container } = touchDragState;
+
+    // Restore element to grid-relative positioning
+    const containerRect = container.getBoundingClientRect();
+    const dropY = touchDragState.currentY - touchDragState.offsetY - containerRect.top;
+    const snapped = Math.round(dropY / SNAP_PIXELS) * SNAP_PIXELS;
+    const finalTop = Math.max(0, snapped);
+
+    el.classList.remove('dragging');
+    el.style.position = '';
+    el.style.width = '';
+    el.style.zIndex = '';
+    el.style.top = `${finalTop}px`;
+    el.style.transform = '';
+    el.setAttribute('data-y', 0);
+
+    document.body.style.overflow = '';
+    container.style.touchAction = '';
+
+    // Resolve collisions + save
+    const allBlocks = Array.from(container.querySelectorAll('.schedule-block')).map(b => ({
+        id: b.getAttribute('data-block-id'),
+        top: b === el ? finalTop : parseFloat(b.style.top),
+        height: parseFloat(b.style.height),
+        el: b,
+    }));
+    const resolved = resolveCollisions(allBlocks, touchDragState.blockId);
+    const startHour = parseInt(container.dataset.startHour || 0);
+    const gridEndPixel = (24 - startHour) * HOUR_HEIGHT;
+    const updates = resolved.map(b => ({
+        blockId: b.id,
+        top: b.top,
+        height: b.height,
+        isDelayed: b.top + b.height > gridEndPixel,
+    }));
+    resolved.forEach(b => { b.el.style.top = `${b.top}px`; b.el.style.transform = ''; });
+
+    touchDragState = null;
+    await saveSequence(updates, container);
+}
+
+function cancelTouchDrag() {
+    if (!touchDragState) return;
+    clearTimeout(touchDragState.timer);
+    if (touchDragState.edgeRAF) cancelAnimationFrame(touchDragState.edgeRAF);
+    if (touchDragState.dragActive) {
+        const { el, container } = touchDragState;
+        el.classList.remove('dragging');
+        el.style.position = '';
+        el.style.width = '';
+        el.style.zIndex = '';
+        document.body.style.overflow = '';
+        container.style.touchAction = '';
+    }
+    touchDragState = null;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function initInteractions() {
     if (!window.interact) return;
+    initTouchDrag();
 
     // Only interactive for non-break and non-done blocks.
     // ignoreFrom prevents interact.js from intercepting pointer events on
@@ -22,7 +187,11 @@ export function initInteractions() {
     interact('.schedule-block:not(.block-break):not(.is-completed)')
         .draggable({
             inertia: true,
-            ignoreFrom: '.task-checkbox, .delete-reveal-btn',
+            // Include descendant selector (*) so SVG/path children of interactive
+            // elements are also ignored — without this, clicking a checked task's
+            // SVG checkmark bypasses ignoreFrom and interact.js captures the pointer,
+            // causing resolveCollisions to shift blocks before the native click fires.
+            ignoreFrom: '.task-checkbox, .task-checkbox *, .delete-reveal-btn, .delete-reveal-btn *',
             modifiers: [
                 interact.modifiers.restrictRect({
                     restriction: '.calendar-grid',
@@ -37,15 +206,22 @@ export function initInteractions() {
                 })
             ],
             listeners: {
-                start(event) {
-                    event.target.classList.add('is-lifting');
-                    event.target.style.zIndex = '1000';
-                    event.target.style.boxShadow = '0 20px 25px -5px rgb(0 0 0 / 0.3)';
-                    // Mark that a real drag started so end handler knows to save
-                    event.target.setAttribute('data-drag-started', 'true');
+                start(_event) {
+                    // Intentionally empty — all lifting effects deferred to first move.
+                    // Mutating the DOM here (zIndex, classList) changes painting order
+                    // BEFORE the native click fires, which can cause the click to land
+                    // on a different element than the one the user tapped.
                 },
                 move(event) {
                     const target = event.target;
+                    // Apply lifting effect on the FIRST pixel of movement only.
+                    // This keeps DOM clean on zero-movement taps.
+                    if (!target.getAttribute('data-did-move')) {
+                        target.classList.add('is-lifting');
+                        target.style.zIndex = '1000';
+                        target.style.boxShadow = '0 20px 25px -5px rgb(0 0 0 / 0.3)';
+                        target.setAttribute('data-did-move', 'true');
+                    }
                     const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
                     target.style.transform = `translateY(${y}px)`;
                     target.setAttribute('data-y', y);
@@ -82,13 +258,13 @@ export function initInteractions() {
                     target.style.opacity = '';
                     target.style.boxShadow = '';
 
-                    // Only save if a real drag started (start event fired).
-                    // Without this guard, a zero-movement tap on the block body
-                    // would still call saveSequence for every block, triggering
-                    // calendar-needs-refresh and an unnecessary full re-render.
-                    const didDrag = target.getAttribute('data-drag-started') === 'true';
-                    target.removeAttribute('data-drag-started');
-                    if (!didDrag) return;
+                    // Only save if the block actually moved. Checking data-did-move
+                    // (set in the move handler) is more reliable than data-drag-started
+                    // (set in start) because start fires even on zero-movement taps
+                    // when the pointer lands on non-ignored descendants like SVG children.
+                    const didMove = target.getAttribute('data-did-move') === 'true';
+                    target.removeAttribute('data-did-move');
+                    if (!didMove) return;
 
                     const container = target.closest('.grid-day-container');
                     if (!container) return;
@@ -130,7 +306,7 @@ export function initInteractions() {
         })
         .resizable({
             edges: { bottom: true },
-            ignoreFrom: '.task-checkbox, .delete-reveal-btn',
+            ignoreFrom: '.task-checkbox, .task-checkbox *, .delete-reveal-btn, .delete-reveal-btn *',
             modifiers: [
                 interact.modifiers.snap({
                     targets: [ interact.snappers.grid({ y: SNAP_PIXELS }) ]
