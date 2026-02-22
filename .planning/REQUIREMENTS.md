@@ -35,7 +35,7 @@ Requirements for feature-complete v1 public launch.
 
 ### Notifications
 
-- [ ] **NOTIF-01**: Push notifications for study reminders (Claude-powered motivational messages)
+- [x] **NOTIF-01**: Push notifications for study reminders (Claude-powered motivational messages)
 - [ ] **NOTIF-02**: User can control notification frequency/preferences
 
 ### Localization
