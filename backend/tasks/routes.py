@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from typing import List
 from server.database import get_db
 from auth.utils import get_current_user
-from tasks.schemas import TaskResponse
+from tasks.schemas import TaskResponse, BlockUpdate
 
 router = APIRouter()
 
@@ -21,6 +21,128 @@ def get_tasks(current_user: dict = Depends(get_current_user)):
     """, (current_user["id"],)).fetchall()
     db.close()
     return [TaskResponse(**dict(r)) for r in rows]
+
+
+@router.patch("/tasks/block/{block_id}")
+def update_block(block_id: int, body: BlockUpdate, current_user: dict = Depends(get_current_user)):
+    """Update an individual schedule block's details."""
+    db = get_db()
+    
+    # 1. Ownership check
+    block = db.execute("SELECT * FROM schedule_blocks WHERE id = ? AND user_id = ?", 
+                       (block_id, current_user["id"])).fetchone()
+    if not block:
+        db.close()
+        return {"error": "Block not found"}, 404
+        
+    # 2. Update block fields
+    updates = []
+    params = []
+    if body.task_title is not None:
+        updates.append("task_title = ?")
+        params.append(body.task_title)
+    if body.start_time is not None:
+        updates.append("start_time = ?")
+        params.append(body.start_time)
+        # We might also want to update day_date based on start_time if it changes date
+        updates.append("day_date = date(?)")
+        params.append(body.start_time)
+    if body.end_time is not None:
+        updates.append("end_time = ?")
+        params.append(body.end_time)
+    if body.is_delayed is not None:
+        updates.append("is_delayed = ?")
+        params.append(1 if body.is_delayed else 0)
+    if body.completed is not None:
+        updates.append("completed = ?")
+        params.append(1 if body.completed else 0)
+
+    # Mark as manually edited if the user changed time or title
+    if body.start_time is not None or body.end_time is not None or body.task_title is not None:
+        updates.append("is_manually_edited = 1")
+
+    if not updates:
+        db.close()
+        return {"message": "No changes provided"}
+        
+    params.append(block_id)
+    params.append(current_user["id"])
+    db.execute(f"UPDATE schedule_blocks SET {', '.join(updates)} WHERE id = ? AND user_id = ?", params)
+    
+    # 3. Synchronize with main tasks table if this is a study block
+    if block["task_id"]:
+        if body.task_title is not None:
+            db.execute(
+                "UPDATE tasks SET title = ? WHERE id = ? AND user_id = ?",
+                (body.task_title, block["task_id"], current_user["id"])
+            )
+        if body.start_time is not None:
+            db.execute(
+                "UPDATE tasks SET day_date = date(?) WHERE id = ? AND user_id = ?",
+                (body.start_time, block["task_id"], current_user["id"])
+            )
+        if body.is_delayed is not None:
+            db.execute(
+                "UPDATE tasks SET is_delayed = ? WHERE id = ? AND user_id = ?",
+                (1 if body.is_delayed else 0, block["task_id"], current_user["id"])
+            )
+        
+    db.commit()
+    db.close()
+    return {"message": "Block updated successfully"}
+
+
+@router.delete("/tasks/block/{block_id}")
+def delete_block(block_id: int, current_user: dict = Depends(get_current_user)):
+    """Delete an individual schedule block and handle task status."""
+    db = get_db()
+    
+    # 1. Fetch block to know what we are deleting
+    block = db.execute("SELECT * FROM schedule_blocks WHERE id = ? AND user_id = ?", 
+                       (block_id, current_user["id"])).fetchone()
+    if not block:
+        db.close()
+        return {"error": "Block not found"}, 404
+        
+    # 2. Delete the block
+    db.execute("DELETE FROM schedule_blocks WHERE id = ? AND user_id = ?", 
+               (block_id, current_user["id"]))
+    
+    # 3. If it was a 'study' block, mark the associated task as pending/unscheduled
+    if block["block_type"] == "study" and block["task_id"]:
+        # We set day_date to NULL so it reappears in the unscheduled list
+        db.execute(
+            "UPDATE tasks SET day_date = NULL, status = 'pending' WHERE id = ? AND user_id = ?",
+            (block["task_id"], current_user["id"])
+        )
+        
+    db.commit()
+    db.close()
+    return {"message": "Block deleted successfully"}
+
+
+@router.patch("/tasks/block/{block_id}/done")
+def mark_block_done(block_id: int, current_user: dict = Depends(get_current_user)):
+    db = get_db()
+    db.execute(
+        "UPDATE schedule_blocks SET completed = 1 WHERE id = ? AND user_id = ?",
+        (block_id, current_user["id"])
+    )
+    db.commit()
+    db.close()
+    return {"message": "Block marked as done!"}
+
+
+@router.patch("/tasks/block/{block_id}/undone")
+def mark_block_undone(block_id: int, current_user: dict = Depends(get_current_user)):
+    db = get_db()
+    db.execute(
+        "UPDATE schedule_blocks SET completed = 0 WHERE id = ? AND user_id = ?",
+        (block_id, current_user["id"])
+    )
+    db.commit()
+    db.close()
+    return {"message": "Block marked as undone!"}
 
 
 @router.patch("/tasks/{task_id}/done")
@@ -45,3 +167,48 @@ def mark_task_undone(task_id: int, current_user: dict = Depends(get_current_user
     db.commit()
     db.close()
     return {"message": "Task marked as pending"}
+
+
+@router.patch("/tasks/{task_id}/shift-time")
+def shift_task_time(task_id: int, body: dict, current_user: dict = Depends(get_current_user)):
+    """Manually shift a task start/end times via schedule_blocks."""
+    minutes = body.get("minutes", 0)
+    db = get_db()
+    
+    # We update the schedule_blocks directly for manual overrides
+    # In a full system, we might update the task itself, but blocks are the source of truth for the hourly view
+    db.execute(
+        """UPDATE schedule_blocks 
+           SET start_time = datetime(start_time, ? || ' minutes'),
+               end_time = datetime(end_time, ? || ' minutes')
+           WHERE task_id = ? AND user_id = ?""",
+        (f"{minutes:+}", f"{minutes:+}", task_id, current_user["id"])
+    )
+    db.commit()
+    db.close()
+    return {"message": f"Shifted task by {minutes} minutes"}
+
+
+@router.patch("/tasks/{task_id}/duration")
+def update_task_duration(task_id: int, body: dict, current_user: dict = Depends(get_current_user)):
+    hours = body.get("estimated_hours", 1.0)
+    db = get_db()
+    
+    # Update task estimation
+    db.execute(
+        "UPDATE tasks SET estimated_hours = ? WHERE id = ? AND user_id = ?",
+        (hours, task_id, current_user["id"])
+    )
+    
+    # Also update the specific block's end_time to reflect new duration immediately
+    # end_time = start_time + hours
+    db.execute(
+        """UPDATE schedule_blocks 
+           SET end_time = datetime(start_time, '+' || (? * 60) || ' minutes')
+           WHERE task_id = ? AND user_id = ?""",
+        (hours, task_id, current_user["id"])
+    )
+    
+    db.commit()
+    db.close()
+    return {"message": "Duration updated"}

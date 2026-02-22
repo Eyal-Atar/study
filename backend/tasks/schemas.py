@@ -18,3 +18,12 @@ class TaskResponse(BaseModel):
     estimated_hours: float
     difficulty: int
     status: str
+
+
+class BlockUpdate(BaseModel):
+    task_title: Optional[str] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    is_delayed: Optional[bool] = None
+    completed: Optional[bool] = None
+    is_manually_edited: Optional[bool] = None

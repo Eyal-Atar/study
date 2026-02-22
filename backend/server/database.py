@@ -78,6 +78,8 @@ def init_db():
             user_id INTEGER NOT NULL,
             task_id INTEGER,
             exam_id INTEGER,
+            exam_name TEXT,
+            task_title TEXT,
             start_time TEXT NOT NULL,
             end_time TEXT NOT NULL,
             day_date TEXT,
@@ -135,6 +137,12 @@ def init_db():
     block_columns = {row[1] for row in conn.execute("PRAGMA table_info(schedule_blocks)").fetchall()}
     if "is_delayed" not in block_columns:
         conn.execute("ALTER TABLE schedule_blocks ADD COLUMN is_delayed INTEGER DEFAULT 0")
+    if "task_title" not in block_columns:
+        conn.execute("ALTER TABLE schedule_blocks ADD COLUMN task_title TEXT")
+    if "exam_name" not in block_columns:
+        conn.execute("ALTER TABLE schedule_blocks ADD COLUMN exam_name TEXT")
+    if "is_manually_edited" not in block_columns:
+        conn.execute("ALTER TABLE schedule_blocks ADD COLUMN is_manually_edited INTEGER DEFAULT 0")
 
     conn.commit()
     conn.close()
