@@ -18,6 +18,7 @@ from users.routes import router as users_router
 from exams.routes import router as exams_router
 from tasks.routes import router as tasks_router
 from brain.routes import router as brain_router
+from notifications.routes import router as notifications_router
 
 app = FastAPI(title="StudyFlow API", version="1.0.0")
 
@@ -55,6 +56,7 @@ app.include_router(users_router, tags=["users"])
 app.include_router(exams_router, tags=["exams"])
 app.include_router(tasks_router, tags=["tasks"])
 app.include_router(brain_router, tags=["brain"])
+app.include_router(notifications_router, tags=["notifications"])
 
 
 # ─── PWA files ───────────────────────────────────────────────

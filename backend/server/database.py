@@ -144,5 +144,16 @@ def init_db():
     if "is_manually_edited" not in block_columns:
         conn.execute("ALTER TABLE schedule_blocks ADD COLUMN is_manually_edited INTEGER DEFAULT 0")
 
+    # Migrations: add push notification columns to users
+    user_columns = {row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
+    if "push_subscription" not in user_columns:
+        conn.execute("ALTER TABLE users ADD COLUMN push_subscription TEXT")
+    if "notif_timing" not in user_columns:
+        conn.execute("ALTER TABLE users ADD COLUMN notif_timing TEXT DEFAULT 'at_start'")
+    if "notif_per_task" not in user_columns:
+        conn.execute("ALTER TABLE users ADD COLUMN notif_per_task INTEGER DEFAULT 1")
+    if "notif_daily_summary" not in user_columns:
+        conn.execute("ALTER TABLE users ADD COLUMN notif_daily_summary INTEGER DEFAULT 0")
+
     conn.commit()
     conn.close()
