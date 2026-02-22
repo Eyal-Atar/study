@@ -1,81 +1,114 @@
-import { getAPI, authFetch, getCurrentUser, setCurrentTasks, getBrainChatHistory, setBrainChatHistory } from './store.js';
-import { loadExams, updateStats } from './tasks.js';
+import { getAPI, authFetch, setRegenTriggered, setCurrentTasks, setCurrentSchedule } from './store.js';
 import { renderCalendar, renderTodayFocus } from './calendar.js';
+import { updateStats } from './tasks.js';
 
-export async function sendBrainMessage() {
-    const input = document.getElementById('brain-input');
-    if (!input) return;
-    const msg = input.value.trim();
-    const currentUser = getCurrentUser();
-    if (!msg || !currentUser) return;
-    
-    input.value = '';
-    const loading = document.getElementById('brain-loading');
-    const btn = document.getElementById('btn-brain-send');
-    
-    addChatBubble('user', msg);
-    if (loading) loading.classList.remove('hidden');
-    if (btn) {
-        btn.disabled = true; 
-        btn.style.opacity = '0.5';
+/**
+ * Show or hide the regeneration command bar.
+ * Called whenever a constraint changes (exam date updated, study hours changed).
+ */
+export function showRegenBar(label) {
+    const bar = document.getElementById('regen-command-bar');
+    const triggerLabel = document.getElementById('regen-trigger-label');
+    if (!bar) return;
+    if (label && triggerLabel) triggerLabel.textContent = label;
+    bar.classList.remove('hidden');
+    // Clear previous result
+    const result = document.getElementById('regen-result');
+    if (result) { result.classList.add('hidden'); result.textContent = ''; }
+    // Focus the textarea
+    const input = document.getElementById('regen-input');
+    if (input) setTimeout(() => input.focus(), 100);
+}
+
+export function hideRegenBar() {
+    const bar = document.getElementById('regen-command-bar');
+    if (bar) bar.classList.add('hidden');
+    const input = document.getElementById('regen-input');
+    if (input) input.value = '';
+    setRegenTriggered(false);
+}
+
+export async function sendRegenRequest() {
+    const input = document.getElementById('regen-input');
+    const reason = input ? input.value.trim() : '';
+    if (!reason) {
+        if (input) input.classList.add('border-coral-400');
+        setTimeout(() => input && input.classList.remove('border-coral-400'), 1500);
+        return;
     }
-    
+
+    const loading = document.getElementById('regen-loading');
+    const result = document.getElementById('regen-result');
+    const btn = document.getElementById('btn-regen-send');
     const API = getAPI();
+
+    if (loading) loading.classList.remove('hidden');
+    if (result) { result.classList.add('hidden'); result.textContent = ''; }
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+
     try {
-        const res = await authFetch(`${API}/brain-chat`, {
+        const res = await authFetch(`${API}/regenerate-delta`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: msg }),
+            body: JSON.stringify({ reason }),
         });
         const data = await res.json();
-        if (!res.ok) { 
-            addChatBubble('brain', data.detail || 'Something went wrong'); 
-            return; 
+
+        if (!res.ok) {
+            if (result) {
+                result.textContent = data.detail || 'Regeneration failed. Try again.';
+                result.classList.remove('hidden');
+                result.className = result.className.replace('text-mint-400', 'text-coral-400');
+            }
+            return;
         }
-        addChatBubble('brain', data.brain_reply);
+
+        // Update store and re-render calendar
         setCurrentTasks(data.tasks);
-        await loadExams();
-        renderCalendar(data.tasks);
+        setCurrentSchedule(data.schedule);
+        renderCalendar(data.tasks, data.schedule);
         renderTodayFocus(data.tasks);
         updateStats();
+
+        // Show reasoning and hide bar after short delay
+        const blocksMsg = data.blocks_updated === 0
+            ? 'No changes needed.'
+            : `${data.blocks_updated} block${data.blocks_updated === 1 ? '' : 's'} updated.`;
+
+        if (result) {
+            result.textContent = `${data.reasoning || ''} ${blocksMsg}`;
+            result.classList.remove('hidden', 'text-coral-400');
+            result.classList.add('text-mint-400');
+        }
+
+        // Auto-dismiss after 3 seconds
+        setTimeout(() => hideRegenBar(), 3000);
+
     } catch (e) {
-        addChatBubble('brain', 'Failed to reach the brain. Check server.');
+        if (result) {
+            result.textContent = 'Failed to reach the server. Check connection.';
+            result.classList.remove('hidden');
+        }
     } finally {
         if (loading) loading.classList.add('hidden');
-        if (btn) {
-            btn.disabled = false; 
-            btn.style.opacity = '1';
-        }
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
     }
 }
 
-export function addChatBubble(role, text) {
-    const container = document.getElementById('brain-chat-history');
-    if (!container) return;
-    const isUser = role === 'user';
-    const bubble = document.createElement('div');
-    bubble.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
-    bubble.innerHTML = `
-        <div class="max-w-[85%] rounded-xl px-3 py-2 text-sm ${isUser ? 'bg-accent-500/20 text-accent-400' : 'bg-dark-900/60 text-white/70'}">
-            ${isUser ? '' : '<span class="text-xs font-medium text-mint-400 block mb-0.5">Brain</span>'}
-            ${text}
-        </div>`;
-    container.appendChild(bubble);
-    container.scrollTop = container.scrollHeight;
-    
-    const history = getBrainChatHistory();
-    history.push({ role, text });
-    setBrainChatHistory(history);
-}
+export function initRegenerate() {
+    const btnSend = document.getElementById('btn-regen-send');
+    if (btnSend) btnSend.onclick = sendRegenRequest;
 
-export function initBrain() {
-    const btnSend = document.getElementById('btn-brain-send');
-    if (btnSend) btnSend.onclick = sendBrainMessage;
+    const btnDismiss = document.getElementById('btn-regen-dismiss');
+    if (btnDismiss) btnDismiss.onclick = hideRegenBar;
 
-    const input = document.getElementById('brain-input');
+    const input = document.getElementById('regen-input');
     if (input) {
         input.onkeydown = (e) => {
-            if (e.key === 'Enter') sendBrainMessage();
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendRegenRequest();
+            }
         };
     }
 }

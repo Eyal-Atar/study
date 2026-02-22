@@ -1,62 +1,120 @@
 /* StudyFlow — Main Application Entry Point (ES6 Module) */
 
-import { getAuthToken, getCurrentUser, setCurrentUser, getAPI } from './store.js';
-import { initAuth, handleLogout } from './auth.js';
-import { initTasks, loadExams } from './tasks.js';
-import { initBrain } from './brain.js';
-import { showScreen } from './ui.js';
+// Global error catcher for debugging blind
+window.onerror = function(msg, url, line, col, error) {
+    console.error('GLOBAL ERROR:', msg, 'at', url, ':', line, ':', col, error);
+    // Only alert for non-extension errors if possible
+    if (url.includes('/js/')) {
+        alert('Critical error in ' + url.split('/').pop() + ': ' + msg);
+    }
+};
+
+import { getCurrentUser, setCurrentUser, getAPI } from './store.js?v=10';
+import { initAuth, handleLogout } from './auth.js?v=10';
+import { initTasks, loadExams } from './tasks.js?v=10';
+import { initRegenerate } from './brain.js?v=10';
+import { initInteractions } from './interactions.js?v=10';
+import { showScreen } from './ui.js?v=10';
 
 // Initialize the application
 async function initApp() {
-    const authToken = getAuthToken();
-
+    console.log('initApp: starting...');
     // Set up authentication callbacks
     initAuth({
         onSuccess: () => {
+            console.log('initApp: auth onSuccess triggered');
             initDashboard();
         }
     });
 
     // Initialize feature modules
-    initTasks();
-    initBrain();
+    console.log('initApp: initializing features...');
+    try { initTasks(); } catch (e) { console.error('initTasks failed:', e); }
+    try { initRegenerate(); } catch (e) { console.error('initRegenerate failed:', e); }
+    try { initInteractions(); } catch (e) { console.error('initInteractions failed:', e); }
 
-    // Check if user is already authenticated
-    if (authToken) {
+    // Verification helper
+    const checkAuthAndRoute = async (path, retry = false) => {
         try {
             const API = getAPI();
             const res = await fetch(`${API}/auth/me`, {
-                headers: { 'Authorization': `Bearer ${authToken}` },
+                credentials: 'include', // Include cookies
             });
-            if (!res.ok) throw new Error('Not authenticated');
+            if (!res.ok) {
+                if (!retry) {
+                    // Retry once after a short delay (cookie might not be ready)
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    return checkAuthAndRoute(path, true);
+                }
+                throw new Error('Not authenticated');
+            }
             const user = await res.json();
             setCurrentUser(user);
-            initDashboard();
-            showScreen('screen-dashboard');
+            
+            // Check onboarding status
+            if (user.onboarding_completed === 0 || user.onboarding_completed === null) {
+                showScreen('screen-onboarding');
+            } else if (path === '/onboarding') {
+                // Already completed onboarding but landed on /onboarding
+                initDashboard();
+                showScreen('screen-dashboard');
+            } else {
+                initDashboard();
+                showScreen('screen-dashboard');
+            }
         } catch (e) {
-            localStorage.removeItem('studyflow_token');
+            console.error('Auth check failed:', e);
             showScreen('screen-welcome');
         }
-    } else {
-        showScreen('screen-welcome');
+    };
+
+    // Check URL for routing
+    const path = window.location.pathname;
+    if (path === '/onboarding' || path === '/dashboard') {
+        await checkAuthAndRoute(path);
+        return;
     }
+
+    // Check if user is already authenticated (via cookies)
+    await checkAuthAndRoute('/');
+
+    // Handle global refresh events
+    window.addEventListener('calendar-needs-refresh', () => {
+        loadExams(handleLogout);
+    });
 }
 
 // Initialize dashboard after successful login
 function initDashboard() {
     const user = getCurrentUser();
+    if (!user) {
+        console.warn('initDashboard: No user found');
+        return;
+    }
+
     const greetingEl = document.getElementById('user-greeting');
     const avatarEl = document.getElementById('user-avatar');
 
-    if (greetingEl) greetingEl.textContent = `Hey, ${user.name}`;
-    if (avatarEl) avatarEl.textContent = user.name[0].toUpperCase();
+    if (greetingEl) greetingEl.textContent = `Hey, ${user.name || 'Student'}`;
+    
+    if (avatarEl && user.name) {
+        // Safe access to first character for Hebrew or any other script
+        const firstChar = Array.from(user.name)[0];
+        avatarEl.textContent = (firstChar || '?').toUpperCase();
+    }
 
     loadExams(handleLogout);
 }
 
 // Start the application when DOM is ready
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initApp);
+    document.addEventListener('DOMContentLoaded', () => {
+        initApp().catch(err => {
+            console.error('CRITICAL: app.js initApp failed during DOMContentLoaded:', err);
+        });
+    });
 } else {
-    initApp();
+    initApp().catch(err => {
+        console.error('CRITICAL: app.js initApp failed immediately:', err);
+    });
 }
