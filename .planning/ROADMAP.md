@@ -11,10 +11,10 @@
 ## Phases
 
 - [x] **Phase 5: Frontend Modularization** - Refactor monolithic app.js into ES6 modules to prevent feature collision (completed 2026-02-18)
-- [ ] **Phase 6: Google OAuth & Security** - Add Google Sign-In with secure token storage and CSRF protection
-- [ ] **Phase 7: User Profiles & Hobbies** - Capture and manage user hobby preferences for schedule personalization
-- [ ] **Phase 8: Hourly Time Slot Scheduling** - Transform vague tasks into precise hourly schedules with timezone support
-- [ ] **Phase 9: Interactive Task Management** - Enable manual task editing and time adjustments in calendar
+- [x] **Phase 6: Google OAuth & Security** - Add Google Sign-In with secure token storage and CSRF protection (completed 2026-02-19)
+- [x] **Phase 7: User Profiles & Hobbies** - Capture and manage user hobby preferences for schedule personalization (completed 2026-02-20)
+- [x] **Phase 8: Hourly Time Slot Scheduling** - Transform vague tasks into precise hourly schedules with timezone support (completed 2026-02-21)
+- [x] **Phase 9: Interactive Task Management** - Enable manual task editing and time adjustments in calendar (completed 2026-02-22)
 - [ ] **Phase 10: Regenerate Roadmap** - Replace brain chat with global regeneration input for schedule changes
 - [ ] **Phase 11: Push Notifications** - Add PWA installability and Claude-powered motivational notifications
 - [ ] **Phase 12: Internationalization** - Support English, Hebrew, Spanish, Arabic with RTL layout
@@ -47,11 +47,7 @@
   3. Existing email/password login continues to work for legacy users
   4. Auth tokens stored in HttpOnly cookies (not localStorage) to prevent XSS attacks
   5. OAuth state parameter validates correctly to prevent CSRF attacks
-**Plans:** 4 plans
-- [ ] 06-01-PLAN.md — Database migration + cookie auth foundation
-- [ ] 06-02-PLAN.md — Google OAuth routes with Authlib
-- [ ] 06-03-PLAN.md — Frontend cookie migration + Google Sign-In button + welcome screen
-- [ ] 06-04-PLAN.md — Human verification: full end-to-end OAuth flow
+**Plans:** 4/4 plans complete
 
 ---
 
@@ -64,7 +60,7 @@
   2. User profile displays current hobby in settings section
   3. User can update hobby from profile settings and see immediate confirmation
   4. Hobby data persists to database and loads correctly on app restart
-**Plans:** TBD
+**Plans:** 3/3 plans complete
 
 ---
 
@@ -78,7 +74,10 @@
   3. Schedule blocks stored in UTC ISO 8601 format, displayed in user's local timezone
   4. Calendar UI shows hourly grid view with tasks positioned at correct time slots
   5. AI scheduler allocates tasks to non-overlapping hourly blocks within daily study cap
-**Plans:** TBD
+**Plans:**
+- [x] 08-01-PLAN.md — Database Migration & Task Rollover (completed 2026-02-21)
+- [x] 08-02-PLAN.md — Deadline-First Scheduler Implementation (completed 2026-02-21)
+- [x] 08-03-PLAN.md — Frontend Integration & Verification (completed 2026-02-21)
 
 ---
 
@@ -96,16 +95,20 @@
 ---
 
 ### Phase 10: Regenerate Roadmap
-**Goal:** Users can request full schedule regeneration with natural language instructions
-**Depends on:** Phase 9 (manual edits must be preserved during regeneration)
+**Goal:** Replace brain chat with global regeneration input for schedule changes
+**Depends on:** Phase 9 (manual edits must be trackable before delta regeneration)
 **Requirements:** BRAIN-01, BRAIN-02, BRAIN-03
 **Success Criteria** (what must be TRUE):
-  1. Global "Regenerate Roadmap" input field replaces "Talk to Brain" chat interface
-  2. User can type high-level changes (e.g., "I'm sick today, shift everything") and get updated schedule
-  3. Regeneration preserves user's manual task edits and hobby preferences
-  4. AI explains what changed in simple language after regeneration completes
-  5. Scheduler handles edge cases (no available time, tight deadlines) without crashing
-**Plans:** TBD
+  1. Regeneration prompt only appears when a core constraint changes (exam moved or study hours increased)
+  2. User can submit a natural-language reason for regeneration via a focused input (not brain chat)
+  3. AI returns only the delta — tasks that need to move — not a full schedule rebuild
+  4. Fixed events (exams/classes) and manually-edited tasks are never overwritten by regeneration
+  5. Updated tasks appear in calendar immediately after regeneration completes
+**Plans:** 3 plans
+Plans:
+- [ ] 10-01-PLAN.md — DB migration (is_manually_edited) + POST /regenerate-delta backend endpoint
+- [ ] 10-02-PLAN.md — Remove brain chat UI, add conditional regeneration command bar
+- [ ] 10-03-PLAN.md — Human verification checkpoint
 
 ---
 
@@ -158,16 +161,16 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 5. Frontend Modularization | 3/3 | Complete    | 2026-02-18 |
-| 6. Google OAuth & Security | 0/4 | Not started | - |
-| 7. User Profiles & Hobbies | 0/? | Not started | - |
-| 8. Hourly Time Slot Scheduling | 0/? | Not started | - |
-| 9. Interactive Task Management | 0/? | Not started | - |
-| 10. Regenerate Roadmap | 0/? | Not started | - |
-| 11. Push Notifications | 0/? | Not started | - |
-| 12. Internationalization | 0/? | Not started | - |
-| 13. Production Deployment | 0/? | Not started | - |
+| 6. Google OAuth & Security | 4/4 | Complete    | 2026-02-19 |
+| 7. User Profiles & Hobbies | 3/3 | Complete    | 2026-02-20 |
+| 8. Hourly Time Slot Scheduling | 3/3 | Complete    | 2026-02-21 |
+| 9. Interactive Task Management | 3/3 | Complete    | 2026-02-22 |
+| 10. Regenerate Roadmap | 0/3 | Planned | - |
+| 11. Push Notifications | 0/3 | Not started | - |
+| 12. Internationalization | 0/3 | Not started | - |
+| 13. Production Deployment | 0/3 | Not started | - |
 
-**Overall:** 11% complete (1/9 phases)
+**Overall:** 44% complete (4/9 phases)
 
 ---
 
@@ -176,7 +179,7 @@
 **Phase numbering starts at 5** because Phases 1-4 already completed (backend setup, brain integration, auth+frontend, restructure per PROJECT.md context).
 
 **Research flags:**
-- Phase 8 (Hourly Scheduling): Needs research for exclusive zone algorithm redesign, timezone handling edge cases, Event Calendar integration
+- Phase 8 (Hourly Scheduling): Done (08-RESEARCH.md)
 - Phase 10 (Regenerate Roadmap): Needs research for scheduler test cases, fallback strategies for impossible schedules
 - Phase 13 (Deployment): Needs research for Render configuration, PostgreSQL migration strategy
 
@@ -187,5 +190,5 @@
 
 ---
 
-*Roadmap created: 2026-02-18*
-*Ready for planning: Phase 6*
+*Roadmap updated: 2026-02-21*
+*Current Focus: Phase 9*
