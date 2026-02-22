@@ -19,6 +19,7 @@ from exams.routes import router as exams_router
 from tasks.routes import router as tasks_router
 from brain.routes import router as brain_router
 from notifications.routes import router as notifications_router
+from notifications.scheduler import start_scheduler
 
 app = FastAPI(title="StudyFlow API", version="1.0.0")
 
@@ -39,9 +40,21 @@ app.add_middleware(
 )
 
 
+_scheduler = None
+
+
 @app.on_event("startup")
 def startup():
+    global _scheduler
     init_db()
+    _scheduler = start_scheduler()
+
+
+@app.on_event("shutdown")
+def shutdown():
+    global _scheduler
+    if _scheduler and _scheduler.running:
+        _scheduler.shutdown()
 
 
 # ─── Static files (CSS/JS/icons) ────────────────────────────
