@@ -14,10 +14,10 @@ Students open the app every day and know exactly what to study, when, and for ho
 
 ## Current Position
 
-**Phase:** 10 - Regenerate Roadmap
-**Plan:** 2 of 2 complete
-**Status:** Phase 10 complete - ready for next phase
-**Progress:** `[#######---] 70%` (7/10 phases complete)
+**Phase:** 11 - Push Notifications
+**Plan:** 1 of 3 complete
+**Status:** Phase 11 in progress - Plan 01 complete (PWA foundation)
+**Progress:** [█████░░░░░] 50%
 
 ---
 
@@ -27,7 +27,7 @@ Students open the app every day and know exactly what to study, when, and for ho
 - Phase 10 Plan 01 complete: is_manually_edited DB flag + POST /regenerate-delta endpoint.
 - Phase 10 Plan 02 complete: brain chat replaced with constraint-triggered regen bar; study-hours change triggers bar.
 - Blocks with is_manually_edited=1 are preserved during AI delta regeneration.
-- Ready for next phase.
+- Phase 11 Plan 01 complete: PWA manifest.json, service worker sw.js, offline banner, FastAPI /manifest.json + /sw.js + /static routes.
 
 ---
 
@@ -39,9 +39,12 @@ Students open the app every day and know exactly what to study, when, and for ho
 - Break blocks excluded from AI snapshot — only study and hobby blocks sent to Claude
 - Regen trigger placed in auth.js handleSaveSettings (not app.js) — that is where the save handler lives
 - getRegenTriggerLabel exported from store.js for future consumers but not imported into brain.js (not needed internally)
-- tasks.js left unchanged — no exam-date edit flow exists yet; future feature should call setRegenTriggered(true)
+- Edit Exam feature added (outside GSD phases): PATCH /exams/{id} endpoint, edit button on exam cards, pre-populated modal, existing file management in step 2, regen bar triggered on date change
 
 ---
+- [Phase 11]: FastAPI serves /sw.js via explicit route with Service-Worker-Allowed header, not StaticFiles mount — required for full app scope
+- [Phase 11]: SW install error is caught but does not fail install — partial cache is better than no SW at all
+- [Phase 11]: Offline banner uses bg-red-500 (safe Tailwind default) instead of bg-coral-500 per plan fallback guidance
 
 ## Performance Metrics
 
@@ -49,10 +52,9 @@ Students open the app every day and know exactly what to study, when, and for ho
 |-------|------|----------|-------|-------|
 | 10 | 01 | 3 min | 2 | 5 |
 | 10 | 02 | 2 min | 2 | 5 |
-
----
+| 11 | 01 | 3min | 2 | 7 |
 
 ## Last Session
 
-**Stopped At:** Completed 10-02-PLAN.md
+**Stopped At:** Completed 11-01-PLAN.md
 **Timestamp:** 2026-02-22
