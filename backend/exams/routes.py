@@ -7,7 +7,7 @@ from typing import List
 from server.database import get_db
 from server.config import UPLOAD_DIR
 from auth.utils import get_current_user
-from exams.schemas import ExamCreate, ExamResponse, ExamFileResponse
+from exams.schemas import ExamCreate, ExamUpdate, ExamResponse, ExamFileResponse
 
 router = APIRouter()
 
@@ -78,6 +78,45 @@ def delete_exam(exam_id: int, current_user: dict = Depends(get_current_user)):
     db.commit()
     db.close()
     return {"message": "Exam deleted"}
+
+
+@router.patch("/exams/{exam_id}", response_model=ExamResponse)
+def update_exam(exam_id: int, body: ExamUpdate, current_user: dict = Depends(get_current_user)):
+    db = get_db()
+    exam = db.execute(
+        "SELECT * FROM exams WHERE id = ? AND user_id = ?",
+        (exam_id, current_user["id"])
+    ).fetchone()
+    if not exam:
+        db.close()
+        raise HTTPException(status_code=404, detail="Exam not found")
+
+    updates = []
+    values = []
+    if body.name is not None:
+        updates.append("name = ?")
+        values.append(body.name)
+    if body.subject is not None:
+        updates.append("subject = ?")
+        values.append(body.subject)
+    if body.exam_date is not None:
+        updates.append("exam_date = ?")
+        values.append(body.exam_date)
+    if body.special_needs is not None:
+        updates.append("special_needs = ?")
+        values.append(body.special_needs)
+
+    if updates:
+        values.append(exam_id)
+        db.execute(f"UPDATE exams SET {', '.join(updates)} WHERE id = ?", values)
+        db.commit()
+
+    updated = db.execute("SELECT * FROM exams WHERE id = ?", (exam_id,)).fetchone()
+    file_count = db.execute("SELECT COUNT(*) FROM exam_files WHERE exam_id = ?", (exam_id,)).fetchone()[0]
+    task_count = db.execute("SELECT COUNT(*) FROM tasks WHERE exam_id = ?", (exam_id,)).fetchone()[0]
+    done_count = db.execute("SELECT COUNT(*) FROM tasks WHERE exam_id = ? AND status = 'done'", (exam_id,)).fetchone()[0]
+    db.close()
+    return ExamResponse(**dict(updated), file_count=file_count, task_count=task_count, done_count=done_count)
 
 
 @router.post("/exams/{exam_id}/upload", response_model=ExamFileResponse)

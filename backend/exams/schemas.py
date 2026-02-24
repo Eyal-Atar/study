@@ -24,6 +24,13 @@ class ExamResponse(BaseModel):
     done_count: int = 0
 
 
+class ExamUpdate(BaseModel):
+    name: Optional[str] = None
+    subject: Optional[str] = None
+    exam_date: Optional[str] = None
+    special_needs: Optional[str] = None
+
+
 class ExamFileResponse(BaseModel):
     id: int
     exam_id: int

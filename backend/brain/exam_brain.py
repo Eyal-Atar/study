@@ -118,40 +118,42 @@ class ExamBrain:
             exam_sections.append(section)
 
         exams_text = "\n".join(exam_sections)
-        return f"""You are an expert private tutor creating a day-by-day study calendar.
+        return f"""You are an expert private tutor creating a logical, high-performance study calendar for university exams.
 
 Today: {today} ({today_weekday})
 
 Student's exams:
 {exams_text}
 
-Study preferences: available {self.user.get('wake_up_time', '08:00')} to {self.user.get('sleep_time', '23:00')}, ~{self.user.get('session_minutes', 50)} min sessions, max ~6 hours/day.
+Study preferences: available {self.user.get('wake_up_time', '08:00')} to {self.user.get('sleep_time', '23:00')}, ~{self.user.get('session_minutes', 50)} min sessions, max ~{self.user.get('neto_study_hours', 6)} hours/day.
 
 CREATE A DAY-BY-DAY STUDY CALENDAR from today until the last exam.
 
 RULES:
-1. Each day focuses on ONE subject (the most urgent exam)
-2. Last 3-4 days before exam: review, simulations, formula sheets ONLY
-3. Day before exam: light warmup (2-3 easy questions) + rest
-4. On exam day: mark as "EXAM DAY: <exam_name>" with difficulty=0, estimated_hours=0
-5. Activities MUST be SPECIFIC and ACTIONABLE — NOT "Learn material Part 1" but "Solve integration by parts exercises from Chapter 5" or "Practice recursion tracing problems"
-6. Use uploaded course materials to make activities content-specific
-7. Each day: 2-4 activities
-8. Build progressively: new material → practice → review
-9. LANGUAGE: Match the language of the exam name. If exam name is in Hebrew, write activities in Hebrew. If in English, write in English.
-10. Difficulty: 0 for exam days, 1-5 for study activities
+1. SINGLE FOCUS RULE: Each day MUST focus on ONE exam only. Do not mix exams unless a deadline is less than 48 hours away.
+2. SIMULATION-FIRST TEMPLATE: For intense study days (especially the last 5 days before an exam), use this exact chronological structure:
+   A. Peak Focus (Morning): Full Exam Simulation (Real conditions).
+   B. Deep Review (תחקיר): Systematic analysis of simulation mistakes.
+   C. Targeted Fixes: Specific practice on weak subtopics identified in the review.
+3. GRANULARITY & DENSITY: DO NOT create single large tasks (e.g., "Study for 6 hours"). 
+   Instead, break every topic into multiple smaller, actionable tasks (1.0 to 2.5 hours each). 
+   Each day should have 3-6 distinct tasks to fill the student's available study time (~6 hours).
+4. SPECIFICITY: Activities MUST be ACTIONABLE — NOT "Study Algebra" but "Solve eigenvalue problems from 2023 Final Exam" or "Trace memory leaks in C pointers worksheet".
+5. PROGRESSION: Initial days: Mapping material & fundamental practice. Final days: 100% simulations and review.
+6. EXAM DAY: Mark as "EXAM DAY: <exam_name>" with difficulty=0, estimated_hours=0.
+7. LANGUAGE: Match the language of the exam name. If exam name is in Hebrew, write activities in Hebrew. If in English, write in English.
 
 Return ONLY valid JSON — an array of objects:
 [
   {{
     "day_date": "2026-02-05",
     "exam_id": <exam_id>,
-    "title": "Solve edge-case questions (hardest from past exams)",
-    "topic": "Past exam practice",
+    "title": "Full Simulation: 2024 Semester A Final",
+    "topic": "Exam Simulation",
     "subject": "Calculus 1",
     "sort_order": 1,
-    "difficulty": 4,
-    "estimated_hours": 2.0
+    "difficulty": 5,
+    "estimated_hours": 3.0
   }}
 ]
 
@@ -160,7 +162,8 @@ No explanation, no markdown. Just the JSON array."""
     def _generate_basic_calendar(self, exam_contexts: list[dict]) -> list[dict]:
         """Generate a day-by-day calendar from exam dates (no AI needed)."""
         tasks = []
-        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        now = datetime.now()
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
         sorted_exams = sorted(exam_contexts, key=lambda ec: ec["exam_date"])
         exam_date_map = {}
@@ -174,16 +177,15 @@ No explanation, no markdown. Just the JSON array."""
             return []
 
         last_exam = max(exam_date_map.values())
-        total_days = max(1, (last_exam - today).days + 1)
+        total_days = max(1, (last_exam.date() - today.date()).days + 1)
 
         for day_offset in range(min(total_days, 60)):
             day = today + timedelta(days=day_offset)
             day_str = day.strftime("%Y-%m-%d")
 
-            # Find nearest upcoming exam
             active = [
                 (eid, edate) for eid, edate in exam_date_map.items()
-                if edate >= day
+                if edate.date() >= day.date()
             ]
             if not active:
                 continue
@@ -191,7 +193,7 @@ No explanation, no markdown. Just the JSON array."""
             active.sort(key=lambda x: x[1])
             focus_eid, focus_date = active[0]
             focus_ec = next(ec for ec in sorted_exams if ec["exam_id"] == focus_eid)
-            days_until = (focus_date - day).days
+            days_until = (focus_date.date() - day.date()).days
             subj = focus_ec["subject"]
 
             if days_until == 0:
@@ -204,44 +206,34 @@ No explanation, no markdown. Just the JSON array."""
             elif days_until == 1:
                 tasks.extend([
                     {"exam_id": focus_eid, "day_date": day_str, "deadline": day_str,
-                     "title": f"{subj}: Light warmup (2-3 easy questions)",
+                     "title": f"{subj}: Warmup & Summary Review",
                      "topic": "Pre-exam warmup", "subject": subj,
-                     "sort_order": 1, "estimated_hours": 1.0, "difficulty": 1},
-                    {"exam_id": focus_eid, "day_date": day_str, "deadline": day_str,
-                     "title": f"{subj}: Review formula sheet, rest in evening",
-                     "topic": "Final review", "subject": subj,
-                     "sort_order": 2, "estimated_hours": 0.5, "difficulty": 1},
+                     "sort_order": 1, "estimated_hours": 1.5, "difficulty": 2},
                 ])
-            elif days_until <= 3:
+            elif days_until <= 5:
+                # Simulation First Template
                 tasks.extend([
                     {"exam_id": focus_eid, "day_date": day_str, "deadline": day_str,
-                     "title": f"{subj}: Practice simulation #{4 - days_until}",
-                     "topic": "Exam simulation", "subject": subj,
-                     "sort_order": 1, "estimated_hours": 2.5, "difficulty": 4},
+                     "title": f"{subj}: Full-Length Exam Simulation",
+                     "topic": "Simulation", "subject": subj,
+                     "sort_order": 1, "estimated_hours": 3.0, "difficulty": 5},
                     {"exam_id": focus_eid, "day_date": day_str, "deadline": day_str,
-                     "title": f"{subj}: Review mistakes + weak areas",
+                     "title": f"{subj}: Simulation Review & Deep Analysis (תחקיר)",
                      "topic": "Review", "subject": subj,
-                     "sort_order": 2, "estimated_hours": 1.5, "difficulty": 3},
-                ])
-            elif days_until == 4:
-                tasks.extend([
+                     "sort_order": 2, "estimated_hours": 1.5, "difficulty": 4},
                     {"exam_id": focus_eid, "day_date": day_str, "deadline": day_str,
-                     "title": f"{subj}: Comprehensive topic review",
-                     "topic": "Review", "subject": subj,
-                     "sort_order": 1, "estimated_hours": 2.5, "difficulty": 3},
-                    {"exam_id": focus_eid, "day_date": day_str, "deadline": day_str,
-                     "title": f"{subj}: Write clean formula/summary sheet",
-                     "topic": "Summary", "subject": subj,
-                     "sort_order": 2, "estimated_hours": 1.5, "difficulty": 2},
+                     "title": f"{subj}: Targeted Weakness Practice",
+                     "topic": "Practice", "subject": subj,
+                     "sort_order": 3, "estimated_hours": 1.5, "difficulty": 4},
                 ])
             else:
                 tasks.extend([
                     {"exam_id": focus_eid, "day_date": day_str, "deadline": day_str,
-                     "title": f"{subj}: Study core material — session {day_offset + 1}",
+                     "title": f"{subj}: Core Material Study",
                      "topic": "New material", "subject": subj,
-                     "sort_order": 1, "estimated_hours": 2.5, "difficulty": 3},
+                     "sort_order": 1, "estimated_hours": 3.0, "difficulty": 3},
                     {"exam_id": focus_eid, "day_date": day_str, "deadline": day_str,
-                     "title": f"{subj}: Practice problems + exercises",
+                     "title": f"{subj}: Practice Exercises",
                      "topic": "Practice", "subject": subj,
                      "sort_order": 2, "estimated_hours": 2.0, "difficulty": 3},
                 ])

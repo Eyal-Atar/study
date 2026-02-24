@@ -16,12 +16,11 @@ def get_profile(current_user: dict = Depends(get_current_user)):
 @router.patch("/users/me", response_model=UserResponse)
 def update_profile(body: UserUpdate, current_user: dict = Depends(get_current_user)):
     db = get_db()
-    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    updates = body.model_dump(exclude_none=True)
     if not updates:
         db.close()
         raise HTTPException(status_code=400, detail="No fields to update")
-
-    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    set_clause = ", ".join(f"{k} = ?" for k in updates.keys())
     values = list(updates.values()) + [current_user["id"]]
     db.execute(f"UPDATE users SET {set_clause} WHERE id = ?", values)
     db.commit()
