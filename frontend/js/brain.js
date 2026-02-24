@@ -1,6 +1,6 @@
 import { getAPI, authFetch, setRegenTriggered, setCurrentTasks, setCurrentSchedule } from './store.js?v=22';
-import { renderCalendar, renderTodayFocus } from './calendar.js?v=22';
-import { updateStats } from './tasks.js?v=22';
+import { renderCalendar, renderTodayFocus } from './calendar.js?v=24';
+import { updateStats } from './tasks.js?v=24';
 
 /**
  * Show or hide the regeneration command bar.

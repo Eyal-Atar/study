@@ -3,29 +3,39 @@
  * Handles Apple-style Drag & Drop, Resizing, and Mobile Touch interactions.
  */
 
-import { authFetch, getAPI } from './store.js?v=14';
+import { authFetch, getAPI } from './store.js?v=21';
 
-const HOUR_HEIGHT = 160; // Match calendar.js scale
+// HOUR_HEIGHT must match calendar.js render scale (responsive)
+function getHourHeight() { return window.innerWidth < 768 ? 70 : 160; }
 const SNAP_MINUTES = 15;
-const SNAP_PIXELS = (SNAP_MINUTES / 60) * HOUR_HEIGHT;
+function getSnapPixels() { return (SNAP_MINUTES / 60) * getHourHeight(); }
 
 // ─── Touch Drag (long-press) ──────────────────────────────────────────────────
-// Mouse drag is handled by interact.js. Touch drag uses a custom handler so we
-// can distinguish a quick tap (→ edit modal) from a long-press (→ drag).
+// Gesture rules:
+//   • Normal touch+scroll  → native scroll, no JS interference
+//   • Long press (350ms, still within 5px) → drag mode
+//   • Double-tap on block  → edit modal (handled in calendar.js via touchend timing)
+//
+// Key: touchstart is PASSIVE (never blocks scroll).
+// A non-passive touchmove is added ONLY when a block is touched, and removed
+// the moment the gesture ends or the user starts scrolling. This means the
+// browser only has to wait for JS on moves that may become a drag, not every
+// scroll on the page.
 
-const LONG_PRESS_MS = 300;
-let touchDragState = null; // { el, blockId, container, startY, currentY, timer, edgeRAF }
+const LONG_PRESS_MS = 600;
+const DRAG_TOLERANCE_PX = 8; // px of movement allowed before drag is cancelled
+let touchDragState = null; // { el, blockId, container, startX, startY, currentY, timer, edgeRAF, dragActive, offsetY, lastScrollY }
 
 function initTouchDrag() {
-    document.addEventListener('touchstart', onTouchStart, { passive: false });
-    document.addEventListener('touchmove',  onTouchMove,  { passive: false });
-    document.addEventListener('touchend',   onTouchEnd,   { passive: false });
-    document.addEventListener('touchcancel',cancelTouchDrag, { passive: true });
+    // PASSIVE touchstart — never blocks scroll, just records the hit
+    document.addEventListener('touchstart', onTouchStart, { passive: true });
+    // touchmove is NOT registered globally — added/removed per-gesture in onTouchStart/cancelTouchDrag
+    document.addEventListener('touchend',    onTouchEnd,    { passive: true });
+    document.addEventListener('touchcancel', cancelTouchDrag, { passive: true });
 }
 
 function onTouchStart(e) {
     const block = e.target.closest('.schedule-block:not(.block-break):not(.is-completed)');
-    // Ignore taps on interactive children (checkbox, delete btn)
     if (!block) return;
     if (e.target.closest('.task-checkbox, .delete-reveal-btn')) return;
 
@@ -37,6 +47,7 @@ function onTouchStart(e) {
         el: block,
         blockId: block.getAttribute('data-block-id'),
         container,
+        startX: touch.clientX,
         startY: touch.clientY,
         currentY: touch.clientY,
         dragActive: false,
@@ -44,6 +55,9 @@ function onTouchStart(e) {
         timer: setTimeout(() => activateTouchDrag(), LONG_PRESS_MS),
         edgeRAF: null,
     };
+
+    // Add non-passive touchmove ONLY for this gesture — scoped, not global
+    document.addEventListener('touchmove', onTouchMoveDrag, { passive: false });
 }
 
 function activateTouchDrag() {
@@ -51,10 +65,20 @@ function activateTouchDrag() {
     const { el } = touchDragState;
     touchDragState.dragActive = true;
 
-    if (navigator.vibrate) navigator.vibrate(50);
+    if (navigator.vibrate) navigator.vibrate(15);
+
+    // Capture block width BEFORE switching to fixed (parent constrains width)
+    const blockWidth = el.getBoundingClientRect().width;
+
+    // Disable the 'top' CSS transition BEFORE changing position.
+    // Without this, the transition sees the old container-relative top value
+    // animating to the new viewport-relative top value — causing the block to "fly".
+    // Only keep transform/shadow/opacity transitions for the drag-lift effect.
+    el.style.transition = 'transform 0.12s ease, box-shadow 0.12s ease, opacity 0.2s';
+
     el.classList.add('dragging');
     el.style.position = 'fixed';
-    el.style.width = el.getBoundingClientRect().width + 'px';
+    el.style.width = blockWidth + 'px';
     el.style.zIndex = '1001';
     positionDragBlock();
 
@@ -64,20 +88,43 @@ function activateTouchDrag() {
     touchDragState.edgeRAF = requestAnimationFrame(edgeScroll);
 }
 
-function onTouchMove(e) {
-    if (!touchDragState) return;
+function onTouchMoveDrag(e) {
+    if (!touchDragState) {
+        document.removeEventListener('touchmove', onTouchMoveDrag);
+        return;
+    }
+
     const touch = e.touches[0];
     touchDragState.currentY = touch.clientY;
 
+    // Always preventDefault: blocks have touch-action:none so the browser won't
+    // scroll natively regardless, but this ensures no fallthrough to ancestors.
+    e.preventDefault();
+
     if (!touchDragState.dragActive) {
-        // Cancel long-press if finger moves more than 8px (user is scrolling)
-        if (Math.abs(touch.clientY - touchDragState.startY) > 8) {
-            cancelTouchDrag();
+        const dx = Math.abs(touch.clientX - touchDragState.startX);
+        const dy = Math.abs(touch.clientY - touchDragState.startY);
+
+        if (dy > DRAG_TOLERANCE_PX || dx > DRAG_TOLERANCE_PX) {
+            // User intends to scroll, not drag — cancel the long-press timer
+            // and manually pass the scroll delta to the container so the calendar
+            // moves normally even though touch-action:none suppresses native scroll.
+            if (touchDragState.timer) {
+                clearTimeout(touchDragState.timer);
+                touchDragState.timer = null;
+            }
+
+            if (dy >= dx) { // Primarily vertical → scroll the calendar
+                const lastY = touchDragState.lastScrollY ?? touchDragState.startY;
+                const delta = lastY - touch.clientY; // positive = scroll down
+                touchDragState.container.scrollTop += delta;
+            }
+            touchDragState.lastScrollY = touch.clientY;
         }
         return;
     }
 
-    e.preventDefault();
+    // Drag is active — reposition the dragged block
     positionDragBlock();
 }
 
@@ -88,16 +135,22 @@ function positionDragBlock() {
 
 function edgeScroll() {
     if (!touchDragState?.dragActive) return;
-    const { currentY, container } = touchDragState;
+    const { el, container } = touchDragState;
     const vh = window.innerHeight;
-    const EDGE = vh * 0.10; // top/bottom 10% of viewport
-    const SPEED = 6;
+    // Only 8px from the actual screen edge — scroll starts when the BLOCK EDGE
+    // touches the screen edge, not when the finger is in some broad zone.
+    const MARGIN = 8;
+    const SPEED = 5;
 
-    const scrollable = container.closest('.overflow-y-auto, .overflow-auto') || window;
-    if (currentY < EDGE) {
+    const rect = el.getBoundingClientRect();
+    const scrollable = container.scrollHeight > container.clientHeight ? container : window;
+
+    if (rect.top < MARGIN) {
+        // Block's top edge is at/above the screen top
         if (scrollable === window) window.scrollBy(0, -SPEED);
         else scrollable.scrollTop -= SPEED;
-    } else if (currentY > vh - EDGE) {
+    } else if (rect.bottom > vh - MARGIN) {
+        // Block's bottom edge is at/below the screen bottom
         if (scrollable === window) window.scrollBy(0, SPEED);
         else scrollable.scrollTop += SPEED;
     }
@@ -109,6 +162,7 @@ async function onTouchEnd(_e) {
     if (!touchDragState) return;
     clearTimeout(touchDragState.timer);
     cancelAnimationFrame(touchDragState.edgeRAF);
+    document.removeEventListener('touchmove', onTouchMoveDrag);
 
     if (!touchDragState.dragActive) {
         touchDragState = null;
@@ -117,12 +171,22 @@ async function onTouchEnd(_e) {
 
     const { el, container } = touchDragState;
 
-    // Restore element to grid-relative positioning
+    // Convert fixed-position drop coordinates → container-content-relative position.
+    // Must add container.scrollTop: position:absolute top is relative to content origin,
+    // not the visible viewport top. Without this, dragging while edgeScroll has scrolled
+    // the container places the block at the wrong (too-high) position.
     const containerRect = container.getBoundingClientRect();
-    const dropY = touchDragState.currentY - touchDragState.offsetY - containerRect.top;
-    const snapped = Math.round(dropY / SNAP_PIXELS) * SNAP_PIXELS;
+    const dropY = (touchDragState.currentY - touchDragState.offsetY)
+                  - containerRect.top
+                  + container.scrollTop;
+    const snapPx = getSnapPixels();
+    const snapped = Math.round(dropY / snapPx) * snapPx;
     const finalTop = Math.max(0, snapped);
 
+    // Disable ALL transitions before switching position:fixed → position:absolute.
+    // The CSS 'top' transition would otherwise animate from the viewport-coord value
+    // to the container-coord value, making the block visually "fly" across the screen.
+    el.style.transition = 'none';
     el.classList.remove('dragging');
     el.style.position = '';
     el.style.width = '';
@@ -130,9 +194,11 @@ async function onTouchEnd(_e) {
     el.style.top = `${finalTop}px`;
     el.style.transform = '';
     el.setAttribute('data-y', 0);
+    // Re-enable transitions after the position change has been painted
+    requestAnimationFrame(() => { el.style.transition = ''; });
 
     document.body.style.overflow = '';
-    container.style.touchAction = '';
+    container.style.touchAction = ''; // restore to CSS default (pan-y from stylesheet)
 
     // Resolve collisions + save
     const allBlocks = Array.from(container.querySelectorAll('.schedule-block')).map(b => ({
@@ -143,14 +209,18 @@ async function onTouchEnd(_e) {
     }));
     const resolved = resolveCollisions(allBlocks, touchDragState.blockId);
     const startHour = parseInt(container.dataset.startHour || 0);
-    const gridEndPixel = (24 - startHour) * HOUR_HEIGHT;
+    const gridEndPixel = (24 - startHour) * getHourHeight();
     const updates = resolved.map(b => ({
         blockId: b.id,
         top: b.top,
         height: b.height,
         isDelayed: b.top + b.height > gridEndPixel,
     }));
-    resolved.forEach(b => { b.el.style.top = `${b.top}px`; b.el.style.transform = ''; });
+    resolved.forEach(b => {
+        b.el.style.top = `${b.top}px`;
+        b.el.style.transform = '';
+        updateLiveTimeLabel(b.el, b.top);
+    });
 
     touchDragState = null;
     await saveSequence(updates, container);
@@ -162,13 +232,18 @@ function cancelTouchDrag() {
     if (touchDragState.edgeRAF) cancelAnimationFrame(touchDragState.edgeRAF);
     if (touchDragState.dragActive) {
         const { el, container } = touchDragState;
+        el.style.transition = 'none';
         el.classList.remove('dragging');
         el.style.position = '';
         el.style.width = '';
         el.style.zIndex = '';
+        el.style.transform = '';
+        requestAnimationFrame(() => { el.style.transition = ''; });
         document.body.style.overflow = '';
         container.style.touchAction = '';
     }
+    // Always remove the scoped per-gesture listener
+    document.removeEventListener('touchmove', onTouchMoveDrag);
     touchDragState = null;
 }
 // ─────────────────────────────────────────────────────────────────────────────
@@ -199,7 +274,7 @@ export function initInteractions() {
                 }),
                 interact.modifiers.snap({
                     targets: [
-                        interact.snappers.grid({ y: SNAP_PIXELS })
+                        interact.snappers.grid({ y: getSnapPixels() })
                     ],
                     range: Infinity,
                     relativePoints: [ { x: 0, y: 0 } ]
@@ -284,7 +359,7 @@ export function initInteractions() {
                     const resolved = resolveCollisions(allBlocks.map(b => ({ ...b, id: b.blockId })), target.getAttribute('data-block-id'));
 
                     const updates = resolved.map(b => {
-                        const gridEndPixel = (24 - startHour) * HOUR_HEIGHT;
+                        const gridEndPixel = (24 - startHour) * getHourHeight();
                         return {
                             blockId: b.id,
                             top: b.top,
@@ -298,6 +373,7 @@ export function initInteractions() {
                         b.el.style.top = `${b.top}px`;
                         b.el.style.transform = '';
                         b.el.setAttribute('data-y', 0);
+                        updateLiveTimeLabel(b.el, b.top);
                     });
 
                     await saveSequence(updates, container);
@@ -309,7 +385,7 @@ export function initInteractions() {
             ignoreFrom: '.task-checkbox, .task-checkbox *, .delete-reveal-btn, .delete-reveal-btn *',
             modifiers: [
                 interact.modifiers.snap({
-                    targets: [ interact.snappers.grid({ y: SNAP_PIXELS }) ]
+                    targets: [ interact.snappers.grid({ y: getSnapPixels() }) ]
                 }),
                 interact.modifiers.restrictSize({
                     min: { height: 30 }
@@ -367,7 +443,7 @@ export function initInteractions() {
                     const resolved = resolveCollisions(allBlocks.map(b => ({ ...b, id: b.blockId })), target.getAttribute('data-block-id'));
                     
                     const updates = resolved.map(b => {
-                        const gridEndPixel = (24 - startHour) * HOUR_HEIGHT;
+                        const gridEndPixel = (24 - startHour) * getHourHeight();
                         return {
                             blockId: b.id,
                             top: b.top,
@@ -381,6 +457,7 @@ export function initInteractions() {
                         b.el.style.top = `${b.top}px`;
                         b.el.style.transform = '';
                         b.el.setAttribute('data-y', 0);
+                        updateLiveTimeLabel(b.el, b.top);
                     });
 
                     await saveSequence(updates, container);
@@ -411,17 +488,17 @@ function resolveCollisions(blocks, movedBlockId) {
 }
 
 function updateLiveTimeLabel(target, currentTop) {
-    const timeLabel = target.querySelector('.text-base.font-bold.text-white');
+    const timeLabel = target.querySelector('.block-time-label');
     if (!timeLabel) return;
 
     const container = target.closest('.grid-day-container');
     const startHour = parseInt(container?.dataset.startHour || 0);
 
-    const startTotalMin = Math.round((currentTop / HOUR_HEIGHT) * 60) + (startHour * 60);
+    const startTotalMin = Math.round((currentTop / getHourHeight()) * 60) + (startHour * 60);
     const h = Math.floor(startTotalMin / 60);
     const m = startTotalMin % 60;
     
-    timeLabel.textContent = `${h}:${String(m).padStart(2, '0')}`;
+    timeLabel.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 async function saveSequence(blocks, container) {
@@ -430,8 +507,9 @@ async function saveSequence(blocks, container) {
     const startHour = parseInt(container.getAttribute('data-start-hour') || 0);
     
     const updates = blocks.filter(b => b.blockId).map(b => {
-        const startMin = Math.round((b.top / HOUR_HEIGHT) * 60) + (startHour * 60);
-        const durationMin = Math.round((b.height / HOUR_HEIGHT) * 60);
+        const hh = getHourHeight();
+        const startMin = Math.round((b.top / hh) * 60) + (startHour * 60);
+        const durationMin = Math.round((b.height / hh) * 60);
         
         const startH = Math.floor(startMin / 60);
         const startM = startMin % 60;
@@ -452,7 +530,7 @@ async function saveSequence(blocks, container) {
     if (updates.length === 0) return;
 
     try {
-        await Promise.all(updates.map(u => 
+        await Promise.all(updates.map(u =>
             authFetch(`${API}/tasks/block/${u.blockId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -463,11 +541,9 @@ async function saveSequence(blocks, container) {
                 })
             })
         ));
-        
-        // Use a small delay to let the UI settle before refreshing
-        setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('calendar-needs-refresh'));
-        }, 100);
+        // Notify calendar.js to silently refresh _blocksByDay so navigation
+        // doesn't revert blocks to their pre-drag positions.
+        window.dispatchEvent(new CustomEvent('sf:blocks-saved'));
     } catch (e) {
         console.error("Failed to save sequence:", e);
     }

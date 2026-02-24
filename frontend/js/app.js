@@ -11,9 +11,9 @@ window.onerror = function(msg, url, line, col, error) {
 
 import { getCurrentUser, setCurrentUser, getAPI } from './store.js?v=22';
 import { initAuth, handleLogout } from './auth.js?v=22';
-import { initTasks, loadExams } from './tasks.js?v=22';
-import { initRegenerate } from './brain.js?v=22';
-import { initInteractions } from './interactions.js?v=22';
+import { initTasks, loadExams } from './tasks.js?v=24';
+import { initRegenerate } from './brain.js?v=24';
+import { initInteractions } from './interactions.js?v=25';
 import { showScreen, initMobileTabBar } from './ui.js?v=22';
 
 // Initialize the application

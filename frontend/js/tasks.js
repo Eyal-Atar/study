@@ -1,7 +1,7 @@
 import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, setCurrentTasks, getCurrentSchedule, setCurrentSchedule, getPendingExamId, setPendingExamId, getPendingFiles, setPendingFiles } from './store.js?v=22';
 import { shakeEl, spawnConfetti, examColorClass } from './ui.js?v=22';
-import { renderCalendar, renderTodayFocus, renderExamLegend } from './calendar.js?v=22';
-import { showRegenBar } from './brain.js?v=22';
+import { renderCalendar, renderTodayFocus, renderExamLegend } from './calendar.js?v=24';
+import { showRegenBar } from './brain.js?v=24';
 
 // Notification permission prompt tracking
 const NOTIF_PROMPT_KEY = 'sf_notif_prompt_shown';

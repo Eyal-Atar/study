@@ -328,11 +328,10 @@ input[type="range"]:active::-webkit-slider-thumb {
     transform: translateX(0);
 }
 
-/* Hourly Grid */
+/* Hourly Grid — Apple Calendar style */
 .calendar-grid {
     position: relative;
-    border-left: 1px solid rgba(255,255,255,0.05);
-    background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+    border-left: 1px solid rgba(255,255,255,0.07);
 }
 
 .time-col {
@@ -342,36 +341,39 @@ input[type="range"]:active::-webkit-slider-thumb {
 
 .hour-label {
     position: absolute;
-    right: 4px;
+    right: 6px;
     width: 100%;
     text-align: right;
     font-size: 10px;
-    font-weight: 500;
-    color: rgba(255,255,255,0.3);
+    font-weight: 400;
+    color: rgba(255,255,255,0.28);
     font-variant-numeric: tabular-nums;
     transform: translateY(-50%);
     white-space: nowrap;
     pointer-events: none;
+    letter-spacing: 0.01em;
 }
 
 .schedule-block {
     position: absolute;
-    border-radius: 6px;
+    border-radius: 10px;
     font-size: 11px;
     overflow: hidden;
     /* top/height: smooth after save-edit; transform/opacity: hover & drag effects */
-    transition: top 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
-                height 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
-                transform 0.15s ease, box-shadow 0.15s ease, opacity 0.3s;
+    transition: top 0.35s cubic-bezier(0.25, 0.8, 0.25, 1),
+                height 0.35s cubic-bezier(0.25, 0.8, 0.25, 1),
+                box-shadow 0.15s ease, opacity 0.2s;
     cursor: grab;
     z-index: 10;
     box-sizing: border-box;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     background: rgba(255,255,255,0.08);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-    /* pan-y: vertical scroll is always native; drag activates only after long-press */
-    touch-action: pan-y;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    /* touch-action: none — we own all touch on blocks (manual scroll passthrough in JS).
+       pan-y would make the browser ignore e.preventDefault() for vertical panning,
+       causing the calendar to scroll behind the dragged block. */
+    touch-action: none;
     -webkit-user-select: none;
     user-select: none;
     /* Suppress iOS long-press callout (copy/paste/define menu) */
@@ -383,16 +385,13 @@ input[type="range"]:active::-webkit-slider-thumb {
 
 .schedule-block:active {
     cursor: grabbing;
-    transform: scale(0.98);
     z-index: 50;
-    opacity: 0.9;
 }
 
 .schedule-block:hover:not(:active) {
-    filter: brightness(1.1);
-    transform: translateY(-2px);
+    filter: brightness(1.08);
     z-index: 20;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
 }
 
 /* Hide interaction markers */
@@ -539,17 +538,29 @@ input[type="range"]:active::-webkit-slider-thumb {
     transform: scale(0.9);
 }
 
-/* Current Time Indicator — z-index 8: above grid lines but below task blocks (z-index 10) */
+/* Current Time Indicator — Apple Calendar style: red line + filled circle on left */
 .current-time-line {
     position: absolute;
     left: 0 !important;
     right: 0;
     width: 100% !important;
     height: 2px;
-    background: #FB7185;
+    background: #FF3B30;
     z-index: 8;
     pointer-events: none;
-    box-shadow: 0 0 6px rgba(251, 113, 133, 0.4);
+}
+
+/* Apple Calendar red dot on the left edge of the time line */
+.current-time-line::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #FF3B30;
 }
 
 .time-now-label {
@@ -557,13 +568,14 @@ input[type="range"]:active::-webkit-slider-thumb {
     left: -45px;
     top: 50%;
     transform: translateY(-50%);
-    background: #FB7185;
+    background: #FF3B30;
     color: white;
     font-size: 9px;
-    font-weight: 800;
+    font-weight: 700;
     padding: 2px 4px;
     border-radius: 4px;
     pointer-events: none;
+    font-variant-numeric: tabular-nums;
 }
 
 /* === Phase 14: Mobile-First UX === */
@@ -604,16 +616,15 @@ button, a, select, input[type="checkbox"], input[type="radio"], label {
     }
 }
 
-/* Drag lifting effect — detached look with rotation, scale, and heavy shadow */
+/* Drag lifting effect — Apple Calendar style: subtle lift, no rotation */
 .dragging {
-    transform: scale(1.06) rotate(2deg) !important;
+    transform: scale(1.02) !important;
     box-shadow:
-        0 32px 64px -8px rgba(0,0,0,0.7),
-        0 12px 24px -4px rgba(0,0,0,0.5),
-        0 0 0 2px rgba(107,71,245,0.6) !important;
+        0 8px 24px -4px rgba(0,0,0,0.5),
+        0 0 0 2px rgba(107,71,245,0.5) !important;
     z-index: 1001 !important;
-    opacity: 0.95;
-    transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s ease;
+    opacity: 0.93;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
 /* 44×44px minimum touch target for task checkboxes (Apple HIG) */

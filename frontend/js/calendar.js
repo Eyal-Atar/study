@@ -174,35 +174,31 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
         ];
         const blockBg = eIdx !== -1 ? BLOCK_BG_COLORS[eIdx % BLOCK_BG_COLORS.length] : BLOCK_BG_COLORS[0];
 
+        // Time range string (e.g. "10:00 – 11:30")
+        const timeRangeStr = visualHeight >= 50 ? `${startTimeStr} – ${endTimeStr}` : startTimeStr;
+
         return `
             <div class="schedule-block ${typeClass} ${completedClass} ${block.is_delayed ? 'block-delayed' : ''} group"
-                 style="position: absolute; top: ${visualTop}px; height: ${visualHeight}px; left: 4px; right: 8px; border-left: 4px solid ${borderColor}; background: ${blockBg};"
+                 style="position: absolute; top: ${visualTop}px; height: ${visualHeight}px; left: 4px; right: 8px; border-left: 3px solid ${borderColor}; background: ${blockBg}; border-radius: 10px;"
                  data-task-id="${block.task_id || ''}"
                  data-block-id="${block.id || ''}"
                  data-block-type="${block.block_type}"
                  data-is-done="${isDone}">
-                
-                <div class="swipe-content h-full p-1.5 px-2 md:p-3">
-                    <div class="flex items-start gap-2 md:gap-3 h-full">
+
+                <div class="swipe-content h-full" style="padding: ${visualHeight < 36 ? '2px 6px' : '6px 8px'};">
+                    <div class="flex items-start gap-1.5 h-full">
                         <button data-task-id="${block.task_id}" data-block-id="${block.id}"
-                                class="task-checkbox flex-shrink-0 w-6 h-6 mt-0.5 rounded-lg border-2 flex items-center justify-center transition-all ${isDone ? 'checked border-mint-500' : 'border-white/10 hover:border-accent-400'}"
-                                style="${isDone ? 'background-color:#10B981;border-color:#10B981;' : ''}">
-                            ${isDone ? '<svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+                                class="task-checkbox flex-shrink-0 w-5 h-5 mt-0.5 rounded-md border-2 flex items-center justify-center transition-all ${isDone ? 'checked border-mint-500' : 'border-white/20 hover:border-accent-400'}"
+                                style="${isDone ? 'background-color:#10B981;border-color:#10B981;' : ''}; min-width: 20px; min-height: 20px;">
+                            ${isDone ? '<svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
                         </button>
-                        
-                        <div class="flex-1 min-w-0 flex flex-col justify-between h-full">
-                            <div>
-                                <div class="font-bold text-[11px] md:text-[13px] text-white/95 task-title-text mb-0.5 line-clamp-2" dir="auto">${block.task_title}</div>
-                                <div class="flex items-baseline gap-2">
-                                    <span class="text-sm md:text-base font-bold text-white">${startTimeStr}</span>
-                                    ${visualHeight >= 40 ? `<span class="text-[9px] opacity-30 font-medium">${durationMin}m</span>` : ''}
-                                </div>
-                            </div>
-                            
-                            <div class="flex items-center justify-between mt-auto">
-                                <span class="text-[9px] md:text-[10px] opacity-50 truncate font-medium max-w-[120px]" dir="auto">${block.exam_name || ''}</span>
-                                ${block.is_delayed ? '<span class="delayed-badge scale-75 origin-right">DELAYED</span>' : ''}
-                            </div>
+
+                        <div class="flex-1 min-w-0 flex flex-col justify-start h-full overflow-hidden">
+                            <div class="font-semibold text-[11px] md:text-[12px] text-white/95 task-title-text leading-tight" dir="auto" style="-webkit-line-clamp:${visualHeight < 50 ? 1 : 2};">${block.task_title}</div>
+                            ${visualHeight >= 26 ? `<div class="flex items-center gap-1 mt-0.5">
+                                <span class="text-[11px] font-semibold text-white/70 block-time-label tabular-nums">${timeRangeStr}</span>
+                                ${block.is_delayed ? '<span class="delayed-badge" style="font-size:7px;padding:1px 3px;">LATE</span>' : ''}
+                            </div>` : `<span class="text-[10px] font-semibold text-white/70 block-time-label tabular-nums" style="display:block;">${startTimeStr}</span>`}
                         </div>
                     </div>
                 </div>
@@ -334,7 +330,7 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
                 if (titleEl && updates.title) titleEl.textContent = updates.title;
 
                 // Update time label text immediately (the bold span showing HH:MM)
-                const timeEl = blockEl.querySelector('.flex.items-baseline span.font-bold');
+                const timeEl = blockEl.querySelector('.block-time-label');
                 if (timeEl) {
                     const newH = String(startDate.getHours()).padStart(2, '0');
                     const newM = String(startDate.getMinutes()).padStart(2, '0');
@@ -596,3 +592,23 @@ function renderCurrentTimeIndicator(container, startHour, hourHeight) {
     // Update every minute — store the ID so we can cancel it on next render
     _timeIndicatorInterval = setInterval(updateLine, 60000);
 }
+
+// ─── Silent schedule sync after drag-drop ────────────────────────────────────
+// When interactions.js saves a block move, it fires 'sf:blocks-saved'.
+// We re-fetch the schedule and update _blocksByDay WITHOUT re-rendering the grid.
+// This ensures day navigation shows the correct (post-drag) times, not stale ones.
+window.addEventListener('sf:blocks-saved', async () => {
+    const API = getAPI();
+    try {
+        const res = await authFetch(`${API}/schedule`);
+        if (!res.ok) return;
+        const newSchedule = await res.json();
+        setCurrentSchedule(newSchedule);
+        const newBlocksByDay = {};
+        newSchedule.forEach(b => {
+            if (!newBlocksByDay[b.day_date]) newBlocksByDay[b.day_date] = [];
+            newBlocksByDay[b.day_date].push(b);
+        });
+        _blocksByDay = newBlocksByDay;
+    } catch (_) { /* silent — DOM is already correct from drag */ }
+});

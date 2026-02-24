@@ -1,7 +1,7 @@
 /* frontend/js/auth.js */
-import { getAPI, setAuthToken, setCurrentUser, authFetch, resetStore, getCurrentUser } from './store.js';
-import { showRegenBar } from './brain.js';
-import { showScreen, shakeEl, showError, hideError, spawnConfetti } from './ui.js';
+import { getAPI, setAuthToken, setCurrentUser, authFetch, resetStore, getCurrentUser } from './store.js?v=21';
+import { showRegenBar } from './brain.js?v=21';
+import { showScreen, shakeEl, showError, hideError, spawnConfetti } from './ui.js?v=21';
 
 // ─── Push Notification Helpers ───────────────────────────────────────────────
 
@@ -12,7 +12,16 @@ function _urlBase64ToUint8Array(base64String) {
     return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
 }
 
+// subscribeToPush: called ONLY after Notification.permission === 'granted'.
+// Permission is requested directly in the onclick handler (index.html) to preserve
+// iOS user-gesture context. This function handles VAPID subscription only.
 async function subscribeToPush() {
+    // Guard: only proceed if permission is already granted.
+    // This prevents accidental permission prompts outside a user gesture.
+    if (!('Notification' in window) || Notification.permission !== 'granted') {
+        console.log('[Push] Skipping subscription — permission not granted');
+        return;
+    }
     try {
         const API = getAPI();
         // Get VAPID public key
@@ -20,14 +29,7 @@ async function subscribeToPush() {
         if (!keyRes.ok) { console.warn('[Push] VAPID key not available'); return; }
         const { key } = await keyRes.json();
 
-        // Request browser permission
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-            console.log('[Push] Permission denied or dismissed');
-            return;
-        }
-
-        // Subscribe via Service Worker
+        // Subscribe via Service Worker (permission already granted by caller)
         const reg = await navigator.serviceWorker.ready;
         const subscription = await reg.pushManager.subscribe({
             userVisibleOnly: true,
@@ -46,7 +48,9 @@ async function subscribeToPush() {
     }
 }
 
-// Listen for push permission request from tasks.js (dispatched when user clicks "Yes" in modal)
+// Listen for push subscription request.
+// This event is dispatched ONLY after permission has already been granted
+// (from the requestNotificationPermission() global function in index.html).
 window.addEventListener('request-push-permission', subscribeToPush);
 
 let onAuthSuccess = () => {};
@@ -260,6 +264,7 @@ export function initAuth(callbacks = {}) {
     if (btnShowSettings) {
         btnShowSettings.onclick = () => {
             const user = getCurrentUser();
+            if (!user) return;
             document.getElementById('settings-name').value = user.name || '';
             document.getElementById('settings-hobby').value = user.hobby_name || '';
             document.getElementById('settings-wake').value = user.wake_up_time || '08:00';
@@ -274,6 +279,7 @@ export function initAuth(callbacks = {}) {
             if (notifPerTask) notifPerTask.checked = (user.notif_per_task ?? 1) === 1;
             const notifDailySummary = document.getElementById('settings-notif-daily-summary');
             if (notifDailySummary) notifDailySummary.checked = (user.notif_daily_summary ?? 0) === 1;
+            if (typeof window._updateNotifStatus === 'function') window._updateNotifStatus();
             modalSettings.classList.add('active');
         };
     }
