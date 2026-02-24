@@ -90,10 +90,12 @@ function activateTouchDrag() {
     // on drop instead of restoring, the block loses its sizing and appears compressed.
     touchDragState.savedLeft = el.style.left;
 
-    // offsetY is kept from touchstart — the exact pixel offset of the finger
-    // relative to the block's top. We do NOT override it to a 25% heuristic
-    // because that causes a visible jump: the block suddenly moves to align
-    // 25% under the finger instead of staying exactly where the finger landed.
+    // Recalculate offsetY using the block's CURRENT position (not touchstart position).
+    // During the 600ms long-press window the container may have scrolled, moving the
+    // block visually. The original touchstart offsetY no longer matches, causing the
+    // block to jump to the wrong position on activation. Re-anchoring here ensures
+    // positionDragBlock places the block exactly where the finger is.
+    touchDragState.offsetY = touchDragState.currentY - blockRect.top;
 
     // Disable ALL transitions before position change to prevent "fly" animation.
     el.style.transition = 'none';
