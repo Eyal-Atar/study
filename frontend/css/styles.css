@@ -159,7 +159,7 @@ body { background: #0B0F1A; }
         min-height: 0 !important;
     }
 
-    /* Calendar Grid Container — GPU-accelerated scroll, no iOS bounce */
+    /* Calendar Grid Container — smooth native scroll, no iOS bounce */
     .grid-day-container {
         flex: 1 !important;
         height: auto !important;
@@ -168,9 +168,13 @@ body { background: #0B0F1A; }
         -webkit-overflow-scrolling: touch !important;
         touch-action: pan-y !important;
         overscroll-behavior-y: none !important;
-        -webkit-transform: translate3d(0, 0, 0) !important;
-        transform: translate3d(0, 0, 0) !important;
-        will-change: transform !important;
+        /* NOTE: will-change:transform and transform:translate3d() are intentionally
+           removed here. Promoting the scroll container to its own GPU compositing
+           layer causes child blocks (which are absolutely positioned) to be clipped
+           at the container's layer boundary during fast scroll — blocks appear to
+           be "swallowed" before they reach the visible edge. Native scrolling
+           without GPU promotion eliminates this clipping artifact.
+           -webkit-overflow-scrolling:touch is sufficient for smooth iOS scrolling. */
         border: none !important;
         background: transparent !important;
     }
@@ -359,9 +363,12 @@ input[type="range"]:active::-webkit-slider-thumb {
     border-radius: 10px;
     font-size: 11px;
     overflow: hidden;
-    /* top/height: smooth after save-edit; transform/opacity: hover & drag effects */
+    /* Only transition top for smooth save-edit repositioning.
+       height is intentionally NOT transitioned — animating height while overflow:hidden
+       clips content mid-animation causing visible text jitter/flicker.
+       transform and opacity are handled directly by interact.js / touch-drag JS,
+       not via CSS transition, to avoid conflicting with drag transforms. */
     transition: top 0.35s cubic-bezier(0.25, 0.8, 0.25, 1),
-                height 0.35s cubic-bezier(0.25, 0.8, 0.25, 1),
                 box-shadow 0.15s ease, opacity 0.2s;
     cursor: grab;
     z-index: 10;
@@ -378,9 +385,13 @@ input[type="range"]:active::-webkit-slider-thumb {
     user-select: none;
     /* Suppress iOS long-press callout (copy/paste/define menu) */
     -webkit-touch-callout: none;
-    /* Force GPU compositing layer per-block for smooth 60fps drag */
-    will-change: transform;
-    transform: translate3d(0, 0, 0);
+    /* NOTE: will-change:transform and transform:translate3d() are intentionally
+       NOT set here. Promoting every block to its own GPU compositing layer causes
+       the browser to clip blocks at the scrolling container's layer boundary during
+       fast scroll (cards appear "swallowed"). Position changes via `top` on the
+       CPU/main compositor layer are smooth enough with the transition above.
+       interact.js applies transform:translateY() during drag only — that is
+       sufficient to trigger GPU compositing for the duration of the drag gesture. */
 }
 
 .schedule-block:active {
@@ -518,12 +529,13 @@ input[type="range"]:active::-webkit-slider-thumb {
 
 .grid-day-container {
     margin-bottom: 0;
-    transition: height 0.3s ease;
+    /* Height transition removed: the container uses flex:1 layout and animating
+       its height causes the entire calendar column to shift on every re-render,
+       compounding card position instability. */
 }
 
-.calendar-grid-wrapper {
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
+/* .calendar-grid-wrapper — no transitions needed: nothing animates this
+   element's transform, so keeping it on the browser's watchlist is pure overhead. */
 
 .grid-checkbox {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);

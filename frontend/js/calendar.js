@@ -194,7 +194,7 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
                     <div class="flex items-start gap-1.5 h-full">
                         <button data-task-id="${block.task_id}" data-block-id="${block.id}"
                                 class="task-checkbox flex-shrink-0 w-5 h-5 mt-0.5 rounded-md border-2 flex items-center justify-center transition-all ${isDone ? 'checked border-mint-500' : 'border-white/20 hover:border-accent-400'}"
-                                style="${isDone ? 'background-color:#10B981;border-color:#10B981;' : ''}; min-width: 20px; min-height: 20px;">
+                                style="${isDone ? 'background-color:#10B981;border-color:#10B981;' : ''}">
                             ${isDone ? '<svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
                         </button>
 
