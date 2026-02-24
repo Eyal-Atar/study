@@ -128,6 +128,21 @@ def mark_block_done(block_id: int, current_user: dict = Depends(get_current_user
         "UPDATE schedule_blocks SET completed = 1 WHERE id = ? AND user_id = ?",
         (block_id, current_user["id"])
     )
+    # Sync task status: when all blocks for this task are done, mark task done (exam progress bars)
+    row = db.execute(
+        "SELECT task_id FROM schedule_blocks WHERE id = ? AND user_id = ?",
+        (block_id, current_user["id"])
+    ).fetchone()
+    if row and row["task_id"]:
+        agg = db.execute(
+            "SELECT COUNT(*) AS cnt, SUM(completed) AS sum_done FROM schedule_blocks WHERE task_id = ? AND user_id = ?",
+            (row["task_id"], current_user["id"])
+        ).fetchone()
+        if agg and agg["cnt"] and agg["sum_done"] == agg["cnt"]:
+            db.execute(
+                "UPDATE tasks SET status = 'done' WHERE id = ? AND user_id = ?",
+                (row["task_id"], current_user["id"])
+            )
     db.commit()
     db.close()
     return {"message": "Block marked as done!"}
@@ -140,6 +155,16 @@ def mark_block_undone(block_id: int, current_user: dict = Depends(get_current_us
         "UPDATE schedule_blocks SET completed = 0 WHERE id = ? AND user_id = ?",
         (block_id, current_user["id"])
     )
+    # Sync task status: any block undone => task no longer fully done (exam progress bars)
+    row = db.execute(
+        "SELECT task_id FROM schedule_blocks WHERE id = ? AND user_id = ?",
+        (block_id, current_user["id"])
+    ).fetchone()
+    if row and row["task_id"]:
+        db.execute(
+            "UPDATE tasks SET status = 'pending' WHERE id = ? AND user_id = ?",
+            (row["task_id"], current_user["id"])
+        )
     db.commit()
     db.close()
     return {"message": "Block marked as undone!"}
