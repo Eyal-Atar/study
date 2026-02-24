@@ -1,5 +1,6 @@
 """Task routes."""
 
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends
 from typing import List
 from server.database import get_db
@@ -192,6 +193,66 @@ def mark_task_undone(task_id: int, current_user: dict = Depends(get_current_user
     db.commit()
     db.close()
     return {"message": "Task marked as pending"}
+
+
+@router.post("/tasks/block/{block_id}/defer")
+def defer_block_to_next_day(block_id: int, current_user: dict = Depends(get_current_user)):
+    """Move a schedule block to the next calendar day (push-to-next-day foundation)."""
+    db = get_db()
+    block = db.execute(
+        "SELECT id, task_id, user_id, day_date, start_time, end_time FROM schedule_blocks WHERE id = ? AND user_id = ?",
+        (block_id, current_user["id"])
+    ).fetchone()
+    if not block:
+        db.close()
+        return {"error": "Block not found"}, 404
+
+    day_date = block["day_date"]
+    if not day_date:
+        db.close()
+        return {"error": "Block has no day_date"}, 400
+
+    try:
+        dt = datetime.strptime(day_date, "%Y-%m-%d")
+    except ValueError:
+        db.close()
+        return {"error": "Invalid day_date format"}, 400
+
+    next_day = (dt + timedelta(days=1)).strftime("%Y-%m-%d")
+    orig_start = block["start_time"]
+    orig_end = block["end_time"]
+    # start_time/end_time may be "YYYY-MM-DD HH:MM:SS" or "YYYY-MM-DDTHH:MM:SS"
+    try:
+        if "T" in orig_start:
+            start_dt = datetime.fromisoformat(orig_start.replace("Z", "+00:00"))
+        else:
+            start_dt = datetime.strptime(orig_start.replace("T", " ").split(".")[0], "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        start_dt = datetime.strptime(day_date + " 08:00:00", "%Y-%m-%d %H:%M:%S")
+    try:
+        if "T" in orig_end:
+            end_dt = datetime.fromisoformat(orig_end.replace("Z", "+00:00"))
+        else:
+            end_dt = datetime.strptime(orig_end.replace("T", " ").split(".")[0], "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        end_dt = start_dt + timedelta(hours=1)
+
+    new_start = next_day + " " + start_dt.strftime("%H:%M:%S")
+    new_end = next_day + " " + end_dt.strftime("%H:%M:%S")
+
+    db.execute(
+        """UPDATE schedule_blocks SET start_time = ?, end_time = ?, day_date = ?, is_delayed = 1, deferred_original_day = ?
+           WHERE id = ? AND user_id = ?""",
+        (new_start, new_end, next_day, day_date, block_id, current_user["id"])
+    )
+    if block["task_id"]:
+        db.execute(
+            "UPDATE tasks SET day_date = ?, is_delayed = 1 WHERE id = ? AND user_id = ?",
+            (next_day, block["task_id"], current_user["id"])
+        )
+    db.commit()
+    db.close()
+    return {"message": "Block deferred to next day", "day_date": next_day}
 
 
 @router.patch("/tasks/{task_id}/shift-time")

@@ -64,10 +64,14 @@ def init_db():
             topic TEXT,
             subject TEXT,
             deadline TEXT,
+            day_date TEXT,
+            sort_order INTEGER DEFAULT 0,
             estimated_hours REAL DEFAULT 1.0,
             difficulty INTEGER DEFAULT 3 CHECK(difficulty BETWEEN 0 AND 5),
-            status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'done')),
+            status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'done', 'deferred')),
             is_delayed INTEGER DEFAULT 0,
+            original_date TEXT,
+            linked_task_id INTEGER,
             created_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (user_id) REFERENCES users(id),
             FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
@@ -133,6 +137,55 @@ def init_db():
 
     conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_day ON tasks(day_date)")
 
+    # Migrations: update tasks table for status='deferred' and new columns (SQLite table rebuild)
+    if "original_date" not in task_columns:
+        # We need to rebuild the table because SQLite doesn't support ALTER TABLE for CHECK constraints
+        try:
+            conn.execute("PRAGMA foreign_keys = OFF;")
+            conn.execute("BEGIN TRANSACTION;")
+            conn.execute("""
+                CREATE TABLE tasks_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    exam_id INTEGER,
+                    title TEXT NOT NULL,
+                    topic TEXT,
+                    subject TEXT,
+                    deadline TEXT,
+                    day_date TEXT,
+                    sort_order INTEGER DEFAULT 0,
+                    estimated_hours REAL DEFAULT 1.0,
+                    difficulty INTEGER DEFAULT 3 CHECK(difficulty BETWEEN 0 AND 5),
+                    status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'done', 'deferred')),
+                    is_delayed INTEGER DEFAULT 0,
+                    original_date TEXT,
+                    linked_task_id INTEGER,
+                    created_at TEXT DEFAULT (datetime('now')),
+                    FOREIGN KEY (user_id) REFERENCES users(id),
+                    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
+                );
+            """)
+            
+            # Map existing columns
+            cols_to_copy = ["id", "user_id", "exam_id", "title", "topic", "subject", "deadline", "estimated_hours", "difficulty", "status", "is_delayed", "created_at"]
+            if "day_date" in task_columns: cols_to_copy.append("day_date")
+            if "sort_order" in task_columns: cols_to_copy.append("sort_order")
+            
+            cols_str = ", ".join(cols_to_copy)
+            conn.execute(f"INSERT INTO tasks_new ({cols_str}) SELECT {cols_str} FROM tasks;")
+            
+            conn.execute("DROP TABLE tasks;")
+            conn.execute("ALTER TABLE tasks_new RENAME TO tasks;")
+            
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_exam ON tasks(exam_id);")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_day ON tasks(day_date);")
+            
+            conn.execute("COMMIT;")
+            conn.execute("PRAGMA foreign_keys = ON;")
+        except Exception as e:
+            conn.execute("ROLLBACK;")
+            print(f"Tasks migration failed: {e}")
+
     # Migrations: add is_delayed to schedule_blocks
     block_columns = {row[1] for row in conn.execute("PRAGMA table_info(schedule_blocks)").fetchall()}
     if "is_delayed" not in block_columns:
@@ -143,6 +196,8 @@ def init_db():
         conn.execute("ALTER TABLE schedule_blocks ADD COLUMN exam_name TEXT")
     if "is_manually_edited" not in block_columns:
         conn.execute("ALTER TABLE schedule_blocks ADD COLUMN is_manually_edited INTEGER DEFAULT 0")
+    if "deferred_original_day" not in block_columns:
+        conn.execute("ALTER TABLE schedule_blocks ADD COLUMN deferred_original_day TEXT")
 
     # Migrations: add push notification columns to users
     user_columns = {row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
