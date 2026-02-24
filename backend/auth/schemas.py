@@ -13,6 +13,7 @@ class RegisterRequest(BaseModel):
     study_method: str = "pomodoro"
     session_minutes: int = 50
     break_minutes: int = 10
+    timezone_offset: int = 0
 
 
 class LoginRequest(BaseModel):
