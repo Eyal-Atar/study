@@ -292,6 +292,20 @@ export function initInteractions() {
     if (!window.interact) return;
     initTouchDrag();
 
+    // interact.js handles mouse-only drag (desktop).
+    // Touch drag is handled entirely by initTouchDrag above.
+    //
+    // CRITICAL: interact.js sets `touch-action: none` on every matched element
+    // at setup time — before any drag gesture starts. This CSS property is what
+    // tells the browser "don't scroll when the user touches this element", which
+    // is exactly what breaks native scroll on touch devices. Stopping it in the
+    // `start` handler is too late — the CSS is already applied.
+    //
+    // `(hover: hover) and (pointer: fine)` matches devices that have a real mouse
+    // (precise pointer + true hover). Touch-only phones/tablets match
+    // `(hover: none) and (pointer: coarse)` and skip interact.js entirely.
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
     // Only interactive for non-break and non-done blocks.
     // ignoreFrom prevents interact.js from intercepting pointer events on
     // interactive child elements (checkboxes, delete buttons), which would
@@ -330,19 +344,13 @@ export function initInteractions() {
                 })
             ],
             listeners: {
-                start(event) {
-                    // Touch drag is handled entirely by the custom long-press system
-                    // (initTouchDrag above). Stopping interact.js on touch prevents
-                    // both systems running simultaneously — which is the root cause of
-                    // the "sometimes drag, sometimes scroll, complete chaos" bug.
-                    if (event.pointerType === 'touch') {
-                        event.interaction.stop();
-                        return;
-                    }
-                    // Mouse: intentionally empty — all lifting effects deferred to first move.
+                start(_event) {
+                    // Intentionally empty — all lifting effects deferred to first move.
                     // Mutating the DOM here (zIndex, classList) changes painting order
                     // BEFORE the native click fires, which can cause the click to land
                     // on a different element than the one the user tapped.
+                    // Note: only reachable on mouse (pointer: fine) devices — touch
+                    // devices return early before interact.js is set up (see above).
                 },
                 move(event) {
                     const target = event.target;
