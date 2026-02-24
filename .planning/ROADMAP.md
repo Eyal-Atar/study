@@ -173,8 +173,10 @@ Plans:
 | 11. Push Notifications | 3/3 | Complete   | 2026-02-22 |
 | 12. Internationalization | 0/3 | Not started | - |
 | 13. Production Deployment | 0/3 | Not started | - |
+| 14. Mobile-First UX | 1/1 | Complete | 2026-02-23 |
+| 15. Progress & Deferral | 1/2 | In progress | 2026-02-24 |
 
-**Overall:** 56% complete (5/9 phases)
+**Overall:** 64% complete (7/11 phases)
 
 ---
 
@@ -201,7 +203,15 @@ Plans:
 Plans:
 - [ ] 14-01-PLAN.md — Version bump JS cache-bust to v=14 + human verification of bottom tab bar, touch drag, and bottom-sheet modals
 
+### Phase 15: Task Checkbox Sync, Exam Progress Bars, and Push-to-Next-Day Foundation
+
+**Goal:** Interactive progress tracking with real-time sync and task deferral support
+**Depends on:** Phase 14
+**Plans:**
+- [x] 15-01-PLAN.md — Implementation (DB migration, Defer API, and Frontend Sync) (completed 2026-02-24)
+- [ ] 15-02-PLAN.md — Verification and Regression check
+
 ---
 
-*Roadmap updated: 2026-02-23*
-*Current Focus: Phase 14*
+*Roadmap updated: 2026-02-24*
+*Current Focus: Phase 15*
