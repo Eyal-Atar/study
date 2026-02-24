@@ -1,7 +1,7 @@
-import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, setCurrentTasks, getCurrentSchedule, setCurrentSchedule, getPendingExamId, setPendingExamId, getPendingFiles, setPendingFiles } from './store.js';
-import { shakeEl, spawnConfetti, examColorClass } from './ui.js';
-import { renderCalendar, renderTodayFocus, renderExamLegend } from './calendar.js';
-import { showRegenBar } from './brain.js';
+import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, setCurrentTasks, getCurrentSchedule, setCurrentSchedule, getPendingExamId, setPendingExamId, getPendingFiles, setPendingFiles } from './store.js?v=22';
+import { shakeEl, spawnConfetti, examColorClass } from './ui.js?v=22';
+import { renderCalendar, renderTodayFocus, renderExamLegend } from './calendar.js?v=22';
+import { showRegenBar } from './brain.js?v=22';
 
 // Notification permission prompt tracking
 const NOTIF_PROMPT_KEY = 'sf_notif_prompt_shown';
@@ -62,6 +62,7 @@ export function renderExamCards() {
                 <div class="text-sm text-white/30">Add your first exam</div>
             </div>`;
         document.getElementById('btn-add-first-exam').onclick = openAddExamModal;
+        renderExamCardsDrawer(currentExams);
         return;
     }
 
@@ -116,6 +117,37 @@ export function renderExamCards() {
             deleteExam(btn.dataset.examId);
         };
     });
+
+    renderExamCardsDrawer(currentExams);
+}
+
+function renderExamCardsDrawer(exams) {
+    const container = document.getElementById('exam-cards-drawer');
+    if (!container) return;
+    if (exams.length === 0) {
+        container.innerHTML = '<p class="text-white/30 text-sm">No exams yet</p>';
+        return;
+    }
+    container.innerHTML = exams.map((exam, i) => {
+        const days = Math.ceil((new Date(exam.exam_date) - new Date()) / 86400000);
+        const progress = exam.task_count > 0 ? Math.round((exam.done_count / exam.task_count) * 100) : 0;
+        const daysLabel = days > 0 ? `${days}d left` : days === 0 ? 'TODAY!' : 'Passed';
+        return `<div class="flex items-center gap-3 p-2.5 rounded-xl ${examColorClass(i,'bg20')} border ${examColorClass(i,'border')}">
+            <div class="w-2.5 h-2.5 rounded-full flex-shrink-0 ${examColorClass(i,'bg')}"></div>
+            <div class="flex-1 min-w-0">
+                <div class="font-medium text-sm truncate">${exam.name}</div>
+                <div class="text-xs text-white/40">${exam.subject} · ${daysLabel} · ${progress}%</div>
+            </div>
+            <button data-exam-id="${exam.id}" class="btn-edit-exam-drawer text-xs text-white/30 hover:text-accent-400 transition-colors px-1.5 py-1 flex-shrink-0">Edit</button>
+        </div>`;
+    }).join('');
+    container.querySelectorAll('.btn-edit-exam-drawer').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            const exam = getCurrentExams().find(ex => ex.id === parseInt(btn.dataset.examId));
+            if (exam) openEditExamModal(exam);
+        };
+    });
 }
 
 export function updateStats() {
@@ -126,22 +158,26 @@ export function updateStats() {
     const done = currentTasks.filter(t => t.status === 'done');
     const hours = pending.reduce((s, t) => s + t.estimated_hours, 0);
 
-    const elExams = document.getElementById('stat-exams');
-    const elHours = document.getElementById('stat-hours');
-    const elDone = document.getElementById('stat-done');
-    const elDays = document.getElementById('stat-days');
-    const elDaysLabel = document.getElementById('stat-days-label');
+    const setStatEl = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+        const elD = document.getElementById(id + '-desktop');
+        if (elD) elD.textContent = val;
+    };
 
-    if (elExams) elExams.textContent = currentExams.length;
-    if (elHours) elHours.textContent = hours.toFixed(1) + 'h';
-    if (elDone) elDone.textContent = `${done.length}/${currentTasks.length}`;
-    
+    setStatEl('stat-exams', currentExams.length);
+    setStatEl('stat-hours', hours.toFixed(1) + 'h');
+    setStatEl('stat-done', `${done.length}/${currentTasks.length}`);
+
     const upcoming = currentExams.filter(e => new Date(e.exam_date) >= new Date());
-    if (upcoming.length > 0 && elDays && elDaysLabel) {
+    if (upcoming.length > 0) {
         const nearest = upcoming.sort((a, b) => new Date(a.exam_date) - new Date(b.exam_date))[0];
         const days = Math.ceil((new Date(nearest.exam_date) - new Date()) / 86400000);
-        elDays.textContent = days;
-        elDaysLabel.textContent = `days · ${nearest.subject}`;
+        setStatEl('stat-days', days);
+        ['stat-days-label', 'stat-days-label-desktop'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = `days · ${nearest.subject}`;
+        });
     }
 }
 
@@ -570,8 +606,11 @@ export function initTasks() {
     const btnNotifYes = document.getElementById('btn-notif-yes');
     if (btnNotifYes) btnNotifYes.onclick = async () => {
         document.getElementById('modal-notif-permission')?.classList.remove('active');
-        // Delegate to auth.js for the actual permission + subscription flow
-        window.dispatchEvent(new CustomEvent('request-push-permission'));
+        // Call the global requestNotificationPermission() which preserves the iOS
+        // user-gesture context by calling Notification.requestPermission() directly.
+        if (typeof window.requestNotificationPermission === 'function') {
+            await window.requestNotificationPermission();
+        }
     };
 
     const btnNotifNo = document.getElementById('btn-notif-no');

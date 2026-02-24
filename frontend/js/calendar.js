@@ -1,19 +1,25 @@
-import { getCurrentExams, getCurrentTasks, getAPI, authFetch } from './store.js?v=14';
-import { examColorClass, showTaskEditModal, showConfirmModal } from './ui.js?v=14';
+import { getCurrentExams, getCurrentTasks, getAPI, authFetch, setCurrentSchedule } from './store.js?v=22';
+import { examColorClass, showTaskEditModal, showConfirmModal } from './ui.js?v=22';
 
 let currentDayIndex = 0;
 let dayKeys = [];
 // Track active time indicator interval to prevent leaks on re-render
 let _timeIndicatorInterval = null;
 
+const EXAM_COLOR_VALUES = ['#6B47F5', '#10B981', '#F43F5E', '#F59E0B', '#38BDF8'];
+
 export function renderExamLegend() {
     const el = document.getElementById('exam-legend');
     if (!el) return;
     const currentExams = getCurrentExams();
-    if (currentExams.length === 0) { 
-        el.innerHTML = '<p class="text-white/30 text-sm">Add exams to see legend</p>'; 
-        return; 
+    if (currentExams.length === 0) {
+        el.innerHTML = '<p class="text-white/30 text-sm">Add exams to see legend</p>';
+        return;
     }
+    // Set CSS vars so calendar blocks pick up the right per-exam color
+    currentExams.forEach((_, i) => {
+        document.documentElement.style.setProperty(`--exam-${i}-color`, EXAM_COLOR_VALUES[i % EXAM_COLOR_VALUES.length]);
+    });
     el.innerHTML = currentExams.map((exam, i) => `
         <div class="flex items-center gap-2">
             <div class="w-3 h-3 rounded-full ${examColorClass(i,'bg')}"></div>
@@ -76,8 +82,8 @@ function renderDayPicker(container, tasks, blocksByDay) {
     const isToday = day === today;
 
     const navHtml = `
-        <div class="flex items-center justify-between mb-6 bg-dark-800/40 p-3 rounded-2xl border border-white/5">
-            <button id="btn-prev-day" class="w-10 h-10 flex items-center justify-center rounded-xl bg-dark-700 hover:bg-accent-500/20 text-white/60 hover:text-accent-400 transition-all ${currentDayIndex === 0 ? 'opacity-20 cursor-not-allowed' : ''}" ${currentDayIndex === 0 ? 'disabled' : ''}>
+        <div class="flex items-center justify-between mb-3 md:mb-6 bg-dark-800/40 p-2 md:p-3 rounded-2xl border border-white/5">
+            <button id="btn-prev-day" class="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl bg-dark-700 hover:bg-accent-500/20 text-white/60 hover:text-accent-400 transition-all ${currentDayIndex === 0 ? 'opacity-20 cursor-not-allowed' : ''}" ${currentDayIndex === 0 ? 'disabled' : ''}>
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </button>
             <div class="text-center">
@@ -107,12 +113,18 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
     const examIdx = {};
     currentExams.forEach((e, i) => { examIdx[e.id] = i; });
 
-    // Robust date parser for local time
+    // Parse a backend datetime string as local time.
+    // Backend stores times as local ISO without timezone (e.g. "2024-01-15T10:00:00").
+    // Stripping Z ensures browsers treat the string as local, not UTC.
     const parseLocalDate = (dateStr) => {
         if (!dateStr) return new Date();
-        // Replace space with T if needed, but ensure no Z to keep it local
-        const iso = dateStr.replace(' ', 'T').replace('Z', '');
-        return new Date(iso);
+        return new Date(dateStr.replace(' ', 'T').replace(/Z$/, ''));
+    };
+
+    // Format a parsed local Date into HH:MM using the device's locale.
+    const formatLocalTime = (date) => {
+        if (!date || isNaN(date)) return '';
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
     };
 
     let firstTaskHour = 24;
@@ -123,7 +135,10 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
     
     // Start grid 1 hour before first task, minimum 0, maximum 12 (to always show some day)
     const startHour = Math.min(Math.max(0, firstTaskHour - 1), 12);
-    const HOUR_HEIGHT = 160; 
+    
+    // 1. Drastically Reduce Vertical Scale (Mobile Only)
+    // Mobile: 70px, Desktop: 160px
+    const HOUR_HEIGHT = window.innerWidth < 768 ? 70 : 160; 
 
     let html = renderDayPicker(container, tasks, blocksByDay);
 
@@ -143,22 +158,32 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
 
         const eIdx = block.exam_id !== null && block.exam_id !== -1 ? (examIdx[block.exam_id] ?? -1) : -1;
         const typeClass = `block-${block.block_type}`;
-        const colorStyle = eIdx !== -1 ? `border-left-color: var(--exam-${eIdx}-color, #6B47F5);` : '';
-        const startTimeStr = `${startH}:${String(startM).padStart(2, '0')}`;
-        const endTimeStr = `${endH}:${String(endM).padStart(2, '0')}`;
+        const borderColor = eIdx !== -1 ? `var(--exam-${eIdx}-color, #6B47F5)` : '#6B47F5';
+        const startTimeStr = formatLocalTime(start);
+        const endTimeStr = formatLocalTime(end);
         const isDone = block.completed === 1;
         const completedClass = isDone ? 'is-completed' : '';
 
+        // Tinted translucent backgrounds per exam color (iOS Calendar style)
+        const BLOCK_BG_COLORS = [
+            'rgba(107,71,245,0.18)',  // accent purple
+            'rgba(16,185,129,0.18)',  // mint green
+            'rgba(244,63,94,0.18)',   // coral red
+            'rgba(245,158,11,0.18)', // gold amber
+            'rgba(56,189,248,0.18)', // sky blue
+        ];
+        const blockBg = eIdx !== -1 ? BLOCK_BG_COLORS[eIdx % BLOCK_BG_COLORS.length] : BLOCK_BG_COLORS[0];
+
         return `
-            <div class="schedule-block ${typeClass} ${completedClass} ${block.is_delayed ? 'block-delayed' : ''} group" 
-                 style="position: absolute; top: ${visualTop}px; height: ${visualHeight}px; border: none; left: 8px; right: 8px; ${colorStyle}"
+            <div class="schedule-block ${typeClass} ${completedClass} ${block.is_delayed ? 'block-delayed' : ''} group"
+                 style="position: absolute; top: ${visualTop}px; height: ${visualHeight}px; left: 4px; right: 8px; border-left: 4px solid ${borderColor}; background: ${blockBg};"
                  data-task-id="${block.task_id || ''}"
                  data-block-id="${block.id || ''}"
                  data-block-type="${block.block_type}"
                  data-is-done="${isDone}">
                 
-                <div class="swipe-content h-full p-3">
-                    <div class="flex items-start gap-3 h-full">
+                <div class="swipe-content h-full p-1.5 px-2 md:p-3">
+                    <div class="flex items-start gap-2 md:gap-3 h-full">
                         <button data-task-id="${block.task_id}" data-block-id="${block.id}"
                                 class="task-checkbox flex-shrink-0 w-6 h-6 mt-0.5 rounded-lg border-2 flex items-center justify-center transition-all ${isDone ? 'checked border-mint-500' : 'border-white/10 hover:border-accent-400'}"
                                 style="${isDone ? 'background-color:#10B981;border-color:#10B981;' : ''}">
@@ -167,16 +192,16 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
                         
                         <div class="flex-1 min-w-0 flex flex-col justify-between h-full">
                             <div>
-                                <div class="font-bold truncate text-[13px] text-white/95 task-title mb-0.5" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2;" dir="auto">${block.task_title}</div>
+                                <div class="font-bold text-[11px] md:text-[13px] text-white/95 task-title-text mb-0.5 line-clamp-2" dir="auto">${block.task_title}</div>
                                 <div class="flex items-baseline gap-2">
-                                    <span class="text-base font-bold text-white">${startTimeStr}</span>
-                                    ${visualHeight >= 50 ? `<span class="text-[9px] opacity-30 font-medium">${durationMin}m</span>` : ''}
+                                    <span class="text-sm md:text-base font-bold text-white">${startTimeStr}</span>
+                                    ${visualHeight >= 40 ? `<span class="text-[9px] opacity-30 font-medium">${durationMin}m</span>` : ''}
                                 </div>
                             </div>
                             
                             <div class="flex items-center justify-between mt-auto">
-                                <span class="text-[10px] opacity-50 truncate font-medium max-w-[120px]" dir="auto">${block.exam_name || ''}</span>
-                                ${block.is_delayed ? '<span class="delayed-badge">DELAYED</span>' : ''}
+                                <span class="text-[9px] md:text-[10px] opacity-50 truncate font-medium max-w-[120px]" dir="auto">${block.exam_name || ''}</span>
+                                ${block.is_delayed ? '<span class="delayed-badge scale-75 origin-right">DELAYED</span>' : ''}
                             </div>
                         </div>
                     </div>
@@ -189,29 +214,54 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
     const totalGridHeight = (24 - startHour) * HOUR_HEIGHT;
 
     html += `
-        <div class="grid-day-container fade-in relative overflow-hidden rounded-3xl border border-white/5 bg-dark-900/20 h-full min-h-[60vh] flex-1 overflow-y-auto pl-16 pr-4" 
+        <div class="grid-day-container fade-in h-full flex-1 overflow-y-auto"
              data-day-date="${day}"
              data-start-hour="${startHour}">
-            <div id="calendar-grid-wrapper" class="calendar-grid-wrapper" style="height: ${totalGridHeight}px;">
-                <div class="calendar-grid" style="position: relative; height: ${totalGridHeight}px; background-size: 100% ${HOUR_HEIGHT}px;">
-                    ${Array.from({length: 24 - startHour}).map((_, i) => {
-                        const h = i + startHour;
-                        return `
-                            <div class="hour-label" style="top: ${i * HOUR_HEIGHT}px">
-                                ${String(h).padStart(2, '0')}:00
-                            </div>
-                        `;
-                    }).join('')}
-                    ${renderedBlocks.join('')}
+            <div id="calendar-grid-wrapper" class="calendar-grid-wrapper" style="min-height: ${totalGridHeight + 32}px; padding-bottom: 32px;">
+                <div style="display: flex; min-height: ${totalGridHeight}px;">
+                    <!-- Time column: fixed 48px -->
+                    <div class="time-col" style="width: 48px; min-width: 48px; flex-shrink: 0; position: relative; height: ${totalGridHeight}px;">
+                        ${Array.from({length: 24 - startHour}).map((_, i) => {
+                            const h = i + startHour;
+                            return `<div class="hour-label" style="top: ${i * HOUR_HEIGHT}px;">${String(h).padStart(2, '0')}:00</div>`;
+                        }).join('')}
+                    </div>
+                    <!-- Events column: fills remaining width -->
+                    <div class="calendar-grid" style="flex: 1; position: relative; height: ${totalGridHeight}px; border-left: 1px solid rgba(255,255,255,0.06);">
+                        ${Array.from({length: 24 - startHour}).map((_, i) => {
+                            return `<div style="position: absolute; top: ${i * HOUR_HEIGHT}px; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.06); pointer-events: none;"></div>`;
+                        }).join('')}
+                        ${renderedBlocks.join('')}
+                    </div>
                 </div>
             </div>
         </div>
     `;
 
-        container.innerHTML = html;
-    
-        // Current Time Indicator
-        renderCurrentTimeIndicator(container, startHour, HOUR_HEIGHT);
+    container.innerHTML = html;
+
+    // Current Time Indicator
+    renderCurrentTimeIndicator(container, startHour, HOUR_HEIGHT);
+
+    // Lightweight schedule-only refresh: avoids the full loadExams → full re-render flash
+    const refreshScheduleOnly = async () => {
+        const API = getAPI();
+        try {
+            const res = await authFetch(`${API}/schedule`);
+            if (!res.ok) return;
+            const newSchedule = await res.json();
+            setCurrentSchedule(newSchedule);
+            const newBlocksByDay = {};
+            newSchedule.forEach(block => {
+                if (!newBlocksByDay[block.day_date]) newBlocksByDay[block.day_date] = [];
+                newBlocksByDay[block.day_date].push(block);
+            });
+            _blocksByDay = newBlocksByDay;
+            renderHourlyGrid(container, tasks, newBlocksByDay);
+        } catch (err) {
+            console.error('Schedule refresh failed:', err);
+        }
+    };
 
     const handleDeleteBlock = async (blockId, blockType) => {
         const API = getAPI();
@@ -233,12 +283,11 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
 
             try {
                 await authFetch(`${API}/tasks/block/${blockId}`, { method: 'DELETE' });
-                // Full background refresh to keep server state in sync, but UI already updated
-                window.dispatchEvent(new CustomEvent('calendar-needs-refresh'));
+                // Lightweight refresh: only re-fetch schedule (no exam cards, no stats flash)
+                await refreshScheduleOnly();
             } catch (err) {
                 console.error('Delete failed:', err);
-                // On failure, trigger a full refresh to restore correct state
-                window.dispatchEvent(new CustomEvent('calendar-needs-refresh'));
+                await refreshScheduleOnly();
             }
         };
 
@@ -270,7 +319,42 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
             const newStart = `${dayDate}T${updates.startTimeStr}:00`;
             const startDate = new Date(newStart);
             const endDate = new Date(startDate.getTime() + updates.duration * 60000);
-            
+
+            // ── Optimistic DOM update ──────────────────────────────────────────
+            // Animate the block to its new position BEFORE the API round-trip so
+            // the user sees instant feedback. The CSS transition on top/height
+            // (0.4s ease) will play smoothly, then the grid refreshes silently.
+            const blockEl = container.querySelector(`.schedule-block[data-block-id="${blockId}"]`);
+            if (blockEl) {
+                const newVisualTop = ((startDate.getHours() + startDate.getMinutes() / 60) - startHour) * HOUR_HEIGHT;
+                const newVisualHeight = (updates.duration / 60) * HOUR_HEIGHT;
+
+                // Update title text immediately
+                const titleEl = blockEl.querySelector('.task-title-text');
+                if (titleEl && updates.title) titleEl.textContent = updates.title;
+
+                // Update time label text immediately (the bold span showing HH:MM)
+                const timeEl = blockEl.querySelector('.flex.items-baseline span.font-bold');
+                if (timeEl) {
+                    const newH = String(startDate.getHours()).padStart(2, '0');
+                    const newM = String(startDate.getMinutes()).padStart(2, '0');
+                    timeEl.textContent = `${newH}:${newM}`;
+                }
+
+                // Double-RAF ensures the browser has committed (painted) the block
+                // at its CURRENT top position before we write the new value.
+                // Without this, both the read and write happen in the same frame and
+                // the CSS transition has no "from" state — the block teleports instead
+                // of sliding. The outer RAF queues us at the start of the next frame;
+                // the inner RAF fires after that frame is committed to the compositor.
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        blockEl.style.top = `${newVisualTop}px`;
+                        blockEl.style.height = `${newVisualHeight}px`;
+                    });
+                });
+            }
+
             // Helper for local ISO formatting
             const toLocalISO = (date) => new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().slice(0, 19);
 
@@ -283,7 +367,10 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
                     end_time: toLocalISO(endDate)
                 })
             });
-            window.dispatchEvent(new CustomEvent('calendar-needs-refresh'));
+            // Wait for the 0.4s position animation to complete before re-rendering
+            // so the grid refresh doesn't interrupt the visible transition.
+            await new Promise(r => setTimeout(r, 420));
+            await refreshScheduleOnly();
         } catch (err) { console.error('Update failed:', err); }
     };
 
@@ -310,19 +397,37 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
         }
     };
 
-    container.ondblclick = (e) => {
+    // Double-tap to edit — custom implementation because ondblclick is unreliable on iOS Safari.
+    // Single tap intentionally does nothing (prevents accidental opens while scrolling).
+    let _lastTapTime = 0;
+    let _lastTapBlock = null;
+    container.addEventListener('touchend', (e) => {
+        if (e.target.closest('.task-checkbox, .delete-reveal-btn')) return;
         const blockEl = e.target.closest('.schedule-block');
-        if (blockEl) {
+        if (!blockEl || blockEl.classList.contains('block-break')) return;
+
+        const now = Date.now();
+        const gap = now - _lastTapTime;
+
+        if (gap < 300 && gap > 0 && _lastTapBlock === blockEl) {
+            // Double-tap confirmed — prevent default only here (stops zoom/ghost click)
+            e.preventDefault();
+            _lastTapTime = 0;
+            _lastTapBlock = null;
             const blockId = blockEl.dataset.blockId;
             const block = dayBlocks.find(b => b.id == blockId);
             if (block && block.block_type !== 'break') {
-                showTaskEditModal(block, 
+                showTaskEditModal(block,
                     (updates) => handleSaveBlock(blockId, updates),
                     () => handleDeleteBlock(blockId, block.block_type)
                 );
             }
+        } else {
+            // First tap — do NOT preventDefault so scroll remains unblocked
+            _lastTapTime = now;
+            _lastTapBlock = blockEl;
         }
-    };
+    }, { passive: false });
 
     // Navigation events
     const prevBtn = document.getElementById('btn-prev-day');

@@ -2,19 +2,19 @@
  * Handles: App Shell caching, offline fallback, push notifications
  */
 
-const CACHE_NAME = 'studyflow-shell-v1';
+const CACHE_NAME = 'studyflow-shell-v22';
 
 const APP_SHELL = [
-  '/',
-  '/css/styles.css',
-  '/js/app.js',
-  '/js/auth.js',
-  '/js/brain.js',
-  '/js/calendar.js',
-  '/js/interactions.js',
-  '/js/store.js',
-  '/js/tasks.js',
-  '/js/ui.js'
+  '/css/styles.css?v=26',
+  '/js/app.js?v=22',
+  '/js/auth.js?v=22',
+  '/js/brain.js?v=22',
+  '/js/calendar.js?v=22',
+  '/js/interactions.js?v=22',
+  '/js/store.js?v=22',
+  '/js/tasks.js?v=22',
+  '/js/ui.js?v=22',
+  '/manifest.json'
 ];
 
 // ─── Install: cache the App Shell ────────────────────────────
@@ -61,6 +61,20 @@ self.addEventListener('fetch', event => {
 
   // Only handle same-origin requests
   if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // Navigation (HTML): always network-first so users never get a stale app shell
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).then(response => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(c => c.put(request, clone));
+        return response;
+      }).catch(() =>
+        caches.match('/').then(c => c || caches.match(request))
+      )
+    );
     return;
   }
 

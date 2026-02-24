@@ -23,7 +23,7 @@
             }
         }
     </script>
-    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/styles.css?v=26">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#6366f1">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -288,28 +288,12 @@
     <div id="screen-dashboard" class="screen">
 
         <!-- Mobile App Bar (inside dashboard — hidden on other screens automatically) -->
-        <div id="mobile-app-bar" class="md:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 bg-dark-900/95 backdrop-blur-sm border-b border-white/5">
+        <div id="mobile-app-bar" class="md:hidden flex items-center justify-between px-4 py-3 bg-dark-900/95 backdrop-blur-sm border-b border-white/5">
             <div class="flex items-center gap-2">
                 <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-sm">🧠</div>
                 <span id="mobile-tab-title" class="font-bold text-sm">Roadmap</span>
             </div>
-            <div id="mobile-user-avatar" class="w-8 h-8 rounded-full bg-accent-500/20 border border-accent-500/30 flex items-center justify-center text-xs font-bold"></div>
-        </div>
-
-        <!-- Mobile Bottom Tab Bar -->
-        <div id="mobile-tab-bar" class="md:hidden fixed bottom-0 left-0 right-0 z-30 flex bg-dark-900/95 backdrop-blur-sm border-t border-white/5">
-            <button data-tab="roadmap" class="mobile-tab-btn flex-1 flex flex-col items-center justify-center py-3 gap-0.5 text-accent-400 transition-colors">
-                <span class="text-lg leading-none">📅</span>
-                <span class="text-xs font-medium">Roadmap</span>
-            </button>
-            <button data-tab="focus" class="mobile-tab-btn flex-1 flex flex-col items-center justify-center py-3 gap-0.5 text-white/40 transition-colors">
-                <span class="text-lg leading-none">⚡</span>
-                <span class="text-xs font-medium">Focus</span>
-            </button>
-            <button data-tab="exams" class="mobile-tab-btn flex-1 flex flex-col items-center justify-center py-3 gap-0.5 text-white/40 transition-colors">
-                <span class="text-lg leading-none">📚</span>
-                <span class="text-xs font-medium">Exams</span>
-            </button>
+            <button id="mobile-user-avatar" class="w-8 h-8 rounded-full bg-accent-500/20 border border-accent-500/30 flex items-center justify-center text-xs font-bold transition-opacity active:opacity-60"></button>
         </div>
 
         <div class="relative z-10 max-w-6xl mx-auto px-4 pt-14 pb-24 md:py-6">
@@ -358,25 +342,9 @@
             </div>
 
             <!-- ═══ MOBILE EXAMS PANEL (hidden by default, shown on Exams tab) ═══ -->
-            <div id="mobile-exams-panel" class="hidden">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="font-bold text-lg">My Exams</h2>
-                    <button id="btn-add-exam-drawer" class="text-xs bg-accent-500 hover:bg-accent-600 px-3 py-1.5 rounded-lg transition-all font-medium">+ Add</button>
-                </div>
-                <div id="exam-cards-drawer" class="space-y-2 mb-6">
-                    <p class="text-white/30 text-sm">No exams yet</p>
-                </div>
-                <div class="space-y-2">
-                    <button id="btn-show-settings-drawer" class="w-full py-3 rounded-2xl bg-dark-700/60 text-white/60 hover:text-white border border-white/10 text-sm font-medium transition-all">⚙️ Profile Settings</button>
-                    <button id="btn-logout-drawer" class="w-full py-3 rounded-2xl text-coral-400 border border-coral-500/20 text-sm font-medium transition-all">Sign Out</button>
-                </div>
-            </div>
-
-            <!-- ═══ ROADMAP CONTENT (stats + regen + calendar — hidden on mobile when other tabs active) ═══ -->
-            <div id="mobile-roadmap-content">
-
+            <div id="mobile-exams-panel" class="hidden overflow-y-auto px-4 py-4">
                 <!-- Stats Row -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 stagger">
+                <div class="grid grid-cols-2 gap-3 mb-4 stagger">
                     <div class="fade-in bg-dark-700/60 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
                         <div class="text-white/40 text-xs font-medium mb-1">Nearest Exam</div>
                         <div class="text-2xl font-bold" id="stat-days">—</div>
@@ -393,6 +361,38 @@
                     <div class="fade-in bg-dark-700/60 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
                         <div class="text-white/40 text-xs font-medium mb-1">Tasks Done</div>
                         <div class="text-2xl font-bold text-mint-400" id="stat-done">0/0</div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-bold text-lg">My Exams</h2>
+                    <button id="btn-add-exam-drawer" class="text-xs bg-accent-500 hover:bg-accent-600 px-3 py-1.5 rounded-lg transition-all font-medium">+ Add</button>
+                </div>
+                <div id="exam-cards-drawer" class="space-y-2">
+                    <p class="text-white/30 text-sm">No exams yet</p>
+                </div>
+            </div>
+
+            <!-- ═══ ROADMAP CONTENT (stats + regen + calendar — hidden on mobile when other tabs active) ═══ -->
+            <div id="mobile-roadmap-content">
+
+                <!-- Stats Row (desktop only — mobile stats are in Exams tab) -->
+                <div class="hidden md:grid md:grid-cols-4 gap-3 mb-6 stagger">
+                    <div class="fade-in bg-dark-700/60 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
+                        <div class="text-white/40 text-xs font-medium mb-1">Nearest Exam</div>
+                        <div class="text-2xl font-bold" id="stat-days-desktop">—</div>
+                        <div class="text-xs text-white/30 mt-1" id="stat-days-label-desktop">days away</div>
+                    </div>
+                    <div class="fade-in bg-dark-700/60 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
+                        <div class="text-white/40 text-xs font-medium mb-1">Exams</div>
+                        <div class="text-2xl font-bold" id="stat-exams-desktop">0</div>
+                    </div>
+                    <div class="fade-in bg-dark-700/60 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
+                        <div class="text-white/40 text-xs font-medium mb-1">Study Hours Left</div>
+                        <div class="text-2xl font-bold" id="stat-hours-desktop">—</div>
+                    </div>
+                    <div class="fade-in bg-dark-700/60 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
+                        <div class="text-white/40 text-xs font-medium mb-1">Tasks Done</div>
+                        <div class="text-2xl font-bold text-mint-400" id="stat-done-desktop">0/0</div>
                     </div>
                 </div>
 
@@ -425,15 +425,14 @@
 
                     <!-- Roadmap -->
                     <div class="lg:col-span-2">
-                        <div class="bg-dark-700/60 backdrop-blur-sm rounded-3xl p-6 border border-white/5">
-                            <div class="flex items-center justify-between mb-4">
+                        <div class="md:bg-dark-700/60 md:backdrop-blur-sm md:rounded-3xl md:p-6 md:border md:border-white/5">
+                            <div class="flex items-center justify-between mb-4 mobile-hide">
                                 <h2 class="text-xl font-bold">Study Roadmap</h2>
                                 <button id="btn-generate-roadmap" class="text-sm bg-gradient-to-r from-accent-500 to-mint-500 px-4 py-1.5 rounded-lg font-medium hover:opacity-90 transition-all">
                                     Generate Roadmap
                                 </button>
                             </div>
-                            <div id="roadmap-container" class="relative pl-14 stagger">
-                                <div class="absolute left-[15px] top-0 bottom-0 w-[2px] bg-gradient-to-b from-accent-500 via-mint-400 to-gold-400 opacity-20"></div>
+                            <div id="roadmap-container" class="relative stagger">
                                 <div class="text-center py-12 text-white/30">
                                     <p class="text-3xl mb-3">🧠</p>
                                     <p class="text-lg mb-1">Add your exams first</p>
@@ -471,11 +470,30 @@
 
             </div><!-- /#mobile-roadmap-content -->
         </div>
+        <!-- Mobile Bottom Tab Bar -->
+        <div id="mobile-tab-bar" class="md:hidden flex bg-dark-900/95 backdrop-blur-sm border-t border-white/5" style="padding-bottom: env(safe-area-inset-bottom);">
+            <button data-tab="roadmap" class="mobile-tab-btn flex-1 flex flex-col items-center justify-center py-3 gap-0.5 text-accent-400 transition-colors">
+                <span class="text-lg leading-none">📅</span>
+                <span class="text-xs font-medium">Roadmap</span>
+            </button>
+            <button data-tab="focus" class="mobile-tab-btn flex-1 flex flex-col items-center justify-center py-3 gap-0.5 text-white/40 transition-colors">
+                <span class="text-lg leading-none">⚡</span>
+                <span class="text-xs font-medium">Focus</span>
+            </button>
+            <button data-tab="exams" class="mobile-tab-btn flex-1 flex flex-col items-center justify-center py-3 gap-0.5 text-white/40 transition-colors">
+                <span class="text-lg leading-none">📚</span>
+                <span class="text-xs font-medium">Exams</span>
+            </button>
+        </div>
     </div>
 
     <!-- ADD EXAM MODAL -->
     <div id="modal-add-exam" class="modal-bg modal-sheet">
         <div class="w-full max-w-lg mx-4 bg-dark-700 rounded-3xl border border-white/10 shadow-2xl overflow-hidden">
+            <!-- iOS-style drag handle (hidden on desktop) -->
+            <div class="flex justify-center pt-3 pb-1 md:hidden">
+                <div class="w-9 h-1 rounded-full bg-white/20"></div>
+            </div>
             <div id="modal-step-1">
                 <div class="p-6">
                     <div class="flex items-center justify-between mb-6">
@@ -598,6 +616,11 @@
                     <div class="border-t border-white/10 pt-4">
                         <label class="text-sm text-white/50 mb-3 block font-medium">Notifications</label>
                         <div class="space-y-3">
+                            <p id="notif-status" class="text-xs text-white/40">Status: checking...</p>
+                            <div class="flex gap-2">
+                                <button id="enable-notif-btn" onclick="requestNotificationPermission()" class="flex-1 py-2 rounded-xl bg-accent-500/20 border border-accent-500/30 text-accent-400 text-xs font-medium transition-all active:opacity-60">Enable Notifications</button>
+                                <button id="test-notif-btn" onclick="testNotification()" class="flex-1 py-2 rounded-xl bg-white/5 border border-white/10 text-white/50 text-xs font-medium transition-all active:opacity-60">Test</button>
+                            </div>
                             <div>
                                 <label class="text-sm text-white/50 mb-1 block">Notify me</label>
                                 <select id="settings-notif-timing" class="input-field appearance-none">
@@ -618,40 +641,43 @@
                     </div>
                 </div>
             </div>
-            <div class="px-6 pb-6">
+            <div class="px-6 pb-6 space-y-3">
                 <button id="btn-save-settings" class="w-full bg-accent-500 hover:bg-accent-600 font-semibold py-3 rounded-xl transition-all">Save Changes</button>
+                <button id="btn-logout-drawer" class="w-full py-3 rounded-xl text-coral-400 border border-coral-500/20 text-sm font-medium transition-all active:opacity-60">Sign Out</button>
             </div>
         </div>
     </div>
 
     <!-- EDIT TASK MODAL -->
     <div id="modal-edit-task" class="modal-bg modal-sheet">
-        <div class="w-full max-w-md mx-4 bg-dark-700 rounded-3xl border border-white/10 shadow-2xl overflow-hidden fade-in">
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-xl font-bold">Edit Task</h2>
-                    <button id="btn-close-edit-modal" class="text-white/40 hover:text-white text-xl">✕</button>
+        <div class="w-full max-w-md mx-4 bg-dark-800 rounded-3xl shadow-2xl overflow-hidden">
+            <!-- iOS-style drag handle (hidden on desktop) -->
+            <div class="flex justify-center pt-3 pb-1 md:hidden">
+                <div class="w-9 h-1 rounded-full bg-white/20"></div>
+            </div>
+            <div class="p-5">
+                <div class="flex items-center justify-between mb-5">
+                    <h2 class="text-lg font-bold">Edit Block</h2>
+                    <button id="btn-close-edit-modal" class="text-white/40 active:text-white w-9 h-9 flex items-center justify-center rounded-full bg-white/5 transition-colors text-base">✕</button>
                 </div>
-                <div class="space-y-4">
+                <div class="space-y-3">
                     <div>
-                        <label class="text-sm text-white/50 mb-1 block">Title</label>
-                        <input id="edit-task-title" type="text" class="input-field" dir="auto">
+                        <label class="text-xs text-white/40 mb-1.5 block uppercase tracking-wide font-medium">Title</label>
+                        <input id="edit-task-title" type="text" class="edit-modal-input" dir="auto">
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-sm text-white/50 mb-1 block">Start Time</label>
-                            <input id="edit-task-start" type="time" class="input-field">
-                        </div>
-                        <div>
-                            <label class="text-sm text-white/50 mb-1 block">Duration (min)</label>
-                            <input id="edit-task-duration" type="number" step="5" min="5" class="input-field">
-                        </div>
+                    <div>
+                        <label class="text-xs text-white/40 mb-1.5 block uppercase tracking-wide font-medium">Start Time</label>
+                        <input id="edit-task-start" type="time" class="edit-modal-input">
+                    </div>
+                    <div>
+                        <label class="text-xs text-white/40 mb-1.5 block uppercase tracking-wide font-medium">Duration (minutes)</label>
+                        <input id="edit-task-duration" type="number" step="5" min="5" class="edit-modal-input">
                     </div>
                 </div>
             </div>
-            <div class="px-6 pb-6 flex gap-3">
-                <button id="btn-delete-task-modal" class="px-4 py-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all font-medium">Delete</button>
-                <button id="btn-save-task-edit" class="flex-1 bg-accent-500 hover:bg-accent-600 font-semibold py-3 rounded-xl transition-all">Save Changes</button>
+            <div class="px-5 pb-6 pt-2 flex gap-3">
+                <button id="btn-delete-task-modal" class="px-4 py-3.5 rounded-2xl bg-red-500/10 text-red-400 active:bg-red-500/20 transition-all font-medium text-sm">Delete</button>
+                <button id="btn-save-task-edit" class="flex-1 bg-accent-500 active:opacity-80 font-semibold py-3.5 rounded-2xl transition-all">Save Changes</button>
             </div>
         </div>
     </div>
@@ -683,6 +709,77 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
-    <script type="module" src="/js/app.js?v=14"></script>
+
+    <!-- Notification permission functions — must be global (called from inline onclick) -->
+    <script>
+        window._updateNotifStatus = function _updateNotifStatus() {
+            const el = document.getElementById('notif-status');
+            const btn = document.getElementById('enable-notif-btn');
+            if (!el) return;
+
+            if (!('Notification' in window)) {
+                el.textContent = 'Not supported on this browser/device.';
+                if (btn) { btn.disabled = true; btn.textContent = 'Not Supported'; }
+                return;
+            }
+
+            const perm = Notification.permission;
+            if (perm === 'granted') {
+                el.textContent = '✓ Enabled — you will receive notifications.';
+                el.style.color = '#34D399';
+                if (btn) { btn.disabled = true; btn.textContent = '✓ Enabled'; btn.style.opacity = '0.5'; }
+            } else if (perm === 'denied') {
+                el.textContent = 'Blocked — enable in device Settings > Safari/Chrome > Notifications.';
+                el.style.color = '#FB7185';
+                if (btn) { btn.disabled = false; btn.textContent = 'Enable Notifications'; btn.style.opacity = '1'; }
+            } else {
+                el.textContent = 'Tap "Enable Notifications" to get study reminders.';
+                el.style.color = '';
+                if (btn) { btn.disabled = false; btn.textContent = 'Enable Notifications'; btn.style.opacity = '1'; }
+            }
+        }
+
+        // Called directly from onclick — preserves iOS/Chrome user-gesture context
+        async function requestNotificationPermission() {
+            if (!('Notification' in window)) {
+                alert('Push notifications are not supported on this browser/device.');
+                return;
+            }
+
+            try {
+                const permission = await Notification.requestPermission();
+
+                if (permission === 'granted') {
+                    new Notification('StudyFlow', {
+                        body: 'Notifications are successfully enabled!',
+                        icon: '/static/icon-192.png'
+                    });
+                    // Subscribe to push (auth.js handles VAPID)
+                    window.dispatchEvent(new CustomEvent('request-push-permission'));
+                } else if (permission === 'denied') {
+                    alert('Notifications were denied. You must enable them in your device settings.');
+                }
+            } catch (error) {
+                console.error('Error requesting permission:', error);
+            }
+
+            _updateNotifStatus();
+        }
+
+        function testNotification() {
+            if (!('Notification' in window) || Notification.permission !== 'granted') {
+                alert('Please enable notifications first.');
+                return;
+            }
+            new Notification('Test Success', {
+                body: 'Your browser notifications are working perfectly!',
+                icon: '/static/icon-192.png'
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', _updateNotifStatus);
+    </script>
+
+    <script type="module" src="/js/app.js?v=26"></script>
 </body>
 </html>

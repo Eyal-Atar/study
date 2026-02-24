@@ -2,6 +2,15 @@
 
 body { background: #0B0F1A; }
 
+/* ── iOS/Mobile: Hide scrollbars globally ── */
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
 /* Animated background orbs */
 .orb { position: fixed; border-radius: 50%; filter: blur(80px); opacity: 0.12; animation: float 20s ease-in-out infinite; pointer-events: none; z-index: 0; }
 .orb-1 { width: 500px; height: 500px; background: #6B47F5; top: -200px; left: -100px; }
@@ -36,9 +45,173 @@ body { background: #0B0F1A; }
 .screen { display:none; }
 .screen.active { display:block; }
 
-/* Modal */
-.modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); z-index:50; }
-.modal-bg.active { display:flex; align-items:center; justify-content:center; }
+/* === Phase 14: Mobile-First UX Fixes === */
+
+/* 1. The 100dvh Viewport Fix */
+@media (max-width: 768px) {
+    html, body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden !important;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        -webkit-user-select: none;
+        user-select: none;
+        touch-action: none; /* Prevent browser pull-to-refresh and other gestures at root */
+    }
+
+    #screen-dashboard.active {
+        display: flex !important;
+        flex-direction: column !important;
+        height: 100dvh !important;
+        width: 100vw !important;
+        overflow: hidden !important;
+        position: relative;
+    }
+
+    /* 2. Flexbox Distribution */
+    #mobile-app-bar {
+        position: relative !important; /* Move from fixed to flex child */
+        height: 56px;
+        flex-shrink: 0;
+        z-index: 40;
+    }
+
+    #mobile-tab-bar {
+        position: relative !important; /* Move from fixed to flex child */
+        height: 64px;
+        flex-shrink: 0;
+        z-index: 40;
+    }
+
+    /* The main content area between bars */
+    #screen-dashboard > .relative.z-10 {
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+        padding: 0 !important; /* Clear all default container padding */
+        margin: 0 !important;
+        max-width: none !important;
+    }
+
+    /* Roadmap content needs to be scrollable */
+    #mobile-roadmap-content {
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+    }
+
+    /* Tab panel visibility: .hidden must win over display:flex !important */
+    #mobile-roadmap-content.hidden,
+    #mobile-focus-panel.hidden,
+    #mobile-exams-panel.hidden {
+        display: none !important;
+    }
+
+    /* Active focus/exams panels need flex layout too */
+    #mobile-focus-panel:not(.hidden) {
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding: 16px !important;
+    }
+
+    #mobile-exams-panel:not(.hidden) {
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    /* 3. Visual Declutter */
+    .mobile-hide { display: none !important; }
+
+    /* Fix calendar scroll: chain flex heights from roadmap content → grid */
+    #mobile-roadmap-content > .grid {
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        min-height: 0 !important;
+        gap: 0 !important;
+    }
+    #mobile-roadmap-content > .grid > div:first-child {
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        min-height: 0 !important;
+    }
+    #mobile-roadmap-content > .grid > div:first-child > div {
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        min-height: 0 !important;
+    }
+    #roadmap-container {
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        min-height: 0 !important;
+    }
+
+    /* Calendar Grid Container — GPU-accelerated scroll, no iOS bounce */
+    .grid-day-container {
+        flex: 1 !important;
+        height: auto !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        touch-action: pan-y !important;
+        overscroll-behavior-y: none !important;
+        -webkit-transform: translate3d(0, 0, 0) !important;
+        transform: translate3d(0, 0, 0) !important;
+        will-change: transform !important;
+        border: none !important;
+        background: transparent !important;
+    }
+
+    /* Kill backdrop-filter on blocks — major perf win on iOS */
+    .schedule-block {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    /* Tab bar safe-area already applied inline; height accounts for it */
+    #mobile-tab-bar {
+        height: auto !important;
+    }
+}
+
+/* Modal — backdrop fade controlled by keyframe animations */
+@keyframes backdropIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes backdropOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes slideDown   { from { transform: translateY(0); } to { transform: translateY(110%); } }
+
+.modal-bg {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.6);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+}
+.modal-bg.active {
+    display: flex;
+    animation: backdropIn 0.2s ease forwards;
+}
+/* Closing: keep displayed while animating out, block all pointer events */
+.modal-bg.closing {
+    display: flex;
+    pointer-events: none;
+    animation: backdropOut 0.25s ease forwards;
+}
 
 /* Loading dots */
 .loading-dots span { animation:loadDot 1.4s ease-in-out infinite; }
@@ -56,7 +229,8 @@ body { background: #0B0F1A; }
 @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
 
 /* Input fields */
-.input-field { width:100%; background:rgba(11,15,26,.6); border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:12px 16px; color:white; outline:none; transition:border-color .2s; }
+/* font-size:16px is mandatory — prevents iOS Safari from auto-zooming on focus */
+.input-field { width:100%; background:rgba(11,15,26,.6); border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:12px 16px; color:white; outline:none; transition:border-color .2s; font-size:16px; }
 .input-field:focus { border-color:#6B47F5; }
 .input-field::placeholder { color:rgba(255,255,255,.3); }
 
@@ -113,52 +287,216 @@ input[type="range"]:active::-webkit-slider-thumb {
     transform: scale(1.2);
 }
 
+/* Swipe-to-delete */
+.swipe-container {
+    position: relative;
+    overflow: hidden;
+    touch-action: pan-y;
+}
+
+.swipe-content {
+    position: relative;
+    z-index: 10;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: inherit;
+}
+
+.delete-reveal-btn {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 80px;
+    background: #F43F5E;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    border-radius: 0 14px 14px 0;
+    font-weight: bold;
+    font-size: 12px;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.schedule-block.swiped .swipe-content {
+    transform: translateX(-80px);
+}
+
+.schedule-block.swiped .delete-reveal-btn {
+    transform: translateX(0);
+}
+
 /* Hourly Grid */
 .calendar-grid {
     position: relative;
-    height: 1440px; /* 24 hours * 60px per hour */
     border-left: 1px solid rgba(255,255,255,0.05);
     background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
-    background-size: 100% 60px; /* One grid line per hour */
+}
+
+.time-col {
+    position: relative;
+    flex-shrink: 0;
 }
 
 .hour-label {
     position: absolute;
-    left: -45px;
-    width: 40px;
+    right: 4px;
+    width: 100%;
     text-align: right;
     font-size: 10px;
-    color: rgba(255,255,255,0.2);
+    font-weight: 500;
+    color: rgba(255,255,255,0.3);
+    font-variant-numeric: tabular-nums;
     transform: translateY(-50%);
+    white-space: nowrap;
+    pointer-events: none;
 }
 
 .schedule-block {
     position: absolute;
-    left: 4px;
-    right: 4px;
-    border-radius: 8px;
-    padding: 6px 10px;
+    border-radius: 6px;
     font-size: 11px;
     overflow: hidden;
-    border: 1px solid rgba(255,255,255,0.1);
-    transition: all 0.2s ease;
-    cursor: pointer;
+    /* top/height: smooth after save-edit; transform/opacity: hover & drag effects */
+    transition: top 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
+                height 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
+                transform 0.15s ease, box-shadow 0.15s ease, opacity 0.3s;
+    cursor: grab;
     z-index: 10;
+    box-sizing: border-box;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    background: rgba(255,255,255,0.08);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    /* pan-y: vertical scroll is always native; drag activates only after long-press */
+    touch-action: pan-y;
+    -webkit-user-select: none;
+    user-select: none;
+    /* Suppress iOS long-press callout (copy/paste/define menu) */
+    -webkit-touch-callout: none;
+    /* Force GPU compositing layer per-block for smooth 60fps drag */
+    will-change: transform;
+    transform: translate3d(0, 0, 0);
 }
 
-.schedule-block:hover {
+.schedule-block:active {
+    cursor: grabbing;
+    transform: scale(0.98);
+    z-index: 50;
+    opacity: 0.9;
+}
+
+.schedule-block:hover:not(:active) {
     filter: brightness(1.1);
-    transform: scale(1.01);
+    transform: translateY(-2px);
     z-index: 20;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
 }
 
-.block-study { background: rgba(107, 71, 245, 0.2); border-left: 3px solid #6B47F5; }
-.block-break { background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10B981; color: rgba(16, 185, 129, 0.8); }
-.block-hobby { background: rgba(245, 158, 11, 0.1); border-left: 3px solid #F59E0B; color: rgba(245, 158, 11, 0.8); }
+/* Hide interaction markers */
+.schedule-block::after {
+    display: none;
+}
+
+/* Done State */
+.is-completed {
+    opacity: 0.5 !important;
+    background: rgba(16, 185, 129, 0.1) !important;
+    border-left-color: #10B981 !important;
+    pointer-events: none;
+}
+
+.is-completed .task-title {
+    text-decoration: line-through;
+    color: rgba(255,255,255,0.4);
+}
+
+.is-completed .task-checkbox {
+    background-color: #10B981 !important;
+    border-color: #10B981 !important;
+    pointer-events: auto; /* Allow unchecking */
+}
+
+/* Success "Pop" Animation */
+@keyframes success-pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); filter: brightness(1.5); }
+    100% { transform: scale(1); }
+}
+.just-completed {
+    animation: success-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.block-study { 
+    background: rgba(107, 71, 245, 0.2); 
+    border-left: 4px solid #6B47F5; 
+}
+
+.block-break {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-left: 3px solid rgba(255, 255, 255, 0.2) !important;
+    opacity: 0.6;
+    z-index: 5;
+    cursor: default !important;
+    pointer-events: none;
+}
+
+.block-hobby { 
+    background: rgba(245, 158, 11, 0.1); 
+    border-left: 3px solid #F59E0B; 
+    color: rgba(245, 158, 11, 0.8);
+    opacity: 0.7;
+}
+
+/* Checkbox State — !important ensures these win over Tailwind utility classes */
+
+/* Pass pointer events through SVG children to the button.
+   This ensures interact.js's ignoreFrom: '.task-checkbox' always fires on the
+   button element itself — not on a descendant SVG/path that could bypass ignoreFrom
+   and cause interact.js to shift block positions before the native click fires. */
+.task-checkbox svg,
+.task-checkbox svg * {
+    pointer-events: none;
+}
+
+.task-checkbox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.task-checkbox.checked {
+    background-color: #10B981 !important;
+    border-color: #10B981 !important;
+    animation: check-bounce 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Also catch the is-completed parent context to guarantee green checkbox */
+.is-completed .task-checkbox,
+.schedule-block[data-is-done="true"] .task-checkbox {
+    background-color: #10B981 !important;
+    border-color: #10B981 !important;
+}
+
+@keyframes check-bounce {
+    0% { transform: scale(0.8); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* Ensure touch targets are thumb-friendly */
+@media (max-width: 768px) {
+    .grid-checkbox {
+        width: 32px;
+        height: 32px;
+    }
+}
 
 .block-delayed {
-    border: 1px dashed #fb7185 !important;
+    border-left: 4px dashed #fb7185 !important;
     background: repeating-linear-gradient(
         45deg,
         rgba(251, 113, 133, 0.05),
@@ -180,6 +518,226 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .grid-day-container {
-    padding-left: 50px;
-    margin-bottom: 40px;
+    margin-bottom: 0;
+    transition: height 0.3s ease;
+}
+
+.calendar-grid-wrapper {
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.grid-checkbox {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.grid-checkbox:hover {
+    transform: scale(1.1);
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.grid-checkbox:active {
+    transform: scale(0.9);
+}
+
+/* Current Time Indicator — z-index 8: above grid lines but below task blocks (z-index 10) */
+.current-time-line {
+    position: absolute;
+    left: 0 !important;
+    right: 0;
+    width: 100% !important;
+    height: 2px;
+    background: #FB7185;
+    z-index: 8;
+    pointer-events: none;
+    box-shadow: 0 0 6px rgba(251, 113, 133, 0.4);
+}
+
+.time-now-label {
+    position: absolute;
+    left: -45px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #FB7185;
+    color: white;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 2px 4px;
+    border-radius: 4px;
+    pointer-events: none;
+}
+
+/* === Phase 14: Mobile-First UX === */
+
+/* Remove 300ms tap delay on all interactive elements */
+button, a, select, input[type="checkbox"], input[type="radio"], label {
+    touch-action: manipulation;
+}
+
+/* Bottom Sheet: targeted modals slide up from bottom on mobile */
+@keyframes slideUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+    .modal-sheet.active,
+    .modal-sheet.closing {
+        align-items: flex-end;
+    }
+    /* Shared sheet geometry */
+    .modal-sheet.active > div,
+    .modal-sheet.closing > div {
+        border-radius: 24px 24px 0 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+        width: 100%;
+        max-height: 90vh;
+        overflow-y: auto !important;
+    }
+    /* Open: slide up */
+    .modal-sheet.active > div {
+        animation: slideUp 0.25s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+    }
+    /* Close: slide down */
+    .modal-sheet.closing > div {
+        animation: slideDown 0.25s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+    }
+}
+
+/* Drag lifting effect — detached look with rotation, scale, and heavy shadow */
+.dragging {
+    transform: scale(1.06) rotate(2deg) !important;
+    box-shadow:
+        0 32px 64px -8px rgba(0,0,0,0.7),
+        0 12px 24px -4px rgba(0,0,0,0.5),
+        0 0 0 2px rgba(107,71,245,0.6) !important;
+    z-index: 1001 !important;
+    opacity: 0.95;
+    transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s ease;
+}
+
+/* 44×44px minimum touch target for task checkboxes (Apple HIG) */
+.task-checkbox {
+    position: relative;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Line-clamp for task titles in small calendar blocks */
+.schedule-block .task-title-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.schedule-block.block-small .task-title-text {
+    -webkit-line-clamp: 1;
+}
+
+/* ── iOS Calendar Aesthetic (Phase 15) ── */
+
+/* Tab panel fade transition */
+#mobile-roadmap-content,
+#mobile-focus-panel,
+#mobile-exams-panel {
+    transition: opacity 0.2s ease-in-out;
+}
+
+/* Hour grid row separators (legacy class kept for compatibility) */
+.hour-row {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Notification settings section inside Exams panel */
+.notification-settings-section {
+    margin-top: 16px;
+    padding: 16px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.notification-settings-section h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 6px;
+}
+
+.notification-settings-section p {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 12px;
+}
+
+.notif-action-btn {
+    display: block;
+    width: 100%;
+    padding: 10px 16px;
+    margin-bottom: 8px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    outline: none;
+}
+
+.notif-action-btn:last-child {
+    margin-bottom: 0;
+}
+
+#enable-notif-btn {
+    background: rgba(107, 71, 245, 0.25);
+    color: #a78bfa;
+    border: 1px solid rgba(107, 71, 245, 0.3);
+}
+
+#enable-notif-btn:active {
+    background: rgba(107, 71, 245, 0.4);
+}
+
+#test-notif-btn {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#test-notif-btn:active {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Edit Task Modal Inputs ── */
+/* font-size:16px is mandatory — prevents iOS Safari from auto-zooming on focus */
+.edit-modal-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.07);
+    border: none;
+    border-radius: 14px;
+    padding: 14px 16px;
+    color: white;
+    font-size: 16px;
+    font-family: inherit;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+    -webkit-touch-callout: default; /* Allow text selection inside inputs */
+}
+.edit-modal-input:focus {
+    background: rgba(255, 255, 255, 0.11);
+    box-shadow: 0 0 0 2px rgba(107, 71, 245, 0.5);
+}
+/* Ensure the native time/number spinners render in white on dark bg */
+.edit-modal-input::-webkit-calendar-picker-indicator {
+    filter: invert(1) opacity(0.5);
+    cursor: pointer;
+}
+.edit-modal-input::placeholder {
+    color: rgba(255, 255, 255, 0.25);
 }
