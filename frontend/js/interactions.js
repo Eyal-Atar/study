@@ -168,9 +168,9 @@ function edgeScroll() {
     if (!touchDragState?.dragActive) return;
     const { el, container } = touchDragState;
     const vh = window.innerHeight;
-    // Only 8px from the actual screen edge — scroll starts when the BLOCK EDGE
-    // touches the screen edge, not when the finger is in some broad zone.
-    const MARGIN = 8;
+    // 60px zone from the screen edge — gives enough finger-width room for
+    // auto-scroll to activate before the block disappears off screen.
+    const MARGIN = 60;
     const SPEED = 5;
 
     const rect = el.getBoundingClientRect();
@@ -302,6 +302,13 @@ export function initInteractions() {
     interact('.schedule-block:not(.block-break):not(.is-completed)')
         .draggable({
             inertia: true,
+            // Require a 300 ms hold before interact.js activates drag on pointer events.
+            // This mirrors the custom long-press behaviour in the touch drag system
+            // (LONG_PRESS_MS = 600 above) and allows quick touch-and-move to fall
+            // through to native scroll before the drag gesture claims the pointer.
+            // tolerance: 10 allows up to 10px of movement during the hold period so
+            // slight finger wobble does not abort the drag intent.
+            hold: { delay: 300, tolerance: 10 },
             // Include descendant selector (*) so SVG/path children of interactive
             // elements are also ignored — without this, clicking a checked task's
             // SVG checkmark bypasses ignoreFrom and interact.js captures the pointer,
@@ -313,8 +320,17 @@ export function initInteractions() {
                     endOnly: true
                 }),
                 interact.modifiers.snap({
+                    // Use a function target so getSnapPixels() is re-evaluated on
+                    // every snap calculation, picking up any responsive HOUR_HEIGHT
+                    // changes (e.g. if the user rotates the device or resizes the
+                    // window between initInteractions() and the actual drag).
+                    // x is set to a very large value (10 000 px) which effectively
+                    // disables horizontal snapping; without this the snap modifier
+                    // tries to snap X to the nearest multiple of the grid step,
+                    // causing horizontal jitter as the block fights its CSS left/right
+                    // inline styles that pin it to the column boundaries.
                     targets: [
-                        interact.snappers.grid({ y: getSnapPixels() })
+                        (x, y) => ({ x, y: Math.round(y / getSnapPixels()) * getSnapPixels() })
                     ],
                     range: Infinity,
                     relativePoints: [ { x: 0, y: 0 } ]
