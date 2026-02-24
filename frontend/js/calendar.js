@@ -132,9 +132,14 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
         const h = parseLocalDate(b.start_time).getHours();
         if (h < firstTaskHour) firstTaskHour = h;
     });
-    
-    // Start grid 1 hour before first task, minimum 0, maximum 12 (to always show some day)
-    const startHour = Math.min(Math.max(0, firstTaskHour - 1), 12);
+
+    // Start grid 1 hour before first task (minimum 0).
+    // No cap — the grid must always begin before the earliest block,
+    // otherwise blocks with visualTop < 0 are clipped by overflow-y: auto.
+    // For empty days, default to 8:00 for a sensible view.
+    const startHour = dayBlocks.length > 0
+        ? Math.max(0, firstTaskHour - 1)
+        : 8;
     
     // 1. Drastically Reduce Vertical Scale (Mobile Only)
     // Mobile: 70px, Desktop: 160px
@@ -198,7 +203,8 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
                             ${visualHeight >= 26 ? `<div class="flex items-center gap-1 mt-0.5">
                                 <span class="text-[11px] font-semibold text-white/70 block-time-label tabular-nums">${timeRangeStr}</span>
                                 ${block.is_delayed ? '<span class="delayed-badge" style="font-size:7px;padding:1px 3px;">LATE</span>' : ''}
-                            </div>` : `<span class="text-[10px] font-semibold text-white/70 block-time-label tabular-nums" style="display:block;">${startTimeStr}</span>`}
+                                ${block.block_type === 'study' ? `<button type="button" class="defer-block-btn text-[10px] text-white/50 hover:text-accent-400 transition-colors ml-1" data-block-id="${block.id}">→ Tomorrow</button>` : ''}
+                            </div>` : block.block_type === 'study' ? `<button type="button" class="defer-block-btn text-[10px] text-white/50 hover:text-accent-400" data-block-id="${block.id}">→ Tomorrow</button>` : ''}
                         </div>
                     </div>
                 </div>
@@ -385,6 +391,13 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
     });
 
     container.onclick = (e) => {
+        const deferBtn = e.target.closest('.defer-block-btn');
+        if (deferBtn) {
+            e.stopPropagation();
+            const blockId = deferBtn.dataset.blockId;
+            if (blockId) window.dispatchEvent(new CustomEvent('block-defer', { detail: { blockId: parseInt(blockId, 10) } }));
+            return;
+        }
         const delBtn = e.target.closest('.delete-reveal-btn');
         if (delBtn) {
             e.stopPropagation();
@@ -398,7 +411,7 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
     let _lastTapTime = 0;
     let _lastTapBlock = null;
     container.addEventListener('touchend', (e) => {
-        if (e.target.closest('.task-checkbox, .delete-reveal-btn')) return;
+        if (e.target.closest('.task-checkbox, .delete-reveal-btn, .defer-block-btn')) return;
         const blockEl = e.target.closest('.schedule-block');
         if (!blockEl || blockEl.classList.contains('block-break')) return;
 

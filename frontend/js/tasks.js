@@ -1,6 +1,6 @@
 import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, setCurrentTasks, getCurrentSchedule, setCurrentSchedule, getPendingExamId, setPendingExamId, getPendingFiles, setPendingFiles } from './store.js?v=22';
 import { shakeEl, spawnConfetti, examColorClass } from './ui.js?v=22';
-import { renderCalendar, renderTodayFocus, renderExamLegend } from './calendar.js?v=24';
+import { renderCalendar, renderTodayFocus, renderExamLegend } from './calendar.js?v=25';
 import { showRegenBar } from './brain.js?v=24';
 
 // Notification permission prompt tracking
@@ -330,6 +330,31 @@ export async function toggleDone(taskId, btn, blockId = null) {
     }
 }
 
+/** Defer a schedule block to the next calendar day (push-to-next-day). Refreshes schedule and calendar. */
+export async function deferBlockToTomorrow(blockId) {
+    const API = getAPI();
+    try {
+        const res = await authFetch(`${API}/tasks/block/${blockId}/defer`, { method: 'POST' });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || err.error || `Defer failed: ${res.status}`);
+        }
+        const tres = await authFetch(`${API}/regenerate-schedule`, { method: 'POST' });
+        if (!tres.ok) return;
+        const data = await tres.json();
+        setCurrentTasks(data.tasks || []);
+        setCurrentSchedule(data.schedule || []);
+        updateStats();
+        renderExamCards();
+        renderExamLegend();
+        renderCalendar(data.tasks || [], data.schedule || []);
+        renderTodayFocus(data.tasks || []);
+    } catch (e) {
+        console.error('Defer failed:', e);
+        window.dispatchEvent(new CustomEvent('calendar-needs-refresh'));
+    }
+}
+
 export async function generateRoadmap() {
     const currentExams = getCurrentExams();
     if (currentExams.length === 0) {
@@ -621,4 +646,12 @@ export function initTasks() {
     // Module-level constant reference ensures removeEventListener always matches
     window.removeEventListener('task-toggle', _handleTaskToggle);
     window.addEventListener('task-toggle', _handleTaskToggle);
+
+    window.removeEventListener('block-defer', _handleBlockDefer);
+    window.addEventListener('block-defer', _handleBlockDefer);
+}
+
+async function _handleBlockDefer(e) {
+    const { blockId } = e.detail || {};
+    if (blockId != null) await deferBlockToTomorrow(blockId);
 }
