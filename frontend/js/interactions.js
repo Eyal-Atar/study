@@ -302,13 +302,6 @@ export function initInteractions() {
     interact('.schedule-block:not(.block-break):not(.is-completed)')
         .draggable({
             inertia: true,
-            // Require a 300 ms hold before interact.js activates drag on pointer events.
-            // This mirrors the custom long-press behaviour in the touch drag system
-            // (LONG_PRESS_MS = 600 above) and allows quick touch-and-move to fall
-            // through to native scroll before the drag gesture claims the pointer.
-            // tolerance: 10 allows up to 10px of movement during the hold period so
-            // slight finger wobble does not abort the drag intent.
-            hold: { delay: 300, tolerance: 10 },
             // Include descendant selector (*) so SVG/path children of interactive
             // elements are also ignored — without this, clicking a checked task's
             // SVG checkmark bypasses ignoreFrom and interact.js captures the pointer,
@@ -337,8 +330,16 @@ export function initInteractions() {
                 })
             ],
             listeners: {
-                start(_event) {
-                    // Intentionally empty — all lifting effects deferred to first move.
+                start(event) {
+                    // Touch drag is handled entirely by the custom long-press system
+                    // (initTouchDrag above). Stopping interact.js on touch prevents
+                    // both systems running simultaneously — which is the root cause of
+                    // the "sometimes drag, sometimes scroll, complete chaos" bug.
+                    if (event.pointerType === 'touch') {
+                        event.interaction.stop();
+                        return;
+                    }
+                    // Mouse: intentionally empty — all lifting effects deferred to first move.
                     // Mutating the DOM here (zIndex, classList) changes painting order
                     // BEFORE the native click fires, which can cause the click to land
                     // on a different element than the one the user tapped.
