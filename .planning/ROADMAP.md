@@ -192,7 +192,16 @@ Plans:
 - No orphaned requirements
 - Technical debt (Phase 5) added based on research recommendations to prevent feature collision
 
+### Phase 14: Mobile-First UX and Appification
+
+**Goal:** Native-feeling mobile experience with bottom tab navigation, touch drag with haptic feedback, and bottom-sheet modals — desktop layout unchanged
+**Depends on:** Phase 11 (PWA foundation must exist before appification layer)
+**Plans:** 1/1 plans complete
+
+Plans:
+- [ ] 14-01-PLAN.md — Version bump JS cache-bust to v=14 + human verification of bottom tab bar, touch drag, and bottom-sheet modals
+
 ---
 
-*Roadmap updated: 2026-02-22*
-*Current Focus: Phase 10*
+*Roadmap updated: 2026-02-23*
+*Current Focus: Phase 14*

@@ -22,21 +22,12 @@ Students open the app every day and know exactly what to study, when, and for ho
 - ✓ Multi-exam scheduler with daily study cap — Phase 2
 - ✓ Color-coded roadmap timeline with exam milestones — Phase 3
 - ✓ Domain-driven backend folder structure — Phase 4
+- ✓ Frontend Modularization (ES6 Modules) — Phase 5
+- ✓ Google OAuth login (Sign in with Google) — Phase 6
+- ✓ User Profiles & Onboarding Wizard — Phase 7
+- ✓ Hourly time slot scheduling with timezone support — Phase 8
 
 ### Active
-
-- [ ] Google OAuth login (sign in with Google)
-- [ ] Hourly time slot scheduling (tasks assigned specific hours, e.g., "08:00 - 11:00")
-- [ ] Customizable max daily study hours (user setting, replaces hardcoded 6h)
-- [ ] Drag & drop task reordering in daily view
-- [ ] Manual task editing (title, duration, time)
-- [ ] Replace "Talk to Brain" chat with global "Regenerate Roadmap" input
-- [ ] New exclusive zone strategy (morning mock test → hobby break → review mistakes → practice exercises)
-- [ ] Motivational notifications (Claude-powered)
-- [ ] Security hardening (CORS, rate limiting, file upload validation, token expiration)
-- [ ] Automated test suite (backend unit + integration tests)
-- [ ] Production deployment (Render/Railway backend, static frontend)
-- [ ] PWA support (installable on phone)
 
 ### Out of Scope
 

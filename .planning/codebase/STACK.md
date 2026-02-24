@@ -1,12 +1,12 @@
 # Technology Stack
 
-**Analysis Date:** 2026-02-17
+**Analysis Date:** 2026-02-20
 
 ## Languages
 
 **Primary:**
 - Python 3.x - Backend API and AI integration
-- JavaScript (ES6+) - Frontend client application
+- JavaScript (ES6+) - Modularized frontend client application
 - HTML5 - Frontend markup with Tailwind CSS utility classes
 
 **Secondary:**
@@ -16,21 +16,23 @@
 
 **Environment:**
 - Python 3.x (development/production)
-- Node.js (for frontend dependencies only, not required for running application)
+- Node.js (not required for running application)
 
 **Package Manager:**
 - pip (Python)
-- No package.json found - frontend is vanilla JavaScript with no build step
+- No package.json - frontend uses native ES6 modules with no build step
 
 ## Frameworks
 
 **Core:**
 - FastAPI 0.115.0 - REST API framework for backend
 - Uvicorn 0.30.6 - ASGI server for running FastAPI application
+- **Authlib 1.6.8** - Google OAuth and session management
 
 **Frontend:**
 - Tailwind CSS (via CDN) - Utility-first CSS framework for styling
-- Vanilla JavaScript - No frontend framework; direct DOM manipulation
+- Vanilla JavaScript (ES6 Modules) - Direct DOM manipulation with modular structure
+- **Event Calendar (vkurko)** - Lightweight calendar component
 
 **PDF Processing:**
 - PyMUPDF (pymupdf) 1.24.10 - PDF text extraction for exam materials
@@ -41,39 +43,22 @@
 ## Key Dependencies
 
 **Critical:**
-- anthropic 0.34.2 - Anthropic API client for Claude integration (exam brain AI)
+- anthropic 0.34.2 - Anthropic API client for Claude integration
 - python-multipart 0.0.9 - Multipart form data parsing for file uploads
 - python-dotenv 1.0.1 - Environment variable loading from .env files
+- **httpx** - For asynchronous HTTP requests (used in OAuth)
 
 **Infrastructure:**
-- sqlite3 - Built-in Python SQLite database driver (no external package needed)
+- sqlite3 - Built-in Python SQLite database driver
 
 ## Configuration
 
 **Environment:**
-- Configured via environment variables loaded by python-dotenv
-- ANTHROPIC_API_KEY - Required for AI features (exam analysis and calendar generation)
-- No database URL needed - SQLite file stored locally at `backend/study_scheduler.db`
+- ANTHROPIC_API_KEY - Required for AI features
+- GOOGLE_CLIENT_ID - Required for OAuth
+- GOOGLE_CLIENT_SECRET - Required for OAuth
+- SECRET_KEY - For session signing (Phase 6)
 
 **Build:**
-- No build process - frontend is served as static HTML/CSS/JS
-- Backend runs directly with uvicorn in development mode with auto-reload
-
-## Platform Requirements
-
-**Development:**
-- Python 3.x installation
-- Backend runs on localhost:8000 with uvicorn
-- Frontend served as static files from `/frontend/index.html`
-- CORS middleware enabled to allow frontend-to-backend communication
-
-**Production:**
-- Python 3.x runtime
-- Uvicorn server (or compatible ASGI server)
-- Environment variable `ANTHROPIC_API_KEY` must be set
-- SQLite database file writable at configured path `backend/study_scheduler.db`
-- Frontend assets must be accessible at `/css` and `/js` routes
-
----
-
-*Stack analysis: 2026-02-17*
+- No build process - frontend is served as static HTML/CSS/JS via native ES6 imports
+- Backend runs directly with uvicorn
