@@ -52,6 +52,10 @@ function onTouchStart(e) {
         currentY: touch.clientY,
         dragActive: false,
         offsetY: touch.clientY - block.getBoundingClientRect().top,
+        // Initialize lastScrollY to startY so the first manual-scroll delta is correct
+        // (touch.clientY - lastScrollY will be the actual finger movement, not a large jump
+        // from startY to some far position).
+        lastScrollY: touch.clientY,
         timer: setTimeout(() => activateTouchDrag(), LONG_PRESS_MS),
         edgeRAF: null,
     };
@@ -67,23 +71,52 @@ function activateTouchDrag() {
 
     if (navigator.vibrate) navigator.vibrate(15);
 
-    // Capture block width BEFORE switching to fixed (parent constrains width)
-    const blockWidth = el.getBoundingClientRect().width;
+    // Clear any transform that interact.js may have applied via its move handler
+    // before receiving pointercancel (which happens after our touchmove preventDefault).
+    // Without this, the block carries a stale translateY into the fixed-position phase,
+    // visually displacing it from its true pixel location and causing a visible jump.
+    el.style.transform = '';
+    el.setAttribute('data-y', '0');
 
-    // Disable the 'top' CSS transition BEFORE changing position.
-    // Without this, the transition sees the old container-relative top value
-    // animating to the new viewport-relative top value — causing the block to "fly".
-    // Only keep transform/shadow/opacity transitions for the drag-lift effect.
-    el.style.transition = 'transform 0.12s ease, box-shadow 0.12s ease, opacity 0.2s';
+    // Capture full geometry AFTER clearing transform, BEFORE switching to fixed.
+    // left MUST be set explicitly — on iOS Safari, position:fixed with left:auto
+    // resolves to the element's hypothetical static position (often 0), not its
+    // visual position, causing the block to jump to the screen edge.
+    const blockRect = el.getBoundingClientRect();
+    const blockWidth = blockRect.width;
+    const blockHeight = blockRect.height;
 
+    // Disable ALL transitions before position change to prevent "fly" animation.
+    el.style.transition = 'none';
     el.classList.add('dragging');
     el.style.position = 'fixed';
     el.style.width = blockWidth + 'px';
+    el.style.left = blockRect.left + 'px'; // Fix: pin left so block stays in place
+    el.style.top = blockRect.top + 'px';   // Start at exact current visual position
     el.style.zIndex = '1001';
-    positionDragBlock();
 
     document.body.style.overflow = 'hidden';
     touchDragState.container.style.touchAction = 'none';
+    touchDragState.container.style.overflowY = 'hidden'; // Fix: prevent container over-scroll
+
+    // After paint: animate block toward finger (finger lands ~25% from block top).
+    // This gives a clear visual indication of where the block will be placed.
+    requestAnimationFrame(() => {
+        if (!touchDragState) return;
+        const targetOffsetY = Math.min(blockHeight * 0.25, 40);
+        touchDragState.offsetY = targetOffsetY;
+        el.style.transition = 'top 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.12s ease, box-shadow 0.12s ease, opacity 0.2s';
+        positionDragBlock();
+
+        // Remove 'top' from transition after animation so subsequent drag moves are instant.
+        el.addEventListener('transitionend', function removeTopTrans(evt) {
+            if (evt.propertyName !== 'top') return;
+            el.removeEventListener('transitionend', removeTopTrans);
+            if (touchDragState) {
+                el.style.transition = 'transform 0.12s ease, box-shadow 0.12s ease, opacity 0.2s';
+            }
+        });
+    });
 
     touchDragState.edgeRAF = requestAnimationFrame(edgeScroll);
 }
@@ -115,8 +148,14 @@ function onTouchMoveDrag(e) {
             }
 
             if (dy >= dx) { // Primarily vertical → scroll the calendar
-                const lastY = touchDragState.lastScrollY ?? touchDragState.startY;
-                const delta = lastY - touch.clientY; // positive = scroll down
+                // Natural scroll (iOS/Android) mapping:
+                //   finger moves DOWN (clientY increases) → content moves DOWN → scrollTop DECREASES
+                //   finger moves UP   (clientY decreases) → content moves UP   → scrollTop INCREASES
+                // delta = lastScrollY - touch.clientY is positive when finger goes UP (scroll down).
+                // scrollTop += delta correctly increases scrollTop on upward swipe (scroll down).
+                // lastScrollY is initialized to startY in touchDragState so the first delta
+                // equals the actual finger travel from touchstart, not a large arbitrary jump.
+                const delta = touchDragState.lastScrollY - touch.clientY;
                 touchDragState.container.scrollTop += delta;
             }
             touchDragState.lastScrollY = touch.clientY;
@@ -186,19 +225,26 @@ async function onTouchEnd(_e) {
     // Disable ALL transitions before switching position:fixed → position:absolute.
     // The CSS 'top' transition would otherwise animate from the viewport-coord value
     // to the container-coord value, making the block visually "fly" across the screen.
+    // left MUST be cleared — while fixed it was a viewport coordinate; once absolute
+    // it would be misinterpreted as a container-relative offset, misplacing the block.
     el.style.transition = 'none';
     el.classList.remove('dragging');
     el.style.position = '';
     el.style.width = '';
+    el.style.left = '';    // Fix: reset viewport-coord left so block snaps to its column
     el.style.zIndex = '';
+    el.style.opacity = ''; // Fix: ensure opacity is fully restored
     el.style.top = `${finalTop}px`;
     el.style.transform = '';
     el.setAttribute('data-y', 0);
-    // Re-enable transitions after the position change has been painted
-    requestAnimationFrame(() => { el.style.transition = ''; });
+    // Double RAF: first ensures layout recalculates with the new position values,
+    // second ensures the browser has painted once before transitions re-enable —
+    // preventing a flash where old transition values animate the new position.
+    requestAnimationFrame(() => requestAnimationFrame(() => { el.style.transition = ''; }));
 
     document.body.style.overflow = '';
     container.style.touchAction = ''; // restore to CSS default (pan-y from stylesheet)
+    container.style.overflowY = '';   // Fix: restore container scroll
 
     // Resolve collisions + save
     const allBlocks = Array.from(container.querySelectorAll('.schedule-block')).map(b => ({
@@ -236,11 +282,15 @@ function cancelTouchDrag() {
         el.classList.remove('dragging');
         el.style.position = '';
         el.style.width = '';
+        el.style.left = '';    // Fix: reset viewport-coord left
         el.style.zIndex = '';
+        el.style.opacity = ''; // Fix: ensure opacity is fully restored
         el.style.transform = '';
+        el.setAttribute('data-y', '0');
         requestAnimationFrame(() => { el.style.transition = ''; });
         document.body.style.overflow = '';
         container.style.touchAction = '';
+        container.style.overflowY = ''; // Fix: restore container scroll
     }
     // Always remove the scoped per-gesture listener
     document.removeEventListener('touchmove', onTouchMoveDrag);
