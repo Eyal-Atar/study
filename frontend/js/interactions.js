@@ -69,7 +69,7 @@ function activateTouchDrag() {
     const { el } = touchDragState;
     touchDragState.dragActive = true;
 
-    if (navigator.vibrate) navigator.vibrate(15);
+    if (navigator.vibrate) navigator.vibrate(40);
 
     // Clear any transform that interact.js may have applied via its move handler
     // before receiving pointercancel (which happens after our touchmove preventDefault).
@@ -84,12 +84,16 @@ function activateTouchDrag() {
     // visual position, causing the block to jump to the screen edge.
     const blockRect = el.getBoundingClientRect();
     const blockWidth = blockRect.width;
-    const blockHeight = blockRect.height;
 
     // Save original inline styles — blocks are rendered with inline left/right
     // (e.g. "left:4px; right:8px") that determine their width. If we clear these
     // on drop instead of restoring, the block loses its sizing and appears compressed.
     touchDragState.savedLeft = el.style.left;
+
+    // offsetY is kept from touchstart — the exact pixel offset of the finger
+    // relative to the block's top. We do NOT override it to a 25% heuristic
+    // because that causes a visible jump: the block suddenly moves to align
+    // 25% under the finger instead of staying exactly where the finger landed.
 
     // Disable ALL transitions before position change to prevent "fly" animation.
     el.style.transition = 'none';
@@ -100,30 +104,12 @@ function activateTouchDrag() {
     el.style.top = blockRect.top + 'px';   // Start at exact current visual position
     el.style.zIndex = '1001';
 
-    // Force the browser to commit the initial position before adding the transition.
-    // Without this, the browser batches both the initial top and the animated top
-    // into the same paint — the transition never fires and the block "teleports".
-    void el.offsetHeight;
-
     document.body.style.overflow = 'hidden';
     touchDragState.container.style.touchAction = 'none';
     touchDragState.container.style.overflowY = 'hidden'; // Prevent container over-scroll
 
-    // Animate block toward finger (finger lands ~25% from block top).
-    // This gives a clear visual indication of where the block will be placed.
-    const targetOffsetY = Math.min(blockHeight * 0.25, 40);
-    touchDragState.offsetY = targetOffsetY;
-    el.style.transition = 'top 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.12s ease, box-shadow 0.12s ease, opacity 0.2s';
+    el.style.transition = 'transform 0.12s ease, box-shadow 0.12s ease, opacity 0.2s';
     positionDragBlock();
-
-    // Remove 'top' from transition after animation so subsequent drag moves are instant.
-    el.addEventListener('transitionend', function removeTopTrans(evt) {
-        if (evt.propertyName !== 'top') return;
-        el.removeEventListener('transitionend', removeTopTrans);
-        if (touchDragState) {
-            el.style.transition = 'transform 0.12s ease, box-shadow 0.12s ease, opacity 0.2s';
-        }
-    });
 
     touchDragState.edgeRAF = requestAnimationFrame(edgeScroll);
 }
@@ -160,30 +146,42 @@ function onTouchMoveDrag(e) {
 }
 
 function positionDragBlock() {
-    const { el, currentY, offsetY } = touchDragState;
-    el.style.top = (currentY - offsetY) + 'px';
+    if (!touchDragState) return;
+    requestAnimationFrame(() => {
+        if (!touchDragState) return;
+        const { el, currentY, offsetY, container } = touchDragState;
+
+        // Convert viewport coordinates → container-relative for accurate snapping.
+        // The block is position:fixed so its `top` is in viewport pixels, but the
+        // grid lines live in the container's coordinate system. Snapping rawTop in
+        // viewport space would only align to grid lines if the container top happened
+        // to be a multiple of snapPx — not guaranteed. We convert, snap, convert back.
+        const containerRect = container.getBoundingClientRect();
+        const containerRelY = (currentY - offsetY) - containerRect.top + container.scrollTop;
+        const snapPx = getSnapPixels();
+        const snappedContainerY = Math.round(containerRelY / snapPx) * snapPx;
+
+        // Back to viewport coords for position:fixed
+        const snappedViewportTop = snappedContainerY + containerRect.top - container.scrollTop;
+        el.style.top = snappedViewportTop + 'px';
+    });
 }
 
 function edgeScroll() {
     if (!touchDragState?.dragActive) return;
-    const { el, container } = touchDragState;
-    const vh = window.innerHeight;
-    // 60px zone from the screen edge — gives enough finger-width room for
-    // auto-scroll to activate before the block disappears off screen.
-    const MARGIN = 60;
-    const SPEED = 5;
+    const { container } = touchDragState;
+    const MARGIN = 60; // px zone near screen edge that triggers auto-scroll
+    const SPEED = 10;  // px per frame
 
-    const rect = el.getBoundingClientRect();
-    const scrollable = container.scrollHeight > container.clientHeight ? container : window;
+    // Use currentY (finger position) rather than block rect: the block is
+    // position:fixed and snapped, so its rect may lag a frame behind. The
+    // finger position is always up-to-date and is what drives intent.
+    const y = touchDragState.currentY;
 
-    if (rect.top < MARGIN) {
-        // Block's top edge is at/above the screen top
-        if (scrollable === window) window.scrollBy(0, -SPEED);
-        else scrollable.scrollTop -= SPEED;
-    } else if (rect.bottom > vh - MARGIN) {
-        // Block's bottom edge is at/below the screen bottom
-        if (scrollable === window) window.scrollBy(0, SPEED);
-        else scrollable.scrollTop += SPEED;
+    if (y < MARGIN) {
+        container.scrollBy({ top: -SPEED, behavior: 'auto' });
+    } else if (y > window.innerHeight - MARGIN) {
+        container.scrollBy({ top: SPEED, behavior: 'auto' });
     }
 
     touchDragState.edgeRAF = requestAnimationFrame(edgeScroll);
