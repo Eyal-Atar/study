@@ -89,6 +89,20 @@ export function showTaskEditModal(block, onSave, onDelete) {
     const durationMin = Math.round(Math.abs(end - start) / 60000);
     document.getElementById('edit-task-duration').value = durationMin;
     
+    const deferBtn = document.getElementById('btn-defer-task-modal');
+    if (deferBtn) {
+        if (block.block_type === 'study') {
+            deferBtn.classList.remove('hidden');
+            deferBtn.onclick = () => {
+                showModal('modal-edit-task', false);
+                if (block.id) window.dispatchEvent(new CustomEvent('block-defer', { detail: { blockId: parseInt(block.id, 10) } }));
+            };
+        } else {
+            deferBtn.classList.add('hidden');
+            deferBtn.onclick = null;
+        }
+    }
+
     showModal('modal-edit-task', true);
     
     document.getElementById('btn-close-edit-modal').onclick = () => showModal('modal-edit-task', false);

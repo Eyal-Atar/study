@@ -1,7 +1,7 @@
-import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, setCurrentTasks, getCurrentSchedule, setCurrentSchedule, getPendingExamId, setPendingExamId, getPendingFiles, setPendingFiles } from './store.js?v=22';
-import { shakeEl, spawnConfetti, examColorClass } from './ui.js?v=22';
-import { renderCalendar, renderTodayFocus, renderExamLegend } from './calendar.js?v=25';
-import { showRegenBar } from './brain.js?v=24';
+import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, setCurrentTasks, getCurrentSchedule, setCurrentSchedule, getPendingExamId, setPendingExamId, getPendingFiles, setPendingFiles } from './store.js?v=31';
+import { shakeEl, spawnConfetti, examColorClass } from './ui.js?v=31';
+import { renderCalendar, renderTodayFocus, renderExamLegend } from './calendar.js?v=31';
+import { showRegenBar } from './brain.js?v=31';
 
 // Notification permission prompt tracking
 const NOTIF_PROMPT_KEY = 'sf_notif_prompt_shown';
@@ -17,6 +17,57 @@ function markNotifPromptShown() {
 let _editingExam = null;
 // Existing server files loaded for the exam being edited
 let _serverFiles = [];
+
+/** Full refresh from server (tasks + schedule + exams). Use after defer or when sync might be off. */
+export async function refreshScheduleAndFocus() {
+    const API = getAPI();
+    try {
+        const tres = await authFetch(`${API}/regenerate-schedule`, { method: 'POST' });
+        if (!tres.ok) return;
+        const data = await tres.json();
+        const tasks = data.tasks || [];
+        const schedule = data.schedule || [];
+        setCurrentTasks(tasks);
+        setCurrentSchedule(schedule);
+        updateStats();
+        renderCalendar(tasks, schedule);
+        renderTodayFocus(tasks);
+        const examRes = await authFetch(`${API}/exams`);
+        if (examRes.ok) {
+            const exams = await examRes.json();
+            setCurrentExams(exams);
+            renderExamCards();
+            renderExamLegend();
+        }
+    } catch (e) {
+        console.error('refreshScheduleAndFocus:', e);
+    }
+}
+
+/** After a single block/task toggle we already have correct state in memory. Only sync task status from blocks and refresh Focus + exam stats (no full calendar refetch). */
+function syncAfterToggle(taskId, isBlockToggle) {
+    if (isBlockToggle) {
+        const schedule = getCurrentSchedule() || [];
+        const taskBlocks = schedule.filter(b => b.task_id === taskId);
+        if (taskBlocks.length) {
+            const doneCount = taskBlocks.filter(b => b.completed === 1).length;
+            const task = getCurrentTasks().find(t => t.id === taskId);
+            if (task) task.status = doneCount === taskBlocks.length ? 'done' : 'pending';
+        }
+    }
+    updateStats();
+    renderTodayFocus(getCurrentTasks());
+    // Update exam progress bars in background (single light request)
+    getAPI() && authFetch(`${getAPI()}/exams`).then(res => {
+        if (res.ok) return res.json();
+    }).then(exams => {
+        if (exams) {
+            setCurrentExams(exams);
+            renderExamCards();
+            renderExamLegend();
+        }
+    }).catch(() => {});
+}
 
 export async function loadExams(onLogout) {
     const API = getAPI();
@@ -252,7 +303,10 @@ export async function toggleDone(taskId, btn, blockId = null) {
             }
         }
     } else {
-        // Fallback: update ALL blocks for this task (daily list or legacy behavior)
+        // Toggle from Focus: sync schedule in memory and DOM so Roadmap shows same state
+        (currentSchedule || []).forEach(b => {
+            if (b.task_id === taskId) b.completed = isDone ? 1 : 0;
+        });
         const blocks = document.querySelectorAll(`.schedule-block[data-task-id="${taskId}"]`);
         blocks.forEach(b => {
             if (!isDone) {
@@ -306,14 +360,8 @@ export async function toggleDone(taskId, btn, blockId = null) {
             }
         }
 
-        // Refresh exam progress counters
-        const examRes = await authFetch(`${API}/exams`);
-        if (examRes.ok) {
-            const exams = await examRes.json();
-            setCurrentExams(exams);
-            renderExamCards();
-            renderExamLegend();
-        }
+        // We already updated DOM and store; only sync task status from blocks and refresh Focus + exam stats (no full refetch)
+        syncAfterToggle(taskId, isBlockToggle);
     } catch (e) {
         console.error("Sync failed:", e);
         // Rollback optimistic update
@@ -321,6 +369,9 @@ export async function toggleDone(taskId, btn, blockId = null) {
             block.completed = isDone ? 1 : 0;
         } else {
             task.status = isDone ? 'done' : 'pending';
+            (currentSchedule || []).forEach(b => {
+                if (b.task_id === taskId) b.completed = isDone ? 0 : 1;
+            });
         }
         updateStats();
         renderTodayFocus(getCurrentTasks());

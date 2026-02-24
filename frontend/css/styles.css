@@ -370,10 +370,10 @@ input[type="range"]:active::-webkit-slider-thumb {
     -webkit-backdrop-filter: blur(10px);
     background: rgba(255,255,255,0.08);
     box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-    /* touch-action: none — we own all touch on blocks (manual scroll passthrough in JS).
-       pan-y would make the browser ignore e.preventDefault() for vertical panning,
-       causing the calendar to scroll behind the dragged block. */
-    touch-action: none;
+    /* pan-y: allow native vertical scroll when swiping on blocks.
+       During active drag (long press), JS sets touch-action:none on the container
+       and calls preventDefault() on touchmove to block scroll. */
+    touch-action: pan-y;
     -webkit-user-select: none;
     user-select: none;
     /* Suppress iOS long-press callout (copy/paste/define menu) */

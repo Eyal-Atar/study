@@ -1,5 +1,5 @@
-import { getCurrentExams, getCurrentTasks, getAPI, authFetch, setCurrentSchedule } from './store.js?v=22';
-import { examColorClass, showTaskEditModal, showConfirmModal } from './ui.js?v=22';
+import { getCurrentExams, getCurrentTasks, getAPI, authFetch, getCurrentSchedule, setCurrentSchedule } from './store.js?v=31';
+import { examColorClass, showTaskEditModal, showConfirmModal } from './ui.js?v=31';
 
 let currentDayIndex = 0;
 let dayKeys = [];
@@ -203,8 +203,7 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
                             ${visualHeight >= 26 ? `<div class="flex items-center gap-1 mt-0.5">
                                 <span class="text-[11px] font-semibold text-white/70 block-time-label tabular-nums">${timeRangeStr}</span>
                                 ${block.is_delayed ? '<span class="delayed-badge" style="font-size:7px;padding:1px 3px;">LATE</span>' : ''}
-                                ${block.block_type === 'study' ? `<button type="button" class="defer-block-btn text-[10px] text-white/50 hover:text-accent-400 transition-colors ml-1" data-block-id="${block.id}">→ Tomorrow</button>` : ''}
-                            </div>` : block.block_type === 'study' ? `<button type="button" class="defer-block-btn text-[10px] text-white/50 hover:text-accent-400" data-block-id="${block.id}">→ Tomorrow</button>` : ''}
+                            </div>` : ''}
                         </div>
                     </div>
                 </div>
@@ -338,9 +337,11 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
                 // Update time label text immediately (the bold span showing HH:MM)
                 const timeEl = blockEl.querySelector('.block-time-label');
                 if (timeEl) {
-                    const newH = String(startDate.getHours()).padStart(2, '0');
-                    const newM = String(startDate.getMinutes()).padStart(2, '0');
-                    timeEl.textContent = `${newH}:${newM}`;
+                    const sh = String(startDate.getHours()).padStart(2, '0');
+                    const sm = String(startDate.getMinutes()).padStart(2, '0');
+                    const eh = String(endDate.getHours()).padStart(2, '0');
+                    const em = String(endDate.getMinutes()).padStart(2, '0');
+                    timeEl.textContent = newVisualHeight >= 50 ? `${sh}:${sm} – ${eh}:${em}` : `${sh}:${sm}`;
                 }
 
                 // Double-RAF ensures the browser has committed (painted) the block
@@ -360,7 +361,7 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
             // Helper for local ISO formatting
             const toLocalISO = (date) => new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().slice(0, 19);
 
-            await authFetch(`${API}/tasks/block/${blockId}`, {
+            const res = await authFetch(`${API}/tasks/block/${blockId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -369,10 +370,22 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
                     end_time: toLocalISO(endDate)
                 })
             });
-            // Wait for the 0.4s position animation to complete before re-rendering
-            // so the grid refresh doesn't interrupt the visible transition.
-            await new Promise(r => setTimeout(r, 420));
-            await refreshScheduleOnly();
+            if (!res.ok) throw new Error('PATCH failed');
+            const newStartISO = toLocalISO(startDate);
+            const newEndISO = toLocalISO(endDate);
+            const schedule = getCurrentSchedule() || [];
+            const idx = schedule.findIndex(b => b.id == blockId);
+            if (idx !== -1) {
+                schedule[idx] = { ...schedule[idx], start_time: newStartISO, end_time: newEndISO, task_title: updates.title || schedule[idx].task_title };
+                setCurrentSchedule([...schedule]);
+                const newBlocksByDay = {};
+                schedule.forEach(b => {
+                    if (!newBlocksByDay[b.day_date]) newBlocksByDay[b.day_date] = [];
+                    newBlocksByDay[b.day_date].push(b);
+                });
+                _blocksByDay = newBlocksByDay;
+            }
+            // Don't re-render the grid — the optimistic DOM update already shows the new size/position smoothly; re-render would cause a visible flash.
         } catch (err) { console.error('Update failed:', err); }
     };
 
@@ -391,13 +404,6 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
     });
 
     container.onclick = (e) => {
-        const deferBtn = e.target.closest('.defer-block-btn');
-        if (deferBtn) {
-            e.stopPropagation();
-            const blockId = deferBtn.dataset.blockId;
-            if (blockId) window.dispatchEvent(new CustomEvent('block-defer', { detail: { blockId: parseInt(blockId, 10) } }));
-            return;
-        }
         const delBtn = e.target.closest('.delete-reveal-btn');
         if (delBtn) {
             e.stopPropagation();
@@ -411,7 +417,7 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
     let _lastTapTime = 0;
     let _lastTapBlock = null;
     container.addEventListener('touchend', (e) => {
-        if (e.target.closest('.task-checkbox, .delete-reveal-btn, .defer-block-btn')) return;
+        if (e.target.closest('.task-checkbox, .delete-reveal-btn')) return;
         const blockEl = e.target.closest('.schedule-block');
         if (!blockEl || blockEl.classList.contains('block-break')) return;
 
@@ -527,7 +533,7 @@ function renderDailyList(container, tasks) {
 
 export function renderTodayFocus(tasks) {
     const today = new Date().toISOString().split('T')[0];
-    const todayTasks = tasks.filter(t => t.day_date === today && t.status !== 'done');
+    const todayTasks = tasks.filter(t => t.day_date === today);
 
     let html;
     if (!todayTasks.length) {
@@ -538,9 +544,13 @@ export function renderTodayFocus(tasks) {
         currentExams.forEach((e, i) => { examIdx[e.id] = i; });
         html = todayTasks.map(t => {
             const eIdx = examIdx[t.exam_id] ?? 0;
-            return `<div class="flex items-center gap-2 bg-dark-900/40 rounded-lg p-2.5">
-                <div class="w-2.5 h-2.5 rounded-full ${examColorClass(eIdx,'bg')}"></div>
-                <div class="flex-1 text-sm truncate">${t.title}</div>
+            const isDone = t.status === 'done';
+            return `<div class="flex items-center gap-2 bg-dark-900/40 rounded-lg p-2.5 ${isDone ? 'opacity-60' : ''}">
+                <button type="button" data-task-id="${t.id}" class="focus-task-checkbox flex-shrink-0 w-6 h-6 rounded-full border-2 ${isDone ? 'bg-mint-500 border-mint-500' : 'border-white/20 hover:border-accent-400'} flex items-center justify-center transition-all">
+                    ${isDone ? '<svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+                </button>
+                <div class="w-2.5 h-2.5 rounded-full ${examColorClass(eIdx,'bg')} flex-shrink-0"></div>
+                <div class="flex-1 text-sm truncate ${isDone ? 'line-through text-white/50' : ''}">${t.title}</div>
                 <div class="text-xs text-white/30">${t.estimated_hours || 0}h</div>
             </div>`;
         }).join('');
@@ -550,6 +560,19 @@ export function renderTodayFocus(tasks) {
     if (desktop) desktop.innerHTML = html;
     const drawer = document.getElementById('today-tasks-drawer');
     if (drawer) drawer.innerHTML = html;
+
+    // Wire Focus tab checkboxes: mark task done/undone and sync to Roadmap (calendar)
+    const attachFocusCheckboxes = (container) => {
+        if (!container) return;
+        container.querySelectorAll('.focus-task-checkbox').forEach(btn => {
+            btn.onclick = () => {
+                const taskId = parseInt(btn.dataset.taskId, 10);
+                window.dispatchEvent(new CustomEvent('task-toggle', { detail: { taskId, btn, blockId: undefined } }));
+            };
+        });
+    };
+    attachFocusCheckboxes(desktop);
+    attachFocusCheckboxes(drawer);
 }
 
 function renderCurrentTimeIndicator(container, startHour, hourHeight) {

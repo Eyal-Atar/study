@@ -10,6 +10,7 @@ import json
 import os
 import logging
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 import anthropic
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -33,6 +34,8 @@ _anthropic = anthropic.Anthropic()
 
 def _generate_message(subject: str, task_title: str, minutes_until: int) -> str:
     """Call Claude to generate a WhatsApp-friend style motivational message."""
+    if minutes_until <= 0:
+        return f"הלוז מתחיל! {task_title} — מתחילים עכשיו 📚"
     try:
         prompt = (
             f"Write a very short, humorous, WhatsApp-style message reminding the user about "
@@ -73,18 +76,38 @@ def _send_push(subscription_json: str, title: str, body: str) -> bool:
         return False
 
 
+def _parse_block_start(start_time_str: str, tz_offset_min: int) -> Optional[datetime]:
+    """Parse start_time from DB (UTC iso or naive 'YYYY-MM-DD HH:MM:SS') to UTC datetime for comparison."""
+    if not start_time_str:
+        return None
+    try:
+        s = start_time_str.strip()
+        if "T" in s:
+            dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+        # Naive "YYYY-MM-DD HH:MM:SS" = user local from defer/edit
+        dt = datetime.strptime(s.split(".")[0], "%Y-%m-%d %H:%M:%S")
+        # Treat as local: convert to UTC for comparison (tz_offset_min is user offset from UTC)
+        from_utc = dt - timedelta(minutes=tz_offset_min)
+        return from_utc.replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+
+
 def _check_and_send_notifications():
     """
     Called by scheduler every minute.
     For each user with a push_subscription and notif_per_task=1,
-    find schedule_blocks starting within the next [offset+1, offset] minutes window,
-    generate a Claude message, and send a push notification.
+    find schedule_blocks starting within the next [offset, offset+1] minutes (in user's effective time),
+    send "הלוז מתחיל" style notification when the block starts.
     """
     now_utc = datetime.now(timezone.utc)
     db = get_db()
     try:
         users = db.execute(
-            """SELECT id, push_subscription, notif_timing, notif_per_task, notif_daily_summary
+            """SELECT id, push_subscription, notif_timing, notif_per_task, notif_daily_summary, timezone_offset
                FROM users
                WHERE push_subscription IS NOT NULL AND notif_per_task = 1"""
         ).fetchall()
@@ -92,25 +115,33 @@ def _check_and_send_notifications():
         for user in users:
             user = dict(user)
             offset_min = TIMING_OFFSETS.get(user["notif_timing"] or "at_start", 0)
-            # Target: blocks starting between (now + offset) and (now + offset + 1 min)
-            target_start = now_utc + timedelta(minutes=offset_min)
-            window_start = target_start.strftime("%Y-%m-%dT%H:%M")
-            window_end = (target_start + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M")
-
+            tz_offset = user.get("timezone_offset") or 0
+            # Window in UTC: blocks that start between (now_utc + offset) and (now_utc + offset + 1 min)
+            window_start_utc = now_utc + timedelta(minutes=offset_min)
+            window_end_utc = window_start_utc + timedelta(minutes=1)
+            # User's local "today" and "tomorrow" to limit rows (blocks are stored with day_date in local)
+            now_local = now_utc + timedelta(minutes=tz_offset)
+            user_today = now_local.strftime("%Y-%m-%d")
+            user_tomorrow = (now_local + timedelta(days=1)).strftime("%Y-%m-%d")
             blocks = db.execute(
                 """SELECT task_title, exam_name, start_time FROM schedule_blocks
                    WHERE user_id = ? AND block_type = 'study'
                    AND completed = 0
-                   AND start_time >= ? AND start_time < ?""",
-                (user["id"], window_start, window_end)
+                   AND day_date IN (?, ?)""",
+                (user["id"], user_today, user_tomorrow)
             ).fetchall()
 
             for block in blocks:
                 block = dict(block)
+                start_utc = _parse_block_start(block["start_time"], tz_offset)
+                if start_utc is None:
+                    continue
+                if not (window_start_utc <= start_utc < window_end_utc):
+                    continue
                 task_title = block["task_title"] or "Study session"
                 subject = block["exam_name"] or "your exam"
                 body = _generate_message(subject, task_title, offset_min if offset_min > 0 else 0)
-                title = "StudyFlow 📚"
+                title = "הלוז מתחיל 📚" if offset_min <= 0 else "StudyFlow 📚"
                 success = _send_push(user["push_subscription"], title, body)
                 if success:
                     logger.info(f"Push sent to user {user['id']} for block '{task_title}'")

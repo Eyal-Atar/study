@@ -178,6 +178,11 @@ def mark_task_done(task_id: int, current_user: dict = Depends(get_current_user))
         "UPDATE tasks SET status = 'done' WHERE id = ? AND user_id = ?",
         (task_id, current_user["id"])
     )
+    # Sync all blocks for this task so Roadmap (calendar) shows them done
+    db.execute(
+        "UPDATE schedule_blocks SET completed = 1 WHERE task_id = ? AND user_id = ?",
+        (task_id, current_user["id"])
+    )
     db.commit()
     db.close()
     return {"message": "Task marked as done!"}
@@ -188,6 +193,11 @@ def mark_task_undone(task_id: int, current_user: dict = Depends(get_current_user
     db = get_db()
     db.execute(
         "UPDATE tasks SET status = 'pending' WHERE id = ? AND user_id = ?",
+        (task_id, current_user["id"])
+    )
+    # Sync all blocks for this task so Roadmap (calendar) shows them undone
+    db.execute(
+        "UPDATE schedule_blocks SET completed = 0 WHERE task_id = ? AND user_id = ?",
         (task_id, current_user["id"])
     )
     db.commit()
