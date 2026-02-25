@@ -100,36 +100,37 @@ function activateTouchDrag() {
     // Remove .block-repositioning if a save-edit top animation is still in progress.
     el.classList.remove('block-repositioning');
 
-    // Stop iOS momentum scroll immediately.
-    // -webkit-overflow-scrolling:touch containers continue decelerating after
-    // touchstart. If scrollTop changes between now and the first RAF, positionDragBlock
-    // computes the wrong container-relative position and the block jumps.
-    touchDragState.container.scrollTop = touchDragState.container.scrollTop;
-
-    // Lock body scroll BEFORE capturing geometry and switching to position:fixed.
-    // iOS Safari bug: setting body overflow:hidden AFTER position:fixed changes the
-    // fixed-positioning reference frame, causing the element to visually jump.
+    // Stop iOS momentum scroll and lock scroll BEFORE the RAF.
+    // The RAF below waits for the browser to commit the visually-stable position.
+    const container = touchDragState.container;
+    container.scrollTop = container.scrollTop; // stop -webkit-overflow-scrolling momentum
     document.body.style.overflow = 'hidden';
-    touchDragState.container.style.touchAction = 'none';
+    container.style.touchAction = 'none';
 
-    // Re-capture geometry AFTER locks so coordinates match the stable frame.
-    const lockedRect = el.getBoundingClientRect();
+    // CRITICAL: defer position:fixed switch to the NEXT FRAME.
+    // On iOS Safari, getBoundingClientRect() during active momentum scroll returns
+    // the layout position (where the element is in the document), NOT the visual
+    // position (where it appears on screen while decelerating). They can differ by
+    // many pixels. By waiting one RAF after stopping momentum, the browser has
+    // committed a stable paint and the two positions are now in sync.
+    requestAnimationFrame(() => {
+        if (!touchDragState) return; // cancelled before frame
 
-    // Disable ALL transitions before position change to prevent "fly" animation.
-    el.style.transition = 'none';
-    el.classList.add('dragging');
-    el.style.position = 'fixed';
-    el.style.width = blockWidth + 'px';
-    el.style.left = lockedRect.left + 'px';
-    el.style.top  = lockedRect.top  + 'px';
-    el.style.zIndex = '1001';
+        const lockedRect = el.getBoundingClientRect();
 
-    // Update offsetY to match the locked-frame geometry.
-    touchDragState.offsetY = touchDragState.currentY - lockedRect.top;
+        el.style.transition = 'none';
+        el.classList.add('dragging');
+        el.style.position = 'fixed';
+        el.style.width    = blockWidth + 'px';
+        el.style.left     = lockedRect.left + 'px';
+        el.style.top      = lockedRect.top  + 'px';
+        el.style.zIndex   = '1001';
 
-    // No animation on activation — stripped to isolate jump root cause.
+        // offsetY: distance from finger to block top in the now-stable frame.
+        touchDragState.offsetY = touchDragState.currentY - lockedRect.top;
 
-    touchDragState.edgeRAF = requestAnimationFrame(edgeScroll);
+        touchDragState.edgeRAF = requestAnimationFrame(edgeScroll);
+    });
 }
 
 function onTouchMoveDrag(e) {
