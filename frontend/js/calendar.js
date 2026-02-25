@@ -127,19 +127,11 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
     };
 
-    let firstTaskHour = 24;
-    dayBlocks.forEach(b => {
-        const h = parseLocalDate(b.start_time).getHours();
-        if (h < firstTaskHour) firstTaskHour = h;
-    });
-
-    // Start grid 1 hour before first task (minimum 0).
-    // No cap — the grid must always begin before the earliest block,
-    // otherwise blocks with visualTop < 0 are clipped by overflow-y: auto.
-    // For empty days, default to 8:00 for a sensible view.
-    const startHour = dayBlocks.length > 0
-        ? Math.max(0, firstTaskHour - 1)
-        : 8;
+    // Always start the grid at midnight (00:00) so the full 24-hour timeline is
+    // visible and interactive regardless of when blocks are scheduled.
+    // Wake/sleep hour settings are AI-planning constraints only and must not
+    // restrict the UI timeline range.
+    const startHour = 0;
     
     // 1. Drastically Reduce Vertical Scale (Mobile Only)
     // Mobile: 70px, Desktop: 160px
