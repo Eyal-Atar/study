@@ -13,7 +13,7 @@ import { getCurrentUser, setCurrentUser, getAPI } from './store.js?v=31';
 import { initAuth, handleLogout } from './auth.js?v=31';
 import { initTasks, loadExams } from './tasks.js?v=31';
 import { initRegenerate } from './brain.js?v=31';
-import { initInteractions } from './interactions.js?v=39';
+import { initInteractions } from './interactions.js?v=40';
 import { showScreen, initMobileTabBar } from './ui.js?v=31';
 
 // Initialize the application

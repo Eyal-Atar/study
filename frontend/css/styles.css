@@ -640,15 +640,10 @@ button, a, select, input[type="checkbox"], input[type="radio"], label {
     transition: top 0.35s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
 }
 
-/* Drag state — visual cues only, NO transform here.
- * transform is applied by JS in a separate RAF *after* position:fixed is committed,
- * so the scale never fires before the block is in the correct viewport position. */
+/* Drag state — zero animations, no transform, no transition.
+ * Stripped to bare minimum to isolate jump root cause. */
 .dragging {
-    box-shadow:
-        0 8px 24px -4px rgba(0,0,0,0.5),
-        0 0 0 2px rgba(107,71,245,0.5) !important;
     z-index: 1001 !important;
-    opacity: 0.93;
 }
 
 /* 44×44px minimum touch target for task checkboxes (Apple HIG) */
