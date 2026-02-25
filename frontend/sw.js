@@ -2,7 +2,7 @@
  * Handles: App Shell caching, offline fallback, push notifications
  */
 
-const CACHE_NAME = 'studyflow-shell-v35';
+const CACHE_NAME = 'studyflow-shell-v36';
 
 const APP_SHELL = [
   '/css/styles.css?v=27',
