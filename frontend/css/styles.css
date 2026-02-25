@@ -628,15 +628,15 @@ button, a, select, input[type="checkbox"], input[type="radio"], label {
     }
 }
 
-/* Drag lifting effect — Apple Calendar style: subtle lift, no rotation */
+/* Drag state — visual cues only, NO transform here.
+ * transform is applied by JS in a separate RAF *after* position:fixed is committed,
+ * so the scale never fires before the block is in the correct viewport position. */
 .dragging {
-    transform: scale(1.02) !important;
     box-shadow:
         0 8px 24px -4px rgba(0,0,0,0.5),
         0 0 0 2px rgba(107,71,245,0.5) !important;
     z-index: 1001 !important;
     opacity: 0.93;
-    transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
 /* 44×44px minimum touch target for task checkboxes (Apple HIG) */

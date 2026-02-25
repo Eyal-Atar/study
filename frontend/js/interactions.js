@@ -110,11 +110,16 @@ function activateTouchDrag() {
     touchDragState.container.style.touchAction = 'none';
     touchDragState.container.style.overflowY = 'hidden'; // Prevent container over-scroll
 
-    el.style.transition = 'transform 0.12s ease, box-shadow 0.12s ease, opacity 0.2s';
-    // Do NOT call positionDragBlock() here. The block is already at blockRect.top
-    // (exact visual position). Calling it would immediately snap to the nearest
-    // grid line, making the block visually drop away from the finger on activation.
-    // Snapping starts only when the user actually moves (onTouchMoveDrag → positionDragBlock).
+    // Block is now at blockRect.top — correct position, no transitions active.
+    // Apply the lift scale in a SEPARATE RAF so the browser has committed the
+    // position:fixed + top before any transform fires. This prevents the scale
+    // from changing the computed position and causing the block to jump away
+    // from the finger on long-press activation.
+    requestAnimationFrame(() => {
+        if (!touchDragState) return;
+        touchDragState.el.style.transition = 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s ease, opacity 0.15s ease';
+        touchDragState.el.style.transform = 'scale(1.03)';
+    });
 
     touchDragState.edgeRAF = requestAnimationFrame(edgeScroll);
 }
