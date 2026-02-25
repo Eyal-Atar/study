@@ -100,15 +100,19 @@ function activateTouchDrag() {
     // Remove .block-repositioning if a save-edit top animation is still in progress.
     el.classList.remove('block-repositioning');
 
+    // Stop iOS momentum scroll immediately.
+    // -webkit-overflow-scrolling:touch containers continue decelerating after
+    // touchstart. If scrollTop changes between now and the first RAF, positionDragBlock
+    // computes the wrong container-relative position and the block jumps.
+    touchDragState.container.scrollTop = touchDragState.container.scrollTop;
+
     // Lock body scroll BEFORE capturing geometry and switching to position:fixed.
     // iOS Safari bug: setting body overflow:hidden AFTER position:fixed changes the
     // fixed-positioning reference frame, causing the element to visually jump.
-    // By locking first, blockRect is captured in the already-locked frame, and
-    // el.style.top = blockRect.top is consistent with the frame the browser uses.
     document.body.style.overflow = 'hidden';
     touchDragState.container.style.touchAction = 'none';
 
-    // Re-capture geometry AFTER body lock so coordinates match the locked frame.
+    // Re-capture geometry AFTER locks so coordinates match the stable frame.
     const lockedRect = el.getBoundingClientRect();
 
     // Disable ALL transitions before position change to prevent "fly" animation.
@@ -163,21 +167,10 @@ function positionDragBlock() {
     if (!touchDragState) return;
     requestAnimationFrame(() => {
         if (!touchDragState) return;
-        const { el, currentY, offsetY, container } = touchDragState;
-
-        // Convert viewport coordinates → container-relative for accurate snapping.
-        // The block is position:fixed so its `top` is in viewport pixels, but the
-        // grid lines live in the container's coordinate system. Snapping rawTop in
-        // viewport space would only align to grid lines if the container top happened
-        // to be a multiple of snapPx — not guaranteed. We convert, snap, convert back.
-        const containerRect = container.getBoundingClientRect();
-        const containerRelY = (currentY - offsetY) - containerRect.top + container.scrollTop;
-        const snapPx = getSnapPixels();
-        const snappedContainerY = Math.round(containerRelY / snapPx) * snapPx;
-
-        // Back to viewport coords for position:fixed
-        const snappedViewportTop = snappedContainerY + containerRect.top - container.scrollTop;
-        el.style.top = snappedViewportTop + 'px';
+        const { el, currentY, offsetY } = touchDragState;
+        // DEBUG: direct viewport positioning, no snap, no container math.
+        // Isolating whether the jump comes from scroll/container calculations.
+        el.style.top = (currentY - offsetY) + 'px';
     });
 }
 
