@@ -4,14 +4,38 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os
+import hashlib
+import re
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from server.database import init_db
-from server.config import FRONTEND_DIR, SESSION_SECRET_KEY
+from server.config import FRONTEND_DIR, PROJECT_DIR, SESSION_SECRET_KEY
+
+
+def _compute_build_hash() -> str:
+    """Hash the mtime+size of every frontend JS and CSS file.
+    Changes automatically whenever any asset is modified."""
+    h = hashlib.md5()
+    for root, _, files in os.walk(os.path.join(FRONTEND_DIR, "js")):
+        for f in sorted(files):
+            if f.endswith(".js"):
+                path = os.path.join(root, f)
+                stat = os.stat(path)
+                h.update(f"{f}:{stat.st_mtime}:{stat.st_size}".encode())
+    for root, _, files in os.walk(os.path.join(FRONTEND_DIR, "css")):
+        for f in sorted(files):
+            if f.endswith(".css"):
+                path = os.path.join(root, f)
+                stat = os.stat(path)
+                h.update(f"{f}:{stat.st_mtime}:{stat.st_size}".encode())
+    return h.hexdigest()[:8]
+
+
+BUILD_HASH = _compute_build_hash()
 
 from auth.routes import router as auth_router
 from users.routes import router as users_router
@@ -84,30 +108,41 @@ def serve_manifest():
 
 @app.get("/sw.js")
 def serve_service_worker():
-    """Serve Service Worker at root scope (required for full-app SW scope)."""
-    return FileResponse(
-        os.path.join(FRONTEND_DIR, "sw.js"),
+    """Serve Service Worker with auto-injected build hash so the cache version
+    updates automatically whenever any frontend asset changes.
+    Cache-Control: no-cache ensures browsers always fetch the latest SW."""
+    build_hash = _compute_build_hash()
+    with open(os.path.join(FRONTEND_DIR, "sw.js"), "r") as f:
+        content = f.read()
+    # Replace CACHE_NAME and all ?v=XX query params with the current build hash
+    content = re.sub(r"studyflow-shell-v\w+", f"studyflow-shell-{build_hash}", content)
+    content = re.sub(r"\?v=\w+", f"?v={build_hash}", content)
+    return Response(
+        content=content,
         media_type="application/javascript",
-        headers={"Service-Worker-Allowed": "/"}
+        headers={
+            "Service-Worker-Allowed": "/",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
     )
 
 
 # ─── Frontend ────────────────────────────────────────────────
 @app.get("/")
 def serve_frontend():
-    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"), media_type="text/html")
+    return FileResponse(os.path.join(PROJECT_DIR, "index.html"), media_type="text/html")
 
 
 @app.get("/onboarding")
 def serve_frontend_onboarding():
     """Serve frontend for onboarding screen (SPA routing)."""
-    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"), media_type="text/html")
+    return FileResponse(os.path.join(PROJECT_DIR, "index.html"), media_type="text/html")
 
 
 @app.get("/dashboard")
 def serve_frontend_dashboard():
     """Serve frontend for dashboard screen (SPA routing)."""
-    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"), media_type="text/html")
+    return FileResponse(os.path.join(PROJECT_DIR, "index.html"), media_type="text/html")
 
 
 @app.get("/health")
