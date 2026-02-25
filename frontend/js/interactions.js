@@ -98,24 +98,30 @@ function activateTouchDrag() {
     touchDragState.offsetY = touchDragState.currentY - blockRect.top;
 
     // Remove .block-repositioning if a save-edit top animation is still in progress.
-    // This class re-enables `transition: top 0.35s` for post-edit repositioning.
-    // If the user long-presses during that 350ms animation window, the top transition
-    // must be fully suppressed before we switch to position:fixed to prevent the iOS
-    // compositor from animating top during layer reparent (which causes the drag jump).
     el.classList.remove('block-repositioning');
+
+    // Lock body scroll BEFORE capturing geometry and switching to position:fixed.
+    // iOS Safari bug: setting body overflow:hidden AFTER position:fixed changes the
+    // fixed-positioning reference frame, causing the element to visually jump.
+    // By locking first, blockRect is captured in the already-locked frame, and
+    // el.style.top = blockRect.top is consistent with the frame the browser uses.
+    document.body.style.overflow = 'hidden';
+    touchDragState.container.style.touchAction = 'none';
+
+    // Re-capture geometry AFTER body lock so coordinates match the locked frame.
+    const lockedRect = el.getBoundingClientRect();
 
     // Disable ALL transitions before position change to prevent "fly" animation.
     el.style.transition = 'none';
     el.classList.add('dragging');
     el.style.position = 'fixed';
     el.style.width = blockWidth + 'px';
-    el.style.left = blockRect.left + 'px'; // Pin left so block stays in place
-    el.style.top = blockRect.top + 'px';   // Start at exact current visual position
+    el.style.left = lockedRect.left + 'px';
+    el.style.top  = lockedRect.top  + 'px';
     el.style.zIndex = '1001';
 
-    document.body.style.overflow = 'hidden';
-    touchDragState.container.style.touchAction = 'none';
-    touchDragState.container.style.overflowY = 'hidden'; // Prevent container over-scroll
+    // Update offsetY to match the locked-frame geometry.
+    touchDragState.offsetY = touchDragState.currentY - lockedRect.top;
 
     // No animation on activation — stripped to isolate jump root cause.
 
