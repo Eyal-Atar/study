@@ -24,7 +24,7 @@ function getSnapPixels() { return (SNAP_MINUTES / 60) * getHourHeight(); }
 
 const LONG_PRESS_MS = 600;
 const DRAG_TOLERANCE_PX = 8; // px of movement allowed before drag is cancelled
-let touchDragState = null; // { el, blockId, container, startX, startY, currentY, timer, edgeRAF, dragActive, fixedActive, rafPending, offsetY, lastScrollY }
+let touchDragState = null; // { el, blockId, container, startX, startY, currentY, timer, edgeRAF, dragActive, offsetY, lastScrollY }
 
 function initTouchDrag() {
     // PASSIVE touchstart — never blocks scroll, just records the hit
@@ -51,14 +51,6 @@ function onTouchStart(e) {
         startY: touch.clientY,
         currentY: touch.clientY,
         dragActive: false,
-        // fixedActive: set to true ONLY after position:fixed has been applied inside the
-        // activation RAF. This gates positionDragBlock() so it never writes viewport-coord
-        // top values to a position:absolute element during the 1-frame activation gap.
-        fixedActive: false,
-        // rafPending: prevents multiple RAF callbacks from piling up when many touchmove
-        // events fire per frame. Only one RAF is ever inflight; it always reads the
-        // latest currentY when it executes, so no stale writes fight each other.
-        rafPending: false,
         offsetY: touch.clientY - block.getBoundingClientRect().top,
         // Initialize lastScrollY to startY so the first manual-scroll delta is correct
         // (touch.clientY - lastScrollY will be the actual finger movement, not a large jump
@@ -79,72 +71,39 @@ function activateTouchDrag() {
 
     if (navigator.vibrate) navigator.vibrate(40);
 
-    // Clear any transform that interact.js may have applied via its move handler
-    // before receiving pointercancel (which happens after our touchmove preventDefault).
-    // Without this, the block carries a stale translateY into the fixed-position phase,
-    // visually displacing it from its true pixel location and causing a visible jump.
+    // Clear any stale transform (e.g. from a prior swipe gesture).
     el.style.transform = '';
     el.setAttribute('data-y', '0');
 
-    // Capture full geometry AFTER clearing transform, BEFORE switching to fixed.
-    // left MUST be set explicitly — on iOS Safari, position:fixed with left:auto
-    // resolves to the element's hypothetical static position (often 0), not its
-    // visual position, causing the block to jump to the screen edge.
+    // Recalculate offsetY using the block's CURRENT viewport position.
+    // During the 600ms long-press window the container may have scrolled, so
+    // the touchstart offsetY is stale.
     const blockRect = el.getBoundingClientRect();
-    const blockWidth = blockRect.width;
-
-    // Save original inline styles — blocks are rendered with inline left/right
-    // (e.g. "left:4px; right:8px") that determine their width. If we clear these
-    // on drop instead of restoring, the block loses its sizing and appears compressed.
-    touchDragState.savedLeft = el.style.left;
-
-    // Recalculate offsetY using the block's CURRENT position (not touchstart position).
-    // During the 600ms long-press window the container may have scrolled, moving the
-    // block visually. The original touchstart offsetY no longer matches, causing the
-    // block to jump to the wrong position on activation. Re-anchoring here ensures
-    // positionDragBlock places the block exactly where the finger is.
     touchDragState.offsetY = touchDragState.currentY - blockRect.top;
 
-    // Remove .block-repositioning if a save-edit top animation is still in progress.
+    // Remove any in-progress repositioning animation.
     el.classList.remove('block-repositioning');
 
-    // Stop iOS momentum scroll and lock scroll BEFORE the RAF.
-    // The RAF below waits for the browser to commit the visually-stable position.
+    // Stop iOS momentum scroll and lock body scroll.
     const container = touchDragState.container;
-    container.scrollTop = container.scrollTop; // stop -webkit-overflow-scrolling momentum
+    container.scrollTop = container.scrollTop; // stops -webkit-overflow-scrolling momentum
     document.body.style.overflow = 'hidden';
     container.style.touchAction = 'none';
 
-    // CRITICAL: defer position:fixed switch to the NEXT FRAME.
-    // On iOS Safari, getBoundingClientRect() during active momentum scroll returns
-    // the layout position (where the element is in the document), NOT the visual
-    // position (where it appears on screen while decelerating). They can differ by
-    // many pixels. By waiting one RAF after stopping momentum, the browser has
-    // committed a stable paint and the two positions are now in sync.
-    requestAnimationFrame(() => {
-        if (!touchDragState) return; // cancelled before frame
+    // Lift the block visually. Intentionally stay position:absolute — switching to
+    // position:fixed inside a -webkit-overflow-scrolling:touch container causes iOS
+    // Safari to perform a compositor layer reparent that makes the block invisible
+    // during the drag (it disappears until drop). Absolute positioning avoids this
+    // entirely: top is container-content-relative and never leaves the scroll layer.
+    el.style.transition = 'none';
+    el.classList.add('dragging');
+    el.style.zIndex = '1001';
+    el.style.opacity = '0.9';
 
-        const lockedRect = el.getBoundingClientRect();
+    // Position block immediately under the finger.
+    positionDragBlock();
 
-        el.style.transition = 'none';
-        el.classList.add('dragging');
-        el.style.position = 'fixed';
-        el.style.width    = blockWidth + 'px';
-        el.style.left     = lockedRect.left + 'px';
-        el.style.top      = lockedRect.top  + 'px';
-        el.style.zIndex   = '1001';
-
-        // offsetY: distance from finger to block top in the now-stable frame.
-        touchDragState.offsetY = touchDragState.currentY - lockedRect.top;
-
-        // CRITICAL: only NOW is position:fixed live and viewport coords are correct.
-        // Setting fixedActive=true here gates positionDragBlock() so it never writes
-        // viewport-coord top values during the activation gap when the element is
-        // still position:absolute (which would send the block flying to the wrong place).
-        touchDragState.fixedActive = true;
-
-        touchDragState.edgeRAF = requestAnimationFrame(edgeScroll);
-    });
+    touchDragState.edgeRAF = requestAnimationFrame(edgeScroll);
 }
 
 function onTouchMoveDrag(e) {
@@ -179,31 +138,14 @@ function onTouchMoveDrag(e) {
 }
 
 function positionDragBlock() {
-    if (!touchDragState) return;
-
-    // Do not write style.top until position:fixed is confirmed live.
-    // During the 1-frame activation gap, dragActive=true but the element is still
-    // position:absolute. Writing viewport coords to it would send the block flying
-    // to the wrong location (by roughly container.scrollTop pixels).
-    if (!touchDragState.fixedActive) return;
-
-    // Guard: only schedule one RAF at a time. Multiple touchmove events fire per
-    // frame (especially at 120Hz). Without this guard, each event queues its own
-    // RAF callback, stacking up stale writes. The single inflight RAF always reads
-    // the latest currentY from state when it actually executes.
-    if (touchDragState.rafPending) return;
-    touchDragState.rafPending = true;
-
-    requestAnimationFrame(() => {
-        if (!touchDragState) return;
-        touchDragState.rafPending = false;
-
-        const { el, currentY, offsetY } = touchDragState;
-        // Direct viewport positioning: el is position:fixed, so top is in viewport coords.
-        // currentY is the finger's clientY; offsetY is the distance from finger to block top
-        // captured when position:fixed was applied (in the activation RAF).
-        el.style.top = (currentY - offsetY) + 'px';
-    });
+    if (!touchDragState?.dragActive) return;
+    const { el, container, currentY, offsetY } = touchDragState;
+    // Block stays position:absolute — top is relative to container scroll content.
+    // Convert finger viewport Y → absolute content Y:
+    //   absolute_top = (fingerViewportY - offsetY) - containerViewportTop + containerScrollTop
+    const containerRect = container.getBoundingClientRect();
+    const newTop = (currentY - offsetY) - containerRect.top + container.scrollTop;
+    el.style.top = Math.max(0, newTop) + 'px';
 }
 
 function edgeScroll() {
@@ -212,15 +154,14 @@ function edgeScroll() {
     const MARGIN = 60; // px zone near screen edge that triggers auto-scroll
     const SPEED = 10;  // px per frame
 
-    // Use currentY (finger position) rather than block rect: the block is
-    // position:fixed and snapped, so its rect may lag a frame behind. The
-    // finger position is always up-to-date and is what drives intent.
     const y = touchDragState.currentY;
 
     if (y < MARGIN) {
         container.scrollBy({ top: -SPEED, behavior: 'auto' });
+        positionDragBlock(); // keep block under finger as container scrolls
     } else if (y > window.innerHeight - MARGIN) {
         container.scrollBy({ top: SPEED, behavior: 'auto' });
+        positionDragBlock(); // keep block under finger as container scrolls
     }
 
     touchDragState.edgeRAF = requestAnimationFrame(edgeScroll);
@@ -239,10 +180,7 @@ async function onTouchEnd(_e) {
 
     const { el, container } = touchDragState;
 
-    // Convert fixed-position drop coordinates → container-content-relative position.
-    // Must add container.scrollTop: position:absolute top is relative to content origin,
-    // not the visible viewport top. Without this, dragging while edgeScroll has scrolled
-    // the container places the block at the wrong (too-high) position.
+    // Compute final drop position: same formula as positionDragBlock(), then snap.
     const containerRect = container.getBoundingClientRect();
     const dropY = (touchDragState.currentY - touchDragState.offsetY)
                   - containerRect.top
@@ -251,16 +189,8 @@ async function onTouchEnd(_e) {
     const snapped = Math.round(dropY / snapPx) * snapPx;
     const finalTop = Math.max(0, snapped);
 
-    // Disable ALL transitions before switching position:fixed → position:absolute.
-    // The CSS 'top' transition would otherwise animate from the viewport-coord value
-    // to the container-coord value, making the block visually "fly" across the screen.
-    // left MUST be cleared — while fixed it was a viewport coordinate; once absolute
-    // it would be misinterpreted as a container-relative offset, misplacing the block.
     el.style.transition = 'none';
     el.classList.remove('dragging');
-    el.style.position = '';
-    el.style.width = '';
-    el.style.left = touchDragState.savedLeft || '';  // Restore original inline left (e.g. "4px")
     el.style.zIndex = '';
     el.style.opacity = '';
     el.style.top = `${finalTop}px`;
@@ -307,9 +237,6 @@ function cancelTouchDrag() {
         const { el, container } = touchDragState;
         el.style.transition = 'none';
         el.classList.remove('dragging');
-        el.style.position = '';
-        el.style.width = '';
-        el.style.left = touchDragState.savedLeft || '';  // Restore original inline left
         el.style.zIndex = '';
         el.style.opacity = '';
         el.style.transform = '';
