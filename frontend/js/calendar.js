@@ -1,4 +1,4 @@
-import { getCurrentExams, getCurrentTasks, getAPI, authFetch, getCurrentSchedule, setCurrentSchedule } from './store.js?v=31';
+import { getCurrentExams, getCurrentTasks, getAPI, authFetch, getCurrentSchedule, setCurrentSchedule, getCurrentUser } from './store.js?v=31';
 import { examColorClass, showTaskEditModal, showConfirmModal } from './ui.js?v=31';
 
 let currentDayIndex = 0;
@@ -233,6 +233,16 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
 
     container.innerHTML = html;
 
+    // Scroll to wake-up hour on initial render so user lands at their day start
+    const gridContainer = container.querySelector('.grid-day-container');
+    if (gridContainer) {
+        const user = getCurrentUser();
+        const wakeHour = user?.wake_up_time
+            ? parseInt(user.wake_up_time.split(':')[0], 10)
+            : 7;
+        gridContainer.scrollTop = wakeHour * HOUR_HEIGHT;
+    }
+
     // Current Time Indicator
     renderCurrentTimeIndicator(container, startHour, HOUR_HEIGHT);
 
@@ -430,7 +440,9 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
             _lastTapTime = 0;
             _lastTapBlock = null;
             const blockId = blockEl.dataset.blockId;
-            const block = dayBlocks.find(b => b.id == blockId);
+            const liveDay = dayKeys[currentDayIndex];
+            const liveBlocks = (_blocksByDay[liveDay] || []).filter(b => b.block_type !== 'break');
+            const block = liveBlocks.find(b => b.id == blockId) || dayBlocks.find(b => b.id == blockId);
             if (block && block.block_type !== 'break') {
                 showTaskEditModal(block,
                     (updates) => handleSaveBlock(blockId, updates),
@@ -633,7 +645,25 @@ function renderCurrentTimeIndicator(container, startHour, hourHeight) {
 // When interactions.js saves a block move, it fires 'sf:blocks-saved'.
 // We re-fetch the schedule and update _blocksByDay WITHOUT re-rendering the grid.
 // This ensures day navigation shows the correct (post-drag) times, not stale ones.
-window.addEventListener('sf:blocks-saved', async () => {
+window.addEventListener('sf:blocks-saved', async (e) => {
+    // Optimistic update: apply new times to _blocksByDay immediately so the
+    // edit modal shows the correct time even before the server re-fetch returns.
+    if (e.detail?.updates && e.detail?.dayDate) {
+        const { dayDate, updates } = e.detail;
+        if (_blocksByDay[dayDate]) {
+            updates.forEach(u => {
+                const idx = _blocksByDay[dayDate].findIndex(b => String(b.id) === String(u.blockId));
+                if (idx !== -1) {
+                    _blocksByDay[dayDate][idx] = {
+                        ..._blocksByDay[dayDate][idx],
+                        start_time: u.start_time,
+                        end_time: u.end_time,
+                    };
+                }
+            });
+        }
+    }
+
     const API = getAPI();
     try {
         const res = await authFetch(`${API}/schedule`);

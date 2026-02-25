@@ -60,6 +60,9 @@ function onTouchStart(e) {
         edgeRAF: null,
     };
 
+    // Start long-press charge animation immediately
+    block.classList.add('long-pressing');
+
     // Add non-passive touchmove ONLY for this gesture — scoped, not global
     document.addEventListener('touchmove', onTouchMoveDrag, { passive: false });
 }
@@ -90,15 +93,11 @@ function activateTouchDrag() {
     document.body.style.overflow = 'hidden';
     container.style.touchAction = 'none';
 
-    // Lift the block visually. Intentionally stay position:absolute — switching to
-    // position:fixed inside a -webkit-overflow-scrolling:touch container causes iOS
-    // Safari to perform a compositor layer reparent that makes the block invisible
-    // during the drag (it disappears until drop). Absolute positioning avoids this
-    // entirely: top is container-content-relative and never leaves the scroll layer.
+    // Switch from long-press animation to active drag visual.
+    el.classList.remove('long-pressing');
     el.style.transition = 'none';
     el.classList.add('dragging');
-    el.style.zIndex = '1001';
-    el.style.opacity = '0.9';
+    el.style.opacity = '0.92';
 
     // Position block immediately under the finger.
     positionDragBlock();
@@ -144,22 +143,24 @@ function positionDragBlock() {
     // Convert finger viewport Y → absolute content Y:
     //   absolute_top = (fingerViewportY - offsetY) - containerViewportTop + containerScrollTop
     const containerRect = container.getBoundingClientRect();
-    const newTop = (currentY - offsetY) - containerRect.top + container.scrollTop;
-    el.style.top = Math.max(0, newTop) + 'px';
+    const newTop = Math.max(0, (currentY - offsetY) - containerRect.top + container.scrollTop);
+    el.style.top = newTop + 'px';
+    updateLiveTimeLabel(el, newTop);
 }
 
 function edgeScroll() {
     if (!touchDragState?.dragActive) return;
     const { container } = touchDragState;
-    const MARGIN = 60; // px zone near screen edge that triggers auto-scroll
+    const MARGIN_TOP = 160;  // px from top edge that triggers scroll-up
+    const MARGIN_BOT = 120;  // px from bottom edge that triggers scroll-down
     const SPEED = 10;  // px per frame
 
     const y = touchDragState.currentY;
 
-    if (y < MARGIN) {
+    if (y < MARGIN_TOP) {
         container.scrollBy({ top: -SPEED, behavior: 'auto' });
         positionDragBlock(); // keep block under finger as container scrolls
-    } else if (y > window.innerHeight - MARGIN) {
+    } else if (y > window.innerHeight - MARGIN_BOT) {
         container.scrollBy({ top: SPEED, behavior: 'auto' });
         positionDragBlock(); // keep block under finger as container scrolls
     }
@@ -174,6 +175,8 @@ async function onTouchEnd(_e) {
     document.removeEventListener('touchmove', onTouchMoveDrag);
 
     if (!touchDragState.dragActive) {
+        // Finger lifted before long-press completed — cancel the charge animation
+        touchDragState.el.classList.remove('long-pressing');
         touchDragState = null;
         return;
     }
@@ -233,8 +236,10 @@ function cancelTouchDrag() {
     if (!touchDragState) return;
     clearTimeout(touchDragState.timer);
     if (touchDragState.edgeRAF) cancelAnimationFrame(touchDragState.edgeRAF);
+    const { el } = touchDragState;
+    el.classList.remove('long-pressing'); // always clear, whether drag was active or not
     if (touchDragState.dragActive) {
-        const { el, container } = touchDragState;
+        const { container } = touchDragState;
         el.style.transition = 'none';
         el.classList.remove('dragging');
         el.style.zIndex = '';
@@ -489,9 +494,11 @@ async function saveSequence(blocks, container) {
                 })
             })
         ));
-        // Notify calendar.js to silently refresh _blocksByDay so navigation
-        // doesn't revert blocks to their pre-drag positions.
-        window.dispatchEvent(new CustomEvent('sf:blocks-saved'));
+        // Pass updated times directly so calendar.js can update _blocksByDay
+        // immediately — no server re-fetch needed before opening edit modal.
+        window.dispatchEvent(new CustomEvent('sf:blocks-saved', {
+            detail: { dayDate, updates }
+        }));
     } catch (e) {
         console.error("Failed to save sequence:", e);
     }
