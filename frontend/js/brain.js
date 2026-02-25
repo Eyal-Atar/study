@@ -1,5 +1,5 @@
 import { getAPI, authFetch, setRegenTriggered, setCurrentTasks, setCurrentSchedule } from './store.js?v=31';
-import { renderCalendar, renderTodayFocus } from './calendar.js?v=31';
+import { renderCalendar, renderTodayFocus } from './calendar.js?v=32';
 import { updateStats } from './tasks.js?v=31';
 
 /**

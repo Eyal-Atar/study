@@ -1,6 +1,6 @@
 import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, setCurrentTasks, getCurrentSchedule, setCurrentSchedule, getPendingExamId, setPendingExamId, getPendingFiles, setPendingFiles } from './store.js?v=31';
 import { shakeEl, spawnConfetti, examColorClass } from './ui.js?v=31';
-import { renderCalendar, renderTodayFocus, renderExamLegend } from './calendar.js?v=31';
+import { renderCalendar, renderTodayFocus, renderExamLegend } from './calendar.js?v=32';
 import { showRegenBar } from './brain.js?v=31';
 
 // Notification permission prompt tracking

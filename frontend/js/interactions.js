@@ -97,6 +97,13 @@ function activateTouchDrag() {
     // positionDragBlock places the block exactly where the finger is.
     touchDragState.offsetY = touchDragState.currentY - blockRect.top;
 
+    // Remove .block-repositioning if a save-edit top animation is still in progress.
+    // This class re-enables `transition: top 0.35s` for post-edit repositioning.
+    // If the user long-presses during that 350ms animation window, the top transition
+    // must be fully suppressed before we switch to position:fixed to prevent the iOS
+    // compositor from animating top during layer reparent (which causes the drag jump).
+    el.classList.remove('block-repositioning');
+
     // Disable ALL transitions before position change to prevent "fly" animation.
     el.style.transition = 'none';
     el.classList.add('dragging');

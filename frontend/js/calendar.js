@@ -350,10 +350,18 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
                 // the CSS transition has no "from" state — the block teleports instead
                 // of sliding. The outer RAF queues us at the start of the next frame;
                 // the inner RAF fires after that frame is committed to the compositor.
+                //
+                // .block-repositioning is added just before the top write to re-enable
+                // the top transition (removed from the base .schedule-block rule to prevent
+                // iOS compositor from animating top during drag activation). It is removed
+                // after 400ms — slightly longer than the 350ms transition — so the animation
+                // completes before the class is stripped.
                 requestAnimationFrame(() => {
+                    blockEl.classList.add('block-repositioning');
                     requestAnimationFrame(() => {
                         blockEl.style.top = `${newVisualTop}px`;
                         blockEl.style.height = `${newVisualHeight}px`;
+                        setTimeout(() => blockEl.classList.remove('block-repositioning'), 400);
                     });
                 });
             }

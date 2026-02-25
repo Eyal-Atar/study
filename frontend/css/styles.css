@@ -363,13 +363,17 @@ input[type="range"]:active::-webkit-slider-thumb {
     border-radius: 10px;
     font-size: 11px;
     overflow: hidden;
-    /* Only transition top for smooth save-edit repositioning.
-       height is intentionally NOT transitioned — animating height while overflow:hidden
-       clips content mid-animation causing visible text jitter/flicker.
-       transform and opacity are handled directly by interact.js / touch-drag JS,
-       not via CSS transition, to avoid conflicting with drag transforms. */
-    transition: top 0.35s cubic-bezier(0.25, 0.8, 0.25, 1),
-                box-shadow 0.15s ease, opacity 0.2s;
+    /* top transition is intentionally REMOVED from this base rule.
+       Reason: iOS Safari's compositor performs a layer reparent when a block switches
+       from position:absolute (inside -webkit-overflow-scrolling:touch container) to
+       position:fixed (drag mode). During reparent, iOS animates `top` from the old
+       container-relative value to the new viewport-relative value using ANY active CSS
+       top transition — even when `el.style.transition = 'none'` is set inline in JS.
+       The inline suppression is a main-thread operation; the compositor animation runs
+       on the compositor thread and ignores it. Result: a ~75px visible jump at drag activation.
+       The `top` transition for save-edit repositioning is re-enabled via `.block-repositioning`
+       class, which is toggled by JS only when an edit-modal save occurs (not during drag). */
+    transition: box-shadow 0.15s ease, opacity 0.2s;
     cursor: grab;
     z-index: 10;
     box-sizing: border-box;
@@ -388,10 +392,9 @@ input[type="range"]:active::-webkit-slider-thumb {
     /* NOTE: will-change:transform and transform:translate3d() are intentionally
        NOT set here. Promoting every block to its own GPU compositing layer causes
        the browser to clip blocks at the scrolling container's layer boundary during
-       fast scroll (cards appear "swallowed"). Position changes via `top` on the
-       CPU/main compositor layer are smooth enough with the transition above.
-       interact.js applies transform:translateY() during drag only — that is
-       sufficient to trigger GPU compositing for the duration of the drag gesture. */
+       fast scroll (cards appear "swallowed"). interact.js applies transform:translateY()
+       during drag only — that is sufficient to trigger GPU compositing for the duration
+       of the drag gesture without keeping every block promoted permanently. */
 }
 
 .schedule-block:active {
@@ -626,6 +629,15 @@ button, a, select, input[type="checkbox"], input[type="radio"], label {
     .modal-sheet.closing > div {
         animation: slideDown 0.25s cubic-bezier(0.32, 0.72, 0, 1) forwards;
     }
+}
+
+/* Re-enable top transition for save-edit repositioning only.
+ * This class is added by JS (handleSaveBlock in calendar.js) immediately before
+ * writing a new style.top value after the user edits a block via the modal.
+ * It is removed ~350ms later (after the animation completes) so that drag activation
+ * never finds an active top transition. */
+.block-repositioning {
+    transition: top 0.35s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
 }
 
 /* Drag state — visual cues only, NO transform here.
