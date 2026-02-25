@@ -24,7 +24,7 @@ function getSnapPixels() { return (SNAP_MINUTES / 60) * getHourHeight(); }
 
 const LONG_PRESS_MS = 600;
 const DRAG_TOLERANCE_PX = 8; // px of movement allowed before drag is cancelled
-let touchDragState = null; // { el, blockId, container, startX, startY, currentY, timer, edgeRAF, dragActive, offsetY, lastScrollY }
+let touchDragState = null; // { el, blockId, container, startX, startY, currentY, timer, edgeRAF, dragActive, fixedActive, rafPending, offsetY, lastScrollY }
 
 function initTouchDrag() {
     // PASSIVE touchstart — never blocks scroll, just records the hit
@@ -51,6 +51,14 @@ function onTouchStart(e) {
         startY: touch.clientY,
         currentY: touch.clientY,
         dragActive: false,
+        // fixedActive: set to true ONLY after position:fixed has been applied inside the
+        // activation RAF. This gates positionDragBlock() so it never writes viewport-coord
+        // top values to a position:absolute element during the 1-frame activation gap.
+        fixedActive: false,
+        // rafPending: prevents multiple RAF callbacks from piling up when many touchmove
+        // events fire per frame. Only one RAF is ever inflight; it always reads the
+        // latest currentY when it executes, so no stale writes fight each other.
+        rafPending: false,
         offsetY: touch.clientY - block.getBoundingClientRect().top,
         // Initialize lastScrollY to startY so the first manual-scroll delta is correct
         // (touch.clientY - lastScrollY will be the actual finger movement, not a large jump
@@ -129,6 +137,12 @@ function activateTouchDrag() {
         // offsetY: distance from finger to block top in the now-stable frame.
         touchDragState.offsetY = touchDragState.currentY - lockedRect.top;
 
+        // CRITICAL: only NOW is position:fixed live and viewport coords are correct.
+        // Setting fixedActive=true here gates positionDragBlock() so it never writes
+        // viewport-coord top values during the activation gap when the element is
+        // still position:absolute (which would send the block flying to the wrong place).
+        touchDragState.fixedActive = true;
+
         touchDragState.edgeRAF = requestAnimationFrame(edgeScroll);
     });
 }
@@ -166,11 +180,28 @@ function onTouchMoveDrag(e) {
 
 function positionDragBlock() {
     if (!touchDragState) return;
+
+    // Do not write style.top until position:fixed is confirmed live.
+    // During the 1-frame activation gap, dragActive=true but the element is still
+    // position:absolute. Writing viewport coords to it would send the block flying
+    // to the wrong location (by roughly container.scrollTop pixels).
+    if (!touchDragState.fixedActive) return;
+
+    // Guard: only schedule one RAF at a time. Multiple touchmove events fire per
+    // frame (especially at 120Hz). Without this guard, each event queues its own
+    // RAF callback, stacking up stale writes. The single inflight RAF always reads
+    // the latest currentY from state when it actually executes.
+    if (touchDragState.rafPending) return;
+    touchDragState.rafPending = true;
+
     requestAnimationFrame(() => {
         if (!touchDragState) return;
+        touchDragState.rafPending = false;
+
         const { el, currentY, offsetY } = touchDragState;
-        // DEBUG: direct viewport positioning, no snap, no container math.
-        // Isolating whether the jump comes from scroll/container calculations.
+        // Direct viewport positioning: el is position:fixed, so top is in viewport coords.
+        // currentY is the finger's clientY; offsetY is the distance from finger to block top
+        // captured when position:fixed was applied (in the activation RAF).
         el.style.top = (currentY - offsetY) + 'px';
     });
 }
