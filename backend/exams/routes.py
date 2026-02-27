@@ -2,14 +2,36 @@
 
 import os
 import shutil
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+import json
+import asyncio
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from typing import List
 from server.database import get_db
 from server.config import UPLOAD_DIR
 from auth.utils import get_current_user
 from exams.schemas import ExamCreate, ExamUpdate, ExamResponse, ExamFileResponse
+from brain.syllabus_parser import extract_syllabus_context_with_ai
 
 router = APIRouter()
+
+
+async def process_syllabus_background(exam_id: int, content: bytes):
+    """Process syllabus in background and save context to DB."""
+    try:
+        # Run synchronous PDF/AI logic in threadpool to avoid blocking event loop
+        loop = asyncio.get_event_loop()
+        digest = await loop.run_in_executor(None, extract_syllabus_context_with_ai, content)
+        
+        db = get_db()
+        db.execute(
+            "UPDATE exams SET parsed_context = ? WHERE id = ?",
+            (json.dumps(digest), exam_id)
+        )
+        db.commit()
+        db.close()
+        print(f"SUCCESS: Processed syllabus for exam {exam_id}")
+    except Exception as e:
+        print(f"ERROR processing syllabus for exam {exam_id}: {e}")
 
 
 @router.post("/exams", response_model=ExamResponse)
@@ -122,6 +144,7 @@ def update_exam(exam_id: int, body: ExamUpdate, current_user: dict = Depends(get
 @router.post("/exams/{exam_id}/upload", response_model=ExamFileResponse)
 async def upload_exam_file(
     exam_id: int,
+    background_tasks: BackgroundTasks,
     file_type: str = Form(default="syllabus"),
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
@@ -144,6 +167,10 @@ async def upload_exam_file(
     content = await file.read()
     with open(file_path, "wb") as f:
         f.write(content)
+
+    # Process syllabus in background if it's a PDF and type is syllabus
+    if file_type == "syllabus" and safe_name.lower().endswith(".pdf"):
+        background_tasks.add_task(process_syllabus_background, exam_id, content)
 
     file_size = len(content)
     try:

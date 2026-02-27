@@ -1,12 +1,10 @@
-import { getCurrentExams, getCurrentTasks, getAPI, authFetch, getCurrentSchedule, setCurrentSchedule, getCurrentUser } from './store.js?v=31';
-import { examColorClass, showTaskEditModal, showConfirmModal } from './ui.js?v=31';
+import { getCurrentExams, getCurrentTasks, getAPI, authFetch, getCurrentSchedule, setCurrentSchedule, getCurrentUser } from './store.js?v=AUTO';
+import { examColorClass, showTaskEditModal, showConfirmModal, examHex } from './ui.js?v=AUTO';
 
 let currentDayIndex = 0;
 let dayKeys = [];
 // Track active time indicator interval to prevent leaks on re-render
 let _timeIndicatorInterval = null;
-
-const EXAM_COLOR_VALUES = ['#6B47F5', '#10B981', '#F43F5E', '#F59E0B', '#38BDF8'];
 
 export function renderExamLegend() {
     const el = document.getElementById('exam-legend');
@@ -16,10 +14,6 @@ export function renderExamLegend() {
         el.innerHTML = '<p class="text-white/30 text-sm">Add exams to see legend</p>';
         return;
     }
-    // Set CSS vars so calendar blocks pick up the right per-exam color
-    currentExams.forEach((_, i) => {
-        document.documentElement.style.setProperty(`--exam-${i}-color`, EXAM_COLOR_VALUES[i % EXAM_COLOR_VALUES.length]);
-    });
     el.innerHTML = currentExams.map((exam, i) => `
         <div class="flex items-center gap-2">
             <div class="w-3 h-3 rounded-full ${examColorClass(i,'bg')}"></div>
@@ -34,41 +28,97 @@ let _blocksByDay = {};
 /**
  * Renders the study calendar.
  */
-export function renderCalendar(tasks, schedule = []) {
-    const container = document.getElementById('roadmap-container');
-    if (!container) return;
+export function renderCalendar(tasks, schedule = [], forceScrollToWake = false) {
+    try {
+        const container = document.getElementById('roadmap-container');
+        if (!container) return;
 
-    if (!tasks || tasks.length === 0) {
-        container.innerHTML = `
-            <div class="absolute left-[15px] top-0 bottom-0 w-[2px] bg-gradient-to-b from-accent-500 via-mint-400 to-gold-400 opacity-20"></div>
-            <div class="text-center py-12 text-white/30"><p class="text-lg">No calendar generated yet</p></div>`;
-        return;
-    }
+        // Capture scroll position before re-render
+        const gridContainer = container.querySelector('.grid-day-container');
+        const oldScrollTop = (gridContainer && !forceScrollToWake) ? gridContainer.scrollTop : null;
 
-    if (schedule && schedule.length > 0) {
-        const blocksByDay = {};
-        schedule.forEach(block => {
-            if (!blocksByDay[block.day_date]) blocksByDay[block.day_date] = [];
-            blocksByDay[block.day_date].push(block);
-        });
-        dayKeys = Object.keys(blocksByDay).sort();
+        if (!tasks || tasks.length === 0) {
+            const hasExams = (getCurrentExams() || []).length > 0;
+            const user = getCurrentUser();
+            const userName = user ? (user.name || 'Student') : 'Student';
+            
+            container.innerHTML = `
+                <div class="absolute left-[15px] top-0 bottom-0 w-[2px] bg-gradient-to-b from-accent-500 via-mint-400 to-gold-400 opacity-20"></div>
+                <div class="text-center py-12 px-6">
+                    <div class="text-5xl mb-4">🧠</div>
+                    <h3 class="text-xl font-bold mb-2">Hey ${userName}, ${hasExams ? 'Exams are ready!' : 'Ready to start?'}</h3>
+                    <p class="text-white/40 text-sm mb-8">
+                        ${hasExams 
+                            ? 'Your exams are in! Now let the AI build your perfect study schedule.' 
+                            : 'Add your first exam to build your personalized study roadmap.'}
+                    </p>
+                    ${hasExams ? `
+                        <button id="btn-generate-roadmap-empty" class="bg-gradient-to-r from-accent-500 to-mint-500 hover:opacity-90 text-white font-bold py-3 px-8 rounded-2xl transition-all active:scale-95 shadow-lg shadow-accent-500/25">
+                            🚀 Generate My Roadmap
+                        </button>
+                    ` : `
+                        <button id="btn-add-exam-empty" class="bg-accent-500 hover:bg-accent-600 text-white font-bold py-3 px-8 rounded-2xl transition-all active:scale-95 shadow-lg shadow-accent-500/20">
+                            + Add My First Exam
+                        </button>
+                    `}
+                </div>`;
+            
+            const addBtn = document.getElementById('btn-add-exam-empty');
+            if (addBtn) addBtn.onclick = () => window.dispatchEvent(new CustomEvent('open-add-exam'));
 
-        // Cache blocksByDay for optimistic local updates on delete
-        _blocksByDay = blocksByDay;
-
-        const today = new Date().toISOString().split('T')[0];
-        const savedDay = localStorage.getItem('sf_selected_day');
-        if (savedDay && dayKeys.includes(savedDay)) {
-            currentDayIndex = dayKeys.indexOf(savedDay);
-        } else if (dayKeys.includes(today)) {
-            currentDayIndex = dayKeys.indexOf(today);
-        } else {
-            currentDayIndex = 0;
+            const genBtn = document.getElementById('btn-generate-roadmap-empty');
+            if (genBtn) genBtn.onclick = () => window.dispatchEvent(new CustomEvent('trigger-generate-roadmap'));
+            
+            return;
         }
 
-        renderHourlyGrid(container, tasks, blocksByDay);
-    } else {
-        renderDailyList(container, tasks);
+        const today = new Date().toISOString().split('T')[0];
+
+        if (schedule && schedule.length > 0) {
+            const blocksByDay = {};
+            schedule.forEach(block => {
+                if (!block.day_date) return;
+                if (!blocksByDay[block.day_date]) blocksByDay[block.day_date] = [];
+                blocksByDay[block.day_date].push(block);
+            });
+            dayKeys = Object.keys(blocksByDay).sort();
+
+            if (dayKeys.length === 0) {
+                dayKeys = [today];
+                _blocksByDay = { [today]: [] };
+            } else {
+                _blocksByDay = blocksByDay;
+            }
+
+            const savedDay = localStorage.getItem('sf_selected_day');
+            if (savedDay && dayKeys.includes(savedDay)) {
+                currentDayIndex = dayKeys.indexOf(savedDay);
+            } else if (dayKeys.includes(today)) {
+                currentDayIndex = dayKeys.indexOf(today);
+            } else {
+                currentDayIndex = 0;
+            }
+
+            renderHourlyGrid(container, tasks, _blocksByDay, forceScrollToWake);
+
+            // Restore scroll position after re-render if we were on the same day
+            if (oldScrollTop !== null) {
+                const newGridContainer = container.querySelector('.grid-day-container');
+                if (newGridContainer) newGridContainer.scrollTop = oldScrollTop;
+            }
+        } else {
+            // NO SCHEDULE: Show empty hourly grid for Today so user sees the calendar UI template
+            dayKeys = [today];
+            _blocksByDay = { [today]: [] };
+            currentDayIndex = 0;
+            renderHourlyGrid(container, tasks, _blocksByDay, forceScrollToWake);
+        }
+    } catch (err) {
+        console.error('CRITICAL: renderCalendar failed:', err);
+        const container = document.getElementById('roadmap-container');
+        if (container) {
+            container.innerHTML = '<div class="text-center py-12 text-red-400/50"><p>Something went wrong rendering the calendar.</p></div>';
+        }
     }
 }
 
@@ -102,169 +152,192 @@ function renderDayPicker(container, tasks, blocksByDay) {
     return navHtml;
 }
 
-function renderHourlyGrid(container, tasks, blocksByDay) {
-    const day = dayKeys[currentDayIndex];
-    // Filter out breaks and sort blocks
-    const dayBlocks = (blocksByDay[day] || [])
-        .filter(b => b.block_type !== 'break')
-        .sort((a,b) => a.start_time.localeCompare(b.start_time));
+function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = false) {
+    try {
+        const day = dayKeys[currentDayIndex];
+        if (!day) {
+            renderCalendar(tasks, []);
+            return;
+        }
+
+        // Filter out breaks and sort blocks
+        const dayBlocks = (blocksByDay[day] || [])
+            .filter(b => b.block_type !== 'break')
+            .sort((a,b) => a.start_time.localeCompare(b.start_time));
+            
+        const currentExams = getCurrentExams();
+        const examIdx = {};
+        currentExams.forEach((e, i) => { examIdx[e.id] = i; });
+
+        // Parse a backend datetime string as local time.
+        // Backend stores times as local ISO without timezone (e.g. "2024-01-15T10:00:00").
+        // Stripping Z ensures browsers treat the string as local, not UTC.
+        const parseLocalDate = (dateStr) => {
+            if (!dateStr) return new Date();
+            return new Date(dateStr.replace(' ', 'T').replace(/Z$/, ''));
+        };
+
+        // Format a parsed local Date into HH:MM using the device's locale.
+        const formatLocalTime = (date) => {
+            if (!date || isNaN(date)) return '';
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+        };
+
+        // Always start the grid at midnight (00:00) so the full 24-hour timeline is
+        // visible and interactive regardless of when blocks are scheduled.
+        // Wake/sleep hour settings are AI-planning constraints only and must not
+        // restrict the UI timeline range.
+        const startHour = 0;
         
-    const currentExams = getCurrentExams();
-    const examIdx = {};
-    currentExams.forEach((e, i) => { examIdx[e.id] = i; });
+        // 1. Drastically Reduce Vertical Scale (Mobile Only)
+        // Mobile: 70px, Desktop: 160px
+        const HOUR_HEIGHT = window.innerWidth < 768 ? 70 : 160; 
 
-    // Parse a backend datetime string as local time.
-    // Backend stores times as local ISO without timezone (e.g. "2024-01-15T10:00:00").
-    // Stripping Z ensures browsers treat the string as local, not UTC.
-    const parseLocalDate = (dateStr) => {
-        if (!dateStr) return new Date();
-        return new Date(dateStr.replace(' ', 'T').replace(/Z$/, ''));
-    };
+        let html = renderDayPicker(container, tasks, blocksByDay);
 
-    // Format a parsed local Date into HH:MM using the device's locale.
-    const formatLocalTime = (date) => {
-        if (!date || isNaN(date)) return '';
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-    };
+        const renderedBlocks = dayBlocks.map((block) => {
+            const start = parseLocalDate(block.start_time);
+            const end = parseLocalDate(block.end_time);
+            
+            const startH = start.getHours();
+            const startM = start.getMinutes();
 
-    // Always start the grid at midnight (00:00) so the full 24-hour timeline is
-    // visible and interactive regardless of when blocks are scheduled.
-    // Wake/sleep hour settings are AI-planning constraints only and must not
-    // restrict the UI timeline range.
-    const startHour = 0;
-    
-    // 1. Drastically Reduce Vertical Scale (Mobile Only)
-    // Mobile: 70px, Desktop: 160px
-    const HOUR_HEIGHT = window.innerWidth < 768 ? 70 : 160; 
+            const durationMin = Math.round(Math.abs(end - start) / 60000);
+            // Position relative to startHour
+            const visualTop = ((startH + startM / 60) - startHour) * HOUR_HEIGHT;
+            const visualHeight = (durationMin / 60) * HOUR_HEIGHT;
 
-    let html = renderDayPicker(container, tasks, blocksByDay);
+            const eIdx = block.exam_id !== null && block.exam_id !== -1 ? (examIdx[block.exam_id] ?? -1) : -1;
+            const typeClass = `block-${block.block_type}`;
+            const borderColor = eIdx !== -1 ? examHex(eIdx) : '#6B47F5';
+            const startTimeStr = formatLocalTime(start);
+            const endTimeStr = formatLocalTime(end);
+            const isDone = block.completed === 1;
+            const completedClass = isDone ? 'is-completed' : '';
 
-    const renderedBlocks = dayBlocks.map((block) => {
-        const start = parseLocalDate(block.start_time);
-        const end = parseLocalDate(block.end_time);
-        
-        const startH = start.getHours();
-        const startM = start.getMinutes();
-        const endH = end.getHours();
-        const endM = end.getMinutes();
+            // Tinted translucent backgrounds per exam color (iOS Calendar style)
+            const BLOCK_BG_COLORS = [
+                'rgba(107,71,245,0.18)',  // accent purple
+                'rgba(16,185,129,0.18)',  // mint green
+                'rgba(244,63,94,0.18)',   // coral red
+                'rgba(245,158,11,0.18)', // gold amber
+                'rgba(56,189,248,0.18)', // sky blue
+            ];
+            const blockBg = eIdx !== -1 ? BLOCK_BG_COLORS[eIdx % BLOCK_BG_COLORS.length] : BLOCK_BG_COLORS[0];
 
-        const durationMin = Math.round(Math.abs(end - start) / 60000);
-        // Position relative to startHour
-        const visualTop = ((startH + startM / 60) - startHour) * HOUR_HEIGHT;
-        const visualHeight = (durationMin / 60) * HOUR_HEIGHT;
+            // Time range string (e.g. "10:00 – 11:30")
+            const timeRangeStr = visualHeight >= 50 ? `${startTimeStr} – ${endTimeStr}` : startTimeStr;
 
-        const eIdx = block.exam_id !== null && block.exam_id !== -1 ? (examIdx[block.exam_id] ?? -1) : -1;
-        const typeClass = `block-${block.block_type}`;
-        const borderColor = eIdx !== -1 ? `var(--exam-${eIdx}-color, #6B47F5)` : '#6B47F5';
-        const startTimeStr = formatLocalTime(start);
-        const endTimeStr = formatLocalTime(end);
-        const isDone = block.completed === 1;
-        const completedClass = isDone ? 'is-completed' : '';
+            const displayTitle = (block.part_number && block.total_parts && block.total_parts > 1) 
+                ? `${block.task_title} (Part ${block.part_number}/${block.total_parts})` 
+                : block.task_title;
 
-        // Tinted translucent backgrounds per exam color (iOS Calendar style)
-        const BLOCK_BG_COLORS = [
-            'rgba(107,71,245,0.18)',  // accent purple
-            'rgba(16,185,129,0.18)',  // mint green
-            'rgba(244,63,94,0.18)',   // coral red
-            'rgba(245,158,11,0.18)', // gold amber
-            'rgba(56,189,248,0.18)', // sky blue
-        ];
-        const blockBg = eIdx !== -1 ? BLOCK_BG_COLORS[eIdx % BLOCK_BG_COLORS.length] : BLOCK_BG_COLORS[0];
+            return `
+                <div class="schedule-block ${typeClass} ${completedClass} ${block.is_delayed ? 'block-delayed' : ''} group"
+                     style="position: absolute; top: ${visualTop}px; height: ${visualHeight}px; left: 4px; right: 8px; border-left: 3px solid ${borderColor}; background: ${blockBg}; border-radius: 10px;"
+                     data-task-id="${block.task_id || ''}"
+                     data-block-id="${block.id || ''}"
+                     data-block-type="${block.block_type}"
+                     data-is-done="${isDone}">
 
-        // Time range string (e.g. "10:00 – 11:30")
-        const timeRangeStr = visualHeight >= 50 ? `${startTimeStr} – ${endTimeStr}` : startTimeStr;
+                    <div class="swipe-content h-full" style="padding: ${visualHeight < 36 ? '2px 6px' : '6px 8px'};">
+                        <div class="flex items-start gap-1.5 h-full">
+                            <button data-task-id="${block.task_id}" data-block-id="${block.id}"
+                                    class="task-checkbox flex-shrink-0 w-5 h-5 mt-0.5 rounded-md border-2 flex items-center justify-center transition-all ${isDone ? 'checked border-mint-500' : 'border-white/20 hover:border-accent-400'}"
+                                    style="${isDone ? 'background-color:#10B981;border-color:#10B981;' : ''}">
+                                ${isDone ? '<svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+                            </button>
 
-        return `
-            <div class="schedule-block ${typeClass} ${completedClass} ${block.is_delayed ? 'block-delayed' : ''} group"
-                 style="position: absolute; top: ${visualTop}px; height: ${visualHeight}px; left: 4px; right: 8px; border-left: 3px solid ${borderColor}; background: ${blockBg}; border-radius: 10px;"
-                 data-task-id="${block.task_id || ''}"
-                 data-block-id="${block.id || ''}"
-                 data-block-type="${block.block_type}"
-                 data-is-done="${isDone}">
+                            <div class="flex-1 min-w-0 flex flex-col justify-start h-full overflow-hidden">
+                                <div class="font-semibold text-[11px] md:text-[12px] text-white/95 task-title-text leading-tight" dir="auto" style="-webkit-line-clamp:${visualHeight < 50 ? 1 : 2};">${displayTitle}</div>
+                                ${visualHeight >= 26 ? `<div class="flex items-center gap-1 mt-0.5">
+                                    <span class="text-[11px] font-semibold text-white/70 block-time-label tabular-nums">${timeRangeStr}</span>
+                                    ${block.is_delayed ? '<span class="delayed-badge" style="font-size:7px;padding:1px 3px;">LATE</span>' : ''}
+                                </div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="delete-reveal-btn">DELETE</div>
+                </div>
+            `;
+        });
 
-                <div class="swipe-content h-full" style="padding: ${visualHeight < 36 ? '2px 6px' : '6px 8px'};">
-                    <div class="flex items-start gap-1.5 h-full">
-                        <button data-task-id="${block.task_id}" data-block-id="${block.id}"
-                                class="task-checkbox flex-shrink-0 w-5 h-5 mt-0.5 rounded-md border-2 flex items-center justify-center transition-all ${isDone ? 'checked border-mint-500' : 'border-white/20 hover:border-accent-400'}"
-                                style="${isDone ? 'background-color:#10B981;border-color:#10B981;' : ''}">
-                            ${isDone ? '<svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
-                        </button>
+        const totalGridHeight = (24 - startHour) * HOUR_HEIGHT;
 
-                        <div class="flex-1 min-w-0 flex flex-col justify-start h-full overflow-hidden">
-                            <div class="font-semibold text-[11px] md:text-[12px] text-white/95 task-title-text leading-tight" dir="auto" style="-webkit-line-clamp:${visualHeight < 50 ? 1 : 2};">${block.task_title}</div>
-                            ${visualHeight >= 26 ? `<div class="flex items-center gap-1 mt-0.5">
-                                <span class="text-[11px] font-semibold text-white/70 block-time-label tabular-nums">${timeRangeStr}</span>
-                                ${block.is_delayed ? '<span class="delayed-badge" style="font-size:7px;padding:1px 3px;">LATE</span>' : ''}
-                            </div>` : ''}
+        html += `
+            <div class="grid-day-container fade-in h-full flex-1 overflow-y-auto"
+                 data-day-date="${day}"
+                 data-start-hour="${startHour}">
+                <div id="calendar-grid-wrapper" class="calendar-grid-wrapper" style="min-height: ${totalGridHeight + 32}px; padding-bottom: 32px;">
+                    <div style="display: flex; min-height: ${totalGridHeight}px;">
+                        <!-- Time column: fixed 48px -->
+                        <div class="time-col" style="width: 48px; min-width: 48px; flex-shrink: 0; position: relative; height: ${totalGridHeight}px;">
+                            ${Array.from({length: 24 - startHour}).map((_, i) => {
+                                const h = i + startHour;
+                                return `<div class="hour-label" style="top: ${i * HOUR_HEIGHT}px;">${String(h).padStart(2, '0')}:00</div>`;
+                            }).join('')}
+                        </div>
+                        <!-- Events column: fills remaining width -->
+                        <div class="calendar-grid" style="flex: 1; position: relative; height: ${totalGridHeight}px; border-left: 1px solid rgba(255,255,255,0.06);">
+                            ${Array.from({length: 24 - startHour}).map((_, i) => {
+                                return `<div style="position: absolute; top: ${i * HOUR_HEIGHT}px; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.06); pointer-events: none;"></div>`;
+                            }).join('')}
+                            ${renderedBlocks.join('')}
                         </div>
                     </div>
                 </div>
-                <div class="delete-reveal-btn">DELETE</div>
             </div>
         `;
-    });
 
-    const totalGridHeight = (24 - startHour) * HOUR_HEIGHT;
+        container.innerHTML = html;
 
-    html += `
-        <div class="grid-day-container fade-in h-full flex-1 overflow-y-auto"
-             data-day-date="${day}"
-             data-start-hour="${startHour}">
-            <div id="calendar-grid-wrapper" class="calendar-grid-wrapper" style="min-height: ${totalGridHeight + 32}px; padding-bottom: 32px;">
-                <div style="display: flex; min-height: ${totalGridHeight}px;">
-                    <!-- Time column: fixed 48px -->
-                    <div class="time-col" style="width: 48px; min-width: 48px; flex-shrink: 0; position: relative; height: ${totalGridHeight}px;">
-                        ${Array.from({length: 24 - startHour}).map((_, i) => {
-                            const h = i + startHour;
-                            return `<div class="hour-label" style="top: ${i * HOUR_HEIGHT}px;">${String(h).padStart(2, '0')}:00</div>`;
-                        }).join('')}
-                    </div>
-                    <!-- Events column: fills remaining width -->
-                    <div class="calendar-grid" style="flex: 1; position: relative; height: ${totalGridHeight}px; border-left: 1px solid rgba(255,255,255,0.06);">
-                        ${Array.from({length: 24 - startHour}).map((_, i) => {
-                            return `<div style="position: absolute; top: ${i * HOUR_HEIGHT}px; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.06); pointer-events: none;"></div>`;
-                        }).join('')}
-                        ${renderedBlocks.join('')}
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    container.innerHTML = html;
-
-    // Scroll to wake-up hour on initial render so user lands at their day start
-    const gridContainer = container.querySelector('.grid-day-container');
-    if (gridContainer) {
-        const user = getCurrentUser();
-        const wakeHour = user?.wake_up_time
-            ? parseInt(user.wake_up_time.split(':')[0], 10)
-            : 7;
-        gridContainer.scrollTop = wakeHour * HOUR_HEIGHT;
-    }
-
-    // Current Time Indicator
-    renderCurrentTimeIndicator(container, startHour, HOUR_HEIGHT);
-
-    // Lightweight schedule-only refresh: avoids the full loadExams → full re-render flash
-    const refreshScheduleOnly = async () => {
-        const API = getAPI();
-        try {
-            const res = await authFetch(`${API}/schedule`);
-            if (!res.ok) return;
-            const newSchedule = await res.json();
-            setCurrentSchedule(newSchedule);
-            const newBlocksByDay = {};
-            newSchedule.forEach(block => {
-                if (!newBlocksByDay[block.day_date]) newBlocksByDay[block.day_date] = [];
-                newBlocksByDay[block.day_date].push(block);
-            });
-            _blocksByDay = newBlocksByDay;
-            renderHourlyGrid(container, tasks, newBlocksByDay);
-        } catch (err) {
-            console.error('Schedule refresh failed:', err);
+        // Scroll to wake-up hour on initial render or when forced so user lands at their day start
+        const gridContainer = container.querySelector('.grid-day-container');
+        if (gridContainer && (forceScrollToWake || !container.dataset.renderedOnce)) {
+            const user = getCurrentUser();
+            const wakeHour = user?.wake_up_time
+                ? parseInt(user.wake_up_time.split(':')[0], 10)
+                : 7;
+            gridContainer.scrollTop = wakeHour * HOUR_HEIGHT;
+            container.dataset.renderedOnce = 'true';
         }
-    };
+
+        // Current Time Indicator
+        renderCurrentTimeIndicator(container, startHour, HOUR_HEIGHT);
+
+        // Lightweight schedule-only refresh: avoids the full loadExams → full re-render flash
+        const refreshScheduleOnly = async () => {
+            const API = getAPI();
+            try {
+                const res = await authFetch(`${API}/schedule`);
+                if (!res.ok) return;
+                const newSchedule = await res.json();
+                
+                // If schedule is now empty, fall back to full renderCalendar to show empty state
+                if (!newSchedule || newSchedule.length === 0) {
+                    renderCalendar(getCurrentTasks(), []);
+                    return;
+                }
+
+                setCurrentSchedule(newSchedule);
+                const newBlocksByDay = {};
+                newSchedule.forEach(block => {
+                    if (!newBlocksByDay[block.day_date]) newBlocksByDay[block.day_date] = [];
+                    newBlocksByDay[block.day_date].push(block);
+                });
+                _blocksByDay = newBlocksByDay;
+                dayKeys = Object.keys(_blocksByDay).sort();
+                
+                // If current day is now empty, re-render the whole calendar
+                if (!newBlocksByDay[day]) {
+                    renderCalendar(getCurrentTasks(), newSchedule);
+                } else {
+                    renderHourlyGrid(container, tasks, newBlocksByDay);
+                }
+            } catch (err) {
+                console.error('Schedule refresh failed:', err);
+            }
+        };
 
     const handleDeleteBlock = async (blockId, blockType) => {
         const API = getAPI();
@@ -396,7 +469,9 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
                 _blocksByDay = newBlocksByDay;
             }
             // Don't re-render the grid — the optimistic DOM update already shows the new size/position smoothly; re-render would cause a visible flash.
-        } catch (err) { console.error('Update failed:', err); }
+        } catch (err) {
+            console.error('Update failed:', err);
+        }
     };
 
     // Attach click directly to each checkbox — stopImmediatePropagation prevents
@@ -442,8 +517,29 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
             const blockId = blockEl.dataset.blockId;
             const liveDay = dayKeys[currentDayIndex];
             const liveBlocks = (_blocksByDay[liveDay] || []).filter(b => b.block_type !== 'break');
-            const block = liveBlocks.find(b => b.id == blockId) || dayBlocks.find(b => b.id == blockId);
+            let block = liveBlocks.find(b => b.id == blockId) || dayBlocks.find(b => b.id == blockId);
             if (block && block.block_type !== 'break') {
+                // Always derive start/end times from the block's current DOM position.
+                // After a drag, style.top reflects the snapped position immediately (set
+                // synchronously in interactions.js onTouchEnd/end), while _blocksByDay and
+                // dayBlocks may still hold the pre-drag time if the PATCH hasn't returned yet.
+                // Reading from the DOM guarantees the edit modal shows the actual current time.
+                const domTop = parseFloat(blockEl.style.top);
+                const domHeight = parseFloat(blockEl.style.height);
+                if (!isNaN(domTop) && !isNaN(domHeight)) {
+                    const startTotalMin = Math.round((domTop / HOUR_HEIGHT) * 60) + (startHour * 60);
+                    const endTotalMin = startTotalMin + Math.round((domHeight / HOUR_HEIGHT) * 60);
+                    const sh = Math.floor(startTotalMin / 60);
+                    const sm = startTotalMin % 60;
+                    const eh = Math.floor(endTotalMin / 60);
+                    const em = endTotalMin % 60;
+                    const dayDate = block.day_date || liveDay;
+                    const pad = (n) => String(n).padStart(2, '0');
+                    block = { ...block,
+                        start_time: `${dayDate}T${pad(sh)}:${pad(sm)}:00`,
+                        end_time:   `${dayDate}T${pad(eh)}:${pad(em)}:00`,
+                    };
+                }
                 showTaskEditModal(block,
                     (updates) => handleSaveBlock(blockId, updates),
                     () => handleDeleteBlock(blockId, block.block_type)
@@ -459,8 +555,11 @@ function renderHourlyGrid(container, tasks, blocksByDay) {
     // Navigation events
     const prevBtn = document.getElementById('btn-prev-day');
     const nextBtn = document.getElementById('btn-next-day');
-    if (prevBtn) prevBtn.onclick = () => { if (currentDayIndex > 0) { currentDayIndex--; localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]); renderHourlyGrid(container, tasks, blocksByDay); } };
-    if (nextBtn) nextBtn.onclick = () => { if (currentDayIndex < dayKeys.length - 1) { currentDayIndex++; localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]); renderHourlyGrid(container, tasks, blocksByDay); } };
+    if (prevBtn) prevBtn.onclick = () => { if (currentDayIndex > 0) { currentDayIndex--; localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]); renderHourlyGrid(container, getCurrentTasks(), _blocksByDay); } };
+    if (nextBtn) nextBtn.onclick = () => { if (currentDayIndex < dayKeys.length - 1) { currentDayIndex++; localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]); renderHourlyGrid(container, getCurrentTasks(), _blocksByDay); } };
+    } catch (err) {
+        console.error('renderHourlyGrid failed:', err);
+    }
 }
 
 function renderDailyList(container, tasks) {
@@ -482,6 +581,35 @@ function renderDailyList(container, tasks) {
     currentExams.forEach((e, i) => { examDateSet[e.exam_date] = { name: e.name, idx: i }; });
 
     let html = '<div class="absolute left-[15px] top-0 bottom-0 w-[2px] bg-gradient-to-b from-accent-500 via-mint-400 to-gold-400 opacity-20"></div>';
+    
+    // Add Unscheduled section at the top if any exist
+    if (days['unscheduled']) {
+        html += `<div class="fade-in relative mb-8">
+            <div class="absolute -left-8 top-1 w-[14px] h-[14px] rounded-full border-2 border-white/10 bg-dark-700"></div>
+            <div class="flex items-center gap-2 mb-3">
+                <span class="text-sm font-bold text-white/50 uppercase tracking-widest">Unscheduled Tasks</span>
+                <span class="text-[10px] bg-accent-500/20 text-accent-400 px-1.5 py-0.5 rounded font-bold">AI GENERATED</span>
+            </div>
+            <div class="space-y-1.5 ml-1">`;
+        
+        days['unscheduled'].forEach(task => {
+            const eIdx = examIdx[task.exam_id] ?? 0;
+            const isDone = task.status === 'done';
+            html += `
+            <div class="card-hover bg-dark-600/60 rounded-xl p-3 border border-white/5 flex items-center gap-3 ${isDone ? 'opacity-40' : ''}">
+                <button data-task-id="${task.id}" class="task-checkbox flex-shrink-0 w-6 h-6 rounded-full border-2 ${isDone ? 'bg-mint-500 border-mint-500' : 'border-white/20 hover:border-accent-400'} flex items-center justify-center transition-all">
+                    ${isDone ? '<svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+                </button>
+                <div class="w-2.5 h-8 rounded-full ${examColorClass(eIdx,'bg')} flex-shrink-0"></div>
+                <div class="flex-1 min-w-0">
+                    <div class="font-medium text-sm ${isDone ? 'line-through text-white/40' : ''} truncate">${task.title}</div>
+                    <div class="text-[10px] text-white/30 uppercase font-bold tracking-wider mt-0.5">Priority: ${task.priority || 5}</div>
+                </div>
+            </div>`;
+        });
+        html += `</div></div>`;
+    }
+
     dayKeysAll.forEach(day => {
         const dayTasks = days[day];
         const isToday = day === today;
@@ -543,26 +671,52 @@ function renderDailyList(container, tasks) {
     });
 }
 
-export function renderTodayFocus(tasks) {
+let _focusMode = 'today'; // 'today' or 'overall'
+
+export function renderFocus(tasks) {
     const today = new Date().toISOString().split('T')[0];
-    const todayTasks = tasks.filter(t => t.day_date === today);
+    
+    // Sort tasks by day_date then by title/status
+    const sortedTasks = [...tasks].sort((a, b) => {
+        if (a.day_date !== b.day_date) return (a.day_date || '').localeCompare(b.day_date || '');
+        return (a.title || '').localeCompare(b.title || '');
+    });
+
+    const displayTasks = _focusMode === 'today' 
+        ? sortedTasks.filter(t => t.day_date === today)
+        : sortedTasks;
 
     let html;
-    if (!todayTasks.length) {
-        html = '<p class="text-white/30 text-sm">No tasks for today</p>';
+    if (!displayTasks.length) {
+        html = `<p class="text-white/30 text-sm">No tasks for ${_focusMode === 'today' ? 'today' : 'now'}</p>`;
     } else {
         const currentExams = getCurrentExams();
         const examIdx = {};
         currentExams.forEach((e, i) => { examIdx[e.id] = i; });
-        html = todayTasks.map(t => {
+        
+        let lastDate = null;
+
+        html = displayTasks.map(t => {
             const eIdx = examIdx[t.exam_id] ?? 0;
             const isDone = t.status === 'done';
-            return `<div class="flex items-center gap-2 bg-dark-900/40 rounded-lg p-2.5 ${isDone ? 'opacity-60' : ''}">
+            let dateHeader = '';
+            
+            if (_focusMode === 'overall' && t.day_date !== lastDate) {
+                let label = 'Unscheduled';
+                if (t.day_date) {
+                    const date = new Date(t.day_date + 'T00:00:00');
+                    label = t.day_date === today ? 'Today' : date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                }
+                dateHeader = `<div class="text-[10px] font-bold text-white/20 uppercase tracking-widest mt-4 mb-2 ml-1">${label}</div>`;
+                lastDate = t.day_date;
+            }
+
+            return `${dateHeader}<div class="flex items-center gap-2 bg-dark-900/40 rounded-lg p-2.5 ${isDone ? 'opacity-60' : ''}">
                 <button type="button" data-task-id="${t.id}" class="focus-task-checkbox flex-shrink-0 w-6 h-6 rounded-full border-2 ${isDone ? 'bg-mint-500 border-mint-500' : 'border-white/20 hover:border-accent-400'} flex items-center justify-center transition-all">
                     ${isDone ? '<svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
                 </button>
                 <div class="w-2.5 h-2.5 rounded-full ${examColorClass(eIdx,'bg')} flex-shrink-0"></div>
-                <div class="flex-1 text-sm truncate ${isDone ? 'line-through text-white/50' : ''}">${t.title}</div>
+                <div class="flex-1 text-sm truncate ${isDone ? 'line-through text-white/50' : ''}" dir="auto">${t.title}</div>
                 <div class="text-xs text-white/30">${t.estimated_hours || 0}h</div>
             </div>`;
         }).join('');
@@ -585,6 +739,23 @@ export function renderTodayFocus(tasks) {
     };
     attachFocusCheckboxes(desktop);
     attachFocusCheckboxes(drawer);
+
+    // Wire toggle buttons (only once per render is fine)
+    document.querySelectorAll('.btn-focus-toggle').forEach(btn => {
+        const mode = btn.dataset.mode;
+        const isActive = mode === _focusMode;
+        
+        btn.classList.toggle('bg-accent-500', isActive);
+        btn.classList.toggle('text-white', isActive);
+        btn.classList.toggle('text-white/40', !isActive);
+        
+        btn.onclick = (e) => {
+            e.preventDefault();
+            if (_focusMode === mode) return;
+            _focusMode = mode;
+            renderFocus(getCurrentTasks());
+        };
+    });
 }
 
 function renderCurrentTimeIndicator(container, startHour, hourHeight) {

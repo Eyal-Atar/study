@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from server.database import get_db
 from auth.utils import get_current_user
 from brain.schemas import BrainMessage, RegenerateDeltaRequest
+from notifications.utils import send_to_user
 
 router = APIRouter()
 
@@ -67,7 +68,10 @@ async def generate_roadmap(current_user: dict = Depends(get_current_user)):
 
     # 2. Run the AI Brain to get new tasks
     brain = ExamBrain(current_user, exam_list)
-    ai_tasks = await brain.analyze_all_exams()
+    ai_result = await brain.analyze_all_exams()
+    ai_tasks = ai_result["tasks"]
+    prompt = ai_result["prompt"]
+    raw_response = ai_result["raw_response"]
 
     # 3. Save new tasks
     for task in ai_tasks:
@@ -80,12 +84,12 @@ async def generate_roadmap(current_user: dict = Depends(get_current_user)):
 
         db.execute(
             """INSERT INTO tasks (user_id, exam_id, title, topic, subject,
-               deadline, day_date, sort_order, estimated_hours, difficulty)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               deadline, day_date, sort_order, priority, estimated_hours, difficulty)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (user_id, task_exam_id, task["title"], task.get("topic"),
-             task.get("subject"), task.get("day_date"),
-             task.get("day_date"), task.get("sort_order", 0),
-             task.get("estimated_hours", 2.0), task.get("difficulty", 3))
+             task.get("subject"), None, None, task.get("sort_order", 0),
+             task.get("priority", 5), task.get("estimated_hours", 2.0),
+             task.get("difficulty", 3))
         )
 
     db.commit()
@@ -95,14 +99,16 @@ async def generate_roadmap(current_user: dict = Depends(get_current_user)):
     db.commit()
     
     all_pending_tasks_rows = db.execute(
-        "SELECT * FROM tasks WHERE user_id = ? AND status != 'done' ORDER BY day_date, sort_order",
+        "SELECT * FROM tasks WHERE user_id = ? AND status != 'done' ORDER BY priority DESC, sort_order ASC",
         (user_id,)
     ).fetchall()
     all_pending_tasks = [dict(t) for t in all_pending_tasks_rows]
 
     # 5. Run Hourly Scheduler
     from brain.scheduler import generate_multi_exam_schedule
+    print(f"DEBUG ROUTES: Calling scheduler with {len(all_pending_tasks)} tasks")
     schedule = generate_multi_exam_schedule(current_user, exam_list, all_pending_tasks)
+    print(f"DEBUG ROUTES: Scheduler returned {len(schedule)} blocks")
 
     # 6. Save new schedule blocks
     # Clear ALL old schedule blocks for this user before saving regenerated ones
@@ -111,20 +117,31 @@ async def generate_roadmap(current_user: dict = Depends(get_current_user)):
     for block in schedule:
         db_task_id = block.task_id if block.block_type != "hobby" else None
         db.execute(
-            """INSERT INTO schedule_blocks (user_id, task_id, exam_id, exam_name, task_title, start_time, end_time, day_date, block_type, is_delayed)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (user_id, db_task_id, block.exam_id, block.exam_name, block.task_title, block.start_time, block.end_time, block.day_date, block.block_type, 1 if block.is_delayed else 0)
+            """INSERT INTO schedule_blocks (user_id, task_id, exam_id, exam_name, task_title, 
+               start_time, end_time, day_date, block_type, is_delayed, is_split, part_number, total_parts, push_notified)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)""",
+            (user_id, db_task_id, block.exam_id, block.exam_name, block.task_title, 
+             block.start_time, block.end_time, block.day_date, block.block_type, 
+             1 if block.is_delayed else 0, block.is_split, block.part_number, block.total_parts)
         )
         if db_task_id and block.is_delayed:
             db.execute("UPDATE tasks SET is_delayed = 1 WHERE id = ?", (db_task_id,))
     
     db.commit()
+    
+    # Notify user that roadmap is ready
+    send_to_user(db, user_id, "הלוז מוכן! 🚀", "התוכנית החדשה שלך מחכה באפליקציה.", url="/")
+    
     db.close()
 
     return {
         "message": f"Generated roadmap with {len(all_pending_tasks)} tasks and {len(schedule)} hourly blocks",
         "tasks": all_pending_tasks,
         "schedule": [block.model_dump() for block in schedule],
+        "debug": {
+            "prompt": prompt,
+            "raw_response": raw_response
+        }
     }
 
 
@@ -280,7 +297,7 @@ Output the delta using the format above. Remember: only output blocks that ACTUA
     client = anthropic.Anthropic(api_key=api_key)
     try:
         message = client.messages.create(
-            model="claude-sonnet-4-5-20250929",
+            model="claude-3-haiku-20240307",
             max_tokens=1000,
             system=system_prompt,
             messages=[{"role": "user", "content": user_message}]
@@ -348,7 +365,7 @@ Output the delta using the format above. Remember: only output blocks that ACTUA
 
         db.execute(
             """UPDATE schedule_blocks
-               SET start_time = ?, end_time = ?, day_date = ?
+               SET start_time = ?, end_time = ?, day_date = ?, push_notified = 0
                WHERE id = ? AND user_id = ? AND is_manually_edited = 0""",
             (new_start_iso, new_end_iso, new_date, block_id, user_id)
         )
@@ -484,7 +501,7 @@ Return format:
 
     client = anthropic.Anthropic(api_key=api_key)
     message = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
+        model="claude-3-haiku-20240307",
         max_tokens=8000,
         messages=[{"role": "user", "content": prompt}]
     )
@@ -562,14 +579,21 @@ Return format:
     for block in schedule:
         db_task_id = block.task_id if block.block_type != "hobby" else None
         db.execute(
-            """INSERT INTO schedule_blocks (user_id, task_id, exam_id, exam_name, task_title, start_time, end_time, day_date, block_type, is_delayed)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (user_id, db_task_id, block.exam_id, block.exam_name, block.task_title, block.start_time, block.end_time, block.day_date, block.block_type, 1 if block.is_delayed else 0)
+            """INSERT INTO schedule_blocks (user_id, task_id, exam_id, exam_name, task_title, 
+               start_time, end_time, day_date, block_type, is_delayed, is_split, part_number, total_parts, push_notified)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)""",
+            (user_id, db_task_id, block.exam_id, block.exam_name, block.task_title, 
+             block.start_time, block.end_time, block.day_date, block.block_type, 
+             1 if block.is_delayed else 0, block.is_split, block.part_number, block.total_parts)
         )
         if db_task_id and block.is_delayed:
             db.execute("UPDATE tasks SET is_delayed = 1 WHERE id = ?", (db_task_id,))
     
     db.commit()
+
+    # Notify user that roadmap is ready
+    send_to_user(db, user_id, "הלוז עודכן! 🪄", "התוכנית שלך עודכנה על ידי המוח.", url="/")
+
     db.close()
 
     return {

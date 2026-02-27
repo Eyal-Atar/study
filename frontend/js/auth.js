@@ -1,7 +1,7 @@
 /* frontend/js/auth.js */
-import { getAPI, setAuthToken, setCurrentUser, authFetch, resetStore, getCurrentUser } from './store.js?v=31';
-import { showRegenBar } from './brain.js?v=31';
-import { showScreen, shakeEl, showError, hideError, spawnConfetti } from './ui.js?v=31';
+import { getAPI, setAuthToken, setCurrentUser, authFetch, resetStore, getCurrentUser } from './store.js?v=AUTO';
+import { showRegenBar } from './brain.js?v=AUTO';
+import { showScreen, shakeEl, showError, hideError, spawnConfetti } from './ui.js?v=AUTO';
 
 // ─── Push Notification Helpers ───────────────────────────────────────────────
 

@@ -1,14 +1,21 @@
 """
-Multi-Exam Study Scheduler with hourly slots and timezone support.
-Strict Deadline-First approach with overflow handling.
+Multi-Exam Study Scheduler with Deterministic Greedy-Fill.
+Decouples task prioritization (AI) from time allocation (Python).
 """
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
 from brain.schemas import ScheduleBlock
 
-EXCLUSIVE_ZONE_DAYS = 4
+class WiredWindow:
+    def __init__(self, start_local: datetime, end_local: datetime):
+        self.start_local = start_local
+        self.end_local = end_local
+        self.capacity_min = (end_local - start_local).total_seconds() / 60
 
+    def __repr__(self):
+        return f"WiredWindow({self.start_local.strftime('%H:%M')}-{self.end_local.strftime('%H:%M')})"
 
 def generate_multi_exam_schedule(
     user: dict,
@@ -16,170 +23,209 @@ def generate_multi_exam_schedule(
     tasks: list[dict],
 ) -> list[ScheduleBlock]:
     """
-    Generates a granular hourly schedule.
-    Uses Deadline-First allocation and marks overflow as delayed.
-    All times in UTC ISO 8601 'Z'.
+    Generates a schedule by 'pouring' tasks into available time windows.
+    Strictly deterministic and respects fixed breaks and neto study hours.
     """
     if not tasks:
         return []
 
     # User preferences
-    session_min = user.get("session_minutes", 50)
     neto_study_hours = user.get("neto_study_hours", 4.0)
-    tz_offset = user.get("timezone_offset", 0)  # in minutes
-
-    wake_h, wake_m = map(int, user.get("wake_up_time", "08:00").split(":"))
-    sleep_h, sleep_m = map(int, user.get("sleep_time", "23:00").split(":"))
-
-    # 'Today' in user's local time (start of day)
+    tz_offset = user.get("timezone_offset", 0) or 0
+    hobby_name = user.get("hobby_name") or "Hobby"
+    
+    # 'Today' in user's local time
     now_utc = datetime.now(timezone.utc)
     local_now = now_utc - timedelta(minutes=tz_offset)
     today_local = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Exam lookup
     exam_map = {e["id"]: e for e in exams}
-    exam_deadlines = {e["id"]: e["exam_date"] for e in exams}
-
+    
     # Task state
-    remaining = {t["id"]: t.get("estimated_hours", 1.0) for t in tasks}
+    remaining_task_hours = {t["id"]: float(t.get("estimated_hours", 2.0)) for t in tasks}
+    
+    # Determine schedule range
+    if exams:
+        last_exam_date_str = max(e["exam_date"] for e in exams)
+        last_exam_date = datetime.fromisoformat(last_exam_date_str)
+        # Schedule up to the last exam
+        total_days = max(1, (last_exam_date.date() - today_local.date()).days + 1)
+    else:
+        total_days = 14 # Default 2 weeks if no exams (unlikely here)
 
-    # Range: today to 60 days max or last exam
-    last_exam_date_str = max(exam_deadlines.values()) if exam_deadlines else today_local.strftime("%Y-%m-%d")
-    last_exam_date = datetime.fromisoformat(last_exam_date_str).replace(hour=23, minute=59)
-    total_days = max(1, (last_exam_date.date() - today_local.date()).days + 1)
+    # Prepare windows for each day
+    all_windows: list[tuple[str, list[WiredWindow]]] = []
+    for d in range(total_days + 14): # Buffer for overflow
+        day_local = today_local + timedelta(days=d)
+        windows = _get_windows_for_day(user, day_local)
+        if windows:
+            all_windows.append((day_local.strftime("%Y-%m-%d"), windows))
 
-    schedule = []
+    print(f"DEBUG SCHEDULER: Generated {len(all_windows)} windowed days. Task count: {len(tasks)}")
+    
+    schedule: list[ScheduleBlock] = []
+    task_index = 0
+    
+    # Track splits
+    # task_id -> {part_count: int, blocks: list[ScheduleBlock]}
+    task_splits = {}
 
-    # Prepare pool of tasks sorted by AI-assigned day, then exam (Single Focus), then sort order
-    pool = sorted(tasks, key=lambda t: (
-        t.get("day_date", "9999-12-31"),
-        t.get("exam_id", 0),
-        t.get("sort_order", 0)
-    ))
-
-    for day_offset in range(min(total_days + 14, 60)):  # Add 2 week buffer for overflow
-        day_local = today_local + timedelta(days=day_offset)
-        day_str = day_local.strftime("%Y-%m-%d")
-
-        # Study window for the day (Local)
-        win_start_local = day_local.replace(hour=wake_h, minute=wake_m) + timedelta(minutes=30)
-
-        # Handle midnight sleep_time
-        actual_sleep_h = sleep_h if sleep_h != 0 else 24
-        win_end_local = day_local.replace(hour=0, minute=0) + timedelta(hours=actual_sleep_h) - timedelta(hours=1)
-
-        if win_start_local >= win_end_local:
-            continue
-
-        # Available study minutes for this day capped by neto_study_hours
-        day_limit_min = min(neto_study_hours * 60, (win_end_local - win_start_local).total_seconds() / 60)
-
-        # ── DAY STATE ──
-        current_time_local = win_start_local
-        used_study_min = 0
-        consecutive_study_min = 0
-        hobby_scheduled_today = False
-        hobby_duration = 60
-        hobby_name = user.get("hobby_name") or "Hobby"
-        short_break_min = 15
-        long_break_min = 45
-
-        # Filter pool for tasks assigned to this day OR delayed tasks
-        day_tasks = [t for t in pool if t.get("day_date") <= day_str and remaining[t["id"]] > 0]
-
-        for task in day_tasks:
-            if remaining[task["id"]] <= 0:
-                continue
-
-            # Stop if day limit reached or window closed
-            if used_study_min >= day_limit_min or current_time_local >= win_end_local:
+    for day_str, windows in all_windows:
+        day_limit_min = neto_study_hours * 60
+        used_on_day_min = 0
+        
+        for window in windows:
+            if used_on_day_min >= day_limit_min:
                 break
-
-            eid = task.get("exam_id")
-            ename = exam_map[eid]["name"] if eid in exam_map else "General"
-            is_delayed = task.get("day_date") < day_str
-            is_simulation = (
-                task.get("topic") == "Simulation"
-                or "Simulation" in task.get("title", "")
-                or "סימולציה" in task.get("title", "")
-            )
-
-            while remaining[task["id"]] > 0 and used_study_min < day_limit_min and current_time_local < win_end_local:
-                min_until_sleep = (win_end_local - current_time_local).total_seconds() / 60
-
-                # Simulations run uninterrupted — no session cap
-                if is_simulation:
-                    duration_min = min(
-                        remaining[task["id"]] * 60,
-                        day_limit_min - used_study_min,
-                        min_until_sleep
-                    )
-                else:
-                    duration_min = min(
-                        session_min,
-                        remaining[task["id"]] * 60,
-                        day_limit_min - used_study_min,
-                        min_until_sleep
-                    )
-
-                if duration_min < 5:
+            
+            window_remaining_min = min(window.capacity_min, day_limit_min - used_on_day_min)
+            current_time = window.start_local
+            
+            # Use task_index to iterate through the prioritized queue
+            while window_remaining_min > 1 and task_index < len(tasks):
+                task = tasks[task_index]
+                tid = task["id"]
+                rem_h = remaining_task_hours[tid]
+                
+                if rem_h <= 0:
+                    task_index += 1
+                    continue
+                
+                # How much can we fit in this window?
+                take_min = min(rem_h * 60, window_remaining_min)
+                if take_min < 1:
                     break
-
-                end_time_local = current_time_local + timedelta(minutes=duration_min)
-
-                # Emit study block
-                schedule.append(ScheduleBlock(
-                    task_id=task["id"], exam_id=eid, exam_name=ename,
-                    task_title=task["title"], subject=task.get("subject"),
-                    start_time=(current_time_local + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat(),
-                    end_time=(end_time_local + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat(),
-                    day_date=day_str, block_type="study", is_delayed=is_delayed
-                ))
-
-                # Update state
-                consecutive_study_min += duration_min
-                used_study_min += duration_min
-                remaining[task["id"]] -= duration_min / 60
-                current_time_local = end_time_local
-
-                # Dynamic gaps & hobby (ghost gaps advance time without creating blocks)
-                if current_time_local < win_end_local:
-                    if is_simulation or consecutive_study_min >= 120:
-                        if not hobby_scheduled_today:
-                            hobby_start_local = current_time_local
-                            hobby_end_local = hobby_start_local + timedelta(minutes=hobby_duration)
-                            schedule.append(ScheduleBlock(
-                                task_id=None, exam_id=None, exam_name="Relax",
-                                task_title=hobby_name, subject="Hobby",
-                                start_time=(hobby_start_local + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat(),
-                                end_time=(hobby_end_local + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat(),
-                                day_date=day_str, block_type="hobby", is_delayed=False
-                            ))
-                            current_time_local += timedelta(minutes=hobby_duration)
-                            hobby_scheduled_today = True
-                        else:
-                            # Ghost gap: long break (food/rest) — no block emitted
-                            current_time_local += timedelta(minutes=long_break_min)
-                        consecutive_study_min = 0
-                    else:
-                        # Ghost gap: short break — no block emitted
-                        current_time_local += timedelta(minutes=short_break_min)
-
-        # End-of-day catch-up: hobby wasn't earned mid-session, insert at day's end
-        if not hobby_scheduled_today:
-            mins_remaining = (win_end_local - current_time_local).total_seconds() / 60
-            if mins_remaining >= hobby_duration:
-                hobby_start_local = win_end_local - timedelta(minutes=hobby_duration)
-                hobby_end_local = win_end_local
+                
+                end_time = current_time + timedelta(minutes=take_min)
+                
+                # Create block
+                block = ScheduleBlock(
+                    task_id=tid,
+                    exam_id=task.get("exam_id"),
+                    exam_name=exam_map.get(task.get("exam_id"), {}).get("name", "General"),
+                    task_title=task["title"],
+                    subject=task.get("subject"),
+                    start_time=(current_time + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
+                    end_time=(end_time + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
+                    day_date=day_str,
+                    block_type="study",
+                    is_delayed=False
+                )
+                print(f"DEBUG SCHEDULER: Created block for {block.task_title} on {day_str}")
+                
+                if tid not in task_splits:
+                    task_splits[tid] = []
+                task_splits[tid].append(block)
+                
+                # Update remaining
+                remaining_task_hours[tid] -= take_min / 60
+                window_remaining_min -= take_min
+                used_on_day_min += take_min
+                current_time = end_time
+                
+                if remaining_task_hours[tid] <= 0.01: # handle float precision
+                    task_index += 1
+        
+        # Add Hobby block at the end of the day if study happened
+        if used_on_day_min > 0:
+            # Place hobby after the last study block of the day
+            day_study_blocks = [b for b in schedule if b.day_date == day_str and b.block_type == "study"]
+            # Also check task_splits which haven't been added to schedule yet
+            for tid in task_splits:
+                for b in task_splits[tid]:
+                    if b.day_date == day_str and b.block_type == "study":
+                        day_study_blocks.append(b)
+            
+            if day_study_blocks:
+                last_block = sorted(day_study_blocks, key=lambda x: x.start_time)[-1]
+                last_study_end = datetime.fromisoformat(last_block.end_time.replace('Z', '+00:00')) - timedelta(minutes=tz_offset)
+                
+                h_start = last_study_end
+                h_end = h_start + timedelta(hours=1)
                 schedule.append(ScheduleBlock(
                     task_id=None, exam_id=None, exam_name="Relax",
                     task_title=hobby_name, subject="Hobby",
-                    start_time=(hobby_start_local + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat(),
-                    end_time=(hobby_end_local + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat(),
-                    day_date=day_str, block_type="hobby", is_delayed=False
+                    start_time=(h_start + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
+                    end_time=(h_end + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
+                    day_date=day_str, block_type="hobby"
                 ))
 
-        if all(v <= 0 for v in remaining.values()):
-            break
+    # Post-process splits and consolidate blocks into the main schedule
+    for tid, blocks in task_splits.items():
+        total_parts = len(blocks)
+        for i, block in enumerate(blocks):
+            if total_parts > 1:
+                block.is_split = 1
+                block.part_number = i + 1
+                block.total_parts = total_parts
+                # Update title to include part number? 
+                # The plan says "Ensure UI handles part numbering", but doesn't explicitly say to change title here.
+                # However, it helps for debugging. 
+                # Let's keep title as is, and UI will use part_number.
+            schedule.append(block)
+
+    # Sort final schedule by time
+    schedule.sort(key=lambda b: (b.day_date, b.start_time))
 
     return schedule
+
+def _get_windows_for_day(user: dict, day_local: datetime) -> list[WiredWindow]:
+    wake_h, wake_m = map(int, user.get("wake_up_time", "08:00").split(":"))
+    sleep_h, sleep_m = map(int, user.get("sleep_time", "23:00").split(":"))
+    
+    start_time = day_local.replace(hour=wake_h, minute=wake_m)
+    
+    # If sleep time is early morning (e.g., 02:00), it's the next calendar day relative to wake up
+    if sleep_h < wake_h:
+        end_time = (day_local + timedelta(days=1)).replace(hour=sleep_h, minute=sleep_m)
+    else:
+        end_time = day_local.replace(hour=sleep_h, minute=sleep_m)
+    
+    if start_time >= end_time:
+        return []
+    
+    windows = [(start_time, end_time)]
+    
+    # Subtract fixed breaks
+    try:
+        fixed_breaks = json.loads(user.get("fixed_breaks", "[]"))
+    except:
+        fixed_breaks = []
+        
+    py_day = day_local.weekday()
+    
+    # 2. Subtract fixed breaks
+    for brk in fixed_breaks:
+        if py_day in brk.get("days", []):
+            try:
+                b_start_h, b_start_m = map(int, brk["start"].split(":"))
+                b_end_h, b_end_m = map(int, brk["end"].split(":"))
+                b_start = day_local.replace(hour=b_start_h, minute=b_start_m)
+                b_end = day_local.replace(hour=b_end_h, minute=b_end_m)
+                windows = _subtract_range(windows, b_start, b_end)
+            except:
+                continue
+
+    # 3. Subtract hobby slot (1 hour before sleep)
+    hobby_name = user.get("hobby_name")
+    if hobby_name:
+        h_end = end_time
+        h_start = h_end - timedelta(hours=1)
+        windows = _subtract_range(windows, h_start, h_end)
+
+    res = [WiredWindow(s, e) for s, e in windows if (e - s).total_seconds() > 0]
+    print(f"DEBUG SCHEDULER: {day_local.strftime('%Y-%m-%d')} has {len(res)} windows: {res}")
+    return res
+
+def _subtract_range(windows: list[tuple[datetime, datetime]], s: datetime, e: datetime) -> list[tuple[datetime, datetime]]:
+    new_windows = []
+    for w_start, w_end in windows:
+        if s < w_end and e > w_start:
+            if s > w_start:
+                new_windows.append((w_start, s))
+            if e < w_end:
+                new_windows.append((e, w_end))
+        else:
+            new_windows.append((w_start, w_end))
+    return new_windows

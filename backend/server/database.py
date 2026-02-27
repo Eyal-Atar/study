@@ -30,6 +30,7 @@ def init_db():
             neto_study_hours REAL DEFAULT 4.0,
             peak_productivity TEXT DEFAULT 'Morning',
             onboarding_completed INTEGER DEFAULT 0,
+            fixed_breaks TEXT DEFAULT '[]',
             created_at TEXT DEFAULT (datetime('now'))
         );
 
@@ -40,6 +41,7 @@ def init_db():
             subject TEXT NOT NULL,
             exam_date TEXT NOT NULL,
             special_needs TEXT,
+            parsed_context TEXT,
             status TEXT DEFAULT 'upcoming' CHECK(status IN ('upcoming', 'completed', 'cancelled')),
             created_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -66,6 +68,7 @@ def init_db():
             deadline TEXT,
             day_date TEXT,
             sort_order INTEGER DEFAULT 0,
+            priority INTEGER DEFAULT 5,
             estimated_hours REAL DEFAULT 1.0,
             difficulty INTEGER DEFAULT 3 CHECK(difficulty BETWEEN 0 AND 5),
             status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'done', 'deferred')),
@@ -90,9 +93,22 @@ def init_db():
             block_type TEXT DEFAULT 'study' CHECK(block_type IN ('study', 'break', 'hobby')),
             completed INTEGER DEFAULT 0,
             is_delayed INTEGER DEFAULT 0,
+            is_split INTEGER DEFAULT 0,
+            part_number INTEGER,
+            total_parts INTEGER,
             FOREIGN KEY (user_id) REFERENCES users(id),
             FOREIGN KEY (task_id) REFERENCES tasks(id),
             FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            endpoint TEXT NOT NULL UNIQUE,
+            p256dh TEXT NOT NULL,
+            auth TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
 
         CREATE INDEX IF NOT EXISTS idx_exams_user_date ON exams(user_id, exam_date);
@@ -121,10 +137,17 @@ def init_db():
         conn.execute("ALTER TABLE users ADD COLUMN onboarding_completed INTEGER DEFAULT 0")
     if "timezone_offset" not in columns:
         conn.execute("ALTER TABLE users ADD COLUMN timezone_offset INTEGER DEFAULT 0")
+    if "fixed_breaks" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN fixed_breaks TEXT DEFAULT '[]'")
 
     conn.execute("CREATE INDEX IF NOT EXISTS idx_users_token ON users(auth_token)")
     # Unique index: only one user per Google ID (CREATE UNIQUE INDEX ignores nulls in SQLite)
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL")
+
+    # Migrations: add parsed_context to exams if missing
+    exam_columns = {row[1] for row in conn.execute("PRAGMA table_info(exams)").fetchall()}
+    if "parsed_context" not in exam_columns:
+        conn.execute("ALTER TABLE exams ADD COLUMN parsed_context TEXT")
 
     # Migrations: add calendar columns to tasks if missing
     task_columns = {row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
@@ -134,6 +157,8 @@ def init_db():
         conn.execute("ALTER TABLE tasks ADD COLUMN sort_order INTEGER DEFAULT 0")
     if "is_delayed" not in task_columns:
         conn.execute("ALTER TABLE tasks ADD COLUMN is_delayed INTEGER DEFAULT 0")
+    if "priority" not in task_columns:
+        conn.execute("ALTER TABLE tasks ADD COLUMN priority INTEGER DEFAULT 5")
 
     conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_day ON tasks(day_date)")
 
@@ -154,6 +179,7 @@ def init_db():
                     deadline TEXT,
                     day_date TEXT,
                     sort_order INTEGER DEFAULT 0,
+                    priority INTEGER DEFAULT 5,
                     estimated_hours REAL DEFAULT 1.0,
                     difficulty INTEGER DEFAULT 3 CHECK(difficulty BETWEEN 0 AND 5),
                     status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'done', 'deferred')),
@@ -170,6 +196,7 @@ def init_db():
             cols_to_copy = ["id", "user_id", "exam_id", "title", "topic", "subject", "deadline", "estimated_hours", "difficulty", "status", "is_delayed", "created_at"]
             if "day_date" in task_columns: cols_to_copy.append("day_date")
             if "sort_order" in task_columns: cols_to_copy.append("sort_order")
+            if "priority" in task_columns: cols_to_copy.append("priority")
             
             cols_str = ", ".join(cols_to_copy)
             conn.execute(f"INSERT INTO tasks_new ({cols_str}) SELECT {cols_str} FROM tasks;")
@@ -198,6 +225,12 @@ def init_db():
         conn.execute("ALTER TABLE schedule_blocks ADD COLUMN is_manually_edited INTEGER DEFAULT 0")
     if "deferred_original_day" not in block_columns:
         conn.execute("ALTER TABLE schedule_blocks ADD COLUMN deferred_original_day TEXT")
+    if "is_split" not in block_columns:
+        conn.execute("ALTER TABLE schedule_blocks ADD COLUMN is_split INTEGER DEFAULT 0")
+    if "part_number" not in block_columns:
+        conn.execute("ALTER TABLE schedule_blocks ADD COLUMN part_number INTEGER")
+    if "total_parts" not in block_columns:
+        conn.execute("ALTER TABLE schedule_blocks ADD COLUMN total_parts INTEGER")
 
     # Migrations: add push notification columns to users
     user_columns = {row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()}

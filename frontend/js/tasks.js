@@ -1,7 +1,7 @@
-import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, setCurrentTasks, getCurrentSchedule, setCurrentSchedule, getPendingExamId, setPendingExamId, getPendingFiles, setPendingFiles } from './store.js?v=31';
-import { shakeEl, spawnConfetti, examColorClass } from './ui.js?v=31';
-import { renderCalendar, renderTodayFocus, renderExamLegend } from './calendar.js?v=32';
-import { showRegenBar } from './brain.js?v=31';
+import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, setCurrentTasks, getCurrentSchedule, setCurrentSchedule, getPendingExamId, setPendingExamId, getPendingFiles, setPendingFiles, setLatestAiDebug } from './store.js?v=AUTO';
+import { shakeEl, spawnConfetti, examColorClass, showModal, showConfirmModal } from './ui.js?v=AUTO';
+import { renderCalendar, renderFocus, renderExamLegend } from './calendar.js?v=AUTO';
+import { showRegenBar, hideRegenBar } from './brain.js?v=AUTO';
 
 // Notification permission prompt tracking
 const NOTIF_PROMPT_KEY = 'sf_notif_prompt_shown';
@@ -31,7 +31,7 @@ export async function refreshScheduleAndFocus() {
         setCurrentSchedule(schedule);
         updateStats();
         renderCalendar(tasks, schedule);
-        renderTodayFocus(tasks);
+        renderFocus(tasks);
         const examRes = await authFetch(`${API}/exams`);
         if (examRes.ok) {
             const exams = await examRes.json();
@@ -56,7 +56,7 @@ function syncAfterToggle(taskId, isBlockToggle) {
         }
     }
     updateStats();
-    renderTodayFocus(getCurrentTasks());
+    renderFocus(getCurrentTasks());
     // Update exam progress bars in background (single light request)
     getAPI() && authFetch(`${getAPI()}/exams`).then(res => {
         if (res.ok) return res.json();
@@ -94,7 +94,7 @@ export async function loadExams(onLogout) {
             setCurrentSchedule(data.schedule);
             updateStats();
             renderCalendar(data.tasks, data.schedule);
-            renderTodayFocus(data.tasks);
+            renderFocus(data.tasks);
         }
     } catch (e) {
         console.error(e);
@@ -229,18 +229,36 @@ export function updateStats() {
             const el = document.getElementById(id);
             if (el) el.textContent = `days · ${nearest.subject}`;
         });
+    } else {
+        setStatEl('stat-days', '—');
+        ['stat-days-label', 'stat-days-label-desktop'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = 'days away';
+        });
     }
 }
 
 export async function deleteExam(examId) {
     if (!confirm('Delete this exam and all its files?')) return;
+    
+    showModal('loading-overlay', true);
     const API = getAPI();
-    await authFetch(`${API}/exams/${examId}`, { method: 'DELETE' });
-    await loadExams();
-    const currentExams = getCurrentExams();
-    if (currentExams.length === 0) {
-        setCurrentTasks([]);
-        renderCalendar([]);
+    try {
+        await authFetch(`${API}/exams/${examId}`, { method: 'DELETE' });
+        await loadExams();
+        const currentExams = getCurrentExams();
+        if (currentExams.length === 0) {
+            // Forcefully clear all roadmap-related state when no exams remain
+            setCurrentTasks([]);
+            setCurrentSchedule([]);
+            renderCalendar([], []);
+            renderFocus([]);
+            updateStats();
+        }
+    } catch (e) {
+        console.error('Delete failed:', e);
+    } finally {
+        showModal('loading-overlay', false);
     }
 }
 
@@ -337,7 +355,7 @@ export async function toggleDone(taskId, btn, blockId = null) {
 
     // Update Stats and UI immediately
     updateStats();
-    renderTodayFocus(getCurrentTasks());
+    renderFocus(getCurrentTasks());
 
     try {
         const endpoint = isBlockToggle 
@@ -374,7 +392,7 @@ export async function toggleDone(taskId, btn, blockId = null) {
             });
         }
         updateStats();
-        renderTodayFocus(getCurrentTasks());
+        renderFocus(getCurrentTasks());
         window.dispatchEvent(new CustomEvent('calendar-needs-refresh'));
     } finally {
         _togglingTasks.delete(lockKey);
@@ -399,7 +417,7 @@ export async function deferBlockToTomorrow(blockId) {
         renderExamCards();
         renderExamLegend();
         renderCalendar(data.tasks || [], data.schedule || []);
-        renderTodayFocus(data.tasks || []);
+        renderFocus(data.tasks || []);
     } catch (e) {
         console.error('Defer failed:', e);
         window.dispatchEvent(new CustomEvent('calendar-needs-refresh'));
@@ -412,9 +430,8 @@ export async function generateRoadmap() {
         alert('Add exams first!');
         return;
     }
-    const overlay = document.getElementById('loading-overlay');
-    if (overlay) overlay.classList.add('active');
     
+    showModal('loading-overlay', true);
     const API = getAPI();
     try {
         const res = await authFetch(`${API}/generate-roadmap`, { method: 'POST' });
@@ -423,12 +440,20 @@ export async function generateRoadmap() {
             alert(data.detail || 'Failed to generate roadmap');
             return;
         }
+        
+        if (data.debug) {
+            setLatestAiDebug({
+                prompt: data.debug.prompt || '',
+                response: data.debug.raw_response || ''
+            });
+        }
+        
         await loadExams(); // This will now fetch full schedule and render it
+        hideRegenBar();
     } catch (e) {
-        console.error(e);
         alert('Failed to generate roadmap. Check server logs.');
     } finally {
-        if (overlay) overlay.classList.remove('active');
+        showModal('loading-overlay', false);
     }
 }
 
@@ -700,6 +725,9 @@ export function initTasks() {
 
     window.removeEventListener('block-defer', _handleBlockDefer);
     window.addEventListener('block-defer', _handleBlockDefer);
+
+    window.addEventListener('open-add-exam', () => openAddExamModal());
+    window.addEventListener('trigger-generate-roadmap', () => generateRoadmap());
 }
 
 async function _handleBlockDefer(e) {

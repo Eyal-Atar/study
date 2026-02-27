@@ -23,3 +23,6 @@ class ScheduleBlock(BaseModel):
     day_date: Optional[str]
     block_type: str
     is_delayed: bool = False
+    is_split: int = 0
+    part_number: Optional[int] = 1
+    total_parts: Optional[int] = 1

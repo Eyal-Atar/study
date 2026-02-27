@@ -10,10 +10,14 @@ const store = {
     pendingFiles: [],
     brainChatHistory: [],
     regenTriggered: false,
-    regenTriggerLabel: ''
+    regenTriggerLabel: '',
+    latestAiDebug: { prompt: '', response: '' }
 };
 
 export const getAPI = () => store.API;
+
+export const getLatestAiDebug = () => store.latestAiDebug;
+export const setLatestAiDebug = (debug) => { store.latestAiDebug = debug; };
 
 // Token management removed - using HttpOnly cookies instead
 export const getAuthToken = () => null; // No longer used

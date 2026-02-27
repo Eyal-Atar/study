@@ -31,46 +31,47 @@ class ExamBrain:
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         self.client = anthropic.Anthropic(api_key=api_key) if api_key else None
 
-    async def analyze_all_exams(self) -> list[dict]:
+    async def analyze_all_exams(self) -> dict:
         exam_contexts = []
         for exam in self.exams:
-            file_texts = []
-            for f in exam.get("files", []):
-                if f["file_path"].lower().endswith(".pdf"):
-                    text = extract_text_from_pdf(f["file_path"])
-                    if text:
-                        file_texts.append({
-                            "filename": f["filename"],
-                            "type": f["file_type"],
-                            "content": text[:5000],
-                        })
+            # Check for pre-parsed context in the DB
+            parsed = exam.get("parsed_context")
+            if parsed:
+                try:
+                    context_data = json.loads(parsed) if isinstance(parsed, str) else parsed
+                except:
+                    context_data = None
+            else:
+                context_data = None
+
             exam_contexts.append({
                 "exam_id": exam["id"],
                 "name": exam["name"],
                 "subject": exam["subject"],
                 "exam_date": exam["exam_date"],
                 "special_needs": exam.get("special_needs", ""),
-                "files": file_texts,
+                "parsed_context": context_data,
             })
 
         if self.client:
             try:
                 return self._analyze_with_ai(exam_contexts)
             except Exception as e:
-                print(f"AI analysis failed: {e}, falling back to basic calendar")
-                return self._generate_basic_calendar(exam_contexts)
+                print(f"AI strategy generation failed: {e}")
+                return {"tasks": [], "prompt": "", "raw_response": str(e)}
         else:
-            return self._generate_basic_calendar(exam_contexts)
+            return {"tasks": [], "prompt": "No AI client available", "raw_response": ""}
 
-    def _analyze_with_ai(self, exam_contexts: list[dict]) -> list[dict]:
+    def _analyze_with_ai(self, exam_contexts: list[dict]) -> dict:
         valid_exam_ids = {ec["exam_id"] for ec in exam_contexts}
-        prompt = self._build_calendar_prompt(exam_contexts)
+        prompt = self._build_strategy_prompt(exam_contexts)
         message = self.client.messages.create(
-            model="claude-sonnet-4-5-20250929",
-            max_tokens=8000,
+            model="claude-3-haiku-20240307",
+            max_tokens=4000,
             messages=[{"role": "user", "content": prompt}],
         )
-        response_text = message.content[0].text.strip()
+        raw_response = message.content[0].text.strip()
+        response_text = raw_response
         if response_text.startswith("```"):
             response_text = response_text.split("\n", 1)[1]
             response_text = response_text.rsplit("```", 1)[0]
@@ -83,81 +84,64 @@ class ExamBrain:
             exam_id = task.get("exam_id")
             if exam_id not in valid_exam_ids:
                 if len(valid_exam_ids) == 1:
-                    exam_id = next(iter(valid_exam_ids))
+                    exam_id = list(valid_exam_ids)[0]
                 else:
                     continue
             validated.append({
                 "exam_id": exam_id,
                 "title": task["title"],
-                "topic": task.get("topic"),
-                "subject": task.get("subject"),
-                "day_date": task.get("day_date"),
                 "sort_order": task.get("sort_order", 0),
-                "deadline": task.get("day_date"),
-                "estimated_hours": max(0.0, min(8.0, float(task.get("estimated_hours", 2.0)))),
-                "difficulty": max(0, min(5, int(task.get("difficulty", 3)))),
+                "estimated_hours": max(0.5, min(6.0, float(task.get("estimated_hours", 2.0)))),
+                "priority": max(1, min(10, int(task.get("priority", 5)))),
             })
-        return validated
+        return {
+            "tasks": validated,
+            "prompt": prompt,
+            "raw_response": raw_response
+        }
 
-    def _build_calendar_prompt(self, exam_contexts: list[dict]) -> str:
-        today = datetime.now().strftime("%Y-%m-%d")
-        today_weekday = datetime.now().strftime("%A")
-
+    def _build_strategy_prompt(self, exam_contexts: list[dict]) -> str:
         exam_sections = []
         for ec in exam_contexts:
-            days_until = (datetime.fromisoformat(ec["exam_date"]) - datetime.now()).days
+            context_str = "No specific syllabus data provided."
+            if ec["parsed_context"]:
+                context_str = json.dumps(ec["parsed_context"], indent=2)
+            
             section = f"""
 ### Exam: {ec['name']}
 - Subject: {ec['subject']}
 - Exam ID: {ec['exam_id']}
-- Date: {ec['exam_date']} ({days_until} days from now)
-- Special needs: {ec.get('special_needs') or 'None'}
-"""
-            for f in ec["files"]:
-                section += f"\n#### File: {f['filename']} (type: {f['type']})\n{f['content']}\n---"
+- Context/Topics:
+{context_str}
+---"""
             exam_sections.append(section)
 
         exams_text = "\n".join(exam_sections)
-        return f"""You are an expert private tutor creating a logical, high-performance study calendar for university exams.
+        return f"""You are a Strategic Study Architect. Your task is to decompose university exams into a prioritized queue of study tasks.
 
-Today: {today} ({today_weekday})
-
-Student's exams:
+STUDENT EXAMS:
 {exams_text}
 
-Study preferences: available {self.user.get('wake_up_time', '08:00')} to {self.user.get('sleep_time', '23:00')}, ~{self.user.get('session_minutes', 50)} min sessions, max ~{self.user.get('neto_study_hours', 6)} hours/day.
+OUTPUT RULES (STRICT):
+1. NO DATES: Do NOT assign tasks to specific days or dates.
+2. PRIORITY QUEUE: Assign each task a "priority" (1-10, where 10 is highest/urgent) and a "sort_order".
+3. GRANULARITY: Each task should be 1.5 to 3.0 hours. Break large topics into specific sub-tasks.
+4. ZERO-DATA POLICY: If no syllabus context is provided for an exam, use the subject name to generate a standard high-performance study sequence (e.g., "Review fundamental concepts of [Subject]", "Solve practice exams for [Subject]").
+5. ACTIONABLE TITLES: Use specific verbs (e.g., "Solve...", "Summarize...", "Simulate...").
+6. LANGUAGE: Match the language of the exam name.
 
-CREATE A DAY-BY-DAY STUDY CALENDAR from today until the last exam.
-
-RULES:
-1. SINGLE FOCUS RULE: Each day MUST focus on ONE exam only. Do not mix exams unless a deadline is less than 48 hours away.
-2. SIMULATION-FIRST TEMPLATE: For intense study days (especially the last 5 days before an exam), use this exact chronological structure:
-   A. Peak Focus (Morning): Full Exam Simulation (Real conditions).
-   B. Deep Review (תחקיר): Systematic analysis of simulation mistakes.
-   C. Targeted Fixes: Specific practice on weak subtopics identified in the review.
-3. GRANULARITY & DENSITY: DO NOT create single large tasks (e.g., "Study for 6 hours"). 
-   Instead, break every topic into multiple smaller, actionable tasks (1.0 to 2.5 hours each). 
-   Each day should have 3-6 distinct tasks to fill the student's available study time (~6 hours).
-4. SPECIFICITY: Activities MUST be ACTIONABLE — NOT "Study Algebra" but "Solve eigenvalue problems from 2023 Final Exam" or "Trace memory leaks in C pointers worksheet".
-5. PROGRESSION: Initial days: Mapping material & fundamental practice. Final days: 100% simulations and review.
-6. EXAM DAY: Mark as "EXAM DAY: <exam_name>" with difficulty=0, estimated_hours=0.
-7. LANGUAGE: Match the language of the exam name. If exam name is in Hebrew, write activities in Hebrew. If in English, write in English.
-
-Return ONLY valid JSON — an array of objects:
+RETURN ONLY A JSON ARRAY OF OBJECTS:
 [
   {{
-    "day_date": "2026-02-05",
-    "exam_id": <exam_id>,
-    "title": "Full Simulation: 2024 Semester A Final",
-    "topic": "Exam Simulation",
-    "subject": "Calculus 1",
-    "sort_order": 1,
-    "difficulty": 5,
-    "estimated_hours": 3.0
+    "exam_id": <int>,
+    "title": "String (Hebrew/English)",
+    "estimated_hours": <float>,
+    "sort_order": <int>,
+    "priority": <int>
   }}
 ]
 
-No explanation, no markdown. Just the JSON array."""
+No text before or after the JSON."""
 
     def _generate_basic_calendar(self, exam_contexts: list[dict]) -> list[dict]:
         """Generate a day-by-day calendar from exam dates (no AI needed)."""

@@ -1,1 +1,36 @@
-.planning/
+# Environments
+.env
+.venv/
+backend/venv/
+venv/
+
+# Databases
+*.db
+backend/*.db
+
+# Logs
+*.log
+backend/*.log
+
+# Secrets
+*.pem
+backend/*.pem
+
+# OS files
+.DS_Store
+backend/.DS_Store
+frontend/.DS_Store
+
+# Media/Temp
+*.png
+Screenshot*
+uploads/
+backend/uploads/
+
+# IDE
+.vscode/
+.idea/
+.claude/
+
+# Planning (keep if user wants, but .gitignore had it)
+#.planning/

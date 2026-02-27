@@ -1,6 +1,6 @@
-import { getAPI, authFetch, setRegenTriggered, setCurrentTasks, setCurrentSchedule } from './store.js?v=31';
-import { renderCalendar, renderTodayFocus } from './calendar.js?v=32';
-import { updateStats } from './tasks.js?v=31';
+import { getAPI, authFetch, setRegenTriggered, setCurrentTasks, setCurrentSchedule } from './store.js?v=AUTO';
+import { renderCalendar, renderFocus } from './calendar.js?v=AUTO';
+import { updateStats } from './tasks.js?v=AUTO';
 
 /**
  * Show or hide the regeneration command bar.
@@ -67,7 +67,7 @@ export async function sendRegenRequest() {
         setCurrentTasks(data.tasks);
         setCurrentSchedule(data.schedule);
         renderCalendar(data.tasks, data.schedule);
-        renderTodayFocus(data.tasks);
+        renderFocus(data.tasks);
         updateStats();
 
         // Show reasoning and hide bar after short delay

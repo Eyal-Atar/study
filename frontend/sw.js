@@ -2,18 +2,18 @@
  * Handles: App Shell caching, offline fallback, push notifications
  */
 
-const CACHE_NAME = 'studyflow-shell-v43';
+const CACHE_NAME = 'studyflow-shell-v45';
 
 const APP_SHELL = [
-  '/css/styles.css?v=30',
-  '/js/app.js?v=31',
-  '/js/auth.js?v=31',
-  '/js/brain.js?v=31',
-  '/js/calendar.js?v=32',
-  '/js/interactions.js?v=43',
-  '/js/store.js?v=31',
-  '/js/tasks.js?v=31',
-  '/js/ui.js?v=31',
+  '/css/styles.css?v=AUTO',
+  '/js/app.js?v=AUTO',
+  '/js/auth.js?v=AUTO',
+  '/js/brain.js?v=AUTO',
+  '/js/calendar.js?v=AUTO',
+  '/js/interactions.js?v=AUTO',
+  '/js/store.js?v=AUTO',
+  '/js/tasks.js?v=AUTO',
+  '/js/ui.js?v=AUTO',
   '/manifest.json'
 ];
 
@@ -64,6 +64,11 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // CRITICAL: Cache API only supports GET. Let POST/PATCH/DELETE pass through to network.
+  if (request.method !== 'GET') {
+    return;
+  }
+
   // Navigation (HTML): always network-first so users never get a stale app shell
   if (request.mode === 'navigate') {
     event.respondWith(
@@ -85,7 +90,8 @@ self.addEventListener('fetch', event => {
     url.pathname.startsWith('/exams') ||
     url.pathname.startsWith('/users') ||
     url.pathname.startsWith('/brain') ||
-    url.pathname.startsWith('/regenerate')
+    url.pathname.startsWith('/regenerate') ||
+    url.pathname.startsWith('/generate-roadmap')
   ) {
     event.respondWith(
       fetch(request).catch(() => {

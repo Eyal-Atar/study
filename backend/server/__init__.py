@@ -6,8 +6,9 @@ load_dotenv()
 import os
 import hashlib
 import re
-from fastapi import FastAPI
-from fastapi.responses import FileResponse, Response
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Response, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -45,7 +46,20 @@ from brain.routes import router as brain_router
 from notifications.routes import router as notifications_router
 from notifications.scheduler import start_scheduler
 
-app = FastAPI(title="StudyFlow API", version="1.0.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    print("DEBUG: Application lifespan startup triggered", flush=True)
+    init_db()
+    print("DEBUG: Database initialized, starting scheduler", flush=True)
+    scheduler = start_scheduler()
+    yield
+    # Shutdown
+    print("DEBUG: Application lifespan shutdown triggered", flush=True)
+    if scheduler and scheduler.running:
+        scheduler.shutdown()
+
+app = FastAPI(title="StudyFlow API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -64,26 +78,7 @@ app.add_middleware(
 )
 
 
-_scheduler = None
-
-
-@app.on_event("startup")
-def startup():
-    global _scheduler
-    init_db()
-    _scheduler = start_scheduler()
-
-
-@app.on_event("shutdown")
-def shutdown():
-    global _scheduler
-    if _scheduler and _scheduler.running:
-        _scheduler.shutdown()
-
-
-# ─── Static files (CSS/JS/icons) ────────────────────────────
-app.mount("/css", StaticFiles(directory=os.path.join(FRONTEND_DIR, "css")), name="css")
-app.mount("/js", StaticFiles(directory=os.path.join(FRONTEND_DIR, "js")), name="js")
+# ─── Static files (Icons/Images) ────────────────────────────
 app.mount("/static", StaticFiles(directory=os.path.join(FRONTEND_DIR, "static")), name="static")
 
 
@@ -106,15 +101,37 @@ def serve_manifest():
     )
 
 
+def _serve_processed_asset(file_path: str, media_type: str) -> Response:
+    """Read a frontend file and replace all version placeholders with the current build hash."""
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Asset not found")
+    
+    build_hash = _compute_build_hash()
+    with open(file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    
+    # Replace ?v=AUTO or any ?v=... with current build hash
+    content = re.sub(r"\?v=\w+", f"?v={build_hash}", content)
+    
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
+
+
 @app.get("/sw.js")
 def serve_service_worker():
-    """Serve Service Worker with auto-injected build hash so the cache version
-    updates automatically whenever any frontend asset changes.
-    Cache-Control: no-cache ensures browsers always fetch the latest SW."""
+    """Serve Service Worker with auto-injected build hash."""
     build_hash = _compute_build_hash()
-    with open(os.path.join(FRONTEND_DIR, "sw.js"), "r") as f:
+    file_path = os.path.join(FRONTEND_DIR, "sw.js")
+    # Custom replacement for the shell cache name
+    with open(file_path, "r", encoding="utf-8") as f:
         content = f.read()
-    # Replace CACHE_NAME and all ?v=XX query params with the current build hash
     content = re.sub(r"studyflow-shell-v\w+", f"studyflow-shell-{build_hash}", content)
     content = re.sub(r"\?v=\w+", f"?v={build_hash}", content)
     return Response(
@@ -127,22 +144,32 @@ def serve_service_worker():
     )
 
 
+@app.get("/js/{path:path}")
+def serve_js(path: str):
+    """Serve JS files with build hash replacement."""
+    return _serve_processed_asset(os.path.join(FRONTEND_DIR, "js", path), "application/javascript")
+
+
+@app.get("/css/{path:path}")
+def serve_css(path: str):
+    """Serve CSS files with build hash replacement."""
+    return _serve_processed_asset(os.path.join(FRONTEND_DIR, "css", path), "text/css")
+
+
 # ─── Frontend ────────────────────────────────────────────────
 @app.get("/")
 def serve_frontend():
-    return FileResponse(os.path.join(PROJECT_DIR, "index.html"), media_type="text/html")
+    return _serve_processed_asset(os.path.join(PROJECT_DIR, "index.html"), "text/html")
 
 
 @app.get("/onboarding")
 def serve_frontend_onboarding():
-    """Serve frontend for onboarding screen (SPA routing)."""
-    return FileResponse(os.path.join(PROJECT_DIR, "index.html"), media_type="text/html")
+    return _serve_processed_asset(os.path.join(PROJECT_DIR, "index.html"), "text/html")
 
 
 @app.get("/dashboard")
 def serve_frontend_dashboard():
-    """Serve frontend for dashboard screen (SPA routing)."""
-    return FileResponse(os.path.join(PROJECT_DIR, "index.html"), media_type="text/html")
+    return _serve_processed_asset(os.path.join(PROJECT_DIR, "index.html"), "text/html")
 
 
 @app.get("/health")

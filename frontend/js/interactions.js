@@ -3,7 +3,7 @@
  * Handles Apple-style Drag & Drop, Resizing, and Mobile Touch interactions.
  */
 
-import { authFetch, getAPI } from './store.js?v=31';
+import { authFetch, getAPI } from './store.js?v=AUTO';
 
 // HOUR_HEIGHT must match calendar.js render scale (responsive)
 function getHourHeight() { return window.innerWidth < 768 ? 70 : 160; }

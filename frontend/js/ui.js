@@ -42,7 +42,16 @@ export function spawnConfetti(origin) {
 }
 
 const EXAM_COLORS = ['accent', 'mint', 'coral', 'gold', 'sky'];
+const EXAM_HEX_MAP = {
+    accent: '#6B47F5',
+    mint:   '#10B981',
+    coral:  '#F43F5E',
+    gold:   '#F59E0B',
+    sky:    '#38BDF8'
+};
+
 export function examColor(idx) { return EXAM_COLORS[idx % EXAM_COLORS.length]; }
+export function examHex(idx) { return EXAM_HEX_MAP[examColor(idx)]; }
 
 export function examColorClass(idx, type) {
     const map = {
@@ -59,17 +68,21 @@ export function showModal(id, active = true) {
     const el = document.getElementById(id);
     if (!el) return;
 
+    if (el._modalTimeout) {
+        clearTimeout(el._modalTimeout);
+        el._modalTimeout = null;
+    }
+
     if (active) {
-        // Cancel any in-flight close animation, then show
         el.classList.remove('closing');
         el.classList.add('active');
     } else {
-        if (el.classList.contains('closing')) return; // already closing
-        // Play backdrop fade-out (+ sheet slide-down on mobile via CSS)
+        if (!el.classList.contains('active') || el.classList.contains('closing')) return;
         el.classList.add('closing');
-        setTimeout(() => {
+        el._modalTimeout = setTimeout(() => {
             el.classList.remove('active', 'closing');
-        }, 260); // 10ms past animation to avoid flash
+            el._modalTimeout = null;
+        }, 260);
     }
 }
 
@@ -118,7 +131,8 @@ export function showTaskEditModal(block, onSave, onDelete) {
     
     document.getElementById('btn-delete-task-modal').onclick = () => {
         showModal('modal-edit-task', false);
-        onDelete();
+        // Ensure modal closing logic initiates before delete confirm opens
+        setTimeout(() => onDelete(), 10);
     };
 }
 
@@ -201,3 +215,54 @@ export function showConfirmModal({ title, msg, icon, okText, onConfirm }) {
         if (onConfirm) onConfirm();
     };
 }
+
+export function showIosOnboarding() {
+    // Basic iOS detection
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+
+    // Only show if on iOS and not already installed/standalone
+    if (isIos && !isStandalone) {
+        showModal('modal-ios-onboarding', true);
+        document.getElementById('btn-close-ios-onboarding').onclick = () => showModal('modal-ios-onboarding', false);
+    }
+}
+window.showIosOnboarding = showIosOnboarding;
+
+/**
+ * Opens and populates the AI Debug Console with data from the store.
+ */
+import { getLatestAiDebug, getCurrentTasks, getCurrentSchedule } from './store.js?v=AUTO';
+
+export function showAiDebug() {
+    const debug = getLatestAiDebug();
+    const tasks = getCurrentTasks() || [];
+    const schedule = getCurrentSchedule() || [];
+
+    const promptEl = document.getElementById('debug-prompt');
+    const responseEl = document.getElementById('debug-response');
+    const statsEl = document.getElementById('debug-roadmap-stats');
+
+    if (promptEl) promptEl.textContent = debug.prompt || 'No recent prompt captured.';
+    if (responseEl) responseEl.textContent = debug.response || 'No recent response captured.';
+    
+    if (statsEl) {
+        statsEl.innerHTML = `
+            <div class="bg-dark-900/40 p-3 rounded-xl border border-white/5">
+                <div class="text-[10px] text-white/30 uppercase font-bold mb-1">AI Tasks</div>
+                <div class="text-xl font-bold text-white">${tasks.length}</div>
+            </div>
+            <div class="bg-dark-900/40 p-3 rounded-xl border border-white/5">
+                <div class="text-[10px] text-white/30 uppercase font-bold mb-1">Time Blocks</div>
+                <div class="text-xl font-bold text-white">${schedule.length}</div>
+            </div>
+            <div class="bg-dark-900/40 p-3 rounded-xl border border-white/5">
+                <div class="text-[10px] text-white/30 uppercase font-bold mb-1">Split Parts</div>
+                <div class="text-xl font-bold text-white">${schedule.filter(b => b.is_split).length}</div>
+            </div>
+        `;
+    }
+
+    showModal('modal-ai-debug', true);
+}
+window.showAiDebug = showAiDebug;

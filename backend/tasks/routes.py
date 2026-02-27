@@ -48,6 +48,8 @@ def update_block(block_id: int, body: BlockUpdate, current_user: dict = Depends(
         # We might also want to update day_date based on start_time if it changes date
         updates.append("day_date = date(?)")
         params.append(body.start_time)
+        # Reset push notification flag for time change
+        updates.append("push_notified = 0")
     if body.end_time is not None:
         updates.append("end_time = ?")
         params.append(body.end_time)
@@ -61,6 +63,7 @@ def update_block(block_id: int, body: BlockUpdate, current_user: dict = Depends(
     # Mark as manually edited if the user changed time or title
     if body.start_time is not None or body.end_time is not None or body.task_title is not None:
         updates.append("is_manually_edited = 1")
+        updates.append("push_notified = 0")
 
     if not updates:
         db.close()
@@ -251,7 +254,7 @@ def defer_block_to_next_day(block_id: int, current_user: dict = Depends(get_curr
     new_end = next_day + " " + end_dt.strftime("%H:%M:%S")
 
     db.execute(
-        """UPDATE schedule_blocks SET start_time = ?, end_time = ?, day_date = ?, is_delayed = 1, deferred_original_day = ?
+        """UPDATE schedule_blocks SET start_time = ?, end_time = ?, day_date = ?, is_delayed = 1, deferred_original_day = ?, push_notified = 0
            WHERE id = ? AND user_id = ?""",
         (new_start, new_end, next_day, day_date, block_id, current_user["id"])
     )
@@ -276,7 +279,8 @@ def shift_task_time(task_id: int, body: dict, current_user: dict = Depends(get_c
     db.execute(
         """UPDATE schedule_blocks 
            SET start_time = datetime(start_time, ? || ' minutes'),
-               end_time = datetime(end_time, ? || ' minutes')
+               end_time = datetime(end_time, ? || ' minutes'),
+               push_notified = 0
            WHERE task_id = ? AND user_id = ?""",
         (f"{minutes:+}", f"{minutes:+}", task_id, current_user["id"])
     )
@@ -300,7 +304,8 @@ def update_task_duration(task_id: int, body: dict, current_user: dict = Depends(
     # end_time = start_time + hours
     db.execute(
         """UPDATE schedule_blocks 
-           SET end_time = datetime(start_time, '+' || (? * 60) || ' minutes')
+           SET end_time = datetime(start_time, '+' || (? * 60) || ' minutes'),
+               push_notified = 0
            WHERE task_id = ? AND user_id = ?""",
         (hours, task_id, current_user["id"])
     )
