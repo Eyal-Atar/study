@@ -31,6 +31,7 @@ def generate_multi_exam_schedule(
 
     # User preferences
     neto_study_hours = user.get("neto_study_hours", 4.0)
+    break_minutes = user.get("break_minutes", 10)
     tz_offset = user.get("timezone_offset", 0) or 0
     hobby_name = user.get("hobby_name") or "Hobby"
     
@@ -62,19 +63,39 @@ def generate_multi_exam_schedule(
         if windows:
             all_windows.append((day_local.strftime("%Y-%m-%d"), windows))
 
-    print(f"DEBUG SCHEDULER: Generated {len(all_windows)} windowed days. Task count: {len(tasks)}")
-    
     schedule: list[ScheduleBlock] = []
     task_index = 0
     
     # Track splits
-    # task_id -> {part_count: int, blocks: list[ScheduleBlock]}
     task_splits = {}
+
+    # Exclusive zone pre-calculation
+    exam_dates = []
+    for e in exams:
+        try:
+            ed_str = e["exam_date"].replace('Z', '+00:00')
+            exam_dates.append((e["id"], datetime.fromisoformat(ed_str).replace(tzinfo=None).date()))
+        except:
+            continue
 
     for day_str, windows in all_windows:
         day_limit_min = neto_study_hours * 60
         used_on_day_min = 0
+        long_break_taken = False
+        last_task_was_simulation = False
         
+        # 1. Exclusive Focus Zone Check
+        target_exam_id = None
+        current_day_date = datetime.strptime(day_str, "%Y-%m-%d").date()
+        
+        upcoming_exams = sorted([
+            (eid, edate) for eid, edate in exam_dates 
+            if 0 <= (edate - current_day_date).days <= 4
+        ], key=lambda x: x[1])
+        
+        if upcoming_exams:
+            target_exam_id = upcoming_exams[0][0]
+
         for window in windows:
             if used_on_day_min >= day_limit_min:
                 break
@@ -82,19 +103,35 @@ def generate_multi_exam_schedule(
             window_remaining_min = min(window.capacity_min, day_limit_min - used_on_day_min)
             current_time = window.start_local
             
-            # Use task_index to iterate through the prioritized queue
-            while window_remaining_min > 1 and task_index < len(tasks):
-                task = tasks[task_index]
+            while window_remaining_min >= 45:
+                task = None
+                if target_exam_id:
+                    # Exclusive Zone: Only pick tasks for the target exam
+                    for t in tasks:
+                        if t["exam_id"] == target_exam_id and remaining_task_hours[t["id"]] > 0.01:
+                            task = t
+                            break
+                else:
+                    # Standard prioritized scan
+                    for t in tasks:
+                        if remaining_task_hours[t["id"]] > 0.01:
+                            task = t
+                            break
+                
+                if not task:
+                    # No tasks available for THIS DAY'S constraints. 
+                    # Move to the next window/day instead of breaking the entire scheduler.
+                    window_remaining_min = 0 # Force exit this window
+                    continue 
+                
                 tid = task["id"]
                 rem_h = remaining_task_hours[tid]
                 
-                if rem_h <= 0:
-                    task_index += 1
-                    continue
-                
-                # How much can we fit in this window?
                 take_min = min(rem_h * 60, window_remaining_min)
-                if take_min < 1:
+                
+                if take_min < 45:
+                    # This task is too small for the remaining window.
+                    # Stop filling this window.
                     break
                 
                 end_time = current_time + timedelta(minutes=take_min)
@@ -112,44 +149,52 @@ def generate_multi_exam_schedule(
                     block_type="study",
                     is_delayed=False
                 )
-                print(f"DEBUG SCHEDULER: Created block for {block.task_title} on {day_str}")
                 
                 if tid not in task_splits:
                     task_splits[tid] = []
                 task_splits[tid].append(block)
                 
-                # Update remaining
                 remaining_task_hours[tid] -= take_min / 60
                 window_remaining_min -= take_min
                 used_on_day_min += take_min
-                current_time = end_time
                 
-                if remaining_task_hours[tid] <= 0.01: # handle float precision
-                    task_index += 1
+                # 2. Break Logic
+                current_break = break_minutes
+                is_review = "תחקיר" in task["title"] or "Review" in task["title"]
+                if last_task_was_simulation and is_review:
+                    current_break = 120
+                elif used_on_day_min >= (day_limit_min / 2) and not long_break_taken:
+                    current_break = 60
+                    long_break_taken = True
+                
+                last_task_was_simulation = "Simulation" in task["title"] or "סימולציה" in task["title"]
+                
+                current_time = end_time + timedelta(minutes=current_break)
+                window_remaining_min -= current_break
+                
+                if current_time >= window.end_local:
+                    break
         
-        # Add Hobby block at the end of the day if study happened
+        # Add Hobby block at the FIXED end of day slot (reserved in _get_windows_for_day)
         if used_on_day_min > 0:
-            # Place hobby after the last study block of the day
-            day_study_blocks = [b for b in schedule if b.day_date == day_str and b.block_type == "study"]
-            # Also check task_splits which haven't been added to schedule yet
-            for tid in task_splits:
-                for b in task_splits[tid]:
-                    if b.day_date == day_str and b.block_type == "study":
-                        day_study_blocks.append(b)
+            wake_h, wake_m = map(int, user.get("wake_up_time", "08:00").split(":"))
+            sleep_h, sleep_m = map(int, user.get("sleep_time", "23:00").split(":"))
+            day_dt = datetime.strptime(day_str, "%Y-%m-%d")
             
-            if day_study_blocks:
-                last_block = sorted(day_study_blocks, key=lambda x: x.start_time)[-1]
-                last_study_end = datetime.fromisoformat(last_block.end_time.replace('Z', '+00:00')) - timedelta(minutes=tz_offset)
+            if sleep_h < wake_h:
+                h_end_local = (day_dt + timedelta(days=1)).replace(hour=sleep_h, minute=sleep_m)
+            else:
+                h_end_local = day_dt.replace(hour=sleep_h, minute=sleep_m)
                 
-                h_start = last_study_end
-                h_end = h_start + timedelta(hours=1)
-                schedule.append(ScheduleBlock(
-                    task_id=None, exam_id=None, exam_name="Relax",
-                    task_title=hobby_name, subject="Hobby",
-                    start_time=(h_start + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
-                    end_time=(h_end + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
-                    day_date=day_str, block_type="hobby"
-                ))
+            h_start_local = h_end_local - timedelta(hours=1)
+            
+            schedule.append(ScheduleBlock(
+                task_id=None, exam_id=None, exam_name="Relax",
+                task_title=hobby_name, subject="Hobby",
+                start_time=(h_start_local + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
+                end_time=(h_end_local + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
+                day_date=day_str, block_type="hobby"
+            ))
 
     # Post-process splits and consolidate blocks into the main schedule
     for tid, blocks in task_splits.items():
@@ -174,7 +219,8 @@ def _get_windows_for_day(user: dict, day_local: datetime) -> list[WiredWindow]:
     wake_h, wake_m = map(int, user.get("wake_up_time", "08:00").split(":"))
     sleep_h, sleep_m = map(int, user.get("sleep_time", "23:00").split(":"))
     
-    start_time = day_local.replace(hour=wake_h, minute=wake_m)
+    # Study starts 1 hour after waking up
+    start_time = day_local.replace(hour=wake_h, minute=wake_m) + timedelta(hours=1)
     
     # If sleep time is early morning (e.g., 02:00), it's the next calendar day relative to wake up
     if sleep_h < wake_h:
@@ -214,7 +260,7 @@ def _get_windows_for_day(user: dict, day_local: datetime) -> list[WiredWindow]:
         h_start = h_end - timedelta(hours=1)
         windows = _subtract_range(windows, h_start, h_end)
 
-    res = [WiredWindow(s, e) for s, e in windows if (e - s).total_seconds() > 0]
+    res = [WiredWindow(s, e) for s, e in windows if (e - s).total_seconds() >= 45 * 60]
     print(f"DEBUG SCHEDULER: {day_local.strftime('%Y-%m-%d')} has {len(res)} windows: {res}")
     return res
 

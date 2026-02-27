@@ -1,7 +1,7 @@
 """Server — FastAPI app creation, middleware, startup."""
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)
 
 import os
 import hashlib

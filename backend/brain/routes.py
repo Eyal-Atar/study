@@ -114,18 +114,27 @@ async def generate_roadmap(current_user: dict = Depends(get_current_user)):
     # Clear ALL old schedule blocks for this user before saving regenerated ones
     db.execute("DELETE FROM schedule_blocks WHERE user_id = ?", (user_id,))
     
+    now_iso = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+
     for block in schedule:
         db_task_id = block.task_id if block.block_type != "hobby" else None
+        
+        # Avoid notifying for blocks that already started in the past
+        is_notified = 1 if block.start_time < now_iso else 0
+
         db.execute(
             """INSERT INTO schedule_blocks (user_id, task_id, exam_id, exam_name, task_title, 
                start_time, end_time, day_date, block_type, is_delayed, is_split, part_number, total_parts, push_notified)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (user_id, db_task_id, block.exam_id, block.exam_name, block.task_title, 
              block.start_time, block.end_time, block.day_date, block.block_type, 
-             1 if block.is_delayed else 0, block.is_split, block.part_number, block.total_parts)
+             1 if block.is_delayed else 0, block.is_split, block.part_number, block.total_parts, is_notified)
         )
-        if db_task_id and block.is_delayed:
-            db.execute("UPDATE tasks SET is_delayed = 1 WHERE id = ?", (db_task_id,))
+        if db_task_id:
+            # Sync the day_date to the task so 'Daily Focus' works
+            db.execute("UPDATE tasks SET day_date = ? WHERE id = ?", (block.day_date, db_task_id))
+            if block.is_delayed:
+                db.execute("UPDATE tasks SET is_delayed = 1 WHERE id = ?", (db_task_id,))
     
     db.commit()
     
@@ -576,18 +585,27 @@ Return format:
     # Clear ALL old schedule blocks for this user before saving regenerated ones
     db.execute("DELETE FROM schedule_blocks WHERE user_id = ?", (user_id,))
     
+    now_iso = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+
     for block in schedule:
         db_task_id = block.task_id if block.block_type != "hobby" else None
+        
+        # Avoid notifying for blocks that already started in the past
+        is_notified = 1 if block.start_time < now_iso else 0
+
         db.execute(
             """INSERT INTO schedule_blocks (user_id, task_id, exam_id, exam_name, task_title, 
                start_time, end_time, day_date, block_type, is_delayed, is_split, part_number, total_parts, push_notified)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (user_id, db_task_id, block.exam_id, block.exam_name, block.task_title, 
              block.start_time, block.end_time, block.day_date, block.block_type, 
-             1 if block.is_delayed else 0, block.is_split, block.part_number, block.total_parts)
+             1 if block.is_delayed else 0, block.is_split, block.part_number, block.total_parts, is_notified)
         )
-        if db_task_id and block.is_delayed:
-            db.execute("UPDATE tasks SET is_delayed = 1 WHERE id = ?", (db_task_id,))
+        if db_task_id:
+            # Sync the day_date to the task so 'Daily Focus' works
+            db.execute("UPDATE tasks SET day_date = ? WHERE id = ?", (block.day_date, db_task_id))
+            if block.is_delayed:
+                db.execute("UPDATE tasks SET is_delayed = 1 WHERE id = ?", (db_task_id,))
     
     db.commit()
 

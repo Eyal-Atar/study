@@ -32,9 +32,27 @@ class ExamBrain:
         self.client = anthropic.Anthropic(api_key=api_key) if api_key else None
 
     async def analyze_all_exams(self) -> dict:
-        exam_contexts = []
+        all_tasks = []
+        all_prompts = []
+        all_raw_responses = []
+        
+        now = datetime.now()
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        neto_h = float(self.user.get("neto_study_hours", 4.0))
+
         for exam in self.exams:
-            # Check for pre-parsed context in the DB
+            # Calculate target hours for THIS exam
+            try:
+                # Handle potential 'Z' or offset in ISO format
+                ed_str = exam["exam_date"].replace('Z', '+00:00')
+                exam_date = datetime.fromisoformat(ed_str).replace(tzinfo=None)
+                days_until = max(1, (exam_date - today).days)
+                target_hours = float(days_until * neto_h)
+            except Exception as e:
+                print(f"Error calculating target hours for {exam.get('name')}: {e}")
+                target_hours = 10.0
+
+            # Check for pre-parsed context
             parsed = exam.get("parsed_context")
             if parsed:
                 try:
@@ -44,27 +62,32 @@ class ExamBrain:
             else:
                 context_data = None
 
-            exam_contexts.append({
+            ec = {
                 "exam_id": exam["id"],
                 "name": exam["name"],
                 "subject": exam["subject"],
                 "exam_date": exam["exam_date"],
                 "special_needs": exam.get("special_needs", ""),
                 "parsed_context": context_data,
-            })
+            }
 
-        if self.client:
-            try:
-                return self._analyze_with_ai(exam_contexts)
-            except Exception as e:
-                print(f"AI strategy generation failed: {e}")
-                return {"tasks": [], "prompt": "", "raw_response": str(e)}
-        else:
-            return {"tasks": [], "prompt": "No AI client available", "raw_response": ""}
+            if self.client:
+                try:
+                    res = self._analyze_single_exam_with_ai(ec, target_hours)
+                    all_tasks.extend(res["tasks"])
+                    all_prompts.append(res["prompt"])
+                    all_raw_responses.append(res["raw_response"])
+                except Exception as e:
+                    print(f"AI generation failed for exam {exam['id']}: {e}")
+            
+        return {
+            "tasks": all_tasks,
+            "prompt": "\n---\n".join(all_prompts),
+            "raw_response": "\n---\n".join(all_raw_responses)
+        }
 
-    def _analyze_with_ai(self, exam_contexts: list[dict]) -> dict:
-        valid_exam_ids = {ec["exam_id"] for ec in exam_contexts}
-        prompt = self._build_strategy_prompt(exam_contexts)
+    def _analyze_single_exam_with_ai(self, ec: dict, target_hours: float) -> dict:
+        prompt = self._build_strategy_prompt(ec, target_hours)
         message = self.client.messages.create(
             model="claude-3-haiku-20240307",
             max_tokens=4000,
@@ -76,20 +99,21 @@ class ExamBrain:
             response_text = response_text.split("\n", 1)[1]
             response_text = response_text.rsplit("```", 1)[0]
 
-        tasks = json.loads(response_text)
+        try:
+            tasks = json.loads(response_text)
+        except json.JSONDecodeError:
+            print(f"Failed to parse AI response: {response_text}")
+            tasks = []
+
         validated = []
         for task in tasks:
             if not task.get("title"):
                 continue
-            exam_id = task.get("exam_id")
-            if exam_id not in valid_exam_ids:
-                if len(valid_exam_ids) == 1:
-                    exam_id = list(valid_exam_ids)[0]
-                else:
-                    continue
             validated.append({
-                "exam_id": exam_id,
+                "exam_id": ec["exam_id"],
                 "title": task["title"],
+                "subject": ec["subject"],
+                "topic": task.get("topic"),
                 "sort_order": task.get("sort_order", 0),
                 "estimated_hours": max(0.5, min(6.0, float(task.get("estimated_hours", 2.0)))),
                 "priority": max(1, min(10, int(task.get("priority", 5)))),
@@ -100,40 +124,38 @@ class ExamBrain:
             "raw_response": raw_response
         }
 
-    def _build_strategy_prompt(self, exam_contexts: list[dict]) -> str:
-        exam_sections = []
-        for ec in exam_contexts:
-            context_str = "No specific syllabus data provided."
-            if ec["parsed_context"]:
-                context_str = json.dumps(ec["parsed_context"], indent=2)
-            
-            section = f"""
+    def _build_strategy_prompt(self, ec: dict, target_hours: float) -> str:
+        context_str = "No specific syllabus data provided."
+        if ec["parsed_context"]:
+            context_str = json.dumps(ec["parsed_context"], indent=2)
+        
+        exam_text = f"""
 ### Exam: {ec['name']}
 - Subject: {ec['subject']}
 - Exam ID: {ec['exam_id']}
+- Target Total Study Hours: {target_hours}
 - Context/Topics:
 {context_str}
----"""
-            exam_sections.append(section)
+"""
 
-        exams_text = "\n".join(exam_sections)
-        return f"""You are a Strategic Study Architect. Your task is to decompose university exams into a prioritized queue of study tasks.
+        return f"""You are a Strategic Study Architect. Your task is to decompose a university exam into a prioritized queue of study tasks.
 
-STUDENT EXAMS:
-{exams_text}
+STUDENT EXAM:
+{exam_text}
 
 OUTPUT RULES (STRICT):
-1. NO DATES: Do NOT assign tasks to specific days or dates.
-2. PRIORITY QUEUE: Assign each task a "priority" (1-10, where 10 is highest/urgent) and a "sort_order".
-3. GRANULARITY: Each task should be 1.5 to 3.0 hours. Break large topics into specific sub-tasks.
-4. ZERO-DATA POLICY: If no syllabus context is provided for an exam, use the subject name to generate a standard high-performance study sequence (e.g., "Review fundamental concepts of [Subject]", "Solve practice exams for [Subject]").
-5. ACTIONABLE TITLES: Use specific verbs (e.g., "Solve...", "Summarize...", "Simulate...").
-6. LANGUAGE: Match the language of the exam name.
+1. TARGET HOURS: You MUST generate enough specific sub-tasks so that the sum of their "estimated_hours" equals exactly {target_hours} hours. This is critical to ensure the student has a full schedule until the exam.
+2. MANDATORY TEMPLATE: You MUST include at least one task named 'Full-Length Exam Simulation' (estimated_hours: 3.0) and at least one task named 'Simulation Review & Deep Analysis / תחקיר' (estimated_hours: 1.5) for the final stages of study for this exam. These must have the highest "sort_order" so they are scheduled last.
+3. NO DATES: Do NOT assign tasks to specific days or dates.
+4. PRIORITY QUEUE: Assign each task a "priority" (1-10, where 10 is highest/urgent) and a "sort_order".
+5. GRANULARITY: Each task should be 1.5 to 3.0 hours. Break large topics into many specific sub-tasks to reach the target hours.
+6. ZERO-DATA POLICY: If no syllabus context is provided, use the subject name to generate a standard high-performance study sequence totaling {target_hours} hours.
+7. ACTIONABLE TITLES: Use specific verbs (e.g., "Solve...", "Summarize...", "Simulate...").
+8. LANGUAGE: Match the language of the exam name.
 
 RETURN ONLY A JSON ARRAY OF OBJECTS:
 [
   {{
-    "exam_id": <int>,
     "title": "String (Hebrew/English)",
     "estimated_hours": <float>,
     "sort_order": <int>,

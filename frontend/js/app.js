@@ -79,6 +79,19 @@ async function initApp() {
         await checkAuthAndRoute('/');
     }
 
+    // Hide splash screen after initialization
+    const hideSplash = () => {
+        const splash = document.getElementById('splash-screen');
+        if (splash) {
+            splash.style.opacity = '0';
+            setTimeout(() => {
+                splash.style.display = 'none';
+            }, 500);
+        }
+    };
+    // Give it a tiny extra buffer for smooth transition
+    setTimeout(hideSplash, 300);
+
     // Handle SCROLL_TO_BLOCK event (from notifications)
     window.addEventListener('SCROLL_TO_BLOCK', (e) => {
         const blockId = e.detail ? e.detail.blockId : e.blockId;

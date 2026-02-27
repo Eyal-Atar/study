@@ -430,6 +430,11 @@ export async function handleRegister() {
 export async function handleLogout() {
     const API = getAPI();
     try { await authFetch(`${API}/auth/logout`, { method: 'POST' }); } catch (e) {}
+    
+    // Close settings modal if open
+    const modalSettings = document.getElementById('modal-settings');
+    if (modalSettings) modalSettings.classList.remove('active');
+    
     resetStore();
     showScreen('screen-welcome');
 }

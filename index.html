@@ -41,6 +41,18 @@
     </script>
 </head>
 <body class="font-sans text-white min-h-screen overflow-x-hidden">
+    <!-- Splash Screen (Prevents Flashing) -->
+    <div id="splash-screen" class="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#0B0F1A] transition-opacity duration-500">
+        <div class="relative mb-6">
+            <div class="h-20 w-20 animate-spin rounded-full border-4 border-[#6B47F5]/20 border-t-[#6B47F5]"></div>
+            <div class="absolute inset-0 flex items-center justify-center">
+                <span class="text-2xl">📚</span>
+            </div>
+        </div>
+        <h1 class="text-xl font-bold tracking-tight text-white">StudyFlow</h1>
+        <p class="mt-2 text-sm text-gray-400">Loading your focus zone...</p>
+    </div>
+
     <!-- PWA: Offline indicator (shown automatically when network is unavailable) -->
     <div id="offline-banner" style="display:none;" class="fixed top-0 left-0 right-0 z-50 bg-red-500/90 text-white text-center text-sm py-2 font-medium">
         You are offline — schedule is read-only
@@ -60,7 +72,7 @@
     </div>
 
     <!-- WELCOME -->
-    <div id="screen-welcome" class="screen active">
+    <div id="screen-welcome" class="screen">
         <div class="relative z-10 flex flex-col items-center justify-center min-h-screen px-4">
             <div class="fade-in text-center max-w-lg">
                 <div class="mb-8">
