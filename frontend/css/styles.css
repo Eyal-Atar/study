@@ -749,6 +749,29 @@ button, a, select, input[type="checkbox"], input[type="radio"], label {
     background: rgba(255, 255, 255, 0.1);
 }
 
+/* ── Padding Task Blocks (Phase 17 Plan 04) ── */
+.block-padding {
+    border-left-style: double !important;
+    border-left-width: 4px !important;
+    opacity: 0.82;
+    filter: saturate(0.7);
+}
+
+.padding-badge {
+    display: inline-block;
+    background: rgba(245, 158, 11, 0.25);
+    color: #F59E0B;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    vertical-align: middle;
+    margin-right: 2px;
+    flex-shrink: 0;
+}
+
 /* ── Daily Quota Progress Bar (Phase 17 Plan 04) ── */
 #daily-quota-progress,
 #daily-quota-progress-desktop {
