@@ -8,7 +8,7 @@ import anthropic
 import fitz  # PyMuPDF
 
 EXCLUSIVE_ZONE_DAYS = 4
-CHAR_LIMIT = 700_000  # ~175K tokens, safe margin under Haiku's 200K token context
+CHAR_LIMIT = 600_000  # ~150K tokens, safe margin under Sonnet's 200K token context
 
 
 def extract_text_from_pdf(file_path: str, max_pages: int = None) -> str:
@@ -30,7 +30,7 @@ class ExamBrain:
         self.user = user
         self.exams = exams
         api_key = os.environ.get("ANTHROPIC_API_KEY")
-        self.client = anthropic.Anthropic(api_key=api_key) if api_key else None
+        self.client = anthropic.AsyncAnthropic(api_key=api_key) if api_key else None
 
     # ------------------------------------------------------------------
     # Auditor helpers (Plan 02)
@@ -138,15 +138,19 @@ ALL EXAM MATERIALS:
 
 TASK:
 1. For each exam, map all syllabus topics.
-2. Identify which topics have matching summary/notes content and which are GAPS (topic appears in syllabus but no study material found in summaries/notes).
-3. Decompose ALL topics into specific, actionable pedagogical tasks with:
+2. SAMPLE EXAMS: If a file is labeled as 'sample_exam', you MUST create two specific tasks for it:
+   - "סימולציה מלאה: [File Name] (תנאי אמת, בלי טלפון, עם סטופר)" (estimated 2.5-3h)
+   - "תחקור מלא וכתיבת דגשים: [File Name]" (estimated 1.5-2h, dependency on the simulation)
+3. Actionable Titles: Use the following style for all tasks:
+   - "מעבר על מצגת: [Topic Name]" (e.g. "מעבר על מצגת nodes ורשימות מקושרות")
+   - "בנייה ידנית: [Core Concept]. תרגול [Operations]" (e.g. "בנייה ידנית של מחלקת Node. תרגול הוספת איבר לתחילה, לסוף")
+   - "פתרון שאלות: [Topic]. [Specific Challenges]" (e.g. "פתרון 5 שאלות עצים: גובה עץ, ספירת עלים, ובדיקת סימטריות")
+4. Decompose ALL topics into specific, actionable pedagogical tasks with:
    - focus_score (1-10): concentration level required (1=easy/repetitive, 10=extreme cognitive load)
-   - reasoning: 1-sentence explanation of the focus_score (e.g. "Requires memorisation of formulas — low cognitive load" or "Abstract proofs require deep focus")
-   - dependency_id: null OR the index of a prerequisite task in this same output list (0-based)
-   - estimated_hours per task (0.5 to 3.0 hours)
-4. Assign each task to the correct exam_id.
-5. Use specific action verbs in titles (Solve, Summarize, Simulate, Review, Practice).
-6. Match the language of the exam name (Hebrew exams → Hebrew task titles).
+   - reasoning: 1-sentence explanation of the focus_score
+   - dependency_id: index of prerequisite task (e.g. Review depends on Simulation)
+   - estimated_hours (0.5 to 3.5 hours)
+5. Match the language of the exam name (Hebrew exams -> Hebrew titles).
 
 RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
 {{
@@ -193,9 +197,9 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
 
         print(f"DEBUG ExamBrain.call_split_brain: calling Claude Haiku — prompt length {len(prompt)} chars")
 
-        message = self.client.messages.create(
+        message = await self.client.messages.create(
             model="claude-3-haiku-20240307",
-            max_tokens=8000,
+            max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
         raw_response = message.content[0].text.strip()
@@ -219,7 +223,7 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
             auditor_result = json.loads(response_text)
         except json.JSONDecodeError as exc:
             print(f"ExamBrain.call_split_brain: JSON parse failed — {exc}\nRaw: {raw_response[:500]}")
-            auditor_result = {"tasks": [], "gaps": [], "topic_map": {}}
+            raise RuntimeError(f"AI returned invalid JSON during analysis. Please try again.")
 
         tasks = auditor_result.get("tasks", [])
         gaps = auditor_result.get("gaps", [])
@@ -261,6 +265,7 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
                 continue
 
             validated_tasks.append({
+                "task_index": idx,
                 "exam_id": task_exam_id,
                 "title": task["title"],
                 "topic": task.get("topic", ""),
@@ -305,26 +310,53 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
         neto_h = float(self.user.get("neto_study_hours", 4.0))
         peak = self.user.get("peak_productivity", "Morning")
         task_list_json = json.dumps(approved_tasks, ensure_ascii=False, indent=2)
+        
+        # Include current local time if available
+        local_time_str = self.user.get("current_local_time", "Not provided")
+        
+        # Build exam deadlines info
+        exams_info = []
+        now = datetime.now()
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        for e in self.exams:
+            try:
+                ed_str = e["exam_date"].replace("Z", "+00:00")
+                exam_date = datetime.fromisoformat(ed_str).replace(tzinfo=None)
+                days_until = (exam_date.date() - today.date()).days
+                exams_info.append(f"- Exam ID {e['id']} ({e['name']}): day_index {days_until}")
+            except:
+                continue
+        exams_info_str = "\n".join(exams_info)
 
         return f"""RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER.
 
 You are a Strategic Schedule Architect.
 
 STUDENT PROFILE:
+- Current Local Time: {local_time_str}
 - Daily net study quota: {neto_h} hours ({int(neto_h * 60)} minutes)
 - Peak productivity window: {peak}
-- Days available: {days_available}
+- Days available: {days_available} (day_index 0 is TODAY)
 
-APPROVED TASK LIST (with AI reasoning for focus_score):
+EXAM DEADLINES:
+{exams_info_str}
+
+TASKS TO SCHEDULE:
 {task_list_json}
 
 RULES:
-1. Distribute ALL tasks across the {days_available} available days. Each task must have a day_index (0 = today, 1 = tomorrow, etc.).
-2. Place tasks with focus_score >= 8 in the PEAK productivity window days (prefer earlier in the day when scheduling is determined by the Enforcer).
-3. Respect dependency_id: a task must be assigned to an equal or later day than its dependency.
-4. Interleave exam subjects across days to prevent burnout. Avoid assigning the same exam for more than 2 consecutive days unless it is the only remaining exam.
-5. Assign each task an internal_priority (1-100, where 100 = highest priority). This is used by the Enforcer to trim overflow tasks.
-6. PADDING: Calculate the total scheduled task hours. If total task hours < {days_available} * {neto_h} hours, generate padding tasks to close the gap:
+1. TIME AWARENESS (CRITICAL): Check the "Current Local Time". If it is late in the day, assign fewer or NO tasks to day_index 0 (TODAY) and shift them to later days.
+2. STUDY WINDOW: You have {days_available} days to plan.
+   - day_index 0 = today
+   - Each exam has its own day_index deadline. DO NOT schedule tasks for an exam on or after its day_index.
+   - The day_index immediately before an exam is the CRITICAL final study day for that exam.
+   - Use available days efficiently. Do not finish early unless the task list is extremely short.
+3. NO STUDY ON OR AFTER EXAM DAY: For any given exam, tasks MUST have a day_index < its exam day_index. Heavy study MUST end the day before.
+4. Place tasks with focus_score >= 8 in the PEAK productivity window days (prefer earlier in the day when scheduling is determined by the Enforcer).
+5. Respect dependency_id: a task must be assigned to an equal or later day than its dependency.
+6. Interleave exam subjects across days to prevent burnout. Avoid assigning the same exam for more than 2 consecutive days unless it is the only remaining exam.
+7. Assign each task an internal_priority (1-100, where 100 = highest priority). This is used by the Enforcer to trim overflow tasks.
+8. PADDING: Calculate the total scheduled task hours. If total task hours < {days_available} * {neto_h} hours, generate padding tasks to close the gap:
    - Use titles like "General Review: [Subject]" or "Solve Practice Problems: [Subject]"
    - Assign padding tasks to exams with the earliest upcoming date
    - Use task_index = -1 for padding tasks and always include title, exam_id, and estimated_hours
@@ -373,10 +405,22 @@ RETURN ONLY A VALID JSON ARRAY:
             try:
                 ed_str = exam["exam_date"].replace("Z", "+00:00")
                 exam_date = datetime.fromisoformat(ed_str).replace(tzinfo=None)
-                days_until = max(1, (exam_date - today).days)
+                # We want the number of days from today until the day BEFORE the exam.
+                # If exam is March 3 and today is Feb 28:
+                # 3 - 28 = 3 days (Indices 0, 1, 2)
+                # We use .date() comparison to get the absolute calendar difference
+                days_until = (exam_date.date() - today.date()).days
+                # days_until is the index of the exam day. 
+                # The number of study days is exactly days_until.
                 days_available = max(days_available, days_until)
             except Exception:
                 pass
+
+        # Calculate local time for the Strategist
+        from datetime import timezone
+        tz_offset = self.user.get("timezone_offset", 0) or 0
+        local_now = datetime.now(timezone.utc) - timedelta(minutes=tz_offset)
+        self.user["current_local_time"] = local_now.strftime("%H:%M")
 
         prompt = self._build_strategist_prompt(approved_tasks, days_available)
         print(
@@ -385,9 +429,9 @@ RETURN ONLY A VALID JSON ARRAY:
             f"prompt length {len(prompt)} chars"
         )
 
-        message = self.client.messages.create(
+        message = await self.client.messages.create(
             model="claude-3-haiku-20240307",
-            max_tokens=8000,
+            max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
         raw_response = message.content[0].text.strip()
@@ -408,42 +452,78 @@ RETURN ONLY A VALID JSON ARRAY:
             assignments = json.loads(response_text)
         except json.JSONDecodeError as exc:
             print(f"ExamBrain.call_strategist: JSON parse failed — {exc}\nRaw: {raw_response[:500]}")
-            assignments = []
+            raise RuntimeError("AI returned invalid JSON during strategy planning. Please try again.")
 
         # Map task_index back to actual task objects and augment with scheduling data
         result = []
         seen_task_indices = set()
         fallback_exam_id = self.exams[0]["id"] if self.exams else None
 
+        # Build a lookup for exam deadlines to clamp day_index
+        now = datetime.now()
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        exam_deadlines = {}
+        for e in self.exams:
+            try:
+                ed_str = e["exam_date"].replace("Z", "+00:00")
+                exam_date = datetime.fromisoformat(ed_str).replace(tzinfo=None)
+                exam_deadlines[e["id"]] = (exam_date.date() - today.date()).days
+            except:
+                continue
+
         for item in assignments:
             task_index = item.get("task_index")
-            day_index = max(0, int(item.get("day_index", 0)))
+            
+            # Default day_index to 0
+            day_index = 0
+            try:
+                day_index = int(item.get("day_index", 0))
+            except (ValueError, TypeError):
+                day_index = 0
+            
+            # Basic range clamp
+            day_index = max(0, min(day_index, days_available - 1))
+            
+            # Clamp based on specific exam deadline
+            current_exam_id = None
+            if task_index == -1:
+                current_exam_id = item.get("exam_id") or fallback_exam_id
+            elif isinstance(task_index, int) and 0 <= task_index < len(approved_tasks):
+                current_exam_id = approved_tasks[task_index].get("exam_id")
+            
+            if current_exam_id in exam_deadlines:
+                # Study must end AT LEAST 1 day before the exam
+                day_index = min(day_index, exam_deadlines[current_exam_id] - 1)
+                day_index = max(0, day_index)
+
             internal_priority = max(1, min(100, int(item.get("internal_priority", 50))))
 
-            if task_index == -1:
-                # Padding task — construct a new task dict
-                exam_id = item.get("exam_id") or fallback_exam_id
-                if not item.get("title"):
-                    continue
-                padding_task = {
-                    "exam_id": exam_id,
-                    "title": item["title"],
-                    "topic": "Padding",
-                    "estimated_hours": max(0.5, min(3.0, float(item.get("estimated_hours", 1.0)))),
-                    "focus_score": 3,
-                    "reasoning": "Padding task to fill daily study quota.",
-                    "dependency_id": None,
-                    "sort_order": 9999,
-                    "day_index": day_index,
-                    "internal_priority": internal_priority,
-                    "is_padding": True,
-                }
-                result.append(padding_task)
-            else:
-                try:
-                    task_index = int(task_index)
-                except (ValueError, TypeError):
-                    continue
+            if task_index == -1 or task_index is None:
+                # Padding task or hallucinated index
+                if task_index == -1:
+                    exam_id = item.get("exam_id") or fallback_exam_id
+                    if not item.get("title"):
+                        continue
+                    padding_task = {
+                        "exam_id": exam_id,
+                        "title": item["title"],
+                        "topic": "Padding",
+                        "estimated_hours": max(0.5, min(3.0, float(item.get("estimated_hours", 1.0)))),
+                        "focus_score": 3,
+                        "reasoning": "Padding task to fill daily study quota.",
+                        "dependency_id": None,
+                        "sort_order": 9999,
+                        "day_index": day_index,
+                        "internal_priority": internal_priority,
+                        "is_padding": True,
+                    }
+                    result.append(padding_task)
+                continue
+
+            try:
+                task_index = int(task_index)
+            except (ValueError, TypeError):
+                continue
 
                 if task_index < 0 or task_index >= len(approved_tasks):
                     continue
