@@ -65,7 +65,7 @@
 **Goal:** Upgrade the single-call AI scheduling engine into a two-call Split-Brain architecture (Auditor + Strategist) with full PDF extraction, gap detection, user review page, hard daily quota enforcement, and focus-score-aware scheduling.
 **Depends on:** Phase 16
 **Requirements:** [SB-01, SB-02, SB-03, SB-04, SB-05, SB-06, SB-07, SB-08]
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 Plans:
 - [ ] 17-01-PLAN.md — DB migrations, full PDF extraction, upload handler update
