@@ -10,12 +10,12 @@ import fitz  # PyMuPDF
 EXCLUSIVE_ZONE_DAYS = 4
 
 
-def extract_text_from_pdf(file_path: str, max_pages: int = 10) -> str:
+def extract_text_from_pdf(file_path: str, max_pages: int = None) -> str:
     try:
         doc = fitz.open(file_path)
         text = ""
         for i, page in enumerate(doc):
-            if i >= max_pages:
+            if max_pages is not None and i >= max_pages:
                 break
             text += page.get_text() + "\n"
         doc.close()

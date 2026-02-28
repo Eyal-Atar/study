@@ -4,6 +4,7 @@ import os
 import shutil
 import json
 import asyncio
+import fitz  # PyMuPDF
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from typing import List
 from server.database import get_db
@@ -172,12 +173,27 @@ async def upload_exam_file(
     if file_type == "syllabus" and safe_name.lower().endswith(".pdf"):
         background_tasks.add_task(process_syllabus_background, exam_id, content)
 
+    # Extract full PDF text at upload time for ALL PDF files (stored for Auditor use)
+    extracted_text = None
+    if safe_name.lower().endswith(".pdf"):
+        def _extract_pdf_text(pdf_bytes: bytes) -> str:
+            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+            texts = [page.get_text() for page in doc]
+            doc.close()
+            return "\n".join(texts)
+
+        try:
+            loop = asyncio.get_event_loop()
+            extracted_text = await loop.run_in_executor(None, _extract_pdf_text, content)
+        except Exception as e:
+            print(f"WARNING: Text extraction failed for {safe_name}: {e}")
+
     file_size = len(content)
     try:
         cursor = db.execute(
-            """INSERT INTO exam_files (exam_id, filename, file_path, file_type, file_size)
-               VALUES (?, ?, ?, ?, ?)""",
-            (exam_id, safe_name, file_path, file_type, file_size)
+            """INSERT INTO exam_files (exam_id, filename, file_path, file_type, file_size, extracted_text)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (exam_id, safe_name, file_path, file_type, file_size, extracted_text)
         )
         db.commit()
         file_id = cursor.lastrowid
