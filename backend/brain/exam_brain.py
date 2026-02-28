@@ -8,6 +8,7 @@ import anthropic
 import fitz  # PyMuPDF
 
 EXCLUSIVE_ZONE_DAYS = 4
+CHAR_LIMIT = 700_000  # ~175K tokens, safe margin under Haiku's 200K token context
 
 
 def extract_text_from_pdf(file_path: str, max_pages: int = None) -> str:
@@ -30,6 +31,257 @@ class ExamBrain:
         self.exams = exams
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         self.client = anthropic.Anthropic(api_key=api_key) if api_key else None
+
+    # ------------------------------------------------------------------
+    # Auditor helpers (Plan 02)
+    # ------------------------------------------------------------------
+
+    def _build_all_exam_context(self) -> str:
+        """Concatenate all exams + all their extracted_text into a single string.
+
+        Iterates through self.exams, fetches associated exam_files from the DB,
+        and concatenates their extracted_text with clear headers.
+        Falls back to parsed_context for legacy exams with no uploaded files.
+        Enforces a hard CHAR_LIMIT with truncation.
+        """
+        from server.database import get_db
+
+        db = get_db()
+        parts = []
+        total_chars = 0
+
+        try:
+            for exam in self.exams:
+                exam_header = (
+                    f"\n### EXAM: {exam['name']} ({exam['subject']}) "
+                    f"— Date: {exam['exam_date']} — Exam ID: {exam['id']}\n"
+                )
+
+                files = db.execute(
+                    "SELECT file_type, filename, extracted_text FROM exam_files WHERE exam_id = ?",
+                    (exam["id"],),
+                ).fetchall()
+
+                file_texts = []
+                for f in files:
+                    if f["extracted_text"]:
+                        file_texts.append(
+                            f"[{f['file_type'].upper()}: {f['filename']}]\n{f['extracted_text']}"
+                        )
+
+                # Fallback: use old parsed_context (topics/intensity/objectives)
+                if not file_texts and exam.get("parsed_context"):
+                    file_texts.append(
+                        f"[LEGACY CONTEXT]\n{exam['parsed_context']}"
+                    )
+
+                exam_block = exam_header + "\n\n".join(file_texts)
+
+                # Truncate if adding this exam would exceed the character limit
+                if total_chars + len(exam_block) > CHAR_LIMIT:
+                    remaining = CHAR_LIMIT - total_chars
+                    if remaining <= 0:
+                        break
+                    exam_block = exam_block[:remaining] + "\n[TRUNCATED — file too large]"
+
+                parts.append(exam_block)
+                total_chars += len(exam_block)
+
+                if total_chars >= CHAR_LIMIT:
+                    break
+        finally:
+            db.close()
+
+        print(f"DEBUG ExamBrain: assembled context — {total_chars} chars across {len(parts)} exam(s)")
+        return "\n\n".join(parts)
+
+    def _calculate_total_hours(self) -> float:
+        """Sum up days_until * neto_study_hours for all exams to get global budget."""
+        now = datetime.now()
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        neto_h = float(self.user.get("neto_study_hours", 4.0))
+        total = 0.0
+
+        for exam in self.exams:
+            try:
+                ed_str = exam["exam_date"].replace("Z", "+00:00")
+                exam_date = datetime.fromisoformat(ed_str).replace(tzinfo=None)
+                days_until = max(1, (exam_date - today).days)
+                total += days_until * neto_h
+            except Exception as e:
+                print(f"ExamBrain._calculate_total_hours: skipping exam {exam.get('id')}: {e}")
+                total += 10.0  # safe fallback
+
+        return round(total, 2)
+
+    def _build_auditor_prompt(self, all_exam_context: str, total_hours: float) -> str:
+        """Build the system prompt for the Auditor (API Call 1).
+
+        The Auditor identifies syllabus topics, detects gaps, decomposes tasks,
+        assigns focus_score (1-10), reasoning, and dependency_id.
+        Output: JSON with tasks, gaps, and topic_map keys.
+        """
+        exam_ids_str = ", ".join(str(e["id"]) for e in self.exams)
+        peak = self.user.get("peak_productivity", "Morning")
+
+        return f"""RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER.
+
+You are a Zero-Loss Knowledge Auditor for a university student.
+
+STUDENT PROFILE:
+- Total available study hours across all exams: {total_hours}
+- Peak productivity window: {peak}
+- Valid exam_ids: [{exam_ids_str}]
+
+ALL EXAM MATERIALS:
+{all_exam_context}
+
+TASK:
+1. For each exam, map all syllabus topics.
+2. Identify which topics have matching summary/notes content and which are GAPS (topic appears in syllabus but no study material found in summaries/notes).
+3. Decompose ALL topics into specific, actionable pedagogical tasks with:
+   - focus_score (1-10): concentration level required (1=easy/repetitive, 10=extreme cognitive load)
+   - reasoning: 1-sentence explanation of the focus_score (e.g. "Requires memorisation of formulas — low cognitive load" or "Abstract proofs require deep focus")
+   - dependency_id: null OR the index of a prerequisite task in this same output list (0-based)
+   - estimated_hours per task (0.5 to 3.0 hours)
+4. Assign each task to the correct exam_id.
+5. Use specific action verbs in titles (Solve, Summarize, Simulate, Review, Practice).
+6. Match the language of the exam name (Hebrew exams → Hebrew task titles).
+
+RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
+{{
+  "tasks": [
+    {{
+      "exam_id": <int — must be one of [{exam_ids_str}]>,
+      "title": "<string>",
+      "topic": "<string>",
+      "estimated_hours": <float 0.5-3.0>,
+      "focus_score": <int 1-10>,
+      "reasoning": "<string — 1 sentence explaining the focus_score>",
+      "dependency_id": <null or 0-based index into this tasks array>,
+      "sort_order": <int>
+    }}
+  ],
+  "gaps": [
+    {{
+      "exam_id": <int>,
+      "topic": "<string>",
+      "description": "<string — why this is a gap>"
+    }}
+  ],
+  "topic_map": {{
+    "<exam_id as string>": ["topic1", "topic2"]
+  }}
+}}"""
+
+    async def call_split_brain(self) -> dict:
+        """Auditor-only execution: API Call 1 of the Split-Brain architecture.
+
+        Assembles context for all exams, builds the Auditor prompt, calls
+        Claude Haiku once, parses the JSON response, and returns the structured
+        Auditor output containing tasks, gaps, and topic_map.
+
+        Does NOT run the Strategist or the Scheduler — the caller persists this
+        output to auditor_draft and returns it to the frontend for review.
+        """
+        if not self.client:
+            raise RuntimeError("ANTHROPIC_API_KEY is not set — cannot run Auditor")
+
+        all_exam_context = self._build_all_exam_context()
+        total_hours = self._calculate_total_hours()
+        prompt = self._build_auditor_prompt(all_exam_context, total_hours)
+
+        print(f"DEBUG ExamBrain.call_split_brain: calling Claude Haiku — prompt length {len(prompt)} chars")
+
+        message = self.client.messages.create(
+            model="claude-3-haiku-20240307",
+            max_tokens=8000,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw_response = message.content[0].text.strip()
+        print(f"DEBUG ExamBrain.call_split_brain: raw response length {len(raw_response)} chars")
+
+        # Robust JSON parsing: strip markdown fences, find first { and last }
+        response_text = raw_response
+        if response_text.startswith("```"):
+            # Strip opening fence (e.g. ```json\n or ```\n)
+            response_text = response_text.split("\n", 1)[1] if "\n" in response_text else response_text[3:]
+            # Strip closing fence
+            response_text = response_text.rsplit("```", 1)[0]
+
+        # Find JSON object boundaries in case there is preamble text
+        first_brace = response_text.find("{")
+        last_brace = response_text.rfind("}")
+        if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+            response_text = response_text[first_brace: last_brace + 1]
+
+        try:
+            auditor_result = json.loads(response_text)
+        except json.JSONDecodeError as exc:
+            print(f"ExamBrain.call_split_brain: JSON parse failed — {exc}\nRaw: {raw_response[:500]}")
+            auditor_result = {"tasks": [], "gaps": [], "topic_map": {}}
+
+        tasks = auditor_result.get("tasks", [])
+        gaps = auditor_result.get("gaps", [])
+        topic_map = auditor_result.get("topic_map", {})
+
+        # Validate and normalise tasks
+        valid_exam_ids = {e["id"] for e in self.exams}
+        validated_tasks = []
+        for idx, task in enumerate(tasks):
+            if not task.get("title"):
+                continue
+
+            # Clamp focus_score to [1, 10]
+            fs = task.get("focus_score", 5)
+            try:
+                fs = max(1, min(10, int(fs)))
+            except (ValueError, TypeError):
+                fs = 5
+
+            # Ensure reasoning is present
+            reasoning = task.get("reasoning") or "No reasoning provided."
+
+            # Normalise dependency_id: must be null or a valid 0-based integer
+            dep_id = task.get("dependency_id")
+            if dep_id is not None:
+                try:
+                    dep_id = int(dep_id)
+                    if dep_id < 0 or dep_id >= len(tasks):
+                        dep_id = None
+                except (ValueError, TypeError):
+                    dep_id = None
+
+            # Assign to a valid exam_id (fallback to first exam if AI hallucinated)
+            task_exam_id = task.get("exam_id")
+            if task_exam_id not in valid_exam_ids:
+                task_exam_id = self.exams[0]["id"] if self.exams else None
+
+            if task_exam_id is None:
+                continue
+
+            validated_tasks.append({
+                "exam_id": task_exam_id,
+                "title": task["title"],
+                "topic": task.get("topic", ""),
+                "estimated_hours": max(0.5, min(6.0, float(task.get("estimated_hours", 2.0)))),
+                "focus_score": fs,
+                "reasoning": reasoning,
+                "dependency_id": dep_id,
+                "sort_order": task.get("sort_order", idx),
+            })
+
+        print(
+            f"DEBUG ExamBrain.call_split_brain: validated {len(validated_tasks)} tasks, "
+            f"{len(gaps)} gaps, {len(topic_map)} exam topic maps"
+        )
+
+        return {
+            "tasks": validated_tasks,
+            "gaps": gaps,
+            "topic_map": topic_map,
+            "raw_response": raw_response,
+        }
 
     async def analyze_all_exams(self) -> dict:
         all_tasks = []
