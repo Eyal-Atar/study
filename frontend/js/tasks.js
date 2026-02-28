@@ -204,7 +204,7 @@ function renderExamCardsDrawer(exams) {
 export function updateStats() {
     const currentExams = getCurrentExams();
     const currentTasks = getCurrentTasks();
-    
+
     const pending = currentTasks.filter(t => t.status !== 'done');
     const done = currentTasks.filter(t => t.status === 'done');
     const hours = pending.reduce((s, t) => s + t.estimated_hours, 0);
@@ -218,7 +218,37 @@ export function updateStats() {
 
     setStatEl('stat-exams', currentExams.length);
     setStatEl('stat-hours', hours.toFixed(1) + 'h');
-    setStatEl('stat-done', `${done.length}/${currentTasks.length}`);
+
+    // --- Daily Progress against neto_study_hours quota ---
+    const user = getCurrentUser();
+    const netoStudyHours = parseFloat(user?.neto_study_hours) || 4.0;
+    const today = new Date().toISOString().split('T')[0];
+    const schedule = getCurrentSchedule() || [];
+    const todayDoneMin = schedule
+        .filter(b => b.day_date === today && b.block_type === 'study' && b.completed === 1)
+        .reduce((sum, b) => {
+            const start = new Date(b.start_time.replace(' ', 'T').replace(/Z$/, ''));
+            const end = new Date(b.end_time.replace(' ', 'T').replace(/Z$/, ''));
+            return sum + Math.round(Math.abs(end - start) / 60000);
+        }, 0);
+    const quotaMin = netoStudyHours * 60;
+    const dailyPct = Math.min(100, Math.round((todayDoneMin / quotaMin) * 100));
+    const doneFrac = `${Math.round(todayDoneMin / 60 * 10) / 10}/${netoStudyHours}h`;
+
+    ['stat-done', 'stat-done-desktop'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = `${dailyPct}%`;
+    });
+
+    const progressBar = document.getElementById('daily-quota-progress');
+    if (progressBar) progressBar.style.width = `${dailyPct}%`;
+    const progressBarDesktop = document.getElementById('daily-quota-progress-desktop');
+    if (progressBarDesktop) progressBarDesktop.style.width = `${dailyPct}%`;
+
+    ['stat-done-sublabel', 'stat-done-sublabel-desktop'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = doneFrac;
+    });
 
     const upcoming = currentExams.filter(e => new Date(e.exam_date) >= new Date());
     if (upcoming.length > 0) {

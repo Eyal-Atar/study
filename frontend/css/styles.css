@@ -749,6 +749,12 @@ button, a, select, input[type="checkbox"], input[type="radio"], label {
     background: rgba(255, 255, 255, 0.1);
 }
 
+/* ── Daily Quota Progress Bar (Phase 17 Plan 04) ── */
+#daily-quota-progress,
+#daily-quota-progress-desktop {
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* ── Edit Task Modal Inputs ── */
 /* font-size:16px is mandatory — prevents iOS Safari from auto-zooming on focus */
 .edit-modal-input {
