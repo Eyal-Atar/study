@@ -60,6 +60,20 @@
 
 **Overall:** 83% complete (10/12 phases)
 
+### Phase 17: Split-Brain Core Scheduler
+
+**Goal:** Upgrade the single-call AI scheduling engine into a two-call Split-Brain architecture (Auditor + Strategist) with full PDF extraction, gap detection, user review page, hard daily quota enforcement, and focus-score-aware scheduling.
+**Depends on:** Phase 16
+**Requirements:** [SB-01, SB-02, SB-03, SB-04, SB-05, SB-06, SB-07, SB-08]
+**Plans:** 5 plans
+
+Plans:
+- [ ] 17-01-PLAN.md — DB migrations, full PDF extraction, upload handler update
+- [ ] 17-02-PLAN.md — Auditor call (API Call 1) and brain routes
+- [ ] 17-03-PLAN.md — Strategist call (API Call 2), Python Enforcer, approve route
+- [ ] 17-04-PLAN.md — Intermediate Review Page (frontend)
+- [ ] 17-05-PLAN.md — Dashboard quota progress bar and end-to-end verification
+
 ---
 
 *Roadmap updated: 2026-02-26*
