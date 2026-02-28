@@ -57,22 +57,23 @@
 | 14. Mobile-First UX | 1/1 | Complete | 2026-02-23 |
 | 15. Progress & Deferral | 2/2 | Complete | 2026-02-25 |
 | 16. PWA Push & Smart Triggers | 1/1 | Complete | 2026-02-25 |
+| 17. Split-Brain Core Scheduler | 4/4 | Complete | 2026-03-01 |
 
-**Overall:** 83% complete (10/12 phases)
+**Overall:** 92% complete (11/12 phases)
 
 ### Phase 17: Split-Brain Core Scheduler
 
 **Goal:** Upgrade the single-call AI scheduling engine into a two-call Split-Brain architecture (Auditor + Strategist) with full PDF extraction, gap detection, user review page, hard daily quota enforcement, and focus-score-aware scheduling.
 **Depends on:** Phase 16
 **Requirements:** [SB-01, SB-02, SB-03, SB-04, SB-05, SB-06, SB-07, SB-08]
-**Plans:** 4/4 plans complete
+**Status:** Complete (2026-03-01)
 
 Plans:
-- [ ] 17-01-PLAN.md — DB migrations, full PDF extraction, upload handler update
-- [ ] 17-02-PLAN.md — Auditor call (API Call 1) and brain routes
-- [ ] 17-03-PLAN.md — Intermediate Review Page (frontend) + Strategist call (API Call 2)
-- [x] 17-04-PLAN.md — Dashboard Daily Progress (XP Bar) and final Phase 17 cleanup (completed 2026-02-28)
+- [x] 17-01-PLAN.md — DB migrations, full PDF extraction, upload handler update (completed 2026-02-28)
+- [x] 17-02-PLAN.md — Auditor call (API Call 1) and brain routes (completed 2026-02-28)
+- [x] 17-03-PLAN.md — Intermediate Review Page (frontend) + Strategist call (API Call 2) (completed 2026-02-28)
+- [x] 17-04-PLAN.md — Dashboard Daily Progress (XP Bar) and final Phase 17 cleanup (completed 2026-03-01)
 
 ---
 
-*Roadmap updated: 2026-02-28*
+*Roadmap updated: 2026-03-01*

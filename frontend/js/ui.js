@@ -86,6 +86,33 @@ export function showModal(id, active = true) {
     }
 }
 
+export function initProfileTabs() {
+    const tabBtns = document.querySelectorAll('.profile-tab-btn');
+    const tabPanes = document.querySelectorAll('.profile-tab-pane');
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Reset all buttons
+            tabBtns.forEach(b => {
+                b.classList.remove('bg-dark-700', 'text-white', 'shadow-sm');
+                b.classList.add('text-white/50');
+            });
+            // Set active button
+            btn.classList.add('bg-dark-700', 'text-white', 'shadow-sm');
+            btn.classList.remove('text-white/50');
+
+            // Hide all panes
+            tabPanes.forEach(pane => pane.classList.add('hidden'));
+            
+            // Show target pane
+            const targetId = btn.getAttribute('data-target');
+            const targetPane = document.getElementById(targetId);
+            if (targetPane) targetPane.classList.remove('hidden');
+        });
+    });
+}
+
 export function showTaskEditModal(block, onSave, onDelete) {
     const modal = document.getElementById('modal-edit-task');
     if (!modal) return;

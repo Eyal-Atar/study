@@ -1,4 +1,4 @@
-import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, setCurrentTasks, getCurrentSchedule, setCurrentSchedule, getPendingExamId, setPendingExamId, getPendingFiles, setPendingFiles, setLatestAiDebug } from './store.js?v=AUTO';
+import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, setCurrentTasks, getCurrentSchedule, setCurrentSchedule, getPendingExamId, setPendingExamId, getPendingFiles, setPendingFiles, setLatestAiDebug, getCurrentUser, getTodayStr } from './store.js?v=AUTO';
 import { shakeEl, spawnConfetti, examColorClass, showModal, showConfirmModal, showScreen } from './ui.js?v=AUTO';
 import { renderCalendar, renderFocus, renderExamLegend } from './calendar.js?v=AUTO';
 import { showRegenBar, hideRegenBar } from './brain.js?v=AUTO';
@@ -12,6 +12,17 @@ function hasShownNotifPrompt() {
 function markNotifPromptShown() {
     localStorage.setItem(NOTIF_PROMPT_KEY, '1');
 }
+
+// Use a proxy for _auditorDraft to trace where it is cleared or modified
+let _internalAuditorDraft = null;
+Object.defineProperty(window, '_auditorDraft', {
+    get() { return _internalAuditorDraft; },
+    set(val) {
+        console.log(`[STATE] _auditorDraft changed from`, _internalAuditorDraft, `to`, val, new Error().stack);
+        _internalAuditorDraft = val;
+    },
+    configurable: true
+});
 
 // Track edit mode: null = add mode, exam object = edit mode
 let _editingExam = null;
@@ -46,7 +57,7 @@ export async function refreshScheduleAndFocus() {
 
 /** After a single block/task toggle we already have correct state in memory. Only sync task status from blocks and refresh Focus + exam stats (no full calendar refetch). */
 function syncAfterToggle(taskId, isBlockToggle) {
-    if (isBlockToggle) {
+    if (isBlockToggle && taskId) {
         const schedule = getCurrentSchedule() || [];
         const taskBlocks = schedule.filter(b => b.task_id === taskId);
         if (taskBlocks.length) {
@@ -90,6 +101,10 @@ export async function loadExams(onLogout) {
         const tres = await authFetch(`${API}/regenerate-schedule`, { method: 'POST' });
         if (tres.ok) {
             const data = await tres.json();
+            if (data._debug) {
+                console.log('[DEBUG] schedule summary:', JSON.stringify({...data._debug, scheduler_log: undefined}));
+                if (data._debug.scheduler_log) console.log('[SCHEDULER LOG]\n' + data._debug.scheduler_log);
+            }
             setCurrentTasks(data.tasks);
             setCurrentSchedule(data.schedule);
             updateStats();
@@ -222,7 +237,7 @@ export function updateStats() {
     // --- Daily Progress against neto_study_hours quota ---
     const user = getCurrentUser();
     const netoStudyHours = parseFloat(user?.neto_study_hours) || 4.0;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStr();
     const schedule = getCurrentSchedule() || [];
     const todayDoneMin = schedule
         .filter(b => b.day_date === today && b.block_type === 'study' && b.completed === 1)
@@ -302,20 +317,25 @@ export async function toggleDone(taskId, btn, blockId = null) {
     const isBlockToggle = blockId != null;
     const currentTasks = getCurrentTasks();
     const currentSchedule = getCurrentSchedule();
-    const task = currentTasks.find(t => t.id === taskId);
-    if (!task) {
+    const task = taskId ? currentTasks.find(t => t.id === taskId) : null;
+    if (!task && !isBlockToggle) {
         _togglingTasks.delete(lockKey);
         return;
     }
 
     const block = isBlockToggle ? currentSchedule.find(b => b.id === blockId) : null;
-    const isDone = isBlockToggle ? (block?.completed === 1) : (task.status === 'done');
+    if (isBlockToggle && !block) {
+        _togglingTasks.delete(lockKey);
+        return;
+    }
+
+    const isDone = isBlockToggle ? (block?.completed === 1) : (task?.status === 'done');
     const API = getAPI();
     
     // Optimistic Update
     if (isBlockToggle && block) {
         block.completed = isDone ? 0 : 1;
-    } else {
+    } else if (task) {
         task.status = isDone ? 'pending' : 'done';
     }
 
@@ -569,12 +589,20 @@ export function renderAuditorReview(data) {
                 const exam = exams.find(e => e.id === t.exam_id);
                 const examLabel = exam ? exam.name : `Exam ${t.exam_id}`;
                 const focusBadgeColor = t.focus_score >= 8 ? 'text-coral-400 bg-coral-500/20' : t.focus_score >= 5 ? 'text-gold-400 bg-gold-500/20' : 'text-mint-400 bg-mint-500/20';
-                return `<div class="flex items-start gap-3 bg-dark-700/60 rounded-xl p-3 border border-white/5">
+                const isPadding = t.is_padding || t.title.toLowerCase().includes('review') || t.title.toLowerCase().includes('practice');
+                const paddingClass = isPadding ? 'padding-task-item' : '';
+                const badgeClass = isPadding ? 'padding-badge' : focusBadgeColor;
+                const badgeLabel = isPadding ? 'Padding' : `F${t.focus_score}`;
+                
+                return `<div class="flex items-start gap-3 bg-dark-700/60 rounded-xl p-3 border border-white/5 ${paddingClass}">
+                    <div class="pt-1">
+                        <input type="checkbox" checked class="task-approve-checkbox accent-accent-500 w-4 h-4 rounded" data-task-index="${i}">
+                    </div>
                     <div class="flex-1 min-w-0">
                         <div class="text-sm font-medium truncate">${t.title}</div>
                         <div class="text-xs text-white/40 mt-0.5">${examLabel} · ${t.estimated_hours}h</div>
                     </div>
-                    <span class="flex-shrink-0 text-xs px-2 py-0.5 rounded-lg ${focusBadgeColor} font-medium">F${t.focus_score}</span>
+                    <span class="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-lg ${badgeClass} font-medium uppercase tracking-wider">${badgeLabel}</span>
                 </div>`;
             }).join('');
         }
@@ -584,7 +612,9 @@ export function renderAuditorReview(data) {
 /** Add a "Search Task" from a detected gap to the pending approved tasks list. */
 function _addSearchTaskFromGap(topic, examId) {
     if (!window._auditorDraft) return;
+    const newIndex = window._auditorDraft.tasks.length;
     const searchTask = {
+        task_index: newIndex,
         exam_id: examId,
         title: `Search for material on: ${topic}`,
         topic: topic,
@@ -606,11 +636,16 @@ function _addSearchTaskFromGap(topic, examId) {
     if (tasksList) {
         const div = document.createElement('div');
         div.className = 'flex items-start gap-3 bg-accent-500/10 border border-accent-500/30 rounded-xl p-3';
-        div.innerHTML = `<div class="flex-1 min-w-0">
-            <div class="text-sm font-medium truncate text-accent-400">${searchTask.title}</div>
-            <div class="text-xs text-white/40 mt-0.5">Added from gap · 1h</div>
-        </div>
-        <span class="flex-shrink-0 text-xs px-2 py-0.5 rounded-lg text-mint-400 bg-mint-500/20 font-medium">New</span>`;
+        div.innerHTML = `
+            <div class="pt-1">
+                <input type="checkbox" checked class="task-approve-checkbox accent-accent-500 w-4 h-4 rounded" data-task-index="${newIndex}">
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium truncate text-accent-400">${searchTask.title}</div>
+                <div class="text-xs text-white/40 mt-0.5">Added from gap · 1h</div>
+            </div>
+            <span class="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-lg text-mint-400 bg-mint-500/20 font-medium uppercase tracking-wider">New</span>
+        `;
         tasksList.appendChild(div);
     }
 }
@@ -618,18 +653,30 @@ function _addSearchTaskFromGap(topic, examId) {
 /** Collect approved tasks and POST to /brain/approve-and-schedule. */
 export async function approveSchedule() {
     const draft = window._auditorDraft;
-    if (!draft || !draft.tasks || draft.tasks.length === 0) {
-        alert('No tasks to approve. Please generate a roadmap first.');
+    if (!draft || !draft.tasks) {
+        alert('No roadmap to approve.');
         return;
     }
 
+    // Collect checked tasks only
+    const checkedIndexes = Array.from(document.querySelectorAll('.task-approve-checkbox:checked'))
+        .map(cb => parseInt(cb.dataset.taskIndex));
+    
+    const approvedTasks = draft.tasks.filter((_, i) => checkedIndexes.includes(i));
+
+    if (approvedTasks.length === 0) {
+        alert('Please select at least one task to approve.');
+        return;
+    }
+
+    console.log(`Approving ${approvedTasks.length} tasks...`);
     showModal('loading-overlay', true);
     const API = getAPI();
     try {
         const res = await authFetch(`${API}/approve-and-schedule`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ approved_tasks: draft.tasks })
+            body: JSON.stringify({ approved_tasks: approvedTasks })
         });
         const data = await res.json();
         if (!res.ok) {
@@ -659,7 +706,7 @@ export async function approveSchedule() {
         showScreen('screen-dashboard');
     } catch (e) {
         console.error('approveSchedule error:', e);
-        alert('Failed to generate schedule. Check server logs.');
+        alert(`Failed to generate schedule: ${e.message || 'Unknown error'}`);
     } finally {
         showModal('loading-overlay', false);
     }
@@ -667,6 +714,13 @@ export async function approveSchedule() {
 
 /** Check for a stored Auditor draft on app init. If found, offer to resume the review. */
 export async function checkAuditorDraftOnInit() {
+    // GUARD: If we already have a draft in memory (maybe just generated or resumed),
+    // do NOT overwrite it or show the banner again.
+    if (window._auditorDraft) {
+        console.log("checkAuditorDraftOnInit: skipping check, _auditorDraft already in memory");
+        return;
+    }
+
     const API = getAPI();
     try {
         const res = await authFetch(`${API}/auditor-draft`);
@@ -686,6 +740,12 @@ function _showResumeBanner() {
     // Show a small notification banner at the top of the dashboard
     const existing = document.getElementById('auditor-resume-banner');
     if (existing) return; // already shown
+    
+    const reviewScreen = document.getElementById('screen-auditor-review');
+    if (reviewScreen && reviewScreen.classList.contains('active')) {
+        console.log("_showResumeBanner: skipping, review screen already active");
+        return;
+    }
 
     const banner = document.createElement('div');
     banner.id = 'auditor-resume-banner';

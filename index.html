@@ -39,6 +39,18 @@
         };
         console.log('Index.html: Error tracker active');
     </script>
+    <style>
+        .padding-task-item {
+            border-style: dashed !important;
+            border-color: rgba(255, 255, 255, 0.2) !important;
+            background: rgba(255, 255, 255, 0.03) !important;
+        }
+        .padding-badge {
+            background: rgba(255, 255, 255, 0.1) !important;
+            color: rgba(255, 255, 255, 0.5) !important;
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+        }
+    </style>
 </head>
 <body class="font-sans text-white min-h-screen overflow-x-hidden">
     <!-- Splash Screen (Prevents Flashing) -->
@@ -539,12 +551,37 @@
     <div id="screen-auditor-review" class="screen">
         <div class="relative z-10 min-h-screen flex flex-col p-4 max-w-2xl mx-auto">
             <!-- Header -->
-            <div class="flex items-center justify-between mb-6 pt-4">
+            <div class="flex items-center justify-between mb-4 pt-4">
                 <div class="flex items-center gap-3">
                     <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-base">🧠</div>
                     <div>
                         <h2 class="text-xl font-bold">Review Your Study Plan</h2>
                         <p class="text-white/40 text-xs">AI has analyzed your materials — review before generating your schedule</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Focus Score Legend -->
+            <div class="bg-dark-700/60 rounded-2xl p-4 border border-white/5 mb-6">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="w-6 h-6 rounded-lg bg-gold-500/20 flex items-center justify-center text-[10px] text-gold-400 font-bold">F</span>
+                    <h3 class="text-sm font-semibold">Focus Score Guide</h3>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="flex flex-col gap-1">
+                        <div class="h-1 rounded-full bg-mint-500/40"></div>
+                        <div class="text-[10px] text-mint-400 font-medium">F1-F4: Light</div>
+                        <div class="text-[9px] text-white/30 leading-tight">Review, organization</div>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <div class="h-1 rounded-full bg-gold-500/40"></div>
+                        <div class="text-[10px] text-gold-400 font-medium">F5-F7: Medium</div>
+                        <div class="text-[9px] text-white/30 leading-tight">Practice, exercises</div>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <div class="h-1 rounded-full bg-coral-500/40"></div>
+                        <div class="text-[10px] text-coral-400 font-medium">F8-F10: High</div>
+                        <div class="text-[9px] text-white/30 leading-tight">Simulations, new material</div>
                     </div>
                 </div>
             </div>

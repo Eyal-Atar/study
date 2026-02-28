@@ -73,6 +73,7 @@ def init_db():
             difficulty INTEGER DEFAULT 3 CHECK(difficulty BETWEEN 0 AND 5),
             status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'done', 'deferred')),
             is_delayed INTEGER DEFAULT 0,
+            is_padding INTEGER DEFAULT 0,
             original_date TEXT,
             linked_task_id INTEGER,
             created_at TEXT DEFAULT (datetime('now')),
@@ -159,6 +160,8 @@ def init_db():
         conn.execute("ALTER TABLE tasks ADD COLUMN is_delayed INTEGER DEFAULT 0")
     if "priority" not in task_columns:
         conn.execute("ALTER TABLE tasks ADD COLUMN priority INTEGER DEFAULT 5")
+    if "is_padding" not in task_columns:
+        conn.execute("ALTER TABLE tasks ADD COLUMN is_padding INTEGER DEFAULT 0")
 
     conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_day ON tasks(day_date)")
 
@@ -184,8 +187,11 @@ def init_db():
                     difficulty INTEGER DEFAULT 3 CHECK(difficulty BETWEEN 0 AND 5),
                     status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'done', 'deferred')),
                     is_delayed INTEGER DEFAULT 0,
+                    is_padding INTEGER DEFAULT 0,
                     original_date TEXT,
                     linked_task_id INTEGER,
+                    focus_score INTEGER DEFAULT 5,
+                    dependency_id INTEGER,
                     created_at TEXT DEFAULT (datetime('now')),
                     FOREIGN KEY (user_id) REFERENCES users(id),
                     FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
@@ -197,6 +203,9 @@ def init_db():
             if "day_date" in task_columns: cols_to_copy.append("day_date")
             if "sort_order" in task_columns: cols_to_copy.append("sort_order")
             if "priority" in task_columns: cols_to_copy.append("priority")
+            if "is_padding" in task_columns: cols_to_copy.append("is_padding")
+            if "focus_score" in task_columns: cols_to_copy.append("focus_score")
+            if "dependency_id" in task_columns: cols_to_copy.append("dependency_id")
             
             cols_str = ", ".join(cols_to_copy)
             conn.execute(f"INSERT INTO tasks_new ({cols_str}) SELECT {cols_str} FROM tasks;")

@@ -1,4 +1,4 @@
-import { getCurrentExams, getCurrentTasks, getAPI, authFetch, getCurrentSchedule, setCurrentSchedule, getCurrentUser } from './store.js?v=AUTO';
+import { getCurrentExams, getCurrentTasks, getAPI, authFetch, getCurrentSchedule, setCurrentSchedule, getCurrentUser, getTodayStr } from './store.js?v=AUTO';
 import { examColorClass, showTaskEditModal, showConfirmModal, examHex } from './ui.js?v=AUTO';
 
 let currentDayIndex = 0;
@@ -72,23 +72,42 @@ export function renderCalendar(tasks, schedule = [], forceScrollToWake = false) 
             return;
         }
 
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayStr();
 
         if (schedule && schedule.length > 0) {
             const blocksByDay = {};
+            let minDate = today;
+            let maxDate = today;
+
             schedule.forEach(block => {
                 if (!block.day_date) return;
                 if (!blocksByDay[block.day_date]) blocksByDay[block.day_date] = [];
                 blocksByDay[block.day_date].push(block);
+                
+                if (block.day_date < minDate) minDate = block.day_date;
+                if (block.day_date > maxDate) maxDate = block.day_date;
             });
-            dayKeys = Object.keys(blocksByDay).sort();
 
-            if (dayKeys.length === 0) {
-                dayKeys = [today];
-                _blocksByDay = { [today]: [] };
-            } else {
-                _blocksByDay = blocksByDay;
+            // FILL GAPS: Ensure dayKeys is a continuous sequence from minDate to maxDate
+            const keys = [];
+            // Use local date parts to create Date object to avoid timezone issues
+            const [minY, minM, minD] = minDate.split('-').map(Number);
+            const [maxY, maxM, maxD] = maxDate.split('-').map(Number);
+            
+            let curr = new Date(minY, minM - 1, minD);
+            const last = new Date(maxY, maxM - 1, maxD);
+            
+            while (curr <= last) {
+                const y = curr.getFullYear();
+                const m = String(curr.getMonth() + 1).padStart(2, '0');
+                const d = String(curr.getDate()).padStart(2, '0');
+                keys.push(`${y}-${m}-${d}`);
+                curr.setDate(curr.getDate() + 1);
             }
+            dayKeys = keys;
+            _blocksByDay = blocksByDay;
+
+            console.log(`[CALENDAR] Initialized with ${dayKeys.length} days. Range: ${minDate} to ${maxDate}`);
 
             const savedDay = localStorage.getItem('sf_selected_day');
             if (savedDay && dayKeys.includes(savedDay)) {
@@ -128,7 +147,7 @@ function renderDayPicker(container, tasks, blocksByDay) {
     const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
     const dayNum = date.getDate();
     const monthName = date.toLocaleDateString('en-US', { month: 'long' });
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStr();
     const isToday = day === today;
 
     const navHtml = `
@@ -170,11 +189,13 @@ function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = fal
         currentExams.forEach((e, i) => { examIdx[e.id] = i; });
 
         // Parse a backend datetime string as local time.
-        // Backend stores times as local ISO without timezone (e.g. "2024-01-15T10:00:00").
-        // Stripping Z ensures browsers treat the string as local, not UTC.
+        // Backend stores times as UTC ISO with Z (e.g. "2024-01-15T10:00:00Z").
+        // We must preserve the 'Z' so the browser correctly converts UTC to local device time.
         const parseLocalDate = (dateStr) => {
             if (!dateStr) return new Date();
-            return new Date(dateStr.replace(' ', 'T').replace(/Z$/, ''));
+            // Handle space separator if present, but keep 'Z' for UTC conversion.
+            const isoStr = dateStr.replace(' ', 'T');
+            return new Date(isoStr);
         };
 
         // Format a parsed local Date into HH:MM using the device's locale.
@@ -298,13 +319,31 @@ function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = fal
 
         // Scroll to wake-up hour on initial render or when forced so user lands at their day start
         const gridContainer = container.querySelector('.grid-day-container');
-        if (gridContainer && (forceScrollToWake || !container.dataset.renderedOnce)) {
+        if (gridContainer) {
             const user = getCurrentUser();
             const wakeHour = user?.wake_up_time
                 ? parseInt(user.wake_up_time.split(':')[0], 10)
                 : 7;
-            gridContainer.scrollTop = wakeHour * HOUR_HEIGHT;
-            container.dataset.renderedOnce = 'true';
+            
+            // Find earliest block hour to see if we should scroll even higher
+            let earliestBlockHour = 24;
+            dayBlocks.forEach(b => {
+                const h = parseLocalDate(b.start_time).getHours();
+                if (h < earliestBlockHour) earliestBlockHour = h;
+            });
+
+            const scrollHour = Math.min(wakeHour, earliestBlockHour);
+
+            if (!container.dataset.renderedOnce) {
+                // Initial app load
+                setTimeout(() => {
+                    gridContainer.scrollTop = scrollHour * HOUR_HEIGHT;
+                }, 150);
+                container.dataset.renderedOnce = 'true';
+            } else if (forceScrollToWake) {
+                // Day swap or explicit refresh
+                gridContainer.scrollTop = scrollHour * HOUR_HEIGHT;
+            }
         }
 
         // Current Time Indicator
@@ -326,12 +365,31 @@ function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = fal
 
                 setCurrentSchedule(newSchedule);
                 const newBlocksByDay = {};
+                let minDate = today;
+                let maxDate = today;
+
                 newSchedule.forEach(block => {
                     if (!newBlocksByDay[block.day_date]) newBlocksByDay[block.day_date] = [];
                     newBlocksByDay[block.day_date].push(block);
+                    if (block.day_date < minDate) minDate = block.day_date;
+                    if (block.day_date > maxDate) maxDate = block.day_date;
                 });
+
+                const keys = [];
+                const [minY, minM, minD] = minDate.split('-').map(Number);
+                const [maxY, maxM, maxD] = maxDate.split('-').map(Number);
+                
+                let curr = new Date(minY, minM - 1, minD);
+                const last = new Date(maxY, maxM - 1, maxD);
+                while (curr <= last) {
+                    const y = curr.getFullYear();
+                    const m = String(curr.getMonth() + 1).padStart(2, '0');
+                    const d = String(curr.getDate()).padStart(2, '0');
+                    keys.push(`${y}-${m}-${d}`);
+                    curr.setDate(curr.getDate() + 1);
+                }
+                dayKeys = keys;
                 _blocksByDay = newBlocksByDay;
-                dayKeys = Object.keys(_blocksByDay).sort();
                 
                 // If current day is now empty, re-render the whole calendar
                 if (!newBlocksByDay[day]) {
@@ -486,9 +544,9 @@ function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = fal
             e.stopPropagation();
             e.stopImmediatePropagation();
             e.preventDefault();
-            const taskId = parseInt(btn.dataset.taskId);
+            const taskId = btn.dataset.taskId ? parseInt(btn.dataset.taskId) : null;
             const blockId = parseInt(btn.dataset.blockId);
-            if (isNaN(taskId) || isNaN(blockId)) return;
+            if (isNaN(blockId)) return;
             window.dispatchEvent(new CustomEvent('task-toggle', { detail: { taskId, blockId, btn } }));
         });
     });
@@ -560,8 +618,29 @@ function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = fal
     // Navigation events
     const prevBtn = document.getElementById('btn-prev-day');
     const nextBtn = document.getElementById('btn-next-day');
-    if (prevBtn) prevBtn.onclick = () => { if (currentDayIndex > 0) { currentDayIndex--; localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]); renderHourlyGrid(container, getCurrentTasks(), _blocksByDay); } };
-    if (nextBtn) nextBtn.onclick = () => { if (currentDayIndex < dayKeys.length - 1) { currentDayIndex++; localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]); renderHourlyGrid(container, getCurrentTasks(), _blocksByDay); } };
+    
+    const goPrev = () => { if (currentDayIndex > 0) { currentDayIndex--; localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]); renderHourlyGrid(container, getCurrentTasks(), _blocksByDay, true); } };
+    const goNext = () => { if (currentDayIndex < dayKeys.length - 1) { currentDayIndex++; localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]); renderHourlyGrid(container, getCurrentTasks(), _blocksByDay, true); } };
+
+    if (prevBtn) prevBtn.onclick = goPrev;
+    if (nextBtn) nextBtn.onclick = goNext;
+
+    // Swipe support for day swapping (attached to the whole container)
+    let touchStartX = 0;
+    container.oncontextmenu = (e) => { e.preventDefault(); }; // prevent long-press menu
+    
+    container.addEventListener('touchstart', (e) => { 
+        touchStartX = e.changedTouches[0].screenX; 
+    }, { passive: true });
+
+    container.addEventListener('touchend', (e) => {
+        if (e.target.closest('.task-checkbox, .delete-reveal-btn')) return;
+        const touchEndX = e.changedTouches[0].screenX;
+        const diff = touchEndX - touchStartX;
+        if (Math.abs(diff) > 40) { // Slightly more sensitive
+            if (diff > 0) goPrev(); else goNext();
+        }
+    }, { passive: true });
     } catch (err) {
         console.error('renderHourlyGrid failed:', err);
     }
@@ -581,7 +660,7 @@ function renderDailyList(container, tasks) {
     Object.values(days).forEach(arr => arr.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)));
 
     const dayKeysAll = Object.keys(days).filter(d => d !== 'unscheduled').sort();
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStr();
     const examDateSet = {};
     currentExams.forEach((e, i) => { examDateSet[e.exam_date] = { name: e.name, idx: i }; });
 
@@ -679,7 +758,7 @@ function renderDailyList(container, tasks) {
 let _focusMode = 'today'; // 'today' or 'overall'
 
 export function renderFocus(tasks) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStr();
     
     // Sort tasks by day_date then by title/status
     const sortedTasks = [...tasks].sort((a, b) => {
@@ -776,7 +855,7 @@ function renderCurrentTimeIndicator(container, startHour, hourHeight) {
     // Only show if the current day view is TODAY
     const dayContainer = container.querySelector('.grid-day-container');
     const dayDate = dayContainer?.dataset.dayDate;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStr();
     if (dayDate !== today) return;
 
     const updateLine = () => {

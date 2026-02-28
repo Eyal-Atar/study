@@ -1,6 +1,7 @@
 """ExamBrain — AI core that builds day-by-day study calendars."""
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from datetime import datetime, timedelta
@@ -97,8 +98,10 @@ class ExamBrain:
 
     def _calculate_total_hours(self) -> float:
         """Sum up days_until * neto_study_hours for all exams to get global budget."""
-        now = datetime.now()
-        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        from datetime import timezone
+        tz_offset = self.user.get("timezone_offset", 0) or 0
+        local_now = datetime.now(timezone.utc) - timedelta(minutes=tz_offset)
+        today = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
         neto_h = float(self.user.get("neto_study_hours", 4.0))
         total = 0.0
 
@@ -106,7 +109,7 @@ class ExamBrain:
             try:
                 ed_str = exam["exam_date"].replace("Z", "+00:00")
                 exam_date = datetime.fromisoformat(ed_str).replace(tzinfo=None)
-                days_until = max(1, (exam_date - today).days)
+                days_until = max(1, (exam_date.date() - today.date()).days)
                 total += days_until * neto_h
             except Exception as e:
                 print(f"ExamBrain._calculate_total_hours: skipping exam {exam.get('id')}: {e}")
@@ -138,19 +141,23 @@ ALL EXAM MATERIALS:
 
 TASK:
 1. For each exam, map all syllabus topics.
-2. SAMPLE EXAMS: If a file is labeled as 'sample_exam', you MUST create two specific tasks for it:
+2. AGGRESSIVE DECOMPOSITION & BUDGET ENFORCEMENT (CRITICAL):
+   - You MUST generate enough tasks so that the sum of their `estimated_hours` equals exactly {total_hours} hours!
+   - Break every topic into AT LEAST 3-5 specific sub-tasks.
+   - If you finish mapping the core syllabus topics and haven't reached {total_hours} hours, you MUST generate additional deep-practice tasks to fill the remaining budget. Use highly specific titles like: "פתרון מבחן משנים קודמות", "תרגול שאלות קצה בנושא X", or "חזרה אקטיבית על סיכומים של Y". Do not use generic names.
+3. SAMPLE EXAMS: If a file is labeled as 'sample_exam', you MUST create two specific tasks for it:
    - "סימולציה מלאה: [File Name] (תנאי אמת, בלי טלפון, עם סטופר)" (estimated 2.5-3h)
    - "תחקור מלא וכתיבת דגשים: [File Name]" (estimated 1.5-2h, dependency on the simulation)
-3. Actionable Titles: Use the following style for all tasks:
-   - "מעבר על מצגת: [Topic Name]" (e.g. "מעבר על מצגת nodes ורשימות מקושרות")
-   - "בנייה ידנית: [Core Concept]. תרגול [Operations]" (e.g. "בנייה ידנית של מחלקת Node. תרגול הוספת איבר לתחילה, לסוף")
-   - "פתרון שאלות: [Topic]. [Specific Challenges]" (e.g. "פתרון 5 שאלות עצים: גובה עץ, ספירת עלים, ובדיקת סימטריות")
-4. Decompose ALL topics into specific, actionable pedagogical tasks with:
-   - focus_score (1-10): concentration level required (1=easy/repetitive, 10=extreme cognitive load)
-   - reasoning: 1-sentence explanation of the focus_score
-   - dependency_id: index of prerequisite task (e.g. Review depends on Simulation)
+4. Actionable Titles: Use the following style for ALL tasks:
+   - "מעבר על מצגת: [Topic Name]"
+   - "בנייה ידנית: [Core Concept]. תרגול [Operations]"
+   - "פתרון שאלות: [Topic]. [Specific Challenges]"
+5. Decompose ALL topics into specific, actionable pedagogical tasks with:
+   - focus_score (1-10): concentration level required
+   - reasoning: 1-sentence explanation
+   - dependency_id: index of prerequisite task
    - estimated_hours (0.5 to 3.5 hours)
-5. Match the language of the exam name (Hebrew exams -> Hebrew titles).
+6. Match the language of the exam name (Hebrew exams -> Hebrew titles).
 
 RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
 {{
@@ -178,114 +185,244 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
   }}
 }}"""
 
-    async def call_split_brain(self) -> dict:
-        """Auditor-only execution: API Call 1 of the Split-Brain architecture.
+    # ------------------------------------------------------------------
+    # Per-exam Auditor helpers (parallel architecture)
+    # ------------------------------------------------------------------
 
-        Assembles context for all exams, builds the Auditor prompt, calls
-        Claude Haiku once, parses the JSON response, and returns the structured
-        Auditor output containing tasks, gaps, and topic_map.
+    def _build_exam_context_single(self, exam: dict) -> str:
+        """Build context string for a single exam only."""
+        from server.database import get_db
 
-        Does NOT run the Strategist or the Scheduler — the caller persists this
-        output to auditor_draft and returns it to the frontend for review.
-        """
-        if not self.client:
-            raise RuntimeError("ANTHROPIC_API_KEY is not set — cannot run Auditor")
+        db = get_db()
+        try:
+            exam_header = (
+                f"\n### EXAM: {exam['name']} ({exam['subject']}) "
+                f"— Date: {exam['exam_date']} — Exam ID: {exam['id']}\n"
+            )
+            files = db.execute(
+                "SELECT file_type, filename, extracted_text FROM exam_files WHERE exam_id = ?",
+                (exam["id"],),
+            ).fetchall()
 
-        all_exam_context = self._build_all_exam_context()
-        total_hours = self._calculate_total_hours()
-        prompt = self._build_auditor_prompt(all_exam_context, total_hours)
+            file_texts = []
+            for f in files:
+                if f["extracted_text"]:
+                    file_texts.append(
+                        f"[{f['file_type'].upper()}: {f['filename']}]\n{f['extracted_text']}"
+                    )
 
-        print(f"DEBUG ExamBrain.call_split_brain: calling Claude Haiku — prompt length {len(prompt)} chars")
+            if not file_texts and exam.get("parsed_context"):
+                file_texts.append(f"[LEGACY CONTEXT]\n{exam['parsed_context']}")
+
+            exam_block = exam_header + "\n\n".join(file_texts)
+            if len(exam_block) > CHAR_LIMIT:
+                exam_block = exam_block[:CHAR_LIMIT] + "\n[TRUNCATED — file too large]"
+            return exam_block
+        finally:
+            db.close()
+
+    def _calculate_exam_hours(self, exam: dict) -> float:
+        """Calculate the study hours budget for a single exam."""
+        from datetime import timezone
+        tz_offset = self.user.get("timezone_offset", 0) or 0
+        local_now = datetime.now(timezone.utc) - timedelta(minutes=tz_offset)
+        today = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+        neto_h = float(self.user.get("neto_study_hours", 4.0))
+        try:
+            ed_str = exam["exam_date"].replace("Z", "+00:00")
+            exam_date = datetime.fromisoformat(ed_str).replace(tzinfo=None)
+            days_until = max(1, (exam_date.date() - today.date()).days)
+            return round(days_until * neto_h, 2)
+        except Exception:
+            return 10.0
+
+    def _build_auditor_prompt_single(self, exam_context: str, exam_hours: float, exam: dict) -> str:
+        """Build the Auditor prompt for a single exam."""
+        peak = self.user.get("peak_productivity", "Morning")
+        exam_id = exam["id"]
+
+        return f"""RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER.
+
+You are a Zero-Loss Knowledge Auditor for a university student preparing for ONE exam.
+
+EXAM: {exam['name']} ({exam['subject']}) — Exam ID: {exam_id}
+
+STUDENT PROFILE:
+- Study hours budget for this exam: {exam_hours} hours
+- Peak productivity window: {peak}
+
+EXAM MATERIAL:
+{exam_context}
+
+TASK:
+1. Map ALL syllabus topics for this exam.
+2. AGGRESSIVE DECOMPOSITION & BUDGET ENFORCEMENT (CRITICAL):
+   - You MUST generate enough tasks so that the sum of their `estimated_hours` equals exactly {exam_hours} hours!
+   - Break every topic into AT LEAST 3-5 specific sub-tasks.
+   - If you finish mapping the core syllabus topics and haven't reached {exam_hours} hours, you MUST generate additional deep-practice tasks to fill the remaining budget. Use highly specific titles like: "פתרון מבחן משנים קודמות", "תרגול שאלות קצה בנושא X", or "חזרה אקטיבית על סיכומים של Y". Do not use generic names.
+3. SAMPLE EXAMS: If a file is labeled as 'sample_exam', you MUST create two specific tasks for it:
+   - "סימולציה מלאה: [File Name] (תנאי אמת, בלי טלפון, עם סטופר)" (estimated 2.5-3h)
+   - "תחקור מלא וכתיבת דגשים: [File Name]" (estimated 1.5-2h, dependency on the simulation)
+4. Actionable Titles: Use the following style for ALL tasks:
+   - "מעבר על מצגת: [Topic Name]"
+   - "בנייה ידנית: [Core Concept]. תרגול [Operations]"
+   - "פתרון שאלות: [Topic]. [Specific Challenges]"
+5. Each task must have:
+   - focus_score (1-10): concentration level required
+   - reasoning: 1-sentence explanation
+   - dependency_id: 0-based index into THIS exam's task array, or null
+   - estimated_hours (0.5 to 3.5 hours)
+6. Match the language of the exam name (Hebrew exams -> Hebrew titles).
+
+RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
+{{
+  "tasks": [
+    {{
+      "exam_id": {exam_id},
+      "title": "<string>",
+      "topic": "<string>",
+      "estimated_hours": <float 0.5-3.5>,
+      "focus_score": <int 1-10>,
+      "reasoning": "<string — 1 sentence>",
+      "dependency_id": <null or 0-based index into this tasks array>,
+      "sort_order": <int>
+    }}
+  ],
+  "gaps": [
+    {{
+      "exam_id": {exam_id},
+      "topic": "<string>",
+      "description": "<string>"
+    }}
+  ],
+  "topic_map": {{
+    "{exam_id}": ["topic1", "topic2"]
+  }}
+}}"""
+
+    async def _call_auditor_for_exam(self, exam: dict) -> dict:
+        """Run a single Auditor call for one exam. Returns validated tasks, gaps, topic_map."""
+        exam_context = self._build_exam_context_single(exam)
+        exam_hours = self._calculate_exam_hours(exam)
+        prompt = self._build_auditor_prompt_single(exam_context, exam_hours, exam)
+
+        print(
+            f"DEBUG ExamBrain._call_auditor_for_exam: exam {exam['id']} ({exam['name']}) — "
+            f"{exam_hours}h budget, prompt {len(prompt)} chars"
+        )
 
         message = await self.client.messages.create(
-            model="claude-3-haiku-20240307",
-            max_tokens=4096,
+            model="claude-haiku-4-5-20251001",
+            max_tokens=8192,
             messages=[{"role": "user", "content": prompt}],
         )
         raw_response = message.content[0].text.strip()
-        print(f"DEBUG ExamBrain.call_split_brain: raw response length {len(raw_response)} chars")
+        print(
+            f"DEBUG ExamBrain._call_auditor_for_exam: exam {exam['id']} — "
+            f"raw response {len(raw_response)} chars"
+        )
 
-        # Robust JSON parsing: strip markdown fences, find first { and last }
+        # Robust JSON parsing
         response_text = raw_response
         if response_text.startswith("```"):
-            # Strip opening fence (e.g. ```json\n or ```\n)
             response_text = response_text.split("\n", 1)[1] if "\n" in response_text else response_text[3:]
-            # Strip closing fence
             response_text = response_text.rsplit("```", 1)[0]
-
-        # Find JSON object boundaries in case there is preamble text
         first_brace = response_text.find("{")
         last_brace = response_text.rfind("}")
         if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
             response_text = response_text[first_brace: last_brace + 1]
 
         try:
-            auditor_result = json.loads(response_text)
+            result = json.loads(response_text)
         except json.JSONDecodeError as exc:
-            print(f"ExamBrain.call_split_brain: JSON parse failed — {exc}\nRaw: {raw_response[:500]}")
-            raise RuntimeError(f"AI returned invalid JSON during analysis. Please try again.")
+            print(f"ExamBrain._call_auditor_for_exam: JSON parse failed for exam {exam['id']} — {exc}")
+            return {"tasks": [], "gaps": [], "topic_map": {}}
 
-        tasks = auditor_result.get("tasks", [])
-        gaps = auditor_result.get("gaps", [])
-        topic_map = auditor_result.get("topic_map", {})
-
-        # Validate and normalise tasks
-        valid_exam_ids = {e["id"] for e in self.exams}
+        raw_tasks = result.get("tasks", [])
         validated_tasks = []
-        for idx, task in enumerate(tasks):
+        for idx, task in enumerate(raw_tasks):
             if not task.get("title"):
                 continue
-
-            # Clamp focus_score to [1, 10]
             fs = task.get("focus_score", 5)
             try:
                 fs = max(1, min(10, int(fs)))
             except (ValueError, TypeError):
                 fs = 5
-
-            # Ensure reasoning is present
-            reasoning = task.get("reasoning") or "No reasoning provided."
-
-            # Normalise dependency_id: must be null or a valid 0-based integer
             dep_id = task.get("dependency_id")
             if dep_id is not None:
                 try:
                     dep_id = int(dep_id)
-                    if dep_id < 0 or dep_id >= len(tasks):
+                    if dep_id < 0 or dep_id >= len(raw_tasks):
                         dep_id = None
                 except (ValueError, TypeError):
                     dep_id = None
-
-            # Assign to a valid exam_id (fallback to first exam if AI hallucinated)
-            task_exam_id = task.get("exam_id")
-            if task_exam_id not in valid_exam_ids:
-                task_exam_id = self.exams[0]["id"] if self.exams else None
-
-            if task_exam_id is None:
-                continue
-
             validated_tasks.append({
-                "task_index": idx,
-                "exam_id": task_exam_id,
+                "task_index": idx,  # local index — remapped after merge
+                "exam_id": exam["id"],
                 "title": task["title"],
                 "topic": task.get("topic", ""),
                 "estimated_hours": max(0.5, min(6.0, float(task.get("estimated_hours", 2.0)))),
                 "focus_score": fs,
-                "reasoning": reasoning,
+                "reasoning": task.get("reasoning") or "No reasoning provided.",
                 "dependency_id": dep_id,
                 "sort_order": task.get("sort_order", idx),
             })
 
         print(
-            f"DEBUG ExamBrain.call_split_brain: validated {len(validated_tasks)} tasks, "
-            f"{len(gaps)} gaps, {len(topic_map)} exam topic maps"
+            f"DEBUG ExamBrain._call_auditor_for_exam: exam {exam['id']} — "
+            f"{len(validated_tasks)} tasks validated"
+        )
+        return {
+            "tasks": validated_tasks,
+            "gaps": result.get("gaps", []),
+            "topic_map": result.get("topic_map", {}),
+        }
+
+    async def call_split_brain(self) -> dict:
+        """Auditor execution: one parallel API call per exam.
+
+        Runs N async Auditor calls concurrently (one per exam), merges results,
+        re-indexes task_index and dependency_id globally, then returns the
+        combined Auditor output for frontend review.
+        """
+        if not self.client:
+            raise RuntimeError("ANTHROPIC_API_KEY is not set — cannot run Auditor")
+
+        print(f"DEBUG ExamBrain.call_split_brain: launching {len(self.exams)} parallel Auditor calls")
+        exam_results = await asyncio.gather(*[
+            self._call_auditor_for_exam(exam) for exam in self.exams
+        ])
+
+        # Merge all per-exam results with globally unique task_index + remapped dependency_id
+        all_tasks = []
+        all_gaps = []
+        merged_topic_map = {}
+        offset = 0
+        for result in exam_results:
+            exam_tasks = result["tasks"]
+            for task in exam_tasks:
+                if task.get("dependency_id") is not None:
+                    task["dependency_id"] = task["dependency_id"] + offset
+                task["task_index"] = offset + exam_tasks.index(task)
+            offset += len(exam_tasks)
+            all_tasks.extend(exam_tasks)
+            all_gaps.extend(result["gaps"])
+            merged_topic_map.update(result["topic_map"])
+
+        # Final global re-index (clean up index after list.index() above)
+        for i, task in enumerate(all_tasks):
+            task["task_index"] = i
+
+        print(
+            f"DEBUG ExamBrain.call_split_brain: merged {len(all_tasks)} tasks, "
+            f"{len(all_gaps)} gaps across {len(self.exams)} exams"
         )
 
         return {
-            "tasks": validated_tasks,
-            "gaps": gaps,
-            "topic_map": topic_map,
-            "raw_response": raw_response,
+            "tasks": all_tasks,
+            "gaps": all_gaps,
+            "topic_map": merged_topic_map,
+            "raw_response": f"[{len(self.exams)} parallel Auditor calls]",
         }
 
     # ------------------------------------------------------------------
@@ -350,26 +487,19 @@ RULES:
    - day_index 0 = today
    - Each exam has its own day_index deadline. DO NOT schedule tasks for an exam on or after its day_index.
    - The day_index immediately before an exam is the CRITICAL final study day for that exam.
-   - Use available days efficiently. Do not finish early unless the task list is extremely short.
-3. NO STUDY ON OR AFTER EXAM DAY: For any given exam, tasks MUST have a day_index < its exam day_index. Heavy study MUST end the day before.
+   - You MUST spread tasks logically across the window. Do not cram everything into Day 0 if you have 7 days available.
+3. NO STUDY ON OR AFTER EXAM DAY: Heavy study MUST end the day before the specific exam.
 4. Place tasks with focus_score >= 8 in the PEAK productivity window days (prefer earlier in the day when scheduling is determined by the Enforcer).
 5. Respect dependency_id: a task must be assigned to an equal or later day than its dependency.
 6. Interleave exam subjects across days to prevent burnout. Avoid assigning the same exam for more than 2 consecutive days unless it is the only remaining exam.
-7. Assign each task an internal_priority (1-100, where 100 = highest priority). This is used by the Enforcer to trim overflow tasks.
-8. PADDING: Calculate the total scheduled task hours. If total task hours < {days_available} * {neto_h} hours, generate padding tasks to close the gap:
-   - Use titles like "General Review: [Subject]" or "Solve Practice Problems: [Subject]"
-   - Assign padding tasks to exams with the earliest upcoming date
-   - Use task_index = -1 for padding tasks and always include title, exam_id, and estimated_hours
+7. Assign each task an internal_priority (1-100, where 100 = highest priority).
 
 RETURN ONLY A VALID JSON ARRAY:
 [
   {{
-    "task_index": <int, 0-based index into input list, or -1 for padding tasks>,
+    "task_index": <int, 0-based index into input list>,
     "day_index": <int, 0 = today>,
-    "internal_priority": <int 1-100>,
-    "title": "<string — only set for padding tasks (task_index == -1)>",
-    "exam_id": <int — only set for padding tasks>,
-    "estimated_hours": <float — only set for padding tasks>
+    "internal_priority": <int 1-100>
   }}
 ]"""
 
@@ -398,28 +528,23 @@ RETURN ONLY A VALID JSON ARRAY:
             raise RuntimeError("ANTHROPIC_API_KEY is not set — cannot run Strategist")
 
         # Calculate days available until the last exam
-        now = datetime.now()
-        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        from datetime import timezone
+        tz_offset = self.user.get("timezone_offset", 0) or 0
+        local_now = datetime.now(timezone.utc) - timedelta(minutes=tz_offset)
+        today_local = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+        
         days_available = 1
         for exam in self.exams:
             try:
                 ed_str = exam["exam_date"].replace("Z", "+00:00")
                 exam_date = datetime.fromisoformat(ed_str).replace(tzinfo=None)
                 # We want the number of days from today until the day BEFORE the exam.
-                # If exam is March 3 and today is Feb 28:
-                # 3 - 28 = 3 days (Indices 0, 1, 2)
-                # We use .date() comparison to get the absolute calendar difference
-                days_until = (exam_date.date() - today.date()).days
-                # days_until is the index of the exam day. 
-                # The number of study days is exactly days_until.
+                days_until = (exam_date.date() - today_local.date()).days
                 days_available = max(days_available, days_until)
             except Exception:
                 pass
 
         # Calculate local time for the Strategist
-        from datetime import timezone
-        tz_offset = self.user.get("timezone_offset", 0) or 0
-        local_now = datetime.now(timezone.utc) - timedelta(minutes=tz_offset)
         self.user["current_local_time"] = local_now.strftime("%H:%M")
 
         prompt = self._build_strategist_prompt(approved_tasks, days_available)
@@ -430,8 +555,8 @@ RETURN ONLY A VALID JSON ARRAY:
         )
 
         message = await self.client.messages.create(
-            model="claude-3-haiku-20240307",
-            max_tokens=4096,
+            model="claude-haiku-4-5-20251001",
+            max_tokens=8192,
             messages=[{"role": "user", "content": prompt}],
         )
         raw_response = message.content[0].text.strip()
@@ -460,14 +585,12 @@ RETURN ONLY A VALID JSON ARRAY:
         fallback_exam_id = self.exams[0]["id"] if self.exams else None
 
         # Build a lookup for exam deadlines to clamp day_index
-        now = datetime.now()
-        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         exam_deadlines = {}
         for e in self.exams:
             try:
                 ed_str = e["exam_date"].replace("Z", "+00:00")
                 exam_date = datetime.fromisoformat(ed_str).replace(tzinfo=None)
-                exam_deadlines[e["id"]] = (exam_date.date() - today.date()).days
+                exam_deadlines[e["id"]] = (exam_date.date() - today_local.date()).days
             except:
                 continue
 
@@ -525,18 +648,18 @@ RETURN ONLY A VALID JSON ARRAY:
             except (ValueError, TypeError):
                 continue
 
-                if task_index < 0 or task_index >= len(approved_tasks):
-                    continue
+            if task_index < 0 or task_index >= len(approved_tasks):
+                continue
 
-                if task_index in seen_task_indices:
-                    continue  # skip duplicate assignments
-                seen_task_indices.add(task_index)
+            if task_index in seen_task_indices:
+                continue  # skip duplicate assignments
+            seen_task_indices.add(task_index)
 
-                task = dict(approved_tasks[task_index])
-                task["day_index"] = day_index
-                task["internal_priority"] = internal_priority
-                task["is_padding"] = False
-                result.append(task)
+            task = dict(approved_tasks[task_index])
+            task["day_index"] = day_index
+            task["internal_priority"] = internal_priority
+            task["is_padding"] = False
+            result.append(task)
 
         # Any tasks not assigned by the Strategist get appended with day_index=0 and low priority
         for idx, task in enumerate(approved_tasks):

@@ -518,7 +518,6 @@ export async function handleSaveSettings() {
         timezone_offset: new Date().getTimezoneOffset(),
         notif_timing: document.getElementById('settings-notif-timing')?.value || 'at_start',
         notif_per_task: document.getElementById('settings-notif-per-task')?.checked ? 1 : 0,
-        notif_daily_summary: document.getElementById('settings-notif-daily-summary')?.checked ? 1 : 0,
     };
 
     try {

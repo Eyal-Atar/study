@@ -18,6 +18,8 @@ import { showScreen, initMobileTabBar, showIosOnboarding, initProfileTabs } from
 import { initPush } from './notifications.js?v=AUTO';
 
 // Initialize the application
+let _dashboardInitialized = false;
+
 async function initApp() {
     console.log('initApp: starting...');
     // Set up authentication callbacks
@@ -143,6 +145,9 @@ async function initApp() {
 
 // Initialize dashboard after successful login
 function initDashboard() {
+    if (_dashboardInitialized) return;
+    _dashboardInitialized = true;
+
     const user = getCurrentUser();
     if (!user) {
         console.warn('initDashboard: No user found');

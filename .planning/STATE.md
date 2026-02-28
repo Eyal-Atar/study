@@ -10,7 +10,7 @@ See: .planning/PROJECT.md
 **Current phase:** Phase 17 — Split-Brain Core Scheduler
 **Current plan:** Phase 17 complete (Plans 01-04 done — Phase COMPLETE)
 **Status:** Phase 17 complete
-**Last session:** 2026-02-28 — Completed 17-04-PLAN.md (Dashboard Sync + padding task UI + ExamBrain legacy cleanup)
+**Last session:** 2026-03-01 — Fixed critical scheduler loop bugs (task fragments), simulation rollover logic, and Motivation block ordering.
 
 ## Session Log
 
@@ -21,7 +21,8 @@ See: .planning/PROJECT.md
 - 2026-02-28: Phase 17 Plan 01 complete — Split-Brain DB migrations and PDF extraction uncap.
 - 2026-02-28: Phase 17 Plan 02 complete — Knowledge Auditor: call_split_brain (single Haiku call for all exams), generate-roadmap updated to Auditor-only, GET /brain/auditor-draft added.
 - 2026-02-28: Phase 17 Plan 03 complete — Strategist (Call 2), Intermediate Review Screen, POST /brain/approve-and-schedule, focus-score-aware scheduler with peak window placement, dependency ordering, and padding blocks.
-- 2026-02-28: Phase 17 Plan 04 complete — Dashboard Daily Progress bar (neto_study_hours quota), padding task visual distinction in calendar, ExamBrain legacy method cleanup. Phase 17 COMPLETE.
+- 2026-02-28: Phase 17 Plan 04 complete — Dashboard Daily Progress bar (neto_study_hours quota), padding task visual distinction in calendar, ExamBrain legacy method cleanup.
+- 2026-03-01: Final refinement: Fixed bug where task fragments < 30min would stall the scheduler; fixed simulation rollover; ensured Motivation block (Finish Line) always appears last. Phase 17 COMPLETE.
 
 ## Decisions
 
@@ -38,6 +39,8 @@ See: .planning/PROJECT.md
 - Daily progress reads from in-memory getCurrentSchedule() blocks (study+completed+today) — no API call needed. (17-04)
 - Padding detection uses title prefix only ("General Review:" / "Solve Practice Problems:") — no DB flag required. (17-04)
 - Legacy single-call AI methods removed from ExamBrain: analyze_all_exams, _analyze_single_exam_with_ai, _build_strategy_prompt. (17-04)
+- Fragmentation logic: Scheduler now allows small task fragments (< MIN_BLOCK_MIN) if they are the remainder of a task, preventing scheduling halts. (17-post)
+- Motivation sequence: Motivation block (Finish Line) now explicitly uses `last_block_end` to ensure it is placed after all study/padding activities. (17-post)
 
 ## Accumulated Context
 

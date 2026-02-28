@@ -18,6 +18,7 @@ class TaskResponse(BaseModel):
     estimated_hours: float
     difficulty: int
     status: str
+    is_padding: bool = False
 
 
 class BlockUpdate(BaseModel):
