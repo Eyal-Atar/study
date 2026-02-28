@@ -243,5 +243,61 @@ def init_db():
     if "notif_daily_summary" not in user_columns:
         conn.execute("ALTER TABLE users ADD COLUMN notif_daily_summary INTEGER DEFAULT 0")
 
+    # Migrations: Split-Brain columns on tasks
+    task_columns = {row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
+    if "focus_score" not in task_columns:
+        conn.execute("ALTER TABLE tasks ADD COLUMN focus_score INTEGER DEFAULT 5")
+    if "dependency_id" not in task_columns:
+        conn.execute("ALTER TABLE tasks ADD COLUMN dependency_id INTEGER")
+
+    # Migrations: auditor_draft on exams
+    exam_columns = {row[1] for row in conn.execute("PRAGMA table_info(exams)").fetchall()}
+    if "auditor_draft" not in exam_columns:
+        conn.execute("ALTER TABLE exams ADD COLUMN auditor_draft TEXT")
+
+    # Migrations: extracted_text on exam_files + update CHECK constraint to include summary/sample_exam
+    # SQLite cannot ALTER CHECK constraints, so we must rebuild the table if the constraint is outdated.
+    exam_file_columns = {row[1] for row in conn.execute("PRAGMA table_info(exam_files)").fetchall()}
+    need_check_update = "extracted_text" not in exam_file_columns
+
+    if need_check_update:
+        try:
+            conn.execute("PRAGMA foreign_keys = OFF;")
+            conn.execute("BEGIN TRANSACTION;")
+            conn.execute("""
+                CREATE TABLE exam_files_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    exam_id INTEGER NOT NULL,
+                    filename TEXT NOT NULL,
+                    file_path TEXT NOT NULL,
+                    file_type TEXT NOT NULL CHECK(file_type IN ('syllabus', 'summary', 'sample_exam', 'past_exam', 'notes', 'other')),
+                    file_size INTEGER,
+                    uploaded_at TEXT DEFAULT (datetime('now')),
+                    extracted_text TEXT,
+                    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
+                );
+            """)
+
+            # Copy existing data; extracted_text defaults to NULL for old rows
+            existing_ef_cols = [row[1] for row in conn.execute("PRAGMA table_info(exam_files)").fetchall()]
+            cols_to_copy = [c for c in existing_ef_cols if c != "extracted_text"]
+            cols_str = ", ".join(cols_to_copy)
+            conn.execute(f"INSERT INTO exam_files_new ({cols_str}) SELECT {cols_str} FROM exam_files;")
+
+            conn.execute("DROP TABLE exam_files;")
+            conn.execute("ALTER TABLE exam_files_new RENAME TO exam_files;")
+
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_exam_files_exam ON exam_files(exam_id);")
+
+            conn.execute("COMMIT;")
+            conn.execute("PRAGMA foreign_keys = ON;")
+        except Exception as e:
+            conn.execute("ROLLBACK;")
+            print(f"exam_files migration failed: {e}")
+    else:
+        # Table already rebuilt; ensure extracted_text column exists (belt-and-suspenders)
+        if "extracted_text" not in exam_file_columns:
+            conn.execute("ALTER TABLE exam_files ADD COLUMN extracted_text TEXT")
+
     conn.commit()
     conn.close()
