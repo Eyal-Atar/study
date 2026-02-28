@@ -8,6 +8,28 @@ import json
 from datetime import datetime, timedelta, timezone
 from brain.schemas import ScheduleBlock
 
+PEAK_WINDOWS = {
+    "Morning":   (6, 12),   # 06:00 - 12:00
+    "Afternoon": (12, 17),  # 12:00 - 17:00
+    "Evening":   (17, 22),  # 17:00 - 22:00
+    "Night":     (21, 3),   # 21:00 - 03:00 (next day)
+}
+
+
+def _is_peak_window(window_start: datetime, peak_productivity: str) -> bool:
+    """Return True if this time window overlaps the user's peak productivity hours."""
+    peak_range = PEAK_WINDOWS.get(peak_productivity)
+    if not peak_range:
+        return False  # unknown value → treat all as non-peak
+    peak_start_h, peak_end_h = peak_range
+    window_h = window_start.hour
+    if peak_start_h < peak_end_h:
+        return peak_start_h <= window_h < peak_end_h
+    else:
+        # Wraps midnight (e.g. Night: 21-03)
+        return window_h >= peak_start_h or window_h < peak_end_h
+
+
 class WiredWindow:
     def __init__(self, start_local: datetime, end_local: datetime):
         self.start_local = start_local
@@ -34,6 +56,7 @@ def generate_multi_exam_schedule(
     break_minutes = user.get("break_minutes", 10)
     tz_offset = user.get("timezone_offset", 0) or 0
     hobby_name = user.get("hobby_name") or "Hobby"
+    peak_productivity = user.get("peak_productivity", "Morning") or "Morning"
     
     # 'Today' in user's local time
     now_utc = datetime.now(timezone.utc)
@@ -45,6 +68,19 @@ def generate_multi_exam_schedule(
     
     # Task state
     remaining_task_hours = {t["id"]: float(t.get("estimated_hours", 2.0)) for t in tasks}
+
+    # Build a set of completed task IDs (for dependency ordering)
+    completed_task_ids: set = set()
+
+    def _dependency_satisfied(t: dict) -> bool:
+        """Return True if the task's dependency has been started (or has none)."""
+        dep_id = t.get("dependency_id")
+        if dep_id is None:
+            return True
+        dep_task = next((x for x in tasks if x["id"] == dep_id), None)
+        if dep_task is None:
+            return True
+        return dep_id in completed_task_ids or remaining_task_hours.get(dep_id, 0) < float(dep_task.get("estimated_hours", 2.0)) - 0.01
     
     # Determine schedule range
     if exams:
@@ -99,30 +135,36 @@ def generate_multi_exam_schedule(
         for window in windows:
             if used_on_day_min >= day_limit_min:
                 break
-            
+
+            window_is_peak = _is_peak_window(window.start_local, peak_productivity)
             window_remaining_min = min(window.capacity_min, day_limit_min - used_on_day_min)
             current_time = window.start_local
-            
+
             while window_remaining_min >= 45:
                 task = None
+
                 if target_exam_id:
                     # Exclusive Zone: Only pick tasks for the target exam
-                    for t in tasks:
-                        if t["exam_id"] == target_exam_id and remaining_task_hours[t["id"]] > 0.01:
-                            task = t
-                            break
+                    candidates = [t for t in tasks if t["exam_id"] == target_exam_id and remaining_task_hours[t["id"]] > 0.01 and _dependency_satisfied(t)]
                 else:
-                    # Standard prioritized scan
-                    for t in tasks:
-                        if remaining_task_hours[t["id"]] > 0.01:
-                            task = t
-                            break
-                
+                    # Standard scan — all exams
+                    candidates = [t for t in tasks if remaining_task_hours[t["id"]] > 0.01 and _dependency_satisfied(t)]
+
+                if candidates:
+                    if window_is_peak:
+                        # Peak window: prefer high focus-score tasks (>= 8)
+                        high_focus = [t for t in candidates if int(t.get("focus_score", 5)) >= 8]
+                        task = high_focus[0] if high_focus else candidates[0]
+                    else:
+                        # Off-peak: prefer lower focus-score tasks (< 8), then fallback
+                        low_focus = [t for t in candidates if int(t.get("focus_score", 5)) < 8]
+                        task = low_focus[0] if low_focus else candidates[0]
+
                 if not task:
-                    # No tasks available for THIS DAY'S constraints. 
+                    # No tasks available for THIS DAY'S constraints.
                     # Move to the next window/day instead of breaking the entire scheduler.
-                    window_remaining_min = 0 # Force exit this window
-                    continue 
+                    window_remaining_min = 0  # Force exit this window
+                    continue
                 
                 tid = task["id"]
                 rem_h = remaining_task_hours[tid]
@@ -157,7 +199,10 @@ def generate_multi_exam_schedule(
                 remaining_task_hours[tid] -= take_min / 60
                 window_remaining_min -= take_min
                 used_on_day_min += take_min
-                
+
+                # Mark task as started (for dependency ordering)
+                completed_task_ids.add(tid)
+
                 # 2. Break Logic
                 current_break = break_minutes
                 is_review = "תחקיר" in task["title"] or "Review" in task["title"]
@@ -175,6 +220,54 @@ def generate_multi_exam_schedule(
                 if current_time >= window.end_local:
                     break
         
+        # Padding: if the day's study quota is not filled (gap >= 45 min), add a synthetic padding block
+        if used_on_day_min > 0 and (day_limit_min - used_on_day_min) >= 45:
+            # Find a padding task from the tasks list if available, otherwise create a synthetic one
+            padding_task = next(
+                (t for t in tasks if t.get("is_padding") and remaining_task_hours.get(t["id"], 0) > 0.01),
+                None
+            )
+            gap_min = day_limit_min - used_on_day_min
+            if padding_task:
+                # Use an existing padding task
+                take_min = min(remaining_task_hours[padding_task["id"]] * 60, gap_min)
+                if take_min >= 45:
+                    pad_start = windows[-1].end_local - timedelta(hours=1) - timedelta(minutes=take_min)
+                    pad_end = pad_start + timedelta(minutes=take_min)
+                    schedule.append(ScheduleBlock(
+                        task_id=padding_task.get("id"),
+                        exam_id=padding_task.get("exam_id"),
+                        exam_name=exam_map.get(padding_task.get("exam_id"), {}).get("name", "General"),
+                        task_title=padding_task["title"],
+                        subject=padding_task.get("subject", ""),
+                        start_time=(pad_start + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z"),
+                        end_time=(pad_end + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z"),
+                        day_date=day_str,
+                        block_type="study",
+                        is_delayed=False,
+                    ))
+                    remaining_task_hours[padding_task["id"]] -= take_min / 60
+            else:
+                # Synthetic padding block (no task_id)
+                take_min = min(gap_min, 60)
+                if take_min >= 45 and windows:
+                    last_win = windows[-1]
+                    pad_end = last_win.end_local - timedelta(hours=1)
+                    pad_start = pad_end - timedelta(minutes=take_min)
+                    if pad_start >= last_win.start_local:
+                        schedule.append(ScheduleBlock(
+                            task_id=None,
+                            exam_id=None,
+                            exam_name="General",
+                            task_title="General Review",
+                            subject="Review",
+                            start_time=(pad_start + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z"),
+                            end_time=(pad_end + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z"),
+                            day_date=day_str,
+                            block_type="study",
+                            is_delayed=False,
+                        ))
+
         # Add Hobby block at the FIXED end of day slot (reserved in _get_windows_for_day)
         if used_on_day_min > 0:
             wake_h, wake_m = map(int, user.get("wake_up_time", "08:00").split(":"))

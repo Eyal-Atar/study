@@ -125,6 +125,173 @@ def get_auditor_draft(current_user: dict = Depends(get_current_user)):
     return draft
 
 
+@router.post("/approve-and-schedule")
+async def approve_and_schedule(body: dict, current_user: dict = Depends(get_current_user)):
+    """Step 2 of Split-Brain: accept approved tasks, run Strategist + Enforcer, save schedule.
+
+    Flow:
+      1. Receive approved_tasks from the frontend Intermediate Review Page.
+      2. Run Strategist (API Call 2) to assign day_index and internal_priority to each task.
+      3. Convert day_index to actual date strings starting from today.
+      4. Clear existing tasks and schedule_blocks for the user.
+      5. Save the new tasks (including padding tasks) to the tasks table.
+      6. Run generate_multi_exam_schedule() (Python Enforcer).
+      7. Save the resulting schedule blocks to schedule_blocks.
+      8. Return { message, tasks, schedule }.
+    """
+    from brain.exam_brain import ExamBrain
+    from brain.scheduler import generate_multi_exam_schedule
+
+    user_id = current_user["id"]
+    approved_tasks = body.get("approved_tasks", [])
+
+    if not approved_tasks:
+        raise HTTPException(status_code=400, detail="approved_tasks must be a non-empty list")
+
+    db = get_db()
+
+    # Load the user's upcoming exams
+    exams = db.execute(
+        "SELECT * FROM exams WHERE user_id = ? AND status = 'upcoming' ORDER BY exam_date",
+        (user_id,)
+    ).fetchall()
+    if not exams:
+        db.close()
+        raise HTTPException(status_code=400, detail="No upcoming exams found.")
+
+    exam_list = [dict(e) for e in exams]
+    exam_ids = [e["id"] for e in exams]
+
+    # 1. Run Strategist (API Call 2) — assigns day_index and internal_priority
+    brain = ExamBrain(current_user, exam_list)
+    try:
+        scheduled_tasks = await brain.call_strategist(approved_tasks)
+    except RuntimeError as exc:
+        db.close()
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        db.close()
+        raise HTTPException(status_code=500, detail=f"Strategist call failed: {str(exc)}")
+
+    # 2. Convert day_index → actual date string (day_index 0 = today)
+    now_utc = datetime.now(timezone.utc)
+    tz_offset = current_user.get("timezone_offset", 0) or 0
+    local_now = now_utc - timedelta(minutes=tz_offset)
+    today_local = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    for task in scheduled_tasks:
+        day_idx = int(task.get("day_index", 0))
+        task_date = today_local + timedelta(days=day_idx)
+        task["day_date"] = task_date.strftime("%Y-%m-%d")
+
+    # Sort by internal_priority descending within each day so higher-priority tasks fill first
+    scheduled_tasks.sort(key=lambda t: (t.get("day_date", ""), -t.get("internal_priority", 50)))
+
+    # 3. Clear existing tasks and schedule_blocks for this user
+    old_task_ids = [
+        r["id"] for r in db.execute(
+            "SELECT id FROM tasks WHERE user_id = ?", (user_id,)
+        ).fetchall()
+    ]
+    if old_task_ids:
+        task_ph = ",".join("?" * len(old_task_ids))
+        db.execute(f"DELETE FROM schedule_blocks WHERE task_id IN ({task_ph})", old_task_ids)
+    db.execute("DELETE FROM schedule_blocks WHERE user_id = ?", (user_id,))
+    db.execute("DELETE FROM tasks WHERE user_id = ?", (user_id,))
+    db.commit()
+
+    # 4. Save new tasks to the tasks table
+    valid_exam_ids = {e["id"] for e in exams}
+    fallback_exam_id = exam_list[0]["id"] if exam_list else None
+
+    saved_tasks = []
+    for task in scheduled_tasks:
+        exam_id = task.get("exam_id")
+        if exam_id not in valid_exam_ids:
+            exam_id = fallback_exam_id
+        if exam_id is None:
+            continue
+
+        focus_score = max(1, min(10, int(task.get("focus_score", 5))))
+        cursor = db.execute(
+            """INSERT INTO tasks
+               (user_id, exam_id, title, topic, subject, deadline, day_date,
+                sort_order, estimated_hours, focus_score, dependency_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                user_id,
+                exam_id,
+                task.get("title", "Study Task"),
+                task.get("topic", ""),
+                task.get("subject", ""),
+                task.get("day_date"),
+                task.get("day_date"),
+                task.get("sort_order", 0),
+                max(0.5, min(6.0, float(task.get("estimated_hours", 1.0)))),
+                focus_score,
+                None,  # dependency_id resolved by sort_order for now
+            ),
+        )
+        db.commit()
+        task_row = db.execute("SELECT * FROM tasks WHERE id = ?", (cursor.lastrowid,)).fetchone()
+        if task_row:
+            saved_tasks.append(dict(task_row))
+
+    # 5. Run the Python Enforcer (generate_multi_exam_schedule)
+    schedule = generate_multi_exam_schedule(current_user, exam_list, saved_tasks)
+
+    # 6. Save schedule blocks
+    now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    for block in schedule:
+        db_task_id = block.task_id if block.block_type != "hobby" else None
+        is_notified = 1 if block.start_time < now_iso else 0
+        db.execute(
+            """INSERT INTO schedule_blocks
+               (user_id, task_id, exam_id, exam_name, task_title,
+                start_time, end_time, day_date, block_type,
+                is_delayed, is_split, part_number, total_parts, push_notified)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                user_id,
+                db_task_id,
+                block.exam_id,
+                block.exam_name,
+                block.task_title,
+                block.start_time,
+                block.end_time,
+                block.day_date,
+                block.block_type,
+                1 if block.is_delayed else 0,
+                block.is_split,
+                block.part_number,
+                block.total_parts,
+                is_notified,
+            ),
+        )
+        if db_task_id:
+            db.execute("UPDATE tasks SET day_date = ? WHERE id = ?", (block.day_date, db_task_id))
+
+    db.commit()
+
+    # Clear auditor_draft so the review page doesn't offer to resume after approval
+    if exam_ids:
+        placeholders = ",".join("?" * len(exam_ids))
+        db.execute(
+            f"UPDATE exams SET auditor_draft = NULL WHERE id IN ({placeholders})",
+            exam_ids,
+        )
+        db.commit()
+
+    db.close()
+
+    schedule_dicts = [block.model_dump() for block in schedule]
+    return {
+        "message": f"Schedule generated — {len(saved_tasks)} tasks scheduled across {len(schedule_dicts)} blocks",
+        "tasks": saved_tasks,
+        "schedule": schedule_dicts,
+    }
+
+
 @router.post("/regenerate-schedule")
 def regenerate_schedule(current_user: dict = Depends(get_current_user)):
     from server.config import DB_PATH
