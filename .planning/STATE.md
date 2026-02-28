@@ -8,9 +8,9 @@ See: .planning/PROJECT.md
 
 **Milestone:** v1.0 milestone
 **Current phase:** Phase 17 — Split-Brain Core Scheduler
-**Current plan:** Phase 17 complete (Plans 01-03 done)
-**Status:** In progress
-**Last session:** 2026-02-28 — Completed 17-03-PLAN.md (Strategist + Intermediate Review Screen + focus-score-aware Enforcer)
+**Current plan:** Phase 17 complete (Plans 01-04 done — Phase COMPLETE)
+**Status:** Phase 17 complete
+**Last session:** 2026-02-28 — Completed 17-04-PLAN.md (Dashboard Sync + padding task UI + ExamBrain legacy cleanup)
 
 ## Session Log
 
@@ -21,6 +21,7 @@ See: .planning/PROJECT.md
 - 2026-02-28: Phase 17 Plan 01 complete — Split-Brain DB migrations and PDF extraction uncap.
 - 2026-02-28: Phase 17 Plan 02 complete — Knowledge Auditor: call_split_brain (single Haiku call for all exams), generate-roadmap updated to Auditor-only, GET /brain/auditor-draft added.
 - 2026-02-28: Phase 17 Plan 03 complete — Strategist (Call 2), Intermediate Review Screen, POST /brain/approve-and-schedule, focus-score-aware scheduler with peak window placement, dependency ordering, and padding blocks.
+- 2026-02-28: Phase 17 Plan 04 complete — Dashboard Daily Progress bar (neto_study_hours quota), padding task visual distinction in calendar, ExamBrain legacy method cleanup. Phase 17 COMPLETE.
 
 ## Decisions
 
@@ -34,6 +35,9 @@ See: .planning/PROJECT.md
 - _dependency_satisfied() uses completed_task_ids set (tasks placed in any slot) rather than full completion — prevents scheduling deadlocks. (17-03)
 - Padding blocks: real is_padding task used if available; synthetic ScheduleBlock (task_id=None) as fallback — keeps daily quota filled without creating orphan task records. (17-03)
 - auditor_draft cleared to NULL after approval — prevents resume banner from reappearing on next login. (17-03)
+- Daily progress reads from in-memory getCurrentSchedule() blocks (study+completed+today) — no API call needed. (17-04)
+- Padding detection uses title prefix only ("General Review:" / "Solve Practice Problems:") — no DB flag required. (17-04)
+- Legacy single-call AI methods removed from ExamBrain: analyze_all_exams, _analyze_single_exam_with_ai, _build_strategy_prompt. (17-04)
 
 ## Accumulated Context
 
