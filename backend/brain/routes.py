@@ -29,6 +29,15 @@ def rollover_tasks(db, user_id, tz_offset):
 
 @router.post("/generate-roadmap")
 async def generate_roadmap(current_user: dict = Depends(get_current_user)):
+    """Step 1 of Split-Brain: run the Auditor, persist the draft, return Auditor output.
+
+    This route no longer runs the scheduler or clears existing tasks/schedule.
+    It performs the Knowledge Audit only:
+      1. Assembles full exam context (all files' extracted_text)
+      2. Calls Claude Haiku once for ALL exams (Auditor call)
+      3. Persists the JSON output to exams.auditor_draft
+      4. Returns tasks, gaps, and topic_map for the frontend Intermediate Review Page
+    """
     from brain.exam_brain import ExamBrain
 
     user_id = current_user["id"]
@@ -49,109 +58,71 @@ async def generate_roadmap(current_user: dict = Depends(get_current_user)):
         ).fetchall()
         exam_list.append({**dict(exam), "files": [dict(f) for f in files]})
 
-    # 1. Clear old tasks and schedule blocks for these exams
     exam_ids = [e["id"] for e in exams]
-    valid_exam_ids = set(exam_ids)
-    placeholders = ",".join("?" * len(exam_ids))
 
-    old_task_ids = [
-        r["id"] for r in db.execute(
-            f"SELECT id FROM tasks WHERE exam_id IN ({placeholders})", exam_ids
-        ).fetchall()
-    ]
-    if old_task_ids:
-        task_ph = ",".join("?" * len(old_task_ids))
-        db.execute(f"DELETE FROM schedule_blocks WHERE task_id IN ({task_ph})", old_task_ids)
-
-    db.execute(f"DELETE FROM tasks WHERE exam_id IN ({placeholders})", exam_ids)
-    db.commit()
-
-    # 2. Run the AI Brain to get new tasks
+    # Run the Auditor (API Call 1) — does NOT clear tasks or schedule blocks
     brain = ExamBrain(current_user, exam_list)
-    ai_result = await brain.analyze_all_exams()
-    ai_tasks = ai_result["tasks"]
-    prompt = ai_result["prompt"]
-    raw_response = ai_result["raw_response"]
+    try:
+        auditor_result = await brain.call_split_brain()
+    except RuntimeError as exc:
+        db.close()
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        db.close()
+        raise HTTPException(status_code=500, detail=f"Auditor call failed: {str(exc)}")
 
-    # 3. Save new tasks
-    for task in ai_tasks:
-        task_exam_id = task.get("exam_id")
-        if task_exam_id not in valid_exam_ids:
-            if len(valid_exam_ids) == 1:
-                task_exam_id = list(valid_exam_ids)[0]
-            else:
-                continue
-
-        db.execute(
-            """INSERT INTO tasks (user_id, exam_id, title, topic, subject,
-               deadline, day_date, sort_order, priority, estimated_hours, difficulty)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (user_id, task_exam_id, task["title"], task.get("topic"),
-             task.get("subject"), None, None, task.get("sort_order", 0),
-             task.get("priority", 5), task.get("estimated_hours", 2.0),
-             task.get("difficulty", 3))
-        )
-
+    # Persist Auditor draft to all exams for this user so the review page survives refresh
+    draft_json = json.dumps({
+        "tasks": auditor_result["tasks"],
+        "gaps": auditor_result["gaps"],
+        "topic_map": auditor_result["topic_map"],
+    })
+    placeholders = ",".join("?" * len(exam_ids))
+    db.execute(
+        f"UPDATE exams SET auditor_draft = ? WHERE id IN ({placeholders})",
+        [draft_json] + exam_ids,
+    )
     db.commit()
-
-    # 4. Global preparation for scheduler
-    rollover_tasks(db, user_id, current_user.get("timezone_offset"))
-    db.commit()
-    
-    all_pending_tasks_rows = db.execute(
-        "SELECT * FROM tasks WHERE user_id = ? AND status != 'done' ORDER BY priority DESC, sort_order ASC",
-        (user_id,)
-    ).fetchall()
-    all_pending_tasks = [dict(t) for t in all_pending_tasks_rows]
-
-    # 5. Run Hourly Scheduler
-    from brain.scheduler import generate_multi_exam_schedule
-    print(f"DEBUG ROUTES: Calling scheduler with {len(all_pending_tasks)} tasks")
-    schedule = generate_multi_exam_schedule(current_user, exam_list, all_pending_tasks)
-    print(f"DEBUG ROUTES: Scheduler returned {len(schedule)} blocks")
-
-    # 6. Save new schedule blocks
-    # Clear ALL old schedule blocks for this user before saving regenerated ones
-    db.execute("DELETE FROM schedule_blocks WHERE user_id = ?", (user_id,))
-    
-    now_iso = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
-
-    for block in schedule:
-        db_task_id = block.task_id if block.block_type != "hobby" else None
-        
-        # Avoid notifying for blocks that already started in the past
-        is_notified = 1 if block.start_time < now_iso else 0
-
-        db.execute(
-            """INSERT INTO schedule_blocks (user_id, task_id, exam_id, exam_name, task_title, 
-               start_time, end_time, day_date, block_type, is_delayed, is_split, part_number, total_parts, push_notified)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (user_id, db_task_id, block.exam_id, block.exam_name, block.task_title, 
-             block.start_time, block.end_time, block.day_date, block.block_type, 
-             1 if block.is_delayed else 0, block.is_split, block.part_number, block.total_parts, is_notified)
-        )
-        if db_task_id:
-            # Sync the day_date to the task so 'Daily Focus' works
-            db.execute("UPDATE tasks SET day_date = ? WHERE id = ?", (block.day_date, db_task_id))
-            if block.is_delayed:
-                db.execute("UPDATE tasks SET is_delayed = 1 WHERE id = ?", (db_task_id,))
-    
-    db.commit()
-    
-    # Notify user that roadmap is ready
-    send_to_user(db, user_id, "הלוז מוכן! 🚀", "התוכנית החדשה שלך מחכה באפליקציה.", url="/")
-    
     db.close()
 
     return {
-        "message": f"Generated roadmap with {len(all_pending_tasks)} tasks and {len(schedule)} hourly blocks",
-        "tasks": all_pending_tasks,
-        "schedule": [block.model_dump() for block in schedule],
-        "debug": {
-            "prompt": prompt,
-            "raw_response": raw_response
-        }
+        "message": f"Auditor complete — {len(auditor_result['tasks'])} tasks, {len(auditor_result['gaps'])} gaps detected",
+        "tasks": auditor_result["tasks"],
+        "gaps": auditor_result["gaps"],
+        "topic_map": auditor_result["topic_map"],
     }
+
+
+@router.get("/auditor-draft")
+def get_auditor_draft(current_user: dict = Depends(get_current_user)):
+    """Retrieve the stored Auditor draft for the current user.
+
+    Returns the first non-null auditor_draft found in the user's upcoming exams.
+    The draft is a JSON blob containing tasks, gaps, and topic_map as produced by
+    the Auditor (POST /brain/generate-roadmap). The frontend uses this to re-render
+    the Intermediate Review Page after a page refresh.
+    """
+    user_id = current_user["id"]
+    db = get_db()
+
+    row = db.execute(
+        """SELECT auditor_draft FROM exams
+           WHERE user_id = ? AND status = 'upcoming' AND auditor_draft IS NOT NULL
+           ORDER BY exam_date
+           LIMIT 1""",
+        (user_id,),
+    ).fetchone()
+    db.close()
+
+    if not row or not row["auditor_draft"]:
+        raise HTTPException(status_code=404, detail="No Auditor draft found. Run generate-roadmap first.")
+
+    try:
+        draft = json.loads(row["auditor_draft"])
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Auditor draft is corrupted — please re-run generate-roadmap.")
+
+    return draft
 
 
 @router.post("/regenerate-schedule")
