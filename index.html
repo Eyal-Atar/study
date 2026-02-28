@@ -531,6 +531,60 @@
         </div>
     </div>
 
+    <!-- AUDITOR REVIEW SCREEN -->
+    <div id="screen-auditor-review" class="screen">
+        <div class="relative z-10 min-h-screen flex flex-col p-4 max-w-2xl mx-auto">
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-6 pt-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-base">🧠</div>
+                    <div>
+                        <h2 class="text-xl font-bold">Review Your Study Plan</h2>
+                        <p class="text-white/40 text-xs">AI has analyzed your materials — review before generating your schedule</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Topic Map Section -->
+            <div id="auditor-topic-map" class="mb-6">
+                <!-- Rendered by renderAuditorReview() -->
+            </div>
+
+            <!-- Detected Gaps Section -->
+            <div id="auditor-gaps" class="mb-6">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="w-6 h-6 rounded-lg bg-coral-500/20 flex items-center justify-center text-xs">!</span>
+                    <h3 class="text-base font-semibold">Detected Gaps</h3>
+                </div>
+                <div id="gaps-list" class="space-y-2">
+                    <!-- Rendered by renderAuditorReview() -->
+                </div>
+            </div>
+
+            <!-- Proposed Tasks Section -->
+            <div id="auditor-tasks" class="mb-6">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="w-6 h-6 rounded-lg bg-accent-500/20 flex items-center justify-center text-xs">✓</span>
+                    <h3 class="text-base font-semibold">Proposed Tasks</h3>
+                    <span id="auditor-task-count" class="text-xs text-white/40 ml-1"></span>
+                </div>
+                <div id="tasks-list" class="space-y-2 max-h-72 overflow-y-auto">
+                    <!-- Rendered by renderAuditorReview() -->
+                </div>
+            </div>
+
+            <!-- Action Buttons (sticky bottom) -->
+            <div class="flex gap-3 mt-auto pt-4 pb-6">
+                <button id="btn-cancel-review" class="px-6 py-3 rounded-xl text-sm text-white/50 hover:text-white border border-white/10 hover:border-white/20 transition-all">
+                    Cancel
+                </button>
+                <button id="btn-approve-schedule" class="flex-1 bg-gradient-to-r from-accent-500 to-mint-500 py-3 rounded-xl font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-accent-500/20">
+                    Approve &amp; Generate Schedule
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- ADD EXAM MODAL -->
     <div id="modal-add-exam" class="modal-bg modal-sheet">
         <div class="w-full max-w-lg mx-4 bg-dark-700 rounded-3xl border border-white/10 shadow-2xl overflow-hidden">
@@ -641,86 +695,106 @@
 
     <!-- SETTINGS MODAL -->
     <div id="modal-settings" class="modal-bg modal-sheet">
-        <div class="w-full max-w-lg mx-4 bg-dark-700 rounded-3xl border border-white/10 shadow-2xl overflow-hidden">
-            <div class="p-6">
+        <div class="w-full max-w-lg mx-4 bg-dark-700 rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col" style="max-height: 90vh;">
+            <div class="p-6 pb-2">
                 <div class="flex items-center justify-between mb-6">
                     <h2 class="text-xl font-bold">Profile Settings</h2>
                     <button id="btn-close-settings" class="text-white/40 hover:text-white text-xl">✕</button>
                 </div>
-                <div class="space-y-4">
-                    <div>
-                        <label class="text-sm text-white/50 mb-1 block">Name</label>
-                        <input id="settings-name" type="text" class="input-field">
-                    </div>
-                    <div>
-                        <label class="text-sm text-white/50 mb-1 block">Main Hobby</label>
-                        <input id="settings-hobby" type="text" placeholder="e.g. Gym, Gaming..." class="input-field">
-                    </div>
+                
+                <!-- Tab Navigation -->
+                <div class="flex bg-dark-900/60 p-1 rounded-xl mb-5 border border-white/5">
+                    <button class="profile-tab-btn flex-1 py-2 text-sm font-medium transition-all bg-dark-700 text-white shadow-sm rounded-lg" data-target="tab-routine">Routine</button>
+                    <button class="profile-tab-btn flex-1 py-2 text-sm font-medium transition-all text-white/50 hover:text-white" data-target="tab-alerts">Alerts</button>
+                    <button class="profile-tab-btn flex-1 py-2 text-sm font-medium transition-all text-white/50 hover:text-white" data-target="tab-account">Account</button>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto px-6">
+                <!-- Tab: Routine -->
+                <div id="tab-routine" class="profile-tab-pane space-y-5">
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="text-sm text-white/50 mb-1 block">Wake up</label>
-                            <input id="settings-wake" type="time" class="input-field">
+                            <label class="text-xs text-white/40 mb-1.5 block uppercase tracking-wide font-medium">Wake up</label>
+                            <input id="settings-wake" type="time" class="w-full bg-dark-900/40 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-accent-500/50 transition-colors">
                         </div>
                         <div>
-                            <label class="text-sm text-white/50 mb-1 block">Sleep</label>
-                            <input id="settings-sleep" type="time" class="input-field">
+                            <label class="text-xs text-white/40 mb-1.5 block uppercase tracking-wide font-medium">Sleep</label>
+                            <input id="settings-sleep" type="time" class="w-full bg-dark-900/40 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-accent-500/50 transition-colors">
                         </div>
                     </div>
                     <div>
-                        <label class="text-sm text-white/50 mb-1 block">Neto study hours per day: <span id="settings-hours-label">4.0</span></label>
-                        <input id="settings-hours" type="range" min="0" max="12" step="0.5" class="w-full">
+                        <label class="text-xs text-white/40 mb-1.5 block uppercase tracking-wide font-medium">Neto study hours per day: <span id="settings-hours-label" class="text-accent-400">4.0</span></label>
+                        <input id="settings-hours" type="range" min="0" max="12" step="0.5" class="w-full accent-accent-500">
                     </div>
                     <div>
-                        <label class="text-sm text-white/50 mb-1 block">Peak Productivity</label>
-                        <select id="settings-peak" class="input-field appearance-none">
+                        <label class="text-xs text-white/40 mb-1.5 block uppercase tracking-wide font-medium">Peak Productivity</label>
+                        <select id="settings-peak" class="w-full bg-dark-900/40 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-accent-500/50 transition-colors appearance-none">
                             <option value="Morning">🌅 Morning</option>
                             <option value="Afternoon">🌤 Afternoon</option>
                             <option value="Evening">🌇 Evening</option>
                             <option value="Night">🌙 Night</option>
                         </select>
                     </div>
-                    <div class="border-t border-white/10 pt-4">
-                        <label class="text-sm text-white/50 mb-3 block font-medium">Notifications</label>
-                        <div class="space-y-3">
-                            <p id="notif-status" class="text-xs text-white/40">Status: checking...</p>
-                            <div class="flex flex-col gap-2">
-                                <div class="flex gap-2">
-                                    <button id="enable-notif-btn" onclick="requestNotificationPermission()" 
-                                        style="flex:1; padding:14px; border-radius:12px; background-color:#6B47F5; color:white; border:none; font-weight:bold; font-size:12px; cursor:pointer; box-shadow:0 4px 12px rgba(107,71,245,0.3);">
-                                        Enable Notifications
-                                    </button>
-                                    <button id="test-notif-btn" onclick="testNotification()" 
-                                        style="flex:1; padding:14px; border-radius:12px; background-color:rgba(255,255,255,0.1); color:white; border:none; font-weight:bold; font-size:12px; cursor:pointer;">
-                                        Test
-                                    </button>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="text-sm text-white/50 mb-1 block">Notify me</label>
-                                <select id="settings-notif-timing" class="input-field appearance-none">
-                                    <option value="at_start">At start time</option>
-                                    <option value="15_before">15 mins before</option>
-                                    <option value="30_before">30 mins before</option>
-                                </select>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm text-white/60">Notify for every task</span>
-                                <input id="settings-notif-per-task" type="checkbox" class="w-4 h-4 accent-indigo-500" checked>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm text-white/60">Daily morning summary</span>
-                                <input id="settings-notif-daily-summary" type="checkbox" class="w-4 h-4 accent-indigo-500">
+                    <div>
+                        <label class="text-xs text-white/40 mb-1.5 block uppercase tracking-wide font-medium">Main Hobby</label>
+                        <input id="settings-hobby" type="text" placeholder="e.g. Gym, Gaming..." class="w-full bg-dark-900/40 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-accent-500/50 transition-colors">
+                    </div>
+                </div>
+
+                <!-- Tab: Alerts -->
+                <div id="tab-alerts" class="profile-tab-pane hidden space-y-5">
+                    <div class="bg-white/5 rounded-2xl p-4 border border-white/5">
+                        <label class="text-sm font-semibold mb-3 block">Notification Status</label>
+                        <div class="space-y-4">
+                            <p id="notif-status" class="text-xs text-white/40 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-gold-500"></span> Status: checking...
+                            </p>
+                            <div class="flex gap-2">
+                                <button id="enable-notif-btn" onclick="requestNotificationPermission()" 
+                                    class="flex-1 bg-accent-500 hover:bg-accent-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-accent-500/20 transition-all text-xs">
+                                    Enable Notifications
+                                </button>
+                                <button id="test-notif-btn" onclick="testNotification()" 
+                                    class="px-4 bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition-all text-xs">
+                                    Test
+                                </button>
                             </div>
                         </div>
                     </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs text-white/40 mb-1.5 block uppercase tracking-wide font-medium">Notify me</label>
+                            <select id="settings-notif-timing" class="w-full bg-dark-900/40 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-accent-500/50 transition-colors appearance-none">
+                                <option value="at_start">At start time</option>
+                                <option value="15_before">15 mins before</option>
+                                <option value="30_before">30 mins before</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-dark-900/20 rounded-xl border border-white/5">
+                            <span class="text-sm text-white/70">Notify for every task</span>
+                            <input id="settings-notif-per-task" type="checkbox" class="w-5 h-5 accent-accent-500 rounded-lg" checked>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Account -->
+                <div id="tab-account" class="profile-tab-pane hidden space-y-6">
+                    <div>
+                        <label class="text-xs text-white/40 mb-1.5 block uppercase tracking-wide font-medium">Name</label>
+                        <input id="settings-name" type="text" class="w-full bg-dark-900/40 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-accent-500/50 transition-colors">
+                    </div>
+                    
+                    <div class="pt-4">
+                        <button id="btn-logout-drawer" class="w-full py-3.5 rounded-xl text-coral-400 border border-coral-500/30 hover:bg-coral-500/10 text-sm font-semibold transition-all">Sign Out</button>
+                    </div>
                 </div>
             </div>
-            <div class="px-6 pb-6 space-y-3">
-                <button id="btn-save-settings" class="w-full bg-accent-500 hover:bg-accent-600 font-semibold py-3 rounded-xl transition-all">Save Changes</button>
-                <button id="btn-logout-drawer" class="w-full py-3 rounded-xl text-coral-400 border border-coral-500/20 text-sm font-medium transition-all active:opacity-60">Sign Out</button>
-                <div class="text-center">
-                    <a href="#" onclick="window._hardReset(); return false;" class="text-[10px] text-white/20 hover:text-white/40 uppercase tracking-widest font-bold">Hard Reset (Clear Cache)</a>
-                </div>
+
+            <!-- Sticky Footer -->
+            <div class="mt-6 p-6 pt-4 border-t border-white/10 bg-dark-700/80 backdrop-blur-sm">
+                <button id="btn-save-settings" class="w-full bg-accent-500 hover:bg-accent-600 font-bold py-4 rounded-xl shadow-lg shadow-accent-500/25 transition-all">Save Changes</button>
             </div>
         </div>
     </div>

@@ -1,5 +1,5 @@
 import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, setCurrentTasks, getCurrentSchedule, setCurrentSchedule, getPendingExamId, setPendingExamId, getPendingFiles, setPendingFiles, setLatestAiDebug } from './store.js?v=AUTO';
-import { shakeEl, spawnConfetti, examColorClass, showModal, showConfirmModal } from './ui.js?v=AUTO';
+import { shakeEl, spawnConfetti, examColorClass, showModal, showConfirmModal, showScreen } from './ui.js?v=AUTO';
 import { renderCalendar, renderFocus, renderExamLegend } from './calendar.js?v=AUTO';
 import { showRegenBar, hideRegenBar } from './brain.js?v=AUTO';
 
@@ -430,7 +430,7 @@ export async function generateRoadmap() {
         alert('Add exams first!');
         return;
     }
-    
+
     showModal('loading-overlay', true);
     const API = getAPI();
     try {
@@ -440,21 +440,244 @@ export async function generateRoadmap() {
             alert(data.detail || 'Failed to generate roadmap');
             return;
         }
-        
-        if (data.debug) {
-            setLatestAiDebug({
-                prompt: data.debug.prompt || '',
-                response: data.debug.raw_response || ''
-            });
-        }
-        
-        await loadExams(); // This will now fetch full schedule and render it
+
+        // Store auditor draft in memory and navigate to the review screen
+        window._auditorDraft = {
+            tasks: data.tasks || [],
+            gaps: data.gaps || [],
+            topic_map: data.topic_map || {}
+        };
+        renderAuditorReview(window._auditorDraft);
+        showScreen('screen-auditor-review');
         hideRegenBar();
     } catch (e) {
         alert('Failed to generate roadmap. Check server logs.');
     } finally {
         showModal('loading-overlay', false);
     }
+}
+
+/** Render the Auditor Review Screen with tasks, gaps and topic map. */
+export function renderAuditorReview(data) {
+    const tasks = data.tasks || [];
+    const gaps = data.gaps || [];
+    const topicMap = data.topic_map || {};
+
+    // --- Topic Map ---
+    const topicMapEl = document.getElementById('auditor-topic-map');
+    if (topicMapEl) {
+        if (Object.keys(topicMap).length === 0) {
+            topicMapEl.innerHTML = '';
+        } else {
+            const exams = getCurrentExams() || [];
+            let html = `<div class="flex items-center gap-2 mb-3"><span class="w-6 h-6 rounded-lg bg-mint-500/20 flex items-center justify-center text-xs">📋</span><h3 class="text-base font-semibold">Topic Map</h3></div>`;
+            html += `<div class="space-y-3">`;
+            for (const [examId, topics] of Object.entries(topicMap)) {
+                const exam = exams.find(e => String(e.id) === String(examId));
+                const examName = exam ? exam.name : `Exam ${examId}`;
+                html += `<div class="bg-dark-700/60 rounded-2xl p-4 border border-white/5">
+                    <div class="font-medium text-sm mb-2 text-accent-400">${examName}</div>
+                    <div class="flex flex-wrap gap-1.5">
+                        ${(topics || []).map(t => `<span class="text-xs bg-dark-900/60 text-white/60 px-2 py-0.5 rounded-lg">${t}</span>`).join('')}
+                    </div>
+                </div>`;
+            }
+            html += `</div>`;
+            topicMapEl.innerHTML = html;
+        }
+    }
+
+    // --- Gaps ---
+    const gapsList = document.getElementById('gaps-list');
+    if (gapsList) {
+        if (gaps.length === 0) {
+            gapsList.innerHTML = `<p class="text-white/30 text-sm">No gaps detected — your materials cover all topics.</p>`;
+        } else {
+            gapsList.innerHTML = gaps.map((gap, i) => `
+                <div class="gap-item flex items-start justify-between gap-3 bg-coral-500/10 border border-coral-500/20 rounded-xl p-3" data-gap-index="${i}">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium text-coral-400">${gap.topic}</div>
+                        <div class="text-xs text-white/40 mt-0.5">${gap.description || 'Topic in syllabus but no study material found'}</div>
+                    </div>
+                    <div class="flex gap-2 flex-shrink-0">
+                        <button class="btn-add-search-task text-xs bg-accent-500/20 text-accent-400 px-2 py-1 rounded-lg hover:bg-accent-500/30 transition-colors" data-gap-index="${i}" data-gap-topic="${gap.topic}" data-gap-exam-id="${gap.exam_id}">+ Search Task</button>
+                        <button class="btn-dismiss-gap text-xs text-white/30 hover:text-white/60 px-2 py-1 rounded-lg transition-colors" data-gap-index="${i}">Dismiss</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+
+    // Bind gap action buttons
+    document.querySelectorAll('.btn-dismiss-gap').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const gapEl = btn.closest('.gap-item');
+            if (gapEl) gapEl.remove();
+        });
+    });
+
+    document.querySelectorAll('.btn-add-search-task').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const topic = btn.dataset.gapTopic;
+            const examId = parseInt(btn.dataset.gapExamId, 10);
+            _addSearchTaskFromGap(topic, examId);
+            const gapEl = btn.closest('.gap-item');
+            if (gapEl) gapEl.remove();
+        });
+    });
+
+    // --- Tasks List ---
+    const tasksList = document.getElementById('tasks-list');
+    const taskCount = document.getElementById('auditor-task-count');
+    if (taskCount) taskCount.textContent = `(${tasks.length} tasks)`;
+    if (tasksList) {
+        if (tasks.length === 0) {
+            tasksList.innerHTML = `<p class="text-white/30 text-sm">No tasks generated.</p>`;
+        } else {
+            const exams = getCurrentExams() || [];
+            tasksList.innerHTML = tasks.map((t, i) => {
+                const exam = exams.find(e => e.id === t.exam_id);
+                const examLabel = exam ? exam.name : `Exam ${t.exam_id}`;
+                const focusBadgeColor = t.focus_score >= 8 ? 'text-coral-400 bg-coral-500/20' : t.focus_score >= 5 ? 'text-gold-400 bg-gold-500/20' : 'text-mint-400 bg-mint-500/20';
+                return `<div class="flex items-start gap-3 bg-dark-700/60 rounded-xl p-3 border border-white/5">
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm font-medium truncate">${t.title}</div>
+                        <div class="text-xs text-white/40 mt-0.5">${examLabel} · ${t.estimated_hours}h</div>
+                    </div>
+                    <span class="flex-shrink-0 text-xs px-2 py-0.5 rounded-lg ${focusBadgeColor} font-medium">F${t.focus_score}</span>
+                </div>`;
+            }).join('');
+        }
+    }
+}
+
+/** Add a "Search Task" from a detected gap to the pending approved tasks list. */
+function _addSearchTaskFromGap(topic, examId) {
+    if (!window._auditorDraft) return;
+    const searchTask = {
+        exam_id: examId,
+        title: `Search for material on: ${topic}`,
+        topic: topic,
+        estimated_hours: 1.0,
+        focus_score: 3,
+        reasoning: 'Material gap — search and collect study resources',
+        dependency_id: null,
+        sort_order: 9999
+    };
+    window._auditorDraft.tasks.push(searchTask);
+
+    // Append to the rendered task list so user sees it immediately
+    const tasksList = document.getElementById('tasks-list');
+    const taskCount = document.getElementById('auditor-task-count');
+    if (taskCount) {
+        const current = parseInt(taskCount.textContent.replace(/\D/g, ''), 10) || 0;
+        taskCount.textContent = `(${current + 1} tasks)`;
+    }
+    if (tasksList) {
+        const div = document.createElement('div');
+        div.className = 'flex items-start gap-3 bg-accent-500/10 border border-accent-500/30 rounded-xl p-3';
+        div.innerHTML = `<div class="flex-1 min-w-0">
+            <div class="text-sm font-medium truncate text-accent-400">${searchTask.title}</div>
+            <div class="text-xs text-white/40 mt-0.5">Added from gap · 1h</div>
+        </div>
+        <span class="flex-shrink-0 text-xs px-2 py-0.5 rounded-lg text-mint-400 bg-mint-500/20 font-medium">New</span>`;
+        tasksList.appendChild(div);
+    }
+}
+
+/** Collect approved tasks and POST to /brain/approve-and-schedule. */
+export async function approveSchedule() {
+    const draft = window._auditorDraft;
+    if (!draft || !draft.tasks || draft.tasks.length === 0) {
+        alert('No tasks to approve. Please generate a roadmap first.');
+        return;
+    }
+
+    showModal('loading-overlay', true);
+    const API = getAPI();
+    try {
+        const res = await authFetch(`${API}/approve-and-schedule`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ approved_tasks: draft.tasks })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            alert(data.detail || 'Failed to generate schedule');
+            return;
+        }
+
+        // Clear the draft
+        window._auditorDraft = null;
+
+        // Update local state with the new tasks and schedule
+        setCurrentTasks(data.tasks || []);
+        setCurrentSchedule(data.schedule || []);
+        updateStats();
+        renderCalendar(data.tasks || [], data.schedule || []);
+        renderFocus(data.tasks || []);
+
+        // Refresh exam cards (task counts updated)
+        const examRes = await authFetch(`${API}/exams`);
+        if (examRes.ok) {
+            const exams = await examRes.json();
+            setCurrentExams(exams);
+            renderExamCards();
+            renderExamLegend();
+        }
+
+        showScreen('screen-dashboard');
+    } catch (e) {
+        console.error('approveSchedule error:', e);
+        alert('Failed to generate schedule. Check server logs.');
+    } finally {
+        showModal('loading-overlay', false);
+    }
+}
+
+/** Check for a stored Auditor draft on app init. If found, offer to resume the review. */
+export async function checkAuditorDraftOnInit() {
+    const API = getAPI();
+    try {
+        const res = await authFetch(`${API}/auditor-draft`);
+        if (!res.ok) return; // 404 = no draft, that's fine
+        const draft = await res.json();
+        if (!draft || !draft.tasks || draft.tasks.length === 0) return;
+
+        // Store draft and show a banner offering to resume
+        window._auditorDraft = draft;
+        _showResumeBanner();
+    } catch (e) {
+        // Non-fatal: draft simply doesn't exist or network error
+    }
+}
+
+function _showResumeBanner() {
+    // Show a small notification banner at the top of the dashboard
+    const existing = document.getElementById('auditor-resume-banner');
+    if (existing) return; // already shown
+
+    const banner = document.createElement('div');
+    banner.id = 'auditor-resume-banner';
+    banner.className = 'fixed top-0 left-0 right-0 z-50 bg-accent-500/95 text-white flex items-center justify-between px-4 py-3 text-sm font-medium shadow-lg';
+    banner.innerHTML = `
+        <span>AI analysis ready — continue reviewing your study plan?</span>
+        <div class="flex gap-2 ml-3">
+            <button id="btn-resume-review" class="bg-white text-accent-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-white/90 transition-colors">Resume Review</button>
+            <button id="btn-dismiss-resume" class="text-white/70 hover:text-white text-xs px-2">Dismiss</button>
+        </div>
+    `;
+    document.body.appendChild(banner);
+
+    document.getElementById('btn-resume-review').addEventListener('click', () => {
+        banner.remove();
+        renderAuditorReview(window._auditorDraft);
+        showScreen('screen-auditor-review');
+    });
+    document.getElementById('btn-dismiss-resume').addEventListener('click', () => {
+        banner.remove();
+        window._auditorDraft = null;
+    });
 }
 
 // ─── Add Exam Modal Logic ────────────────────────────
@@ -662,6 +885,13 @@ export function initTasks() {
     // Generate roadmap button
     const btnGenerate = document.getElementById('btn-generate-roadmap');
     if (btnGenerate) btnGenerate.onclick = generateRoadmap;
+
+    // Auditor review screen buttons
+    const btnCancelReview = document.getElementById('btn-cancel-review');
+    if (btnCancelReview) btnCancelReview.onclick = () => showScreen('screen-dashboard');
+
+    const btnApproveSchedule = document.getElementById('btn-approve-schedule');
+    if (btnApproveSchedule) btnApproveSchedule.onclick = approveSchedule;
 
     // Modal close buttons
     const btnCloseModal = document.getElementById('btn-close-exam-modal');

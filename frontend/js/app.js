@@ -11,10 +11,10 @@ window.onerror = function(msg, url, line, col, error) {
 
 import { getCurrentUser, setCurrentUser, getAPI, authFetch } from './store.js?v=AUTO';
 import { initAuth, handleLogout } from './auth.js?v=AUTO';
-import { initTasks, loadExams } from './tasks.js?v=AUTO';
+import { initTasks, loadExams, checkAuditorDraftOnInit } from './tasks.js?v=AUTO';
 import { initRegenerate } from './brain.js?v=AUTO';
 import { initInteractions } from './interactions.js?v=AUTO';
-import { showScreen, initMobileTabBar, showIosOnboarding } from './ui.js?v=AUTO';
+import { showScreen, initMobileTabBar, showIosOnboarding, initProfileTabs } from './ui.js?v=AUTO';
 import { initPush } from './notifications.js?v=AUTO';
 
 // Initialize the application
@@ -34,6 +34,7 @@ async function initApp() {
     try { initRegenerate(); } catch (e) { console.error('initRegenerate failed:', e); }
     try { initInteractions(); } catch (e) { console.error('initInteractions failed:', e); }
     try { initMobileTabBar(); } catch (e) { console.error('initMobileTabBar failed:', e); }
+    try { initProfileTabs(); } catch (e) { console.error('initProfileTabs failed:', e); }
     // NOTE: initPush() is NOT called here. It must run AFTER authentication is confirmed
     // so that authFetch('/push/subscribe') has a valid session cookie. See initDashboard().
 
@@ -163,6 +164,9 @@ function initDashboard() {
     }
 
     loadExams(handleLogout);
+
+    // Check for stored Auditor draft and offer to resume the review
+    checkAuditorDraftOnInit().catch(() => {});
 
     // Check if iOS onboarding is needed
     showIosOnboarding();
