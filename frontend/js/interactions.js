@@ -24,7 +24,15 @@ function getSnapPixels() { return (SNAP_MINUTES / 60) * getHourHeight(); }
 
 const LONG_PRESS_MS = 600;
 const DRAG_TOLERANCE_PX = 8; // px of movement allowed before drag is cancelled
-let touchDragState = null; // { el, blockId, container, startX, startY, currentY, timer, edgeRAF, dragActive, offsetY, lastScrollY }
+let touchDragState = null; // { el, blockId, container, startX, startY, currentY, timer, edgeRAF, dragActive, offsetY, lastScrollY, isDoubleTapCandidate }
+
+// ─── Unified double-tap state (moved from calendar.js) ─────────────────────
+let _lastTapTime = 0;
+let _lastTapBlock = null;
+let _lastTapX = 0;
+let _lastTapY = 0;
+const DOUBLE_TAP_GAP = 450;   // max ms between taps
+const DOUBLE_TAP_DIST = 60;   // max px drift between taps
 
 function initTouchDrag() {
     // PASSIVE touchstart — never blocks scroll, just records the hit
@@ -36,28 +44,57 @@ function initTouchDrag() {
 
 function onTouchStart(e) {
     const block = e.target.closest('.schedule-block:not(.block-break):not(.is-completed)');
-    if (!block) return;
+    if (!block) {
+        // Touching non-block resets double-tap tracking
+        _lastTapTime = 0;
+        _lastTapBlock = null;
+        return;
+    }
     if (e.target.closest('.task-checkbox, .delete-reveal-btn')) return;
 
     const touch = e.touches[0];
     const container = block.closest('.grid-day-container');
     if (!container) return;
 
+    const now = Date.now();
+    const blockId = block.getAttribute('data-block-id');
+    const gap = now - _lastTapTime;
+    const dist = Math.sqrt(Math.pow(touch.screenX - _lastTapX, 2) + Math.pow(touch.screenY - _lastTapY, 2));
+    const isDoubleTapCandidate = gap < DOUBLE_TAP_GAP && gap > 40 && _lastTapBlock === blockId && dist < DOUBLE_TAP_DIST;
+
+    if (isDoubleTapCandidate) {
+        // Second tap of a double-tap — skip long-press timer entirely
+        touchDragState = {
+            el: block,
+            blockId,
+            container,
+            startX: touch.clientX,
+            startY: touch.clientY,
+            currentY: touch.clientY,
+            dragActive: false,
+            offsetY: 0,
+            lastScrollY: touch.clientY,
+            timer: null,
+            edgeRAF: null,
+            isDoubleTapCandidate: true,
+        };
+        // No long-pressing class, no touchmove listener
+        return;
+    }
+
     touchDragState = {
         el: block,
-        blockId: block.getAttribute('data-block-id'),
+        blockId,
         container,
         startX: touch.clientX,
         startY: touch.clientY,
         currentY: touch.clientY,
         dragActive: false,
         offsetY: touch.clientY - block.getBoundingClientRect().top,
-        // Initialize lastScrollY to startY so the first manual-scroll delta is correct
-        // (touch.clientY - lastScrollY will be the actual finger movement, not a large jump
-        // from startY to some far position).
         lastScrollY: touch.clientY,
         timer: setTimeout(() => activateTouchDrag(), LONG_PRESS_MS),
         edgeRAF: null,
+        isDoubleTapCandidate: false,
     };
 
     // Start long-press charge animation immediately
@@ -168,15 +205,32 @@ function edgeScroll() {
     touchDragState.edgeRAF = requestAnimationFrame(edgeScroll);
 }
 
-async function onTouchEnd(_e) {
+async function onTouchEnd(e) {
     if (!touchDragState) return;
     clearTimeout(touchDragState.timer);
     cancelAnimationFrame(touchDragState.edgeRAF);
     document.removeEventListener('touchmove', onTouchMoveDrag);
 
     if (!touchDragState.dragActive) {
-        // Finger lifted before long-press completed — cancel the charge animation
-        touchDragState.el.classList.remove('long-pressing');
+        const { el, blockId, isDoubleTapCandidate } = touchDragState;
+        el.classList.remove('long-pressing');
+
+        if (isDoubleTapCandidate) {
+            // Double-tap confirmed — open edit modal via calendar.js listener
+            _lastTapTime = 0;
+            _lastTapBlock = null;
+            window.dispatchEvent(new CustomEvent('sf:edit-block', {
+                detail: { blockId, el }
+            }));
+        } else {
+            // Record as single tap for potential future double-tap
+            const touch = e.changedTouches[0];
+            _lastTapTime = Date.now();
+            _lastTapBlock = blockId;
+            _lastTapX = touch.screenX;
+            _lastTapY = touch.screenY;
+        }
+
         touchDragState = null;
         return;
     }
@@ -494,21 +548,29 @@ async function saveSequence(blocks, container) {
                 })
             })
         ));
-        // Log each response so network failures are visible in console
+
+        let anyFailed = false;
         responses.forEach((res, i) => {
             const u = updates[i];
             if (!res.ok) {
                 console.error(`[saveSequence] PATCH block ${u.blockId} failed: HTTP ${res.status}`);
+                anyFailed = true;
             } else {
                 console.log(`[saveSequence] PATCH block ${u.blockId} OK (${res.status})`);
             }
         });
-        // Pass updated times directly so calendar.js can update _blocksByDay
-        // immediately — no server re-fetch needed before opening edit modal.
-        window.dispatchEvent(new CustomEvent('sf:blocks-saved', {
-            detail: { dayDate, updates }
-        }));
+
+        if (anyFailed) {
+            // Revert: re-fetch schedule from server to restore correct positions
+            console.warn('[saveSequence] Some blocks failed to save — reverting to server state');
+            window.dispatchEvent(new CustomEvent('sf:blocks-save-failed'));
+        } else {
+            window.dispatchEvent(new CustomEvent('sf:blocks-saved', {
+                detail: { dayDate, updates }
+            }));
+        }
     } catch (e) {
         console.error("Failed to save sequence:", e);
+        window.dispatchEvent(new CustomEvent('sf:blocks-save-failed'));
     }
 }

@@ -25,11 +25,7 @@ export function renderExamLegend() {
 // Module-level blocksByDay reference so handleDeleteBlock can do optimistic local updates
 let _blocksByDay = {};
 
-// State for double-tap and swipe interactions
-let _lastTapTime = 0;
-let _lastTapBlock = null;
-let _lastTapX = 0;
-let _lastTapY = 0;
+// State for swipe interactions (double-tap is handled by interactions.js)
 let _touchStartX = 0;
 let _touchStartY = 0;
 
@@ -201,7 +197,7 @@ function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = fal
         currentExams.forEach((e, i) => { examIdx[e.id] = i; });
 
         const parseLocalDate = (dateStr) => {
-            if (!dateStr) return new Date();
+            if (!dateStr) return null;
             const isoStr = dateStr.replace(' ', 'T');
             return new Date(isoStr);
         };
@@ -218,6 +214,7 @@ function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = fal
         const renderedBlocks = dayBlocks.map((block) => {
             const start = parseLocalDate(block.start_time);
             const end = parseLocalDate(block.end_time);
+            if (!start || !end || isNaN(start) || isNaN(end)) return '';
             
             const startH = start.getHours();
             const startM = start.getMinutes();
@@ -311,8 +308,11 @@ function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = fal
             const wakeHour = user?.wake_up_time ? parseInt(user.wake_up_time.split(':')[0], 10) : 7;
             let earliestBlockHour = 24;
             dayBlocks.forEach(b => {
-                const h = parseLocalDate(b.start_time).getHours();
-                if (h < earliestBlockHour) earliestBlockHour = h;
+                const d = parseLocalDate(b.start_time);
+                if (d && !isNaN(d)) {
+                    const h = d.getHours();
+                    if (h < earliestBlockHour) earliestBlockHour = h;
+                }
             });
             const scrollHour = Math.min(wakeHour, earliestBlockHour);
 
@@ -488,68 +488,27 @@ function setupGridListeners(container) {
         _touchStartY = e.changedTouches[0].screenY;
     }, { passive: true });
 
+    // Double-tap is now handled by interactions.js (unified touch state machine).
+    // This handler only detects horizontal swipe for day navigation.
     container.addEventListener('touchend', (e) => {
         if (e.target.closest('.task-checkbox, .delete-reveal-btn')) return;
-        
-        const blockEl = e.target.closest('.schedule-block');
+
         const touch = e.changedTouches[0];
-        const now = Date.now();
-        const gap = now - _lastTapTime;
-        
-        // Calculate distance from last tap
-        const dist = Math.sqrt(Math.pow(touch.screenX - _lastTapX, 2) + Math.pow(touch.screenY - _lastTapY, 2));
+        const diffX = touch.screenX - _touchStartX;
+        const diffY = touch.screenY - _touchStartY;
 
-        if (blockEl && !blockEl.classList.contains('block-break') && gap < 450 && gap > 40 && _lastTapBlock === blockEl.dataset.blockId && dist < 35) {
-            e.preventDefault();
-            _lastTapTime = 0;
-            _lastTapBlock = null;
-            
-            const blockId = blockEl.dataset.blockId;
-            const day = dayKeys[currentDayIndex];
-            let block = (_blocksByDay[day] || []).find(b => b.id == blockId);
-            
-            if (block && block.block_type !== 'break') {
-                const domTop = parseFloat(blockEl.style.top);
-                const domHeight = parseFloat(blockEl.style.height);
-                const { startHour, hourHeight } = getGridParams();
-                if (!isNaN(domTop) && !isNaN(domHeight)) {
-                    const startTotalMin = Math.round((domTop / hourHeight) * 60) + (startHour * 60);
-                    const endTotalMin = startTotalMin + Math.round((domHeight / hourHeight) * 60);
-                    const pad = (n) => String(n).padStart(2, '0');
-                    block = { ...block,
-                        start_time: `${day}T${pad(Math.floor(startTotalMin/60))}:${pad(startTotalMin%60)}:00`,
-                        end_time:   `${day}T${pad(Math.floor(endTotalMin/60))}:${pad(endTotalMin%60)}:00`,
-                    };
-                }
-                showTaskEditModal(block,
-                    (updates) => handleSaveBlock(blockId, updates, container),
-                    () => handleDeleteBlock(blockId, block.block_type, container)
-                );
-            }
-        } else {
-            _lastTapTime = now;
-            _lastTapBlock = blockEl ? blockEl.dataset.blockId : null;
-            _lastTapX = touch.screenX;
-            _lastTapY = touch.screenY;
-
-            const touchEndX = touch.screenX;
-            const touchEndY = touch.screenY;
-            const diffX = touchEndX - _touchStartX;
-            const diffY = touchEndY - _touchStartY;
-            
-            if (Math.abs(diffX) > 60 && Math.abs(diffY) < 40) {
-                if (diffX > 0 && currentDayIndex > 0) {
-                    currentDayIndex--;
-                    localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]);
-                    renderHourlyGrid(container, getCurrentTasks(), _blocksByDay, true);
-                } else if (diffX < 0 && currentDayIndex < dayKeys.length - 1) {
-                    currentDayIndex++;
-                    localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]);
-                    renderHourlyGrid(container, getCurrentTasks(), _blocksByDay, true);
-                }
+        if (Math.abs(diffX) > 60 && Math.abs(diffY) < 40) {
+            if (diffX > 0 && currentDayIndex > 0) {
+                currentDayIndex--;
+                localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]);
+                renderHourlyGrid(container, getCurrentTasks(), _blocksByDay, true);
+            } else if (diffX < 0 && currentDayIndex < dayKeys.length - 1) {
+                currentDayIndex++;
+                localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]);
+                renderHourlyGrid(container, getCurrentTasks(), _blocksByDay, true);
             }
         }
-    }, { passive: false });
+    }, { passive: true });
 
     container.oncontextmenu = (e) => { e.preventDefault(); };
     container._listenersAttached = true;
@@ -791,16 +750,38 @@ window.addEventListener('sf:blocks-saved', (e) => {
     }
 });
 
-// Long-press edit listener (dispatched from interactions.js)
+// Edit listener — dispatched from interactions.js on double-tap or long-press
 window.addEventListener('sf:edit-block', (e) => {
     const { blockId, el } = e.detail;
     const day = dayKeys[currentDayIndex];
     let block = (_blocksByDay[day] || []).find(b => String(b.id) === String(blockId));
     if (block && block.block_type !== 'break') {
+        // Recalculate times from DOM position (block may have been dragged)
+        const blockEl = el || document.querySelector(`.schedule-block[data-block-id="${blockId}"]`);
+        if (blockEl) {
+            const domTop = parseFloat(blockEl.style.top);
+            const domHeight = parseFloat(blockEl.style.height);
+            const { startHour, hourHeight } = getGridParams();
+            if (!isNaN(domTop) && !isNaN(domHeight)) {
+                const startTotalMin = Math.round((domTop / hourHeight) * 60) + (startHour * 60);
+                const endTotalMin = startTotalMin + Math.round((domHeight / hourHeight) * 60);
+                const pad = (n) => String(n).padStart(2, '0');
+                block = { ...block,
+                    start_time: `${day}T${pad(Math.floor(startTotalMin/60))}:${pad(startTotalMin%60)}:00`,
+                    end_time:   `${day}T${pad(Math.floor(endTotalMin/60))}:${pad(endTotalMin%60)}:00`,
+                };
+            }
+        }
         const container = document.getElementById('roadmap-container');
         showTaskEditModal(block,
             (updates) => handleSaveBlock(blockId, updates, container),
             () => handleDeleteBlock(blockId, block.block_type, container)
         );
     }
+});
+
+// Revert blocks to server state when drag-save fails
+window.addEventListener('sf:blocks-save-failed', () => {
+    const container = document.getElementById('roadmap-container');
+    if (container) refreshScheduleOnly(container);
 });

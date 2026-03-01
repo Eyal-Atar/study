@@ -497,7 +497,16 @@ def regenerate_schedule(current_user: dict = Depends(get_current_user)):
         print(f"ERROR: regenerate_schedule DB write failed: {exc}")
         traceback.print_exc()
 
-    schedule_dicts = [block.model_dump() for block in new_schedule]
+    # Read the full schedule back from DB — this includes both auto-generated blocks
+    # AND manually-edited blocks that were re-inserted above. Returning new_schedule
+    # directly would omit manually-edited blocks, causing them to disappear from the
+    # frontend even though they exist in the DB.
+    final_schedule_rows = db.execute(
+        "SELECT * FROM schedule_blocks WHERE user_id = ? ORDER BY day_date, start_time",
+        (user_id,)
+    ).fetchall()
+    schedule_dicts = [dict(r) for r in final_schedule_rows]
+
     study_blocks_by_day = {}
     for b in schedule_dicts:
         if b.get("block_type") == "study" and b.get("task_id"):
@@ -512,7 +521,7 @@ def regenerate_schedule(current_user: dict = Depends(get_current_user)):
         "tz_offset": current_user.get("timezone_offset"),
         "scheduler_log": _scheduler_output,
     }
-    print(f"DEBUG: regenerate_schedule complete — {len(all_tasks)} tasks, {len(schedule_dicts)} blocks, study_by_day={study_blocks_by_day}")
+    print(f"DEBUG: regenerate_schedule complete — {len(all_tasks)} tasks, {len(schedule_dicts)} blocks (incl. manually-edited), study_by_day={study_blocks_by_day}")
     db.close()
 
     return {

@@ -1,7 +1,7 @@
 """Task routes."""
 
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from server.database import get_db
 from auth.utils import get_current_user
@@ -30,12 +30,12 @@ def update_block(block_id: int, body: BlockUpdate, current_user: dict = Depends(
     db = get_db()
     
     # 1. Ownership check
-    block = db.execute("SELECT * FROM schedule_blocks WHERE id = ? AND user_id = ?", 
+    block = db.execute("SELECT * FROM schedule_blocks WHERE id = ? AND user_id = ?",
                        (block_id, current_user["id"])).fetchone()
     if not block:
         db.close()
-        return {"error": "Block not found"}, 404
-        
+        raise HTTPException(status_code=404, detail="Block not found")
+
     # 2. Update block fields
     updates = []
     params = []
@@ -102,12 +102,12 @@ def delete_block(block_id: int, current_user: dict = Depends(get_current_user)):
     db = get_db()
     
     # 1. Fetch block to know what we are deleting
-    block = db.execute("SELECT * FROM schedule_blocks WHERE id = ? AND user_id = ?", 
+    block = db.execute("SELECT * FROM schedule_blocks WHERE id = ? AND user_id = ?",
                        (block_id, current_user["id"])).fetchone()
     if not block:
         db.close()
-        return {"error": "Block not found"}, 404
-        
+        raise HTTPException(status_code=404, detail="Block not found")
+
     # 2. Delete the block
     db.execute("DELETE FROM schedule_blocks WHERE id = ? AND user_id = ?", 
                (block_id, current_user["id"]))
@@ -218,18 +218,18 @@ def defer_block_to_next_day(block_id: int, current_user: dict = Depends(get_curr
     ).fetchone()
     if not block:
         db.close()
-        return {"error": "Block not found"}, 404
+        raise HTTPException(status_code=404, detail="Block not found")
 
     day_date = block["day_date"]
     if not day_date:
         db.close()
-        return {"error": "Block has no day_date"}, 400
+        raise HTTPException(status_code=400, detail="Block has no day_date")
 
     try:
         dt = datetime.strptime(day_date, "%Y-%m-%d")
     except ValueError:
         db.close()
-        return {"error": "Invalid day_date format"}, 400
+        raise HTTPException(status_code=400, detail="Invalid day_date format")
 
     next_day = (dt + timedelta(days=1)).strftime("%Y-%m-%d")
     orig_start = block["start_time"]
