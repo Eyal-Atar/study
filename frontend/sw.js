@@ -107,7 +107,24 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // App Shell and static assets: cache-first strategy
+  // JS/CSS assets: network-first strategy.
+  // Code changes must take effect immediately — cache-first caused stale JS
+  // to run after deploys, breaking interactions until manual app restart.
+  const isCodeAsset = url.pathname.endsWith('.js') || url.pathname.endsWith('.css');
+  if (isCodeAsset) {
+    event.respondWith(
+      fetch(request).then(response => {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(c => c.put(request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(request).then(c => c || new Response('Offline', { status: 503 })))
+    );
+    return;
+  }
+
+  // Other static assets (images, fonts): cache-first strategy
   event.respondWith(
     caches.match(request).then(cached => {
       if (cached) {
@@ -115,7 +132,6 @@ self.addEventListener('fetch', event => {
       }
 
       return fetch(request).then(response => {
-        // Only cache successful responses
         if (!response || response.status !== 200 || response.type === 'opaque') {
           return response;
         }
@@ -127,7 +143,6 @@ self.addEventListener('fetch', event => {
 
         return response;
       }).catch(() => {
-        // Offline fallback for navigation requests: serve cached root
         if (request.mode === 'navigate') {
           return caches.match('/');
         }

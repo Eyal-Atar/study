@@ -24,63 +24,57 @@ function getSnapPixels() { return (SNAP_MINUTES / 60) * getHourHeight(); }
 
 const LONG_PRESS_MS = 600;
 const DRAG_TOLERANCE_PX = 8; // px of movement allowed before drag is cancelled
-let touchDragState = null; // { el, blockId, container, startX, startY, currentY, timer, edgeRAF, dragActive, offsetY, lastScrollY, isDoubleTapCandidate }
+let touchDragState = null; // { el, blockId, container, startX, startY, currentY, timer, edgeRAF, dragActive, offsetY, lastScrollY }
 
-// ─── Unified double-tap state (moved from calendar.js) ─────────────────────
+// ─── Unified double-tap state ─────────────────────
 let _lastTapTime = 0;
-let _lastTapBlock = null;
-let _lastTapX = 0;
-let _lastTapY = 0;
-const DOUBLE_TAP_GAP = 450;   // max ms between taps
-const DOUBLE_TAP_DIST = 60;   // max px drift between taps
+let _lastTapBlockId = null;
+
+let _touchDragInitialized = false;
 
 function initTouchDrag() {
-    // PASSIVE touchstart — never blocks scroll, just records the hit
-    document.addEventListener('touchstart', onTouchStart, { passive: true });
-    // touchmove is NOT registered globally — added/removed per-gesture in onTouchStart/cancelTouchDrag
+    if (_touchDragInitialized) return;
+    _touchDragInitialized = true;
+    // Non-passive touchstart allows preventDefault() to block browser zoom on double-tap
+    document.addEventListener('touchstart', onTouchStart, { passive: false });
     document.addEventListener('touchend',    onTouchEnd,    { passive: true });
     document.addEventListener('touchcancel', cancelTouchDrag, { passive: true });
 }
 
 function onTouchStart(e) {
     const block = e.target.closest('.schedule-block:not(.block-break):not(.is-completed)');
-    if (!block) {
-        // Touching non-block resets double-tap tracking
+    if (!block) return;
+    if (e.target.closest('.task-checkbox, .delete-reveal-btn')) return;
+
+    const now = Date.now();
+    const blockId = block.getAttribute('data-block-id');
+
+    // Double-tap check (< 400ms on same block)
+    const gap = now - _lastTapTime;
+    const sameBlock = blockId === _lastTapBlockId;
+    if (sameBlock && gap < 400) {
+        console.log(`[DOUBLE-TAP] Detected on block ${blockId} (gap=${gap}ms)`);
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Reset tracking to prevent triple-tap being counted as two double-taps
         _lastTapTime = 0;
-        _lastTapBlock = null;
+        _lastTapBlockId = null;
+
+        window.dispatchEvent(new CustomEvent('sf:edit-block', {
+            detail: { blockId, el: block }
+        }));
         return;
     }
-    if (e.target.closest('.task-checkbox, .delete-reveal-btn')) return;
+
+    // Track this tap for future double-tap check
+    _lastTapTime = now;
+    _lastTapBlockId = blockId;
+    console.log(`[TAP] Recorded tap on block ${blockId} (prevBlock=${_lastTapBlockId}, gap=${gap}ms)`);
 
     const touch = e.touches[0];
     const container = block.closest('.grid-day-container');
     if (!container) return;
-
-    const now = Date.now();
-    const blockId = block.getAttribute('data-block-id');
-    const gap = now - _lastTapTime;
-    const dist = Math.sqrt(Math.pow(touch.screenX - _lastTapX, 2) + Math.pow(touch.screenY - _lastTapY, 2));
-    const isDoubleTapCandidate = gap < DOUBLE_TAP_GAP && gap > 40 && _lastTapBlock === blockId && dist < DOUBLE_TAP_DIST;
-
-    if (isDoubleTapCandidate) {
-        // Second tap of a double-tap — skip long-press timer entirely
-        touchDragState = {
-            el: block,
-            blockId,
-            container,
-            startX: touch.clientX,
-            startY: touch.clientY,
-            currentY: touch.clientY,
-            dragActive: false,
-            offsetY: 0,
-            lastScrollY: touch.clientY,
-            timer: null,
-            edgeRAF: null,
-            isDoubleTapCandidate: true,
-        };
-        // No long-pressing class, no touchmove listener
-        return;
-    }
 
     touchDragState = {
         el: block,
@@ -93,8 +87,7 @@ function onTouchStart(e) {
         offsetY: touch.clientY - block.getBoundingClientRect().top,
         lastScrollY: touch.clientY,
         timer: setTimeout(() => activateTouchDrag(), LONG_PRESS_MS),
-        edgeRAF: null,
-        isDoubleTapCandidate: false,
+        edgeRAF: null
     };
 
     // Start long-press charge animation immediately
@@ -208,29 +201,11 @@ function edgeScroll() {
 async function onTouchEnd(e) {
     if (!touchDragState) return;
     clearTimeout(touchDragState.timer);
-    cancelAnimationFrame(touchDragState.edgeRAF);
+    if (touchDragState.edgeRAF) cancelAnimationFrame(touchDragState.edgeRAF);
     document.removeEventListener('touchmove', onTouchMoveDrag);
 
     if (!touchDragState.dragActive) {
-        const { el, blockId, isDoubleTapCandidate } = touchDragState;
-        el.classList.remove('long-pressing');
-
-        if (isDoubleTapCandidate) {
-            // Double-tap confirmed — open edit modal via calendar.js listener
-            _lastTapTime = 0;
-            _lastTapBlock = null;
-            window.dispatchEvent(new CustomEvent('sf:edit-block', {
-                detail: { blockId, el }
-            }));
-        } else {
-            // Record as single tap for potential future double-tap
-            const touch = e.changedTouches[0];
-            _lastTapTime = Date.now();
-            _lastTapBlock = blockId;
-            _lastTapX = touch.screenX;
-            _lastTapY = touch.screenY;
-        }
-
+        touchDragState.el.classList.remove('long-pressing');
         touchDragState = null;
         return;
     }
@@ -312,8 +287,11 @@ function cancelTouchDrag() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function initInteractions() {
-    if (!window.interact) return;
+    // Touch interactions (double-tap, long-press drag) work independently of interact.js.
+    // Always initialize them — they use document-level event delegation and survive DOM changes.
     initTouchDrag();
+
+    if (!window.interact) return;
 
     // interact.js handles mouse-only drag (desktop).
     // Touch drag is handled entirely by initTouchDrag above.

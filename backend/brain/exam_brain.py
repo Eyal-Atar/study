@@ -145,19 +145,23 @@ TASK:
    - You MUST generate enough tasks so that the sum of their `estimated_hours` equals exactly {total_hours} hours!
    - Break every topic into AT LEAST 3-5 specific sub-tasks.
    - If you finish mapping the core syllabus topics and haven't reached {total_hours} hours, you MUST generate additional deep-practice tasks to fill the remaining budget. Use highly specific titles like: "פתרון מבחן משנים קודמות", "תרגול שאלות קצה בנושא X", or "חזרה אקטיבית על סיכומים של Y". Do not use generic names.
-3. SAMPLE EXAMS: If a file is labeled as 'sample_exam', you MUST create two specific tasks for it:
+3. SAMPLE EXAMS & PAST EXAMS: If a file is labeled as 'sample_exam' OR 'past_exam', you MUST create two specific tasks for it:
    - "סימולציה מלאה: [File Name] (תנאי אמת, בלי טלפון, עם סטופר)" (estimated 2.5-3h)
    - "תחקור מלא וכתיבת דגשים: [File Name]" (estimated 1.5-2h, dependency on the simulation)
-4. Actionable Titles: Use the following style for ALL tasks:
+4. REALISTIC TIME ESTIMATION (CRITICAL): 
+   - A single question or a small set of exercises should NEVER take 3 hours. 
+   - Cap any task that is just "solving question X" or "reviewing problem Y" at 1.0 - 1.5 hours. 
+   - Only comprehensive study sessions or full simulations should exceed 2 hours.
+5. Actionable Titles: Use the following style for ALL tasks:
    - "מעבר על מצגת: [Topic Name]"
    - "בנייה ידנית: [Core Concept]. תרגול [Operations]"
    - "פתרון שאלות: [Topic]. [Specific Challenges]"
-5. Decompose ALL topics into specific, actionable pedagogical tasks with:
+6. Decompose ALL topics into specific, actionable pedagogical tasks with:
    - focus_score (1-10): concentration level required
    - reasoning: 1-sentence explanation
    - dependency_id: index of prerequisite task
    - estimated_hours (0.5 to 3.5 hours)
-6. Match the language of the exam name (Hebrew exams -> Hebrew titles).
+7. Match the language of the exam name (Hebrew exams -> Hebrew titles).
 
 RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
 {{
@@ -260,19 +264,23 @@ TASK:
    - You MUST generate enough tasks so that the sum of their `estimated_hours` equals exactly {exam_hours} hours!
    - Break every topic into AT LEAST 3-5 specific sub-tasks.
    - If you finish mapping the core syllabus topics and haven't reached {exam_hours} hours, you MUST generate additional deep-practice tasks to fill the remaining budget. Use highly specific titles like: "פתרון מבחן משנים קודמות", "תרגול שאלות קצה בנושא X", or "חזרה אקטיבית על סיכומים של Y". Do not use generic names.
-3. SAMPLE EXAMS: If a file is labeled as 'sample_exam', you MUST create two specific tasks for it:
+3. SAMPLE EXAMS & PAST EXAMS: If a file is labeled as 'sample_exam' OR 'past_exam', you MUST create two specific tasks for it:
    - "סימולציה מלאה: [File Name] (תנאי אמת, בלי טלפון, עם סטופר)" (estimated 2.5-3h)
    - "תחקור מלא וכתיבת דגשים: [File Name]" (estimated 1.5-2h, dependency on the simulation)
-4. Actionable Titles: Use the following style for ALL tasks:
+4. REALISTIC TIME ESTIMATION (CRITICAL): 
+   - A single question or a small set of exercises should NEVER take 3 hours. 
+   - Cap any task that is just "solving question X" or "reviewing problem Y" at 1.0 - 1.5 hours. 
+   - Only comprehensive study sessions or full simulations should exceed 2 hours.
+5. Actionable Titles: Use the following style for ALL tasks:
    - "מעבר על מצגת: [Topic Name]"
    - "בנייה ידנית: [Core Concept]. תרגול [Operations]"
    - "פתרון שאלות: [Topic]. [Specific Challenges]"
-5. Each task must have:
+6. Each task must have:
    - focus_score (1-10): concentration level required
    - reasoning: 1-sentence explanation
    - dependency_id: 0-based index into THIS exam's task array, or null
    - estimated_hours (0.5 to 3.5 hours)
-6. Match the language of the exam name (Hebrew exams -> Hebrew titles).
+7. Match the language of the exam name (Hebrew exams -> Hebrew titles).
 
 RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
 {{
@@ -450,7 +458,16 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
         
         # Include current local time if available
         local_time_str = self.user.get("current_local_time", "Not provided")
+        sleep_time = self.user.get("sleep_time", "23:00")
         
+        # Task 3: Calculate 2-hour buffer
+        try:
+            now_dt = datetime.strptime(local_time_str, "%H:%M")
+            buffer_dt = now_dt + timedelta(hours=2)
+            buffer_time_str = buffer_dt.strftime("%H:%M")
+        except:
+            buffer_time_str = "in 2 hours"
+
         # Build exam deadlines info
         exams_info = []
         now = datetime.now()
@@ -474,6 +491,7 @@ STUDENT PROFILE:
 - Daily net study quota: {neto_h} hours ({int(neto_h * 60)} minutes)
 - Peak productivity window: {peak}
 - Days available: {days_available} (day_index 0 is TODAY)
+- Sleep time: {sleep_time}
 
 EXAM DEADLINES:
 {exams_info_str}
@@ -482,7 +500,12 @@ TASKS TO SCHEDULE:
 {task_list_json}
 
 RULES:
-1. TIME AWARENESS (CRITICAL): Check the "Current Local Time". If it is late in the day, assign fewer or NO tasks to day_index 0 (TODAY) and shift them to later days.
+1. TIME AWARENESS & TODAY'S SCHEDULE (CRITICAL):
+   - It is currently {local_time_str}.
+   - You MUST schedule the very first tasks for TODAY (day_index 0), starting exactly around {buffer_time_str}.
+   - Fill the remaining hours of today until the user's sleep time ({sleep_time}).
+   - Do NOT leave today empty unless it is already past sleep time.
+   - After finishing today, continue scheduling normally for the following days.
 2. STUDY WINDOW: You have {days_available} days to plan.
    - day_index 0 = today
    - Each exam has its own day_index deadline. DO NOT schedule tasks for an exam on or after its day_index.

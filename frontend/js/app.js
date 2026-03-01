@@ -221,6 +221,18 @@ if (document.readyState === 'loading') {
 
 // PWA: Register Service Worker
 if ('serviceWorker' in navigator) {
+    // When a new SW takes control (after update), reload to run fresh JS.
+    // Without this, the page keeps running stale cached code even after the
+    // new SW installs + activates — interactions break because fixes aren't
+    // in the running JS bundle. The reload is seamless and instant.
+    let _swRefreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (_swRefreshing) return;
+        _swRefreshing = true;
+        console.log('[SW] New service worker took control — reloading for fresh code');
+        window.location.reload();
+    });
+
     const registerSW = () => {
         navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(reg => {
             console.log('[SW] Registered, scope:', reg.scope);

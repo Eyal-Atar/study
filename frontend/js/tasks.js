@@ -1,5 +1,5 @@
 import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, setCurrentTasks, getCurrentSchedule, setCurrentSchedule, getPendingExamId, setPendingExamId, getPendingFiles, setPendingFiles, setLatestAiDebug, getCurrentUser, getTodayStr } from './store.js?v=AUTO';
-import { shakeEl, spawnConfetti, examColorClass, showModal, showConfirmModal, showScreen } from './ui.js?v=AUTO';
+import { shakeEl, spawnConfetti, examColorClass, showModal, showConfirmModal, showScreen, LoadingAnimator } from './ui.js?v=AUTO';
 import { renderCalendar, renderFocus, renderExamLegend } from './calendar.js?v=AUTO';
 import { showRegenBar, hideRegenBar } from './brain.js?v=AUTO';
 
@@ -33,8 +33,16 @@ let _serverFiles = [];
 export async function refreshScheduleAndFocus() {
     const API = getAPI();
     try {
+        const animator = new LoadingAnimator('loading');
+        showModal('loading-overlay', true);
+        animator.start();
+
         const tres = await authFetch(`${API}/regenerate-schedule`, { method: 'POST' });
-        if (!tres.ok) return;
+        if (!tres.ok) {
+            animator.stop();
+            showModal('loading-overlay', false);
+            return;
+        }
         const data = await tres.json();
         const tasks = data.tasks || [];
         const schedule = data.schedule || [];
@@ -50,8 +58,14 @@ export async function refreshScheduleAndFocus() {
             renderExamCards();
             renderExamLegend();
         }
+        animator.stop();
+        showModal('loading-overlay', false);
+
+        // Hard reload to ensure fresh JS and properly bound event handlers
+        window.location.reload();
     } catch (e) {
         console.error('refreshScheduleAndFocus:', e);
+        showModal('loading-overlay', false);
     }
 }
 
@@ -80,7 +94,7 @@ function syncAfterToggle(taskId, isBlockToggle) {
     }).catch(() => {});
 }
 
-export async function loadExams(onLogout) {
+export async function loadExams(onLogout, forceRegen = false) {
     const API = getAPI();
     try {
         const res = await authFetch(`${API}/exams`);
@@ -98,18 +112,18 @@ export async function loadExams(onLogout) {
         updateStats();
         renderExamLegend();
         
-        const tres = await authFetch(`${API}/regenerate-schedule`, { method: 'POST' });
-        if (tres.ok) {
-            const data = await tres.json();
-            if (data._debug) {
-                console.log('[DEBUG] schedule summary:', JSON.stringify({...data._debug, scheduler_log: undefined}));
-                if (data._debug.scheduler_log) console.log('[SCHEDULER LOG]\n' + data._debug.scheduler_log);
+        // If we have no tasks/schedule yet, or forceRegen is true, call regenerate-schedule
+        const currentTasks = getCurrentTasks();
+        if (forceRegen || !currentTasks || currentTasks.length === 0) {
+            const tres = await authFetch(`${API}/regenerate-schedule`, { method: 'POST' });
+            if (tres.ok) {
+                const data = await tres.json();
+                setCurrentTasks(data.tasks);
+                setCurrentSchedule(data.schedule);
+                updateStats();
+                renderCalendar(data.tasks, data.schedule);
+                renderFocus(data.tasks);
             }
-            setCurrentTasks(data.tasks);
-            setCurrentSchedule(data.schedule);
-            updateStats();
-            renderCalendar(data.tasks, data.schedule);
-            renderFocus(data.tasks);
         }
     } catch (e) {
         console.error(e);
@@ -481,15 +495,23 @@ export async function generateRoadmap() {
         return;
     }
 
+    const animator = new LoadingAnimator('loading');
     showModal('loading-overlay', true);
+    animator.start();
+
     const API = getAPI();
     try {
         const res = await authFetch(`${API}/generate-roadmap`, { method: 'POST' });
         const data = await res.json();
         if (!res.ok) {
+            animator.stop();
+            showModal('loading-overlay', false);
             alert(data.detail || 'Failed to generate roadmap');
             return;
         }
+
+        animator.stop();
+        showModal('loading-overlay', false);
 
         // Store auditor draft in memory and navigate to the review screen
         window._auditorDraft = {
@@ -501,9 +523,9 @@ export async function generateRoadmap() {
         showScreen('screen-auditor-review');
         hideRegenBar();
     } catch (e) {
-        alert('Failed to generate roadmap. Check server logs.');
-    } finally {
+        animator.stop();
         showModal('loading-overlay', false);
+        alert('Failed to generate roadmap. Check server logs.');
     }
 }
 
@@ -669,8 +691,10 @@ export async function approveSchedule() {
         return;
     }
 
-    console.log(`Approving ${approvedTasks.length} tasks...`);
+    const animator = new LoadingAnimator('loading');
     showModal('loading-overlay', true);
+    animator.start();
+
     const API = getAPI();
     try {
         const res = await authFetch(`${API}/approve-and-schedule`, {
@@ -680,6 +704,8 @@ export async function approveSchedule() {
         });
         const data = await res.json();
         if (!res.ok) {
+            animator.stop();
+            showModal('loading-overlay', false);
             alert(data.detail || 'Failed to generate schedule');
             return;
         }
@@ -703,12 +729,21 @@ export async function approveSchedule() {
             renderExamLegend();
         }
 
-        showScreen('screen-dashboard');
+        animator.stop();
+        showModal('loading-overlay', false);
+
+        // Hard reload: guarantees fresh JS from the server, re-initializes all
+        // event handlers (double-tap, dblclick, drag), and triggers SW update.
+        // The dashboard will load normally from server data on the fresh page.
+        // This is the only reliable way to ensure all interaction handlers are
+        // properly bound after a full schedule rebuild — the service worker's
+        // cache-first strategy otherwise serves stale JS that lacks fixes.
+        window.location.reload();
     } catch (e) {
+        animator.stop();
+        showModal('loading-overlay', false);
         console.error('approveSchedule error:', e);
         alert(`Failed to generate schedule: ${e.message || 'Unknown error'}`);
-    } finally {
-        showModal('loading-overlay', false);
     }
 }
 
@@ -787,7 +822,6 @@ export function openAddExamModal() {
     document.getElementById('exam-name').value = '';
     document.getElementById('exam-subject').value = '';
     document.getElementById('exam-date').value = '';
-    document.getElementById('exam-needs').value = '';
     setPendingExamId(null);
     setPendingFiles([]);
     document.getElementById('uploaded-files-list').innerHTML = '';
@@ -809,7 +843,6 @@ export async function openEditExamModal(exam) {
     document.getElementById('exam-name').value = exam.name;
     document.getElementById('exam-subject').value = exam.subject;
     document.getElementById('exam-date').value = exam.exam_date;
-    document.getElementById('exam-needs').value = exam.special_needs || '';
     setPendingExamId(exam.id);
     setPendingFiles([]);
     document.getElementById('uploaded-files-list').innerHTML = '';
@@ -844,7 +877,7 @@ export async function modalToStep2() {
                     name,
                     subject,
                     exam_date: date,
-                    special_needs: document.getElementById('exam-needs').value.trim() || null
+                    special_needs: null
                 }),
             });
             const exam = await res.json();
@@ -870,7 +903,7 @@ export async function modalToStep2() {
                     name,
                     subject,
                     exam_date: date,
-                    special_needs: document.getElementById('exam-needs').value.trim() || null
+                    special_needs: null
                 }),
             });
             const exam = await res.json();
@@ -889,29 +922,46 @@ export async function modalToStep2() {
 }
 
 export async function handleFileSelect(input) {
-    const file = input.files[0];
+    const files = Array.from(input.files);
     const pendingExamId = getPendingExamId();
-    if (!file || !pendingExamId) return;
+    if (!files.length || !pendingExamId) return;
     
+    // Check limit: existing server files + currently pending + new ones
+    const currentTotal = _serverFiles.length + getPendingFiles().length;
+    if (currentTotal + files.length > 3) {
+        alert(`You can upload a maximum of 3 files per exam. You already have ${currentTotal} files.`);
+        input.value = '';
+        return;
+    }
+
     const fileType = document.getElementById('file-type-select').value;
     const prog = document.getElementById('upload-progress');
     if (prog) prog.classList.remove('hidden');
     
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('file_type', fileType);
-    
     const API = getAPI();
-    try {
-        const res = await authFetch(`${API}/exams/${pendingExamId}/upload`, { method: 'POST', body: formData });
-        const data = await res.json();
-        const files = getPendingFiles();
-        files.push(data);
-        setPendingFiles(files);
-        renderUploadedFiles();
-    } catch (e) {
-        alert('Upload failed');
+    
+    for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('file_type', fileType);
+        
+        try {
+            const res = await authFetch(`${API}/exams/${pendingExamId}/upload`, { method: 'POST', body: formData });
+            const data = await res.json();
+            if (res.ok) {
+                const pending = getPendingFiles();
+                pending.push(data);
+                setPendingFiles(pending);
+                renderUploadedFiles();
+            } else {
+                alert(`Upload failed for ${file.name}: ${data.detail || 'Unknown error'}`);
+            }
+        } catch (e) {
+            console.error('Upload error:', e);
+            alert(`Network error uploading ${file.name}`);
+        }
     }
+
     if (prog) prog.classList.add('hidden');
     input.value = '';
 }
@@ -927,21 +977,22 @@ export function renderUploadedFiles() {
             <span class="text-xs bg-mint-500/20 text-mint-400 px-1.5 py-0.5 rounded">${typeIcons[f.file_type] || 'O'}</span>
             <span class="text-sm flex-1 truncate">${f.filename}</span>
             <span class="text-xs text-white/30">${f.file_size ? (f.file_size / 1024).toFixed(0) + 'KB' : ''}</span>
-            <button class="btn-delete-server-file text-xs text-white/20 hover:text-coral-400 transition-colors ml-1" data-file-id="${f.id}">✕</button>
+            <button class="btn-delete-file text-xs text-white/20 hover:text-coral-400 transition-colors ml-1" data-file-id="${f.id}">✕</button>
         </div>
     `).join('');
 
     const pendingHtml = pendingFiles.map(f => `
-        <div class="flex items-center gap-2 bg-dark-900/40 rounded-lg p-2">
+        <div class="flex items-center gap-2 bg-dark-900/40 rounded-lg p-2" data-pending-file-id="${f.id}">
             <span class="text-xs bg-accent-500/20 text-accent-400 px-1.5 py-0.5 rounded">${typeIcons[f.file_type] || 'O'}</span>
             <span class="text-sm flex-1 truncate">${f.filename}</span>
             <span class="text-xs text-white/30">${(f.file_size / 1024).toFixed(0)}KB</span>
+            <button class="btn-delete-file text-xs text-white/20 hover:text-coral-400 transition-colors ml-1" data-file-id="${f.id}">✕</button>
         </div>
     `).join('');
 
     el.innerHTML = serverHtml + pendingHtml;
 
-    el.querySelectorAll('.btn-delete-server-file').forEach(btn => {
+    el.querySelectorAll('.btn-delete-file').forEach(btn => {
         btn.onclick = (e) => {
             e.stopPropagation();
             deleteUploadedFile(parseInt(btn.dataset.fileId));
@@ -954,7 +1005,14 @@ export async function deleteUploadedFile(fileId) {
     try {
         const res = await authFetch(`${API}/exam-files/${fileId}`, { method: 'DELETE' });
         if (!res.ok) { alert('Failed to delete file'); return; }
+        
+        // Remove from persistent edit list
         _serverFiles = _serverFiles.filter(f => f.id !== fileId);
+        
+        // Remove from session pending list
+        const pending = getPendingFiles().filter(f => f.id !== fileId);
+        setPendingFiles(pending);
+        
         renderUploadedFiles();
     } catch (e) {
         alert('Failed to delete file');

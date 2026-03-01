@@ -86,6 +86,68 @@ export function showModal(id, active = true) {
     }
 }
 
+/**
+ * Manages the progress bar and step-based status updates for long-running AI tasks.
+ */
+export class LoadingAnimator {
+    constructor(prefix = 'loading') {
+        this.progressBar = document.getElementById(`${prefix}-progress-bar`);
+        this.progressPercent = document.getElementById(`${prefix}-progress-percent`);
+        this.statusText = document.getElementById(`${prefix}-status-text`);
+        this.prefix = prefix;
+        this.interval = null;
+        this.currentStep = 0;
+        this.steps = [
+            { p: 15, t: "Consulting the study brain..." },
+            { p: 35, t: "Analyzing syllabus materials..." },
+            { p: 55, t: "Balancing your workload..." },
+            { p: 75, t: "Recalculating study blocks..." },
+            { p: 92, t: "Finalizing your roadmap..." }
+        ];
+    }
+
+    start() {
+        this.reset();
+        this.interval = setInterval(() => {
+            if (this.currentStep < this.steps.length) {
+                const step = this.steps[this.currentStep];
+                this.update(step.p, step.t);
+                this.currentStep++;
+            } else {
+                // Stay at 92% until finished
+                clearInterval(this.interval);
+            }
+        }, 3500); // Change step every 3.5 seconds for long AI generation
+
+        // Set initial step
+        const step = this.steps[0];
+        this.update(step.p, step.t);
+        this.currentStep = 1;
+    }
+
+    update(percent, text) {
+        if (this.progressBar) this.progressBar.style.width = `${percent}%`;
+        if (this.progressPercent) this.progressPercent.textContent = `${Math.round(percent)}%`;
+        if (this.statusText && text) {
+            this.statusText.classList.remove('status-fade');
+            void this.statusText.offsetWidth; // Trigger reflow
+            this.statusText.textContent = text;
+            this.statusText.classList.add('status-fade');
+        }
+    }
+
+    stop() {
+        if (this.interval) clearInterval(this.interval);
+        this.update(100, "Done!");
+    }
+
+    reset() {
+        if (this.interval) clearInterval(this.interval);
+        this.currentStep = 0;
+        this.update(0, this.steps[0].t);
+    }
+}
+
 export function initProfileTabs() {
     const tabBtns = document.querySelectorAll('.profile-tab-btn');
     const tabPanes = document.querySelectorAll('.profile-tab-pane');

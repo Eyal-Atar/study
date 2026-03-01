@@ -152,13 +152,14 @@ async def _check_and_send_notifications():
                 
                 # CATCH-UP LOGIC:
                 # Trigger if: (current_time + offset) >= block_start_time
-                # AND it's not too old (within the last 30 minutes) to prevent spamming old tasks.
+                # AND it's not too old (within the last 5 minutes) to prevent spamming old tasks.
                 # AND it hasn't been notified yet (push_notified = 0, handled in SQL query above).
                 
                 trigger_time_utc = start_utc - timedelta(minutes=offset_min)
                 
                 is_time_to_notify = trigger_time_utc <= now_utc
-                is_too_old = trigger_time_utc < (now_utc - timedelta(hours=24))
+                # Limit catch-up to 5 minutes after the task starts to avoid spamming old tasks
+                is_too_old = start_utc < (now_utc - timedelta(minutes=5))
                 
                 print(f"DEBUG: Block {block['id']} ({block['task_title']}). Start UTC: {start_utc.isoformat()}, Trigger UTC: {trigger_time_utc.isoformat()}, Now UTC: {now_utc.isoformat()}, is_time: {is_time_to_notify}, is_old: {is_too_old}", flush=True)
 

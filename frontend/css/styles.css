@@ -230,6 +230,44 @@ body { background: #0B0F1A; }
 .loading-dots span:nth-child(3) { animation-delay:.4s; }
 @keyframes loadDot { 0%,80%,100%{opacity:.3;transform:scale(.8)} 40%{opacity:1;transform:scale(1.2)} }
 
+/* Progress Bar */
+.progress-container {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 12px 0;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #6B47F5, #10B981);
+    width: 0%;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 10px rgba(107, 71, 245, 0.3);
+}
+
+.progress-pulse {
+    animation: progressPulse 2s ease-in-out infinite;
+}
+
+@keyframes progressPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* Status Text Animation */
+.status-fade {
+    animation: statusFade 0.5s ease-in-out;
+}
+
+@keyframes statusFade {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar{width:6px}
 ::-webkit-scrollbar-track{background:#121829}
@@ -463,11 +501,43 @@ input[type="range"]:active::-webkit-slider-thumb {
     pointer-events: none;
 }
 
-.block-hobby { 
-    background: rgba(245, 158, 11, 0.1); 
-    border-left: 3px solid #F59E0B; 
-    color: rgba(245, 158, 11, 0.8);
-    opacity: 0.7;
+.block-hobby {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(56, 189, 248, 0.2)) !important;
+    border-left: 4px solid #8B5CF6 !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: inset 0 0 20px rgba(139, 92, 246, 0.1);
+}
+
+.block-hobby .task-title-text {
+    color: #C4B5FD !important;
+    font-style: italic;
+    font-weight: 700 !important;
+}
+
+.block-hobby .block-time-label {
+    color: rgba(196, 181, 253, 0.7) !important;
+}
+
+.hobby-badge {
+    display: inline-block;
+    background: rgba(139, 92, 246, 0.3);
+    color: #C4B5FD;
+    font-size: 8px;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
+    margin-right: 4px;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.block-hobby.is-completed {
+    background: rgba(139, 92, 246, 0.05) !important;
+    opacity: 0.5;
+    filter: grayscale(0.5);
 }
 
 /* Checkbox State — !important ensures these win over Tailwind utility classes */

@@ -552,6 +552,20 @@ function setupGridListeners(container) {
 
     container.oncontextmenu = (e) => { e.preventDefault(); };
 
+    // Desktop: double-click on a block opens the edit modal.
+    // Touch devices use the double-tap handler in interactions.js instead.
+    container.ondblclick = (e) => {
+        const blockEl = e.target.closest('.schedule-block:not(.block-break):not(.is-completed)');
+        if (!blockEl) return;
+        if (e.target.closest('.task-checkbox, .delete-reveal-btn')) return;
+        const blockId = blockEl.dataset.blockId;
+        if (blockId) {
+            window.dispatchEvent(new CustomEvent('sf:edit-block', {
+                detail: { blockId, el: blockEl }
+            }));
+        }
+    };
+
     // For addEventListener-based listeners, remove the previous named handler before
     // adding a new one. This prevents duplicate listeners accumulating across renders
     // while ensuring the handler is always present after roadmap regen.
@@ -835,11 +849,12 @@ window.addEventListener('sf:blocks-saved', (e) => {
     }
 });
 
-// Edit listener — dispatched from interactions.js on double-tap or long-press
+// Edit listener — dispatched from interactions.js on double-tap or long-press, and from calendar.js ondblclick
 window.addEventListener('sf:edit-block', (e) => {
     const { blockId, el } = e.detail;
-    
-    // Task 2 Fix: Search across ALL days in _blocksByDay, not just the current one
+    console.log(`[EDIT] sf:edit-block fired for blockId=${blockId}, dayKeys=${dayKeys.length}, _blocksByDay keys=${Object.keys(_blocksByDay).length}`);
+
+    // Search across ALL days in _blocksByDay, not just the current one
     let block = null;
     let targetDay = null;
     for (const day of dayKeys) {
@@ -849,6 +864,11 @@ window.addEventListener('sf:edit-block', (e) => {
             targetDay = day;
             break;
         }
+    }
+
+    if (!block) {
+        console.warn(`[EDIT] Block ${blockId} not found in _blocksByDay. Available IDs:`,
+            Object.values(_blocksByDay).flat().map(b => b.id));
     }
 
     if (block && block.block_type !== 'break') {

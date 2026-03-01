@@ -1,6 +1,7 @@
 import { getAPI, authFetch, setRegenTriggered, setCurrentTasks, setCurrentSchedule } from './store.js?v=AUTO';
 import { renderCalendar, renderFocus } from './calendar.js?v=AUTO';
 import { updateStats } from './tasks.js?v=AUTO';
+import { LoadingAnimator } from './ui.js?v=AUTO';
 
 /**
  * Show or hide the regeneration command bar.
@@ -42,7 +43,10 @@ export async function sendRegenRequest() {
     const btn = document.getElementById('btn-regen-send');
     const API = getAPI();
 
+    const animator = new LoadingAnimator('regen');
     if (loading) loading.classList.remove('hidden');
+    animator.start();
+
     if (result) { result.classList.add('hidden'); result.textContent = ''; }
     if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
 
@@ -55,6 +59,7 @@ export async function sendRegenRequest() {
         const data = await res.json();
 
         if (!res.ok) {
+            animator.stop();
             if (result) {
                 result.textContent = data.detail || 'Regeneration failed. Try again.';
                 result.classList.remove('hidden');
@@ -63,34 +68,19 @@ export async function sendRegenRequest() {
             return;
         }
 
-        // Update store and re-render calendar
-        setCurrentTasks(data.tasks);
-        setCurrentSchedule(data.schedule);
-        renderCalendar(data.tasks, data.schedule);
-        renderFocus(data.tasks);
-        updateStats();
+        animator.stop();
 
-        // Show reasoning and hide bar after short delay
-        const blocksMsg = data.blocks_updated === 0
-            ? 'No changes needed.'
-            : `${data.blocks_updated} block${data.blocks_updated === 1 ? '' : 's'} updated.`;
-
-        if (result) {
-            result.textContent = `${data.reasoning || ''} ${blocksMsg}`;
-            result.classList.remove('hidden', 'text-coral-400');
-            result.classList.add('text-mint-400');
-        }
-
-        // Auto-dismiss after 3 seconds
-        setTimeout(() => hideRegenBar(), 3000);
+        // Hard reload to ensure fresh JS and properly bound event handlers
+        // Data is already saved server-side, so the reload will pick it up.
+        window.location.reload();
 
     } catch (e) {
+        animator.stop();
         if (result) {
             result.textContent = 'Failed to reach the server. Check connection.';
             result.classList.remove('hidden');
         }
     } finally {
-        if (loading) loading.classList.add('hidden');
         if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
     }
 }

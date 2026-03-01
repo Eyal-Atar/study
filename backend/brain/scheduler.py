@@ -64,7 +64,9 @@ def generate_multi_exam_schedule(
 
     # 'Today' in user's local time
     now_utc = datetime.now(timezone.utc)
-    local_now = now_utc - timedelta(minutes=tz_offset) + timedelta(minutes=15)
+    # Give the user a 2-hour buffer from 'now' to start studying if generating mid-day
+    local_now = now_utc - timedelta(minutes=tz_offset)
+    today_start_buffer = local_now + timedelta(hours=2)
     today_local = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
     
     # Exam lookup
@@ -148,12 +150,12 @@ def generate_multi_exam_schedule(
                     window_remaining_min = min(window_remaining_min, (cutoff_dt - window.start_local).total_seconds() / 60)
             
             if day_str == today_local.strftime("%Y-%m-%d"):
-                if window.end_local <= local_now:
+                if window.end_local <= today_start_buffer:
                     window_remaining_min = 0
-                elif window.start_local < local_now:
-                    remaining_in_window = (window.end_local - local_now).total_seconds() / 60
+                elif window.start_local < today_start_buffer:
+                    remaining_in_window = (window.end_local - today_start_buffer).total_seconds() / 60
                     window_remaining_min = min(remaining_in_window, day_limit_min - used_on_day_min)
-                    current_time = local_now
+                    current_time = today_start_buffer
 
             while window_remaining_min >= 1.0: # Minimum window to try scheduling
                 if current_time.hour >= STUDY_CUTOFF_HOUR and current_time.hour > window.start_local.hour:
@@ -223,8 +225,8 @@ def generate_multi_exam_schedule(
                     exam_name=exam_map.get(task.get("exam_id"), {}).get("name", "General"),
                     task_title=task["title"],
                     subject=task.get("subject"),
-                    start_time=(current_time + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
-                    end_time=(end_time + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
+                    start_time=(current_time + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc, microsecond=0).isoformat().replace('+00:00', 'Z'),
+                    end_time=(end_time + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc, microsecond=0).isoformat().replace('+00:00', 'Z'),
                     day_date=day_str,
                     block_type="study",
                     is_delayed=False
@@ -278,8 +280,8 @@ def generate_multi_exam_schedule(
                         task_id=tid, exam_id=padding_task.get("exam_id"),
                         exam_name=exam_map.get(padding_task.get("exam_id"), {}).get("name", "General"),
                         task_title=padding_task["title"], subject=padding_task.get("subject", ""),
-                        start_time=(pad_start + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z"),
-                        end_time=(pad_end + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z"),
+                        start_time=(pad_start + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc, microsecond=0).isoformat().replace("+00:00", "Z"),
+                        end_time=(pad_end + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc, microsecond=0).isoformat().replace("+00:00", "Z"),
                         day_date=day_str, block_type="study"
                     )
                     if tid not in task_splits: task_splits[tid] = []
@@ -311,8 +313,8 @@ def generate_multi_exam_schedule(
                         task_id=None, exam_id=pad_exam_id, exam_name=pad_exam_name,
                         task_title=f"חזרה מרווחת (Spaced Repetition): {pad_exam_name}",
                         subject="Review",
-                        start_time=(pad_start + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z"),
-                        end_time=(pad_end + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z"),
+                        start_time=(pad_start + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc, microsecond=0).isoformat().replace("+00:00", "Z"),
+                        end_time=(pad_end + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc, microsecond=0).isoformat().replace("+00:00", "Z"),
                         day_date=day_str, block_type="study"
                     ))
                     fill_gap_min -= block_min
@@ -334,8 +336,8 @@ def generate_multi_exam_schedule(
             schedule.append(ScheduleBlock(
                 task_id=None, exam_id=None, exam_name="Ready",
                 task_title="Finish Line: You are ready! 🏁", subject="Motivation",
-                start_time=(mot_start + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
-                end_time=(mot_end + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
+                start_time=(mot_start + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc, microsecond=0).isoformat().replace('+00:00', 'Z'),
+                end_time=(mot_end + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc, microsecond=0).isoformat().replace('+00:00', 'Z'),
                 day_date=day_str, block_type="study"
             ))
 
@@ -350,8 +352,8 @@ def generate_multi_exam_schedule(
         schedule.append(ScheduleBlock(
             task_id=None, exam_id=None, exam_name="Relax",
             task_title=hobby_name, subject="Hobby",
-            start_time=(h_start_local + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
-            end_time=(h_end_local + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc).isoformat().replace('+00:00', 'Z'),
+            start_time=(h_start_local + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc, microsecond=0).isoformat().replace('+00:00', 'Z'),
+            end_time=(h_end_local + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc, microsecond=0).isoformat().replace('+00:00', 'Z'),
             day_date=day_str, block_type="hobby"
         ))
 
