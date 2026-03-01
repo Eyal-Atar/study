@@ -229,13 +229,27 @@ export function initMobileTabBar() {
 }
 
 export function showConfirmModal({ title, msg, icon, okText, onConfirm }) {
+    const modal = document.getElementById('modal-confirm');
+    if (!modal) return;
+
+    // If a close animation is in progress, wait for it to finish before
+    // re-opening. This prevents the modal from getting stuck mid-animation
+    // when delete is triggered again after a block reappears.
+    if (modal.classList.contains('closing')) {
+        if (modal._modalTimeout) {
+            clearTimeout(modal._modalTimeout);
+            modal._modalTimeout = null;
+        }
+        modal.classList.remove('active', 'closing');
+    }
+
     document.getElementById('confirm-title').innerText = title || 'Are you sure?';
     document.getElementById('confirm-msg').innerText = msg || 'This action cannot be undone.';
     document.getElementById('confirm-icon').innerText = icon || '🤔';
     document.getElementById('btn-confirm-ok').innerText = okText || 'Yes, Delete';
-    
+
     showModal('modal-confirm', true);
-    
+
     document.getElementById('btn-confirm-cancel').onclick = () => showModal('modal-confirm', false);
     document.getElementById('btn-confirm-ok').onclick = () => {
         showModal('modal-confirm', false);

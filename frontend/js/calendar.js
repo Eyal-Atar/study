@@ -332,69 +332,78 @@ function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = fal
     }
 }
 
-async function refreshScheduleOnly(container) {
+async function refreshScheduleOnly() {
     const API = getAPI();
-    const today = getTodayStr();
     try {
         const res = await authFetch(`${API}/schedule`);
         if (!res.ok) return;
         const newSchedule = await res.json();
-        if (!newSchedule || newSchedule.length === 0) {
-            renderCalendar(getCurrentTasks(), []);
-            return;
-        }
         setCurrentSchedule(newSchedule);
-        const newBlocksByDay = {};
-        let minDate = today, maxDate = today;
-        newSchedule.forEach(block => {
-            if (!newBlocksByDay[block.day_date]) newBlocksByDay[block.day_date] = [];
-            newBlocksByDay[block.day_date].push(block);
-            if (block.day_date < minDate) minDate = block.day_date;
-            if (block.day_date > maxDate) maxDate = block.day_date;
-        });
-
-        const keys = [];
-        const [minY, minM, minD] = minDate.split('-').map(Number);
-        const [maxY, maxM, maxD] = maxDate.split('-').map(Number);
-        let curr = new Date(minY, minM - 1, minD);
-        const last = new Date(maxY, maxM - 1, maxD);
-        while (curr <= last) {
-            keys.push(`${curr.getFullYear()}-${String(curr.getMonth()+1).padStart(2,'0')}-${String(curr.getDate()).padStart(2,'0')}`);
-            curr.setDate(curr.getDate() + 1);
-        }
-        dayKeys = keys;
-        _blocksByDay = newBlocksByDay;
-        
-        const day = dayKeys[currentDayIndex];
-        if (!newBlocksByDay[day]) {
-            renderCalendar(getCurrentTasks(), newSchedule);
-        } else {
-            renderHourlyGrid(container, getCurrentTasks(), newBlocksByDay);
-        }
+        renderCalendar(getCurrentTasks(), newSchedule);
+        renderFocus(getCurrentTasks());
     } catch (err) { console.error('Schedule refresh failed:', err); }
 }
+
+// Tracks block IDs currently being deleted to prevent concurrent duplicate deletes
+const _deletingBlocks = new Set();
 
 async function handleDeleteBlock(blockId, blockType, container) {
     const API = getAPI();
     const executeDelete = async () => {
+        // Guard: prevent concurrent deletes of the same block
+        if (_deletingBlocks.has(String(blockId))) {
+            console.warn(`[DELETE] Block ${blockId} is already being deleted, ignoring duplicate`);
+            return;
+        }
+        _deletingBlocks.add(String(blockId));
+
+        // Capture the block element BEFORE any async operations or re-renders
         const blockEl = container.querySelector(`.schedule-block[data-block-id="${blockId}"]`);
+
+        // Optimistic: animate out and update local state immediately
         if (blockEl) {
+            blockEl.style.pointerEvents = 'none';
             blockEl.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
             blockEl.style.opacity = '0';
             blockEl.style.transform = 'scale(0.95)';
-            setTimeout(() => blockEl.remove(), 200);
+            // Remove after animation completes; use a stable reference via ID attribute
+            setTimeout(() => {
+                // Re-query in case DOM was rebuilt — harmless if not found
+                const el = container.querySelector(`.schedule-block[data-block-id="${blockId}"]`);
+                if (el) el.remove();
+            }, 220);
         }
+
+        // Optimistic local state update
         const day = dayKeys[currentDayIndex];
         if (_blocksByDay[day]) {
             _blocksByDay[day] = _blocksByDay[day].filter(b => String(b.id) !== String(blockId));
         }
+        // Also remove from store so renderFocus is immediately correct
+        const storedSchedule = getCurrentSchedule() || [];
+        setCurrentSchedule(storedSchedule.filter(b => String(b.id) !== String(blockId)));
+
         try {
-            await authFetch(`${API}/tasks/block/${blockId}`, { method: 'DELETE' });
-            await refreshScheduleOnly(container);
+            const res = await authFetch(`${API}/tasks/block/${blockId}`, { method: 'DELETE' });
+            if (!res.ok) {
+                // DELETE failed — restore state by re-fetching from server
+                console.error(`[DELETE] Block ${blockId} delete failed with HTTP ${res.status}`);
+                _deletingBlocks.delete(String(blockId));
+                await refreshScheduleOnly();
+                return;
+            }
+            // Delete succeeded — local state is already correct.
+            // Only re-render Focus (which reads from store) to sync task checkboxes.
+            // Skip full refreshScheduleOnly to avoid a redundant round-trip and re-render race.
+            renderFocus(getCurrentTasks());
         } catch (err) {
-            console.error('Delete failed:', err);
-            await refreshScheduleOnly(container);
+            console.error('[DELETE] Delete network error:', err);
+            _deletingBlocks.delete(String(blockId));
+            await refreshScheduleOnly();
+            return;
         }
+
+        _deletingBlocks.delete(String(blockId));
     };
 
     if (blockType === 'hobby') {
@@ -518,7 +527,31 @@ let _focusMode = 'today'; // 'today' or 'overall'
 
 export function renderFocus(tasks) {
     const today = getTodayStr();
-    const sortedTasks = [...tasks].sort((a, b) => {
+
+    // Inject virtual tasks for schedule blocks without a task_id (practice, padding)
+    const schedule = getCurrentSchedule() || [];
+    const virtualTasks = schedule
+        .filter(b => !b.task_id && b.block_type === 'study')
+        .map(b => {
+            const s = new Date(b.start_time.replace(' ', 'T').replace(/Z$/, ''));
+            const e = new Date(b.end_time.replace(' ', 'T').replace(/Z$/, ''));
+            let hrs = Math.round(Math.abs(e - s) / 3600000 * 10) / 10;
+            if (isNaN(hrs) || hrs <= 0) hrs = 0.5;
+            return {
+                id: `vb-${b.id}`,
+                _blockId: b.id,
+                is_standalone: true,
+                title: b.task_title || b.title || b.subject || 'General Practice',
+                exam_id: b.exam_id,
+                day_date: b.day_date,
+                status: b.completed === 1 ? 'done' : 'pending',
+                estimated_hours: hrs,
+                _virtual: true,
+            };
+        });
+
+    const allTasks = [...tasks, ...virtualTasks];
+    const sortedTasks = allTasks.sort((a, b) => {
         if (a.day_date !== b.day_date) return (a.day_date || '').localeCompare(b.day_date || '');
         return (a.title || '').localeCompare(b.title || '');
     });
@@ -549,7 +582,7 @@ export function renderFocus(tasks) {
             }
 
             return `${dateHeader}<div class="flex items-center gap-2 bg-dark-900/40 rounded-lg p-2.5 ${isDone ? 'opacity-60' : ''}">
-                <button type="button" data-task-id="${t.id}" class="focus-task-checkbox flex-shrink-0 w-6 h-6 rounded-full border-2 ${isDone ? 'bg-mint-500 border-mint-500' : 'border-white/20 hover:border-accent-400'} flex items-center justify-center transition-all">
+                <button type="button" data-task-id="${t.id}" ${t._blockId ? `data-block-id="${t._blockId}"` : ''} class="focus-task-checkbox flex-shrink-0 w-6 h-6 rounded-full border-2 ${isDone ? 'bg-mint-500 border-mint-500' : 'border-white/20 hover:border-accent-400'} flex items-center justify-center transition-all">
                     ${isDone ? '<svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
                 </button>
                 <div class="w-2.5 h-2.5 rounded-full ${examColorClass(eIdx,'bg')} flex-shrink-0"></div>
@@ -568,8 +601,14 @@ export function renderFocus(tasks) {
         if (!container) return;
         container.querySelectorAll('.focus-task-checkbox').forEach(btn => {
             btn.onclick = () => {
-                const taskId = parseInt(btn.dataset.taskId, 10);
-                window.dispatchEvent(new CustomEvent('task-toggle', { detail: { taskId, btn, blockId: undefined } }));
+                const blockIdAttr = btn.dataset.blockId;
+                if (blockIdAttr) {
+                    const blockId = parseInt(blockIdAttr, 10);
+                    window.dispatchEvent(new CustomEvent('task-toggle', { detail: { taskId: null, btn, blockId } }));
+                } else {
+                    const taskId = parseInt(btn.dataset.taskId, 10);
+                    window.dispatchEvent(new CustomEvent('task-toggle', { detail: { taskId, btn, blockId: undefined } }));
+                }
             };
         });
     };
