@@ -7,7 +7,7 @@ import { authFetch, getAPI } from './store.js?v=AUTO';
 
 // HOUR_HEIGHT must match calendar.js render scale (responsive)
 function getHourHeight() { return window.innerWidth < 768 ? 70 : 160; }
-const SNAP_MINUTES = 15;
+const SNAP_MINUTES = 1;
 function getSnapPixels() { return (SNAP_MINUTES / 60) * getHourHeight(); }
 
 // ─── Touch Drag (long-press) ──────────────────────────────────────────────────
@@ -69,10 +69,14 @@ function onTouchStart(e) {
 
 function activateTouchDrag() {
     if (!touchDragState) return;
-    const { el } = touchDragState;
+    const { el, blockId } = touchDragState;
     touchDragState.dragActive = true;
 
     if (navigator.vibrate) navigator.vibrate(40);
+
+    // Open edit modal on long-press — much more reliable than double-tap on mobile.
+    // We dispatch this so calendar.js can handle the modal logic.
+    window.dispatchEvent(new CustomEvent('sf:edit-block', { detail: { blockId, el } }));
 
     // Clear any stale transform (e.g. from a prior swipe gesture).
     el.style.transform = '';

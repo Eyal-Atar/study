@@ -15,51 +15,45 @@ import { getAPI, authFetch } from './store.js?v=AUTO';
  *    the scheduler unable to find any user and notifications never fire.
  */
 export async function initPush() {
-    console.log('initPush: checking support...');
+    console.log('[PUSH] initPush: checking support...');
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        console.warn('Push notifications not supported');
+        console.warn('[PUSH] Push notifications not supported');
         return;
     }
 
-    // If permission has not been granted yet, do nothing — the permission
-    // modal / user gesture flow in auth.js handles first-time subscription.
     if (!('Notification' in window) || Notification.permission !== 'granted') {
-        console.log('initPush: permission not granted, skipping auto-refresh');
+        console.log('[PUSH] initPush: permission NOT granted (state: ' + (window.Notification ? Notification.permission : 'N/A') + '), skipping auto-refresh');
         return;
     }
 
     try {
         const registration = await navigator.serviceWorker.ready;
+        console.log('[PUSH] ServiceWorker ready, scope:', registration.scope);
         const existing = await registration.pushManager.getSubscription();
 
         if (!existing) {
-            // No browser subscription at all — create a fresh one.
-            console.log('initPush: no existing subscription, creating one...');
+            console.log('[PUSH] initPush: no existing subscription, creating one...');
             await subscribeToPush();
             return;
         }
 
-        // Check if the existing subscription's VAPID key matches the server's
-        // current key. If not, the push service will reject with 403 BadJwtToken.
+        console.log('[PUSH] initPush: existing subscription found:', existing.endpoint);
         const keyMatch = await checkVapidKeyMatch(existing);
         if (!keyMatch) {
-            console.log('initPush: VAPID key mismatch or missing, re-subscribing with current key...');
-            // Aggressively unsubscribe and re-subscribe
+            console.log('[PUSH] initPush: VAPID key mismatch, re-subscribing...');
             try {
                 await existing.unsubscribe();
             } catch (unsubErr) {
-                console.warn('initPush: Failed to unsubscribe old subscription:', unsubErr);
+                console.warn('[PUSH] Failed to unsubscribe old subscription:', unsubErr);
             }
             await subscribeToPush();
             return;
         }
 
-        // Browser already has a subscription with the correct key. Re-save it
-        // to the backend so the DB record stays current.
-        console.log('initPush: existing subscription found, syncing to backend...');
+        console.log('[PUSH] initPush: VAPID key matches, syncing to backend...');
         await saveSubscription(existing);
     } catch (err) {
-        console.error('initPush failed:', err);
+        console.error('[PUSH] initPush failed:', err);
     }
 }
 

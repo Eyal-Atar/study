@@ -2,7 +2,7 @@
  * Handles: App Shell caching, offline fallback, push notifications
  */
 
-const CACHE_NAME = 'studyflow-shell-v45';
+const CACHE_NAME = 'studyflow-shell-v46';
 
 const APP_SHELL = [
   '/css/styles.css?v=AUTO',
@@ -145,27 +145,46 @@ self.addEventListener('push', event => {
     body: data.body || 'Time to study!',
     icon: '/static/icon-192.png',
     badge: '/static/icon-192.png',
-    data: { url: data.url || '/' }
+    data: { url: data.url || '/', blockId: data.data?.blockId }
   };
-  event.waitUntil(self.registration.showNotification(title, options));
+
+  // Notify clients that a push was received (for in-app toast)
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+      clients.forEach(client => {
+        client.postMessage({
+          type: 'PUSH_RECEIVED',
+          title: title,
+          body: options.body,
+          blockId: options.data.blockId
+        });
+      });
+      return self.registration.showNotification(title, options);
+    })
+  );
 });
 
 // ─── Notification click: open or focus the app ───────────────
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+  const data = event.notification.data || {};
+  const targetUrl = data.url || '/';
+  const blockId = data.blockId;
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
       // Focus existing window if open
       for (const client of clients) {
-        if (client.url === targetUrl && 'focus' in client) {
+        if (client.url.includes(targetUrl) && 'focus' in client) {
+          if (blockId) {
+            client.postMessage({ type: 'SCROLL_TO_BLOCK', blockId });
+          }
           return client.focus();
         }
       }
       // Otherwise open a new window
       if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
+        return self.clients.openWindow(targetUrl + (blockId ? `?scrollBlock=${blockId}` : ''));
       }
     })
   );
