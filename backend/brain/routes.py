@@ -408,14 +408,33 @@ def regenerate_schedule(current_user: dict = Depends(get_current_user)):
         db.close()
         return {"tasks": all_tasks, "schedule": [dict(s) for s in schedule_rows], "_scheduler_log": _scheduler_output}
 
-    # Replace schedule blocks in DB
+    # Replace schedule blocks in DB, preserving manually-edited blocks
     try:
         db.execute("BEGIN TRANSACTION")
+
+        # Save manually-edited blocks before wiping the schedule.
+        # These are blocks the user explicitly dragged or edited — they must
+        # survive a schedule regeneration unchanged.
+        manually_edited_rows = db.execute(
+            """SELECT * FROM schedule_blocks
+               WHERE user_id = ? AND is_manually_edited = 1""",
+            (user_id,)
+        ).fetchall()
+        manually_edited_blocks = [dict(r) for r in manually_edited_rows]
+        manually_edited_task_ids = {b["task_id"] for b in manually_edited_blocks if b["task_id"]}
+
+        # Delete all auto-generated blocks; manually-edited ones are preserved via re-insert.
         db.execute("DELETE FROM schedule_blocks WHERE user_id = ?", (user_id,))
 
         now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+        # Re-insert auto-generated schedule — skip tasks already covered by a
+        # manually-edited block so the user's positioning wins.
         for block in new_schedule:
             db_task_id = block.task_id if block.block_type != "hobby" else None
+            if db_task_id and db_task_id in manually_edited_task_ids:
+                # User manually positioned this task's block — honour their edit.
+                continue
             is_notified = 1 if block.start_time < now_iso else 0
             db.execute(
                 """INSERT INTO schedule_blocks
@@ -440,6 +459,38 @@ def regenerate_schedule(current_user: dict = Depends(get_current_user)):
                     is_notified,
                 ),
             )
+
+        # Re-insert the manually-edited blocks, restoring the user's positions.
+        for b in manually_edited_blocks:
+            is_notified = 1 if b["start_time"] < now_iso else 0
+            db.execute(
+                """INSERT INTO schedule_blocks
+                (user_id, task_id, exam_id, exam_name, task_title,
+                    start_time, end_time, day_date, block_type,
+                    is_delayed, is_split, part_number, total_parts,
+                    push_notified, is_manually_edited, completed)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    user_id,
+                    b["task_id"],
+                    b["exam_id"],
+                    b["exam_name"],
+                    b["task_title"],
+                    b["start_time"],
+                    b["end_time"],
+                    b["day_date"],
+                    b["block_type"],
+                    b["is_delayed"],
+                    b["is_split"],
+                    b["part_number"],
+                    b["total_parts"],
+                    is_notified,
+                    1,  # is_manually_edited preserved
+                    b["completed"],
+                ),
+            )
+        print(f"DEBUG: regenerate_schedule preserved {len(manually_edited_blocks)} manually-edited block(s)")
+
         db.execute("COMMIT")
     except Exception as exc:
         db.execute("ROLLBACK")

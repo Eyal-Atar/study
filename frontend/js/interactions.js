@@ -69,14 +69,10 @@ function onTouchStart(e) {
 
 function activateTouchDrag() {
     if (!touchDragState) return;
-    const { el, blockId } = touchDragState;
+    const { el } = touchDragState;
     touchDragState.dragActive = true;
 
     if (navigator.vibrate) navigator.vibrate(40);
-
-    // Open edit modal on long-press — much more reliable than double-tap on mobile.
-    // We dispatch this so calendar.js can handle the modal logic.
-    window.dispatchEvent(new CustomEvent('sf:edit-block', { detail: { blockId, el } }));
 
     // Clear any stale transform (e.g. from a prior swipe gesture).
     el.style.transform = '';
@@ -487,7 +483,7 @@ async function saveSequence(blocks, container) {
     if (updates.length === 0) return;
 
     try {
-        await Promise.all(updates.map(u =>
+        const responses = await Promise.all(updates.map(u =>
             authFetch(`${API}/tasks/block/${u.blockId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -498,6 +494,15 @@ async function saveSequence(blocks, container) {
                 })
             })
         ));
+        // Log each response so network failures are visible in console
+        responses.forEach((res, i) => {
+            const u = updates[i];
+            if (!res.ok) {
+                console.error(`[saveSequence] PATCH block ${u.blockId} failed: HTTP ${res.status}`);
+            } else {
+                console.log(`[saveSequence] PATCH block ${u.blockId} OK (${res.status})`);
+            }
+        });
         // Pass updated times directly so calendar.js can update _blocksByDay
         // immediately — no server re-fetch needed before opening edit modal.
         window.dispatchEvent(new CustomEvent('sf:blocks-saved', {
