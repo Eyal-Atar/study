@@ -557,7 +557,7 @@
         </div>
     </div>
 
-    <!-- AUDITOR REVIEW SCREEN -->
+    <!-- AUDITOR REVIEW SCREEN (Two-Step Wizard) -->
     <div id="screen-auditor-review" class="screen">
         <div class="relative z-10 min-h-screen flex flex-col p-4 max-w-2xl mx-auto">
             <!-- Header -->
@@ -565,73 +565,86 @@
                 <div class="flex items-center gap-3">
                     <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-base">🧠</div>
                     <div>
-                        <h2 class="text-xl font-bold">Review Your Study Plan</h2>
-                        <p class="text-white/40 text-xs">AI has analyzed your materials — review before generating your schedule</p>
+                        <h2 class="text-xl font-bold" id="wizard-title">Choose Your Topics</h2>
+                        <p class="text-white/40 text-xs" id="wizard-subtitle">Remove topics you already know — keep what you need to study</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Focus Score Legend -->
-            <div class="bg-dark-700/60 rounded-2xl p-4 border border-white/5 mb-6">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="w-6 h-6 rounded-lg bg-gold-500/20 flex items-center justify-center text-[10px] text-gold-400 font-bold">F</span>
-                    <h3 class="text-sm font-semibold">Focus Score Guide</h3>
+            <!-- Stepper -->
+            <div id="wizard-stepper" class="flex items-center gap-0 mb-6 px-2">
+                <div class="wizard-step active" data-step="1">
+                    <div class="wizard-step-circle">1</div>
+                    <span class="wizard-step-label">Topics</span>
                 </div>
-                <div class="grid grid-cols-3 gap-2">
-                    <div class="flex flex-col gap-1">
-                        <div class="h-1 rounded-full bg-mint-500/40"></div>
-                        <div class="text-[10px] text-mint-400 font-medium">F1-F4: Light</div>
-                        <div class="text-[9px] text-white/30 leading-tight">Review, organization</div>
+                <div class="wizard-step-line active"></div>
+                <div class="wizard-step" data-step="2">
+                    <div class="wizard-step-circle">2</div>
+                    <span class="wizard-step-label">Gaps</span>
+                </div>
+                <div class="wizard-step-line"></div>
+                <div class="wizard-step" data-step="3">
+                    <div class="wizard-step-circle">3</div>
+                    <span class="wizard-step-label">Tasks</span>
+                </div>
+            </div>
+
+            <!-- Step 1: Topic Triage -->
+            <div id="wizard-step-1" class="flex-1 overflow-y-auto">
+                <div id="wizard-topic-list" class="space-y-4 mb-6">
+                    <!-- Rendered by JS: per-exam topic sections -->
+                </div>
+
+                <!-- Step 1 Actions -->
+                <div class="flex gap-3 pt-4 pb-6">
+                    <button id="btn-cancel-review" class="px-6 py-3 rounded-xl text-sm text-white/50 hover:text-white border border-white/10 hover:border-white/20 transition-all">
+                        Cancel
+                    </button>
+                    <button id="btn-wizard-next-1" class="flex-1 bg-gradient-to-r from-accent-500 to-accent-600 py-3 rounded-xl font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-accent-500/20">
+                        Continue to Gaps →
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 2: Detected Gaps -->
+            <div id="wizard-step-2" class="flex-1 overflow-y-auto" style="display:none">
+                <div id="wizard-gaps-section" class="mb-6">
+                    <div id="wizard-gaps-list" class="space-y-2">
+                        <!-- Rendered by JS -->
                     </div>
-                    <div class="flex flex-col gap-1">
-                        <div class="h-1 rounded-full bg-gold-500/40"></div>
-                        <div class="text-[10px] text-gold-400 font-medium">F5-F7: Medium</div>
-                        <div class="text-[9px] text-white/30 leading-tight">Practice, exercises</div>
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <div class="h-1 rounded-full bg-coral-500/40"></div>
-                        <div class="text-[10px] text-coral-400 font-medium">F8-F10: High</div>
-                        <div class="text-[9px] text-white/30 leading-tight">Simulations, new material</div>
-                    </div>
+                </div>
+
+                <!-- Step 2 Actions -->
+                <div class="flex gap-3 pt-4 pb-6">
+                    <button id="btn-wizard-back-2" class="px-6 py-3 rounded-xl text-sm text-white/50 hover:text-white border border-white/10 hover:border-white/20 transition-all">
+                        ← Back
+                    </button>
+                    <button id="btn-wizard-next-2" class="flex-1 bg-gradient-to-r from-accent-500 to-accent-600 py-3 rounded-xl font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-accent-500/20">
+                        Continue to Tasks →
+                    </button>
                 </div>
             </div>
 
-            <!-- Topic Map Section -->
-            <div id="auditor-topic-map" class="mb-6">
-                <!-- Rendered by renderAuditorReview() -->
-            </div>
+            <!-- Step 3: Task Selection -->
+            <div id="wizard-step-3" class="flex-1 overflow-y-auto" style="display:none">
+                <!-- Course Tabs -->
+                <div id="wizard-course-tabs" class="flex bg-dark-900/60 p-1 rounded-xl mb-4 border border-white/5 overflow-x-auto">
+                    <!-- Rendered by JS: exam filter tabs -->
+                </div>
 
-            <!-- Detected Gaps Section -->
-            <div id="auditor-gaps" class="mb-6">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="w-6 h-6 rounded-lg bg-coral-500/20 flex items-center justify-center text-xs">!</span>
-                    <h3 class="text-base font-semibold">Detected Gaps</h3>
+                <div id="wizard-tasks-list" class="space-y-2 mb-6">
+                    <!-- Rendered by JS -->
                 </div>
-                <div id="gaps-list" class="space-y-2">
-                    <!-- Rendered by renderAuditorReview() -->
-                </div>
-            </div>
 
-            <!-- Proposed Tasks Section -->
-            <div id="auditor-tasks" class="mb-6">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="w-6 h-6 rounded-lg bg-accent-500/20 flex items-center justify-center text-xs">✓</span>
-                    <h3 class="text-base font-semibold">Proposed Tasks</h3>
-                    <span id="auditor-task-count" class="text-xs text-white/40 ml-1"></span>
+                <!-- Step 3 Actions -->
+                <div class="flex gap-3 pt-4 pb-6">
+                    <button id="btn-wizard-back-3" class="px-6 py-3 rounded-xl text-sm text-white/50 hover:text-white border border-white/10 hover:border-white/20 transition-all">
+                        ← Back
+                    </button>
+                    <button id="btn-approve-schedule" class="flex-1 bg-gradient-to-r from-accent-500 to-mint-500 py-3 rounded-xl font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-accent-500/20">
+                        Approve &amp; Generate Schedule
+                    </button>
                 </div>
-                <div id="tasks-list" class="space-y-2 max-h-72 overflow-y-auto">
-                    <!-- Rendered by renderAuditorReview() -->
-                </div>
-            </div>
-
-            <!-- Action Buttons (sticky bottom) -->
-            <div class="flex gap-3 mt-auto pt-4 pb-6">
-                <button id="btn-cancel-review" class="px-6 py-3 rounded-xl text-sm text-white/50 hover:text-white border border-white/10 hover:border-white/20 transition-all">
-                    Cancel
-                </button>
-                <button id="btn-approve-schedule" class="flex-1 bg-gradient-to-r from-accent-500 to-mint-500 py-3 rounded-xl font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-accent-500/20">
-                    Approve &amp; Generate Schedule
-                </button>
             </div>
         </div>
     </div>

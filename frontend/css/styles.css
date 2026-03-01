@@ -877,3 +877,231 @@ button, a, select, input[type="checkbox"], input[type="radio"], label {
 .edit-modal-input::placeholder {
     color: rgba(255, 255, 255, 0.25);
 }
+
+/* ── Two-Step Wizard (Auditor Review Redesign) ── */
+
+/* Stepper Bar */
+#wizard-stepper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+}
+
+.wizard-step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.wizard-step-circle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.4);
+    transition: all 0.3s ease;
+}
+
+.wizard-step.active .wizard-step-circle {
+    background: rgba(107, 71, 245, 0.25);
+    border-color: #6B47F5;
+    color: #a78bfa;
+    box-shadow: 0 0 12px rgba(107, 71, 245, 0.3);
+}
+
+.wizard-step.completed .wizard-step-circle {
+    background: rgba(16, 185, 129, 0.25);
+    border-color: #10B981;
+    color: #34D399;
+}
+
+.wizard-step-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.3);
+    transition: color 0.3s ease;
+}
+
+.wizard-step.active .wizard-step-label {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.wizard-step.completed .wizard-step-label {
+    color: rgba(16, 185, 129, 0.8);
+}
+
+.wizard-step-line {
+    flex: 1;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 12px;
+    transition: background 0.3s ease;
+}
+
+.wizard-step-line.active {
+    background: linear-gradient(90deg, #6B47F5, rgba(255, 255, 255, 0.1));
+}
+
+.wizard-step-line.completed {
+    background: #10B981;
+}
+
+/* Topic Pills */
+.topic-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.75);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.topic-pill:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.topic-pill.removed {
+    opacity: 0.35;
+    text-decoration: line-through;
+    background: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.05);
+}
+
+.topic-pill .pill-toggle {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    background: rgba(16, 185, 129, 0.25);
+    border: 1.5px solid #10B981;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #10B981;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.topic-pill.removed .pill-toggle {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: transparent;
+}
+
+/* Accordion */
+.wizard-accordion-trigger {
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.wizard-accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+}
+
+.wizard-accordion-open .wizard-accordion-content {
+    max-height: 200px;
+}
+
+.wizard-accordion-arrow {
+    transition: transform 0.2s ease;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.wizard-accordion-open .wizard-accordion-arrow {
+    transform: rotate(90deg);
+}
+
+/* Wizard Task Item */
+.wizard-task-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    padding: 12px 14px;
+    transition: all 0.25s ease;
+}
+
+.wizard-task-item.removing {
+    opacity: 0;
+    transform: translateX(60px);
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-width: 0;
+    overflow: hidden;
+}
+
+.wizard-task-remove {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: rgba(244, 63, 94, 0.1);
+    border: none;
+    color: rgba(244, 63, 94, 0.6);
+    font-size: 14px;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.wizard-task-remove:hover {
+    background: rgba(244, 63, 94, 0.2);
+    color: #F43F5E;
+}
+
+/* Course Tab Bar */
+#wizard-course-tabs {
+    scrollbar-width: none;
+}
+#wizard-course-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.wizard-course-tab {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.45);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    border: none;
+    background: transparent;
+}
+
+.wizard-course-tab:hover {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.wizard-course-tab.active {
+    background: rgba(107, 71, 245, 0.2);
+    color: #a78bfa;
+    box-shadow: 0 1px 4px rgba(107, 71, 245, 0.15);
+}

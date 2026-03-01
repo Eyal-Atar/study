@@ -29,6 +29,11 @@ let _editingExam = null;
 // Existing server files loaded for the exam being edited
 let _serverFiles = [];
 
+// Wizard state for two-step auditor review
+let _rejectedTopicKeys = new Set();  // "examId:topicName"
+let _rejectedTaskIndexes = new Set(); // task array indexes removed in step 2
+let _activeExamTab = null;            // currently selected course tab (exam_id)
+
 /** Full refresh from server (tasks + schedule + exams). Use after defer or when sync might be off. */
 export async function refreshScheduleAndFocus() {
     const API = getAPI();
@@ -529,67 +534,170 @@ export async function generateRoadmap() {
     }
 }
 
-/** Render the Auditor Review Screen with tasks, gaps and topic map. */
+/** Render the Auditor Review Screen as a two-step wizard. */
 export function renderAuditorReview(data) {
-    const tasks = data.tasks || [];
-    const gaps = data.gaps || [];
-    const topicMap = data.topic_map || {};
+    // Reset wizard state
+    _rejectedTopicKeys = new Set();
+    _rejectedTaskIndexes = new Set();
+    _activeExamTab = null;
 
-    // --- Topic Map ---
-    const topicMapEl = document.getElementById('auditor-topic-map');
-    if (topicMapEl) {
+    // Always start on step 1
+    _showWizardStep(1);
+    _renderWizardStep1(data);
+}
+
+/** Show the correct wizard step (1=Topics, 2=Gaps, 3=Tasks) and update stepper UI. */
+function _showWizardStep(step) {
+    const steps = [
+        document.getElementById('wizard-step-1'),
+        document.getElementById('wizard-step-2'),
+        document.getElementById('wizard-step-3')
+    ];
+    const title = document.getElementById('wizard-title');
+    const subtitle = document.getElementById('wizard-subtitle');
+    const stepperSteps = document.querySelectorAll('#wizard-stepper .wizard-step');
+    const stepperLines = document.querySelectorAll('#wizard-stepper .wizard-step-line');
+
+    const titles = [
+        ['Choose Your Topics', 'Remove topics you already know — keep what you need to study'],
+        ['Review Detected Gaps', 'Gaps are missing topics the AI found — dismiss or add tasks for them'],
+        ['Review Tasks', 'Remove tasks you don\'t need — everything else goes into your schedule']
+    ];
+
+    // Show only the active step
+    steps.forEach((el, i) => { if (el) el.style.display = i === step - 1 ? '' : 'none'; });
+
+    // Update header
+    if (title) title.textContent = titles[step - 1][0];
+    if (subtitle) subtitle.textContent = titles[step - 1][1];
+
+    // Update stepper circles and lines
+    stepperSteps.forEach((el, i) => {
+        const stepNum = i + 1;
+        el.classList.toggle('active', stepNum === step);
+        el.classList.toggle('completed', stepNum < step);
+    });
+    stepperLines.forEach((el, i) => {
+        const afterStep = i + 1; // line[0] is after step 1, line[1] is after step 2
+        el.classList.toggle('active', afterStep === step);
+        el.classList.toggle('completed', afterStep < step);
+    });
+}
+
+/** Step 1: Render topics per exam + gaps with accordions. */
+function _renderWizardStep1(data) {
+    const topicMap = data.topic_map || {};
+    const exams = getCurrentExams() || [];
+
+    // --- Topics ---
+    const topicListEl = document.getElementById('wizard-topic-list');
+    if (topicListEl) {
         if (Object.keys(topicMap).length === 0) {
-            topicMapEl.innerHTML = '';
+            topicListEl.innerHTML = `<p class="text-white/30 text-sm">No topics detected from your materials.</p>`;
         } else {
-            const exams = getCurrentExams() || [];
-            let html = `<div class="flex items-center gap-2 mb-3"><span class="w-6 h-6 rounded-lg bg-mint-500/20 flex items-center justify-center text-xs">📋</span><h3 class="text-base font-semibold">Topic Map</h3></div>`;
-            html += `<div class="space-y-3">`;
+            let html = '';
             for (const [examId, topics] of Object.entries(topicMap)) {
                 const exam = exams.find(e => String(e.id) === String(examId));
                 const examName = exam ? exam.name : `Exam ${examId}`;
                 html += `<div class="bg-dark-700/60 rounded-2xl p-4 border border-white/5">
-                    <div class="font-medium text-sm mb-2 text-accent-400">${examName}</div>
-                    <div class="flex flex-wrap gap-1.5">
-                        ${(topics || []).map(t => `<span class="text-xs bg-dark-900/60 text-white/60 px-2 py-0.5 rounded-lg">${t}</span>`).join('')}
+                    <div class="font-medium text-sm mb-3 text-accent-400">${examName}</div>
+                    <div class="flex flex-wrap gap-2">
+                        ${(topics || []).map(t => {
+                            const key = `${examId}:${t}`;
+                            const removed = _rejectedTopicKeys.has(key);
+                            return `<div class="topic-pill ${removed ? 'removed' : ''}" data-topic-key="${key}">
+                                <span class="pill-toggle">${removed ? '' : '✓'}</span>
+                                <span>${t}</span>
+                            </div>`;
+                        }).join('')}
                     </div>
                 </div>`;
             }
-            html += `</div>`;
-            topicMapEl.innerHTML = html;
+            topicListEl.innerHTML = html;
         }
     }
 
-    // --- Gaps ---
-    const gapsList = document.getElementById('gaps-list');
+    // Bind topic pill clicks
+    document.querySelectorAll('.topic-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+            const key = pill.dataset.topicKey;
+            if (_rejectedTopicKeys.has(key)) {
+                _rejectedTopicKeys.delete(key);
+                pill.classList.remove('removed');
+                pill.querySelector('.pill-toggle').textContent = '✓';
+            } else {
+                _rejectedTopicKeys.add(key);
+                pill.classList.add('removed');
+                pill.querySelector('.pill-toggle').textContent = '';
+            }
+        });
+    });
+
+}
+
+/** Step 2: Render detected gaps with accordions and actions. */
+function _renderWizardStep2Gaps(data) {
+    const gaps = data.gaps || [];
+    const exams = getCurrentExams() || [];
+    const gapsList = document.getElementById('wizard-gaps-list');
+    const gapsSection = document.getElementById('wizard-gaps-section');
+
     if (gapsList) {
         if (gaps.length === 0) {
-            gapsList.innerHTML = `<p class="text-white/30 text-sm">No gaps detected — your materials cover all topics.</p>`;
+            gapsList.innerHTML = `<div class="text-center py-8">
+                <div class="text-3xl mb-3">✅</div>
+                <p class="text-white/50 text-sm">No gaps detected — your materials cover all topics.</p>
+            </div>`;
         } else {
-            gapsList.innerHTML = gaps.map((gap, i) => `
-                <div class="gap-item flex items-start justify-between gap-3 bg-coral-500/10 border border-coral-500/20 rounded-xl p-3" data-gap-index="${i}">
-                    <div class="flex-1">
-                        <div class="text-sm font-medium text-coral-400">${gap.topic}</div>
-                        <div class="text-xs text-white/40 mt-0.5">${gap.description || 'Topic in syllabus but no study material found'}</div>
+            gapsList.innerHTML = gaps.map((gap, i) => {
+                const exam = exams.find(e => e.id === gap.exam_id);
+                const examLabel = exam ? exam.name : '';
+                return `
+                <div class="gap-item wizard-accordion bg-coral-500/10 border border-coral-500/20 rounded-xl p-3" data-gap-index="${i}">
+                    <div class="flex items-center justify-between gap-2 wizard-accordion-trigger">
+                        <div class="flex items-center gap-2 flex-1 min-w-0">
+                            <span class="wizard-accordion-arrow">▶</span>
+                            <div class="flex-1 min-w-0">
+                                <span class="text-sm font-medium text-coral-400 truncate block">${gap.topic}</span>
+                                ${examLabel ? `<span class="text-[10px] text-white/30">${examLabel}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="flex gap-2 flex-shrink-0">
+                            <button class="btn-add-search-task text-xs bg-accent-500/20 text-accent-400 px-2 py-1 rounded-lg hover:bg-accent-500/30 transition-colors" data-gap-index="${i}" data-gap-topic="${gap.topic}" data-gap-exam-id="${gap.exam_id}">+ Task</button>
+                            <button class="btn-dismiss-gap text-xs text-white/30 hover:text-white/60 px-2 py-1 rounded-lg transition-colors" data-gap-index="${i}">Dismiss</button>
+                        </div>
                     </div>
-                    <div class="flex gap-2 flex-shrink-0">
-                        <button class="btn-add-search-task text-xs bg-accent-500/20 text-accent-400 px-2 py-1 rounded-lg hover:bg-accent-500/30 transition-colors" data-gap-index="${i}" data-gap-topic="${gap.topic}" data-gap-exam-id="${gap.exam_id}">+ Search Task</button>
-                        <button class="btn-dismiss-gap text-xs text-white/30 hover:text-white/60 px-2 py-1 rounded-lg transition-colors" data-gap-index="${i}">Dismiss</button>
+                    <div class="wizard-accordion-content">
+                        <div class="text-xs text-white/40 mt-2 pl-5">${gap.description || 'Topic in syllabus but no study material found'}</div>
                     </div>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
         }
     }
 
-    // Bind gap action buttons
-    document.querySelectorAll('.btn-dismiss-gap').forEach(btn => {
-        btn.addEventListener('click', () => {
+    // Bind accordion triggers
+    const container = document.getElementById('wizard-step-2');
+    if (!container) return;
+
+    container.querySelectorAll('.wizard-accordion-trigger').forEach(trigger => {
+        trigger.addEventListener('click', (e) => {
+            if (e.target.closest('.btn-add-search-task') || e.target.closest('.btn-dismiss-gap')) return;
+            const accordion = trigger.closest('.wizard-accordion');
+            if (accordion) accordion.classList.toggle('wizard-accordion-open');
+        });
+    });
+
+    container.querySelectorAll('.btn-dismiss-gap').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
             const gapEl = btn.closest('.gap-item');
             if (gapEl) gapEl.remove();
         });
     });
 
-    document.querySelectorAll('.btn-add-search-task').forEach(btn => {
-        btn.addEventListener('click', () => {
+    container.querySelectorAll('.btn-add-search-task').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
             const topic = btn.dataset.gapTopic;
             const examId = parseInt(btn.dataset.gapExamId, 10);
             _addSearchTaskFromGap(topic, examId);
@@ -597,41 +705,119 @@ export function renderAuditorReview(data) {
             if (gapEl) gapEl.remove();
         });
     });
+}
 
-    // --- Tasks List ---
-    const tasksList = document.getElementById('tasks-list');
-    const taskCount = document.getElementById('auditor-task-count');
-    if (taskCount) taskCount.textContent = `(${tasks.length} tasks)`;
-    if (tasksList) {
-        if (tasks.length === 0) {
-            tasksList.innerHTML = `<p class="text-white/30 text-sm">No tasks generated.</p>`;
+/** Step 3: Render tasks filtered by rejected topics, grouped by course tabs. */
+function _renderWizardStep3() {
+    const draft = window._auditorDraft;
+    if (!draft) return;
+
+    const tasks = draft.tasks || [];
+    const exams = getCurrentExams() || [];
+
+    // Filter out tasks whose topic was rejected in step 1
+    const filteredTasks = tasks.map((t, i) => ({ ...t, _origIndex: i })).filter(t => {
+        const topicKey = `${t.exam_id}:${t.topic}`;
+        return !_rejectedTopicKeys.has(topicKey);
+    });
+
+    // Reset step-2 rejections (user may go back and forth)
+    _rejectedTaskIndexes = new Set();
+
+    // Build course tabs
+    const examIds = [...new Set(filteredTasks.map(t => t.exam_id))];
+    const tabsEl = document.getElementById('wizard-course-tabs');
+    if (tabsEl) {
+        if (examIds.length <= 1) {
+            tabsEl.style.display = 'none';
         } else {
-            const exams = getCurrentExams() || [];
-            tasksList.innerHTML = tasks.map((t, i) => {
-                const exam = exams.find(e => e.id === t.exam_id);
-                const examLabel = exam ? exam.name : `Exam ${t.exam_id}`;
-                const focusBadgeColor = t.focus_score >= 8 ? 'text-coral-400 bg-coral-500/20' : t.focus_score >= 5 ? 'text-gold-400 bg-gold-500/20' : 'text-mint-400 bg-mint-500/20';
-                const isPadding = t.is_padding || t.title.toLowerCase().includes('review') || t.title.toLowerCase().includes('practice');
-                const paddingClass = isPadding ? 'padding-task-item' : '';
-                const badgeClass = isPadding ? 'padding-badge' : focusBadgeColor;
-                const badgeLabel = isPadding ? 'Padding' : `F${t.focus_score}`;
-                
-                return `<div class="flex items-start gap-3 bg-dark-700/60 rounded-xl p-3 border border-white/5 ${paddingClass}">
-                    <div class="pt-1">
-                        <input type="checkbox" checked class="task-approve-checkbox accent-accent-500 w-4 h-4 rounded" data-task-index="${i}">
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="text-sm font-medium truncate">${t.title}</div>
-                        <div class="text-xs text-white/40 mt-0.5">${examLabel} · ${t.estimated_hours}h</div>
-                    </div>
-                    <span class="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-lg ${badgeClass} font-medium uppercase tracking-wider">${badgeLabel}</span>
-                </div>`;
+            tabsEl.style.display = '';
+            tabsEl.innerHTML = examIds.map(eid => {
+                const exam = exams.find(e => e.id === eid);
+                const name = exam ? exam.name : `Exam ${eid}`;
+                return `<button class="wizard-course-tab" data-exam-id="${eid}">${name}</button>`;
             }).join('');
         }
     }
+
+    // Set initial active tab
+    _activeExamTab = examIds.length > 0 ? examIds[0] : null;
+
+    // Render tasks
+    _renderFilteredTasks(filteredTasks);
+
+    // Bind tab clicks
+    document.querySelectorAll('.wizard-course-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            _activeExamTab = parseInt(tab.dataset.examId, 10) || tab.dataset.examId;
+            document.querySelectorAll('.wizard-course-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            _renderFilteredTasks(filteredTasks);
+        });
+    });
+
+    // Activate first tab
+    const firstTab = document.querySelector('.wizard-course-tab');
+    if (firstTab) firstTab.classList.add('active');
 }
 
-/** Add a "Search Task" from a detected gap to the pending approved tasks list. */
+/** Render task list filtered by active exam tab. */
+function _renderFilteredTasks(allFilteredTasks) {
+    const tasksList = document.getElementById('wizard-tasks-list');
+    if (!tasksList) return;
+
+    const exams = getCurrentExams() || [];
+    const visibleTasks = _activeExamTab
+        ? allFilteredTasks.filter(t => String(t.exam_id) === String(_activeExamTab))
+        : allFilteredTasks;
+
+    if (visibleTasks.length === 0) {
+        tasksList.innerHTML = `<p class="text-white/30 text-sm py-4 text-center">No tasks for this course.</p>`;
+        return;
+    }
+
+    tasksList.innerHTML = visibleTasks.map(t => {
+        const exam = exams.find(e => e.id === t.exam_id);
+        const examLabel = exam ? exam.name : '';
+        const reasoning = t.reasoning || '';
+
+        return `<div class="wizard-task-item wizard-accordion" data-task-index="${t._origIndex}">
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                    ${reasoning ? `<span class="wizard-accordion-trigger wizard-accordion-arrow flex-shrink-0 cursor-pointer">▶</span>` : ''}
+                    <div class="text-sm font-medium">${t.title}</div>
+                </div>
+                ${reasoning ? `<div class="wizard-accordion-content">
+                    <div class="text-xs text-white/40 mt-1.5 ${reasoning ? 'pl-5' : ''}">${reasoning}</div>
+                </div>` : ''}
+            </div>
+            <button class="wizard-task-remove" data-task-index="${t._origIndex}">✕</button>
+        </div>`;
+    }).join('');
+
+    // Bind accordion triggers for reasoning
+    tasksList.querySelectorAll('.wizard-accordion-trigger').forEach(trigger => {
+        trigger.addEventListener('click', () => {
+            const item = trigger.closest('.wizard-accordion');
+            if (item) item.classList.toggle('wizard-accordion-open');
+        });
+    });
+
+    // Bind remove buttons
+    tasksList.querySelectorAll('.wizard-task-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const idx = parseInt(btn.dataset.taskIndex, 10);
+            _rejectedTaskIndexes.add(idx);
+            const item = btn.closest('.wizard-task-item');
+            if (item) {
+                item.classList.add('removing');
+                setTimeout(() => item.remove(), 250);
+            }
+        });
+    });
+}
+
+/** Add a "Search Task" from a detected gap to the pending tasks. */
 function _addSearchTaskFromGap(topic, examId) {
     if (!window._auditorDraft) return;
     const newIndex = window._auditorDraft.tasks.length;
@@ -647,32 +833,32 @@ function _addSearchTaskFromGap(topic, examId) {
         sort_order: 9999
     };
     window._auditorDraft.tasks.push(searchTask);
-
-    // Append to the rendered task list so user sees it immediately
-    const tasksList = document.getElementById('tasks-list');
-    const taskCount = document.getElementById('auditor-task-count');
-    if (taskCount) {
-        const current = parseInt(taskCount.textContent.replace(/\D/g, ''), 10) || 0;
-        taskCount.textContent = `(${current + 1} tasks)`;
-    }
-    if (tasksList) {
-        const div = document.createElement('div');
-        div.className = 'flex items-start gap-3 bg-accent-500/10 border border-accent-500/30 rounded-xl p-3';
-        div.innerHTML = `
-            <div class="pt-1">
-                <input type="checkbox" checked class="task-approve-checkbox accent-accent-500 w-4 h-4 rounded" data-task-index="${newIndex}">
-            </div>
-            <div class="flex-1 min-w-0">
-                <div class="text-sm font-medium truncate text-accent-400">${searchTask.title}</div>
-                <div class="text-xs text-white/40 mt-0.5">Added from gap · 1h</div>
-            </div>
-            <span class="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-lg text-mint-400 bg-mint-500/20 font-medium uppercase tracking-wider">New</span>
-        `;
-        tasksList.appendChild(div);
-    }
 }
 
-/** Collect approved tasks and POST to /brain/approve-and-schedule. */
+/** Navigate wizard: step 1 → step 2 (gaps). */
+export function wizardGoToStep2() {
+    _showWizardStep(2);
+    _renderWizardStep2Gaps(window._auditorDraft);
+}
+
+/** Navigate wizard: step 2 → step 3 (tasks). */
+export function wizardGoToStep3() {
+    _showWizardStep(3);
+    _renderWizardStep3();
+}
+
+/** Navigate wizard back to step 1 (from step 2). */
+export function wizardBackToStep1() {
+    _showWizardStep(1);
+}
+
+/** Navigate wizard back to step 2 (from step 3). */
+export function wizardBackToStep2() {
+    _showWizardStep(2);
+    // Gaps already rendered, DOM state preserved
+}
+
+/** Collect approved tasks (excluding rejected) and POST to /brain/approve-and-schedule. */
 export async function approveSchedule() {
     const draft = window._auditorDraft;
     if (!draft || !draft.tasks) {
@@ -680,14 +866,16 @@ export async function approveSchedule() {
         return;
     }
 
-    // Collect checked tasks only
-    const checkedIndexes = Array.from(document.querySelectorAll('.task-approve-checkbox:checked'))
-        .map(cb => parseInt(cb.dataset.taskIndex));
-    
-    const approvedTasks = draft.tasks.filter((_, i) => checkedIndexes.includes(i));
+    // Filter: exclude topics rejected in step 1, then tasks rejected in step 2
+    const approvedTasks = draft.tasks.filter((t, i) => {
+        const topicKey = `${t.exam_id}:${t.topic}`;
+        if (_rejectedTopicKeys.has(topicKey)) return false;
+        if (_rejectedTaskIndexes.has(i)) return false;
+        return true;
+    });
 
     if (approvedTasks.length === 0) {
-        alert('Please select at least one task to approve.');
+        alert('Please keep at least one task to generate a schedule.');
         return;
     }
 
@@ -1034,9 +1222,21 @@ export function initTasks() {
     const btnGenerate = document.getElementById('btn-generate-roadmap');
     if (btnGenerate) btnGenerate.onclick = generateRoadmap;
 
-    // Auditor review screen buttons
+    // Auditor review wizard buttons (3-step: Topics → Gaps → Tasks)
     const btnCancelReview = document.getElementById('btn-cancel-review');
     if (btnCancelReview) btnCancelReview.onclick = () => showScreen('screen-dashboard');
+
+    const btnWizardNext1 = document.getElementById('btn-wizard-next-1');
+    if (btnWizardNext1) btnWizardNext1.onclick = wizardGoToStep2;
+
+    const btnWizardBack2 = document.getElementById('btn-wizard-back-2');
+    if (btnWizardBack2) btnWizardBack2.onclick = wizardBackToStep1;
+
+    const btnWizardNext2 = document.getElementById('btn-wizard-next-2');
+    if (btnWizardNext2) btnWizardNext2.onclick = wizardGoToStep3;
+
+    const btnWizardBack3 = document.getElementById('btn-wizard-back-3');
+    if (btnWizardBack3) btnWizardBack3.onclick = wizardBackToStep2;
 
     const btnApproveSchedule = document.getElementById('btn-approve-schedule');
     if (btnApproveSchedule) btnApproveSchedule.onclick = approveSchedule;
