@@ -1,5 +1,6 @@
 import { getCurrentExams, getCurrentTasks, getAPI, authFetch, getCurrentSchedule, setCurrentSchedule, getCurrentUser, getTodayStr } from './store.js?v=AUTO';
 import { examColorClass, showTaskEditModal, showConfirmModal, examHex } from './ui.js?v=AUTO';
+import { initInteractions } from './interactions.js?v=AUTO';
 
 let currentDayIndex = 0;
 let dayKeys = [];
@@ -43,6 +44,10 @@ export function renderCalendar(tasks, schedule = [], forceScrollToWake = false) 
     try {
         const container = document.getElementById('roadmap-container');
         if (!container) return;
+
+        // Re-init interactions after any render to ensure fresh elements are picked up if needed
+        // although document-level listeners usually handle this, it's safer for state consistency.
+        initInteractions();
 
         // Capture scroll position before re-render
         const gridContainer = container.querySelector('.grid-day-container');
@@ -225,7 +230,6 @@ function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = fal
 
             const eIdx = block.exam_id !== null && block.exam_id !== -1 ? (examIdx[block.exam_id] ?? -1) : -1;
             const typeClass = `block-${block.block_type}`;
-            const borderColor = eIdx !== -1 ? examHex(eIdx) : '#6B47F5';
             const startTimeStr = formatLocalTime(start);
             const endTimeStr = formatLocalTime(end);
             const isDone = block.completed === 1;
@@ -233,21 +237,39 @@ function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = fal
 
             const title = block.task_title || '';
             const isPadding = title.startsWith('General Review:') || title.startsWith('Solve Practice Problems:');
+            const isHobby = block.block_type === 'hobby';
             const paddingClass = isPadding ? 'block-padding' : '';
 
             const BLOCK_BG_COLORS = [
                 'rgba(107,71,245,0.18)', 'rgba(16,185,129,0.18)', 'rgba(244,63,94,0.18)', 'rgba(245,158,11,0.18)', 'rgba(56,189,248,0.18)',
             ];
-            const blockBg = eIdx !== -1 ? BLOCK_BG_COLORS[eIdx % BLOCK_BG_COLORS.length] : BLOCK_BG_COLORS[0];
+            
+            let blockBg;
+            let borderColor;
+            
+            if (isHobby) {
+                blockBg = 'repeating-linear-gradient(45deg, rgba(56,189,248,0.05), rgba(56,189,248,0.05) 10px, rgba(56,189,248,0.15) 10px, rgba(56,189,248,0.15) 20px)';
+                borderColor = '#38BDF8';
+            } else {
+                blockBg = eIdx !== -1 ? BLOCK_BG_COLORS[eIdx % BLOCK_BG_COLORS.length] : BLOCK_BG_COLORS[0];
+                borderColor = eIdx !== -1 ? examHex(eIdx) : '#6B47F5';
+            }
+
             const timeRangeStr = visualHeight >= 50 ? `${startTimeStr} – ${endTimeStr}` : startTimeStr;
 
-            const displayTitle = (block.part_number && block.total_parts && block.total_parts > 1)
+            let displayTitle = (block.part_number && block.total_parts && block.total_parts > 1)
                 ? `${block.task_title} (Part ${block.part_number}/${block.total_parts})`
                 : block.task_title;
+            
+            if (isHobby) displayTitle = `🧘 ${displayTitle}`;
+
+            const badgeHtml = isHobby && visualHeight >= 36 
+                ? '<span class="hobby-badge">Hobby</span> '
+                : (isPadding && visualHeight >= 36 ? '<span class="padding-badge">Review</span> ' : '');
 
             return `
                 <div class="schedule-block ${typeClass} ${completedClass} ${paddingClass} ${block.is_delayed ? 'block-delayed' : ''} group"
-                     style="position: absolute; top: ${visualTop}px; height: ${visualHeight}px; left: 4px; right: 8px; border-left: 3px solid ${borderColor}; background: ${blockBg}; border-radius: 10px;"
+                     style="position: absolute; top: ${visualTop}px; height: ${visualHeight}px; left: 4px; right: 8px; border-left: 4px solid ${borderColor}; background: ${blockBg}; border-radius: 10px;"
                      data-task-id="${block.task_id || ''}"
                      data-block-id="${block.id || ''}"
                      data-block-type="${block.block_type}"
@@ -262,7 +284,7 @@ function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = fal
                             </button>
 
                             <div class="flex-1 min-w-0 flex flex-col justify-start h-full overflow-hidden">
-                                <div class="font-semibold text-[11px] md:text-[12px] text-white/95 task-title-text leading-tight" dir="auto" style="-webkit-line-clamp:${visualHeight < 50 ? 1 : 2};">${isPadding && visualHeight >= 36 ? '<span class="padding-badge">Review</span> ' : ''}${displayTitle}</div>
+                                <div class="font-semibold text-[11px] md:text-[12px] text-white/95 task-title-text leading-tight" dir="auto" style="-webkit-line-clamp:${visualHeight < 50 ? 1 : 2};">${badgeHtml}${displayTitle}</div>
                                 ${visualHeight >= 26 ? `<div class="flex items-center gap-1 mt-0.5">
                                     <span class="text-[11px] font-semibold text-white/70 block-time-label tabular-nums">${timeRangeStr}</span>
                                     ${block.is_delayed ? '<span class="delayed-badge" style="font-size:7px;padding:1px 3px;">LATE</span>' : ''}
@@ -453,9 +475,45 @@ async function handleSaveBlock(blockId, updates, container) {
     } catch (err) { console.error('Update failed:', err); }
 }
 
-function setupGridListeners(container) {
-    if (container._listenersAttached) return;
+// Stable named handler references stored on the container so that
+// removeEventListener can find them on re-renders without accumulating duplicates.
+// We store them directly on the container element object so each container
+// (there is only ever one: #roadmap-container) keeps its own pair.
 
+function _makeTouchStartHandler() {
+    return (e) => {
+        _touchStartX = e.changedTouches[0].screenX;
+        _touchStartY = e.changedTouches[0].screenY;
+    };
+}
+
+function _makeTouchEndHandler(container) {
+    // Double-tap is handled by interactions.js (unified touch state machine).
+    // This handler only detects horizontal swipe for day navigation.
+    return (e) => {
+        if (e.target.closest('.task-checkbox, .delete-reveal-btn')) return;
+
+        const touch = e.changedTouches[0];
+        const diffX = touch.screenX - _touchStartX;
+        const diffY = touch.screenY - _touchStartY;
+
+        if (Math.abs(diffX) > 60 && Math.abs(diffY) < 40) {
+            if (diffX > 0 && currentDayIndex > 0) {
+                currentDayIndex--;
+                localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]);
+                renderHourlyGrid(container, getCurrentTasks(), _blocksByDay, true);
+            } else if (diffX < 0 && currentDayIndex < dayKeys.length - 1) {
+                currentDayIndex++;
+                localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]);
+                renderHourlyGrid(container, getCurrentTasks(), _blocksByDay, true);
+            }
+        }
+    };
+}
+
+function setupGridListeners(container) {
+    // onclick is an assignment — safe to re-assign on every render (last writer wins,
+    // no accumulation). This ensures the handler is always fresh after roadmap regen.
     container.onclick = (e) => {
         const delBtn = e.target.closest('.delete-reveal-btn');
         if (delBtn) {
@@ -492,35 +550,23 @@ function setupGridListeners(container) {
         }
     };
 
-    container.addEventListener('touchstart', (e) => { 
-        _touchStartX = e.changedTouches[0].screenX; 
-        _touchStartY = e.changedTouches[0].screenY;
-    }, { passive: true });
-
-    // Double-tap is now handled by interactions.js (unified touch state machine).
-    // This handler only detects horizontal swipe for day navigation.
-    container.addEventListener('touchend', (e) => {
-        if (e.target.closest('.task-checkbox, .delete-reveal-btn')) return;
-
-        const touch = e.changedTouches[0];
-        const diffX = touch.screenX - _touchStartX;
-        const diffY = touch.screenY - _touchStartY;
-
-        if (Math.abs(diffX) > 60 && Math.abs(diffY) < 40) {
-            if (diffX > 0 && currentDayIndex > 0) {
-                currentDayIndex--;
-                localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]);
-                renderHourlyGrid(container, getCurrentTasks(), _blocksByDay, true);
-            } else if (diffX < 0 && currentDayIndex < dayKeys.length - 1) {
-                currentDayIndex++;
-                localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]);
-                renderHourlyGrid(container, getCurrentTasks(), _blocksByDay, true);
-            }
-        }
-    }, { passive: true });
-
     container.oncontextmenu = (e) => { e.preventDefault(); };
-    container._listenersAttached = true;
+
+    // For addEventListener-based listeners, remove the previous named handler before
+    // adding a new one. This prevents duplicate listeners accumulating across renders
+    // while ensuring the handler is always present after roadmap regen.
+    if (container._sfTouchStart) {
+        container.removeEventListener('touchstart', container._sfTouchStart);
+    }
+    if (container._sfTouchEnd) {
+        container.removeEventListener('touchend', container._sfTouchEnd);
+    }
+
+    container._sfTouchStart = _makeTouchStartHandler();
+    container._sfTouchEnd = _makeTouchEndHandler(container);
+
+    container.addEventListener('touchstart', container._sfTouchStart, { passive: true });
+    container.addEventListener('touchend', container._sfTouchEnd, { passive: true });
 }
 
 let _focusMode = 'today'; // 'today' or 'overall'
@@ -531,7 +577,7 @@ export function renderFocus(tasks) {
     // Inject virtual tasks for schedule blocks without a task_id (practice, padding)
     const schedule = getCurrentSchedule() || [];
     const virtualTasks = schedule
-        .filter(b => !b.task_id && b.block_type === 'study')
+        .filter(b => !b.task_id && (b.block_type === 'study' || b.block_type === 'hobby'))
         .map(b => {
             const s = new Date(b.start_time.replace(' ', 'T').replace(/Z$/, ''));
             const e = new Date(b.end_time.replace(' ', 'T').replace(/Z$/, ''));
@@ -792,8 +838,19 @@ window.addEventListener('sf:blocks-saved', (e) => {
 // Edit listener — dispatched from interactions.js on double-tap or long-press
 window.addEventListener('sf:edit-block', (e) => {
     const { blockId, el } = e.detail;
-    const day = dayKeys[currentDayIndex];
-    let block = (_blocksByDay[day] || []).find(b => String(b.id) === String(blockId));
+    
+    // Task 2 Fix: Search across ALL days in _blocksByDay, not just the current one
+    let block = null;
+    let targetDay = null;
+    for (const day of dayKeys) {
+        const found = (_blocksByDay[day] || []).find(b => String(b.id) === String(blockId));
+        if (found) {
+            block = found;
+            targetDay = day;
+            break;
+        }
+    }
+
     if (block && block.block_type !== 'break') {
         // Recalculate times from DOM position (block may have been dragged)
         const blockEl = el || document.querySelector(`.schedule-block[data-block-id="${blockId}"]`);
@@ -806,8 +863,8 @@ window.addEventListener('sf:edit-block', (e) => {
                 const endTotalMin = startTotalMin + Math.round((domHeight / hourHeight) * 60);
                 const pad = (n) => String(n).padStart(2, '0');
                 block = { ...block,
-                    start_time: `${day}T${pad(Math.floor(startTotalMin/60))}:${pad(startTotalMin%60)}:00`,
-                    end_time:   `${day}T${pad(Math.floor(endTotalMin/60))}:${pad(endTotalMin%60)}:00`,
+                    start_time: `${targetDay}T${pad(Math.floor(startTotalMin/60))}:${pad(startTotalMin%60)}:00`,
+                    end_time:   `${targetDay}T${pad(Math.floor(endTotalMin/60))}:${pad(endTotalMin%60)}:00`,
                 };
             }
         }
