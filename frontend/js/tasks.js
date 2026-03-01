@@ -120,22 +120,30 @@ export async function loadExams(onLogout, forceRegen = false) {
         // Fetch existing tasks and schedule from server
         const tasksRes = await authFetch(`${API}/tasks`);
         const scheduleRes = await authFetch(`${API}/schedule`);
-        
+
         let tasks = [];
         let schedule = [];
-        
-        if (tasksRes.ok) tasks = await tasksRes.json();
-        if (scheduleRes.ok) schedule = await scheduleRes.json();
-        
+        // Track whether fetches succeeded — only regenerate if we KNOW tasks is empty,
+        // not just because the fetch failed (which would silently recreate deleted blocks).
+        const tasksFetchOk = tasksRes.ok;
+        const scheduleFetchOk = scheduleRes.ok;
+
+        if (tasksFetchOk) tasks = await tasksRes.json();
+        if (scheduleFetchOk) schedule = await scheduleRes.json();
+
         setCurrentTasks(tasks);
         setCurrentSchedule(schedule);
         updateStats();
         renderCalendar(tasks, schedule);
         renderFocus(tasks);
 
-        // ONLY regenerate if forceRegen is true OR we have absolutely no tasks BUT we have exams
-        if (forceRegen || (tasks.length === 0 && exams.length > 0)) {
-            console.log('loadExams: Triggering regenerate-schedule...');
+        // ONLY regenerate if:
+        // 1. forceRegen is explicitly requested, OR
+        // 2. Both fetches succeeded AND tasks is genuinely empty while exams exist
+        // Never regenerate if a fetch failed — that would recreate explicitly-deleted blocks.
+        const tasksGenuinelyEmpty = tasksFetchOk && scheduleFetchOk && tasks.length === 0 && exams.length > 0;
+        if (forceRegen || tasksGenuinelyEmpty) {
+            console.log('loadExams: Triggering regenerate-schedule (forceRegen=' + forceRegen + ', genuinelyEmpty=' + tasksGenuinelyEmpty + ')...');
             const tres = await authFetch(`${API}/regenerate-schedule`, { method: 'POST' });
             if (tres.ok) {
                 const data = await tres.json();
