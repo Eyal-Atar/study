@@ -17,7 +17,7 @@ def get_tasks(current_user: dict = Depends(get_current_user)):
         SELECT t.*, e.name as exam_name
         FROM tasks t
         LEFT JOIN exams e ON t.exam_id = e.id
-        WHERE t.user_id = ?
+        WHERE t.user_id = ? AND t.status != 'done'
         ORDER BY t.day_date, t.sort_order
     """, (current_user["id"],)).fetchall()
     db.close()
@@ -112,17 +112,22 @@ def delete_block(block_id: int, current_user: dict = Depends(get_current_user)):
     db.execute("DELETE FROM schedule_blocks WHERE id = ? AND user_id = ?", 
                (block_id, current_user["id"]))
     
-    # 3. If it was a 'study' block, mark the associated task as pending/unscheduled
+    # 3. If it was a 'study' block, delete the associated task and ALL its other blocks
     if block["block_type"] == "study" and block["task_id"]:
-        # We set day_date to NULL so it reappears in the unscheduled list
+        # Delete the task itself
         db.execute(
-            "UPDATE tasks SET day_date = NULL, status = 'pending' WHERE id = ? AND user_id = ?",
+            "DELETE FROM tasks WHERE id = ? AND user_id = ?",
+            (block["task_id"], current_user["id"])
+        )
+        # Delete any other blocks for this task (like split parts)
+        db.execute(
+            "DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ?",
             (block["task_id"], current_user["id"])
         )
         
     db.commit()
     db.close()
-    return {"message": "Block deleted successfully"}
+    return {"message": "Task and all associated blocks deleted successfully"}
 
 
 @router.patch("/tasks/block/{block_id}/done")

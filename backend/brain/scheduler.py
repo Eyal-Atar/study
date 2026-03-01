@@ -43,6 +43,7 @@ def generate_multi_exam_schedule(
     user: dict,
     exams: list[dict],
     tasks: list[dict],
+    start_buffer_hours: float = 0
 ) -> list[ScheduleBlock]:
     """
     Generates a schedule by 'pouring' tasks into available time windows.
@@ -64,9 +65,15 @@ def generate_multi_exam_schedule(
 
     # 'Today' in user's local time
     now_utc = datetime.now(timezone.utc)
-    # Give the user a 2-hour buffer from 'now' to start studying if generating mid-day
     local_now = now_utc - timedelta(minutes=tz_offset)
-    today_start_buffer = local_now + timedelta(hours=2)
+    
+    # Calculate natural day start (wake-up time + 1 hour)
+    wake_h, wake_m = map(int, user.get("wake_up_time", "08:00").split(":"))
+    day_start_natural = local_now.replace(hour=wake_h, minute=wake_m, second=0, microsecond=0) + timedelta(hours=1)
+    
+    # today_start_buffer should be the LATER of natural day start OR (local_now + buffer)
+    # This prevents the "moving target" drift when refreshing during the day.
+    today_start_buffer = max(day_start_natural, local_now + timedelta(hours=start_buffer_hours))
     today_local = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
     
     # Exam lookup

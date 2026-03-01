@@ -219,9 +219,10 @@ export function showTaskEditModal(block, onSave, onDelete) {
     };
     
     document.getElementById('btn-delete-task-modal').onclick = () => {
+        // Close WITH animation to ensure internal state (blur/backdrop) clears correctly
         showModal('modal-edit-task', false);
-        // Ensure modal closing logic initiates before delete confirm opens
-        setTimeout(() => onDelete(), 10);
+        // Wait for modal-edit-task animation to finish (260ms) before showing confirm
+        setTimeout(() => onDelete(block.id, block.block_type), 280);
     };
 }
 
@@ -315,7 +316,8 @@ export function showConfirmModal({ title, msg, icon, okText, onConfirm }) {
     document.getElementById('btn-confirm-cancel').onclick = () => showModal('modal-confirm', false);
     document.getElementById('btn-confirm-ok').onclick = () => {
         showModal('modal-confirm', false);
-        if (onConfirm) onConfirm();
+        // Wait for modal-confirm animation to finish before doing the actual delete (which might re-render)
+        if (onConfirm) setTimeout(() => onConfirm(), 280);
     };
 }
 

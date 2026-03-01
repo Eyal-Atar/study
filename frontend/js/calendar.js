@@ -95,11 +95,17 @@ export function renderCalendar(tasks, schedule = [], forceScrollToWake = false) 
             let minDate = today;
             let maxDate = today;
 
+            const seenBlockIds = new Set();
             schedule.forEach(block => {
                 if (!block.day_date) return;
+                // Deduplicate by block id
+                if (block.id != null) {
+                    if (seenBlockIds.has(block.id)) return;
+                    seenBlockIds.add(block.id);
+                }
                 if (!blocksByDay[block.day_date]) blocksByDay[block.day_date] = [];
                 blocksByDay[block.day_date].push(block);
-                
+
                 if (block.day_date < minDate) minDate = block.day_date;
                 if (block.day_date > maxDate) maxDate = block.day_date;
             });
@@ -354,13 +360,22 @@ function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = fal
     }
 }
 
-async function refreshScheduleOnly() {
+async function refreshScheduleOnly(container) {
+    const safeContainer = container || document.getElementById('roadmap-container');
     const API = getAPI();
     try {
         const res = await authFetch(`${API}/schedule`);
         if (!res.ok) return;
         const newSchedule = await res.json();
         setCurrentSchedule(newSchedule);
+        
+        // Also refresh tasks to ensure memory is in sync with backend deletions
+        const tasksRes = await authFetch(`${API}/tasks`);
+        if (tasksRes.ok) {
+            const newTasks = await tasksRes.json();
+            import('./store.js?v=AUTO').then(store => store.setCurrentTasks(newTasks));
+        }
+
         renderCalendar(getCurrentTasks(), newSchedule);
         renderFocus(getCurrentTasks());
     } catch (err) { console.error('Schedule refresh failed:', err); }
@@ -370,68 +385,107 @@ async function refreshScheduleOnly() {
 const _deletingBlocks = new Set();
 
 async function handleDeleteBlock(blockId, blockType, container) {
+    if (!blockId) {
+        console.error('[DELETE] Cannot delete block: missing blockId');
+        return;
+    }
+    const safeContainer = container || document.getElementById('roadmap-container');
     const API = getAPI();
-    const executeDelete = async () => {
-        // Guard: prevent concurrent deletes of the same block
-        if (_deletingBlocks.has(String(blockId))) {
-            console.warn(`[DELETE] Block ${blockId} is already being deleted, ignoring duplicate`);
-            return;
-        }
-        _deletingBlocks.add(String(blockId));
+    
+    // Guard: prevent concurrent deletes of the same block
+    if (_deletingBlocks.has(String(blockId))) {
+        console.warn(`[DELETE] Block ${blockId} is already being deleted, ignoring duplicate`);
+        return;
+    }
+    _deletingBlocks.add(String(blockId));
 
-        // Capture the block element BEFORE any async operations or re-renders
-        const blockEl = container.querySelector(`.schedule-block[data-block-id="${blockId}"]`);
+    try {
+        const executeDelete = async () => {
+            // Find the block in local memory to see if it has a task_id
+            let blockData = null;
+            for (const d in _blocksByDay) {
+                const dayArray = _blocksByDay[d];
+                if (!Array.isArray(dayArray)) continue;
+                const found = dayArray.find(b => String(b.id) === String(blockId));
+                if (found) {
+                    blockData = found;
+                    break;
+                }
+            }
 
-        // Optimistic: animate out and update local state immediately
-        if (blockEl) {
-            blockEl.style.pointerEvents = 'none';
-            blockEl.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
-            blockEl.style.opacity = '0';
-            blockEl.style.transform = 'scale(0.95)';
-            // Remove after animation completes; use a stable reference via ID attribute
-            setTimeout(() => {
-                // Re-query in case DOM was rebuilt — harmless if not found
-                const el = container.querySelector(`.schedule-block[data-block-id="${blockId}"]`);
-                if (el) el.remove();
-            }, 220);
-        }
-
-        // Optimistic local state update
-        const day = dayKeys[currentDayIndex];
-        if (_blocksByDay[day]) {
-            _blocksByDay[day] = _blocksByDay[day].filter(b => String(b.id) !== String(blockId));
-        }
-        // Also remove from store so renderFocus is immediately correct
-        const storedSchedule = getCurrentSchedule() || [];
-        setCurrentSchedule(storedSchedule.filter(b => String(b.id) !== String(blockId)));
-
-        try {
-            const res = await authFetch(`${API}/tasks/block/${blockId}`, { method: 'DELETE' });
-            if (!res.ok) {
-                // DELETE failed — restore state by re-fetching from server
-                console.error(`[DELETE] Block ${blockId} delete failed with HTTP ${res.status}`);
-                _deletingBlocks.delete(String(blockId));
-                await refreshScheduleOnly();
+            if (!blockData) {
+                console.warn(`[DELETE] Block ${blockId} not found in memory (possibly already deleted). Skipping.`);
                 return;
             }
-            // Delete succeeded — local state is already correct.
-            // Only re-render Focus (which reads from store) to sync task checkboxes.
-            // Skip full refreshScheduleOnly to avoid a redundant round-trip and re-render race.
-            renderFocus(getCurrentTasks());
-        } catch (err) {
-            console.error('[DELETE] Delete network error:', err);
-            _deletingBlocks.delete(String(blockId));
-            await refreshScheduleOnly();
-            return;
+
+            const taskId = blockData.task_id;
+
+            // Capture all block IDs in memory and elements in DOM to remove
+            const blocksToRemoveFromMemory = [];
+            if (taskId) {
+                for (const d in _blocksByDay) {
+                    const dayArray = _blocksByDay[d];
+                    if (Array.isArray(dayArray)) {
+                        dayArray.filter(b => b.task_id === taskId).forEach(b => blocksToRemoveFromMemory.push(String(b.id)));
+                    }
+                }
+            } else {
+                blocksToRemoveFromMemory.push(String(blockId));
+            }
+
+            // Optimistic UI: animate out and update local state immediately
+            blocksToRemoveFromMemory.forEach(id => {
+                const el = safeContainer ? safeContainer.querySelector(`.schedule-block[data-block-id="${id}"]`) : null;
+                if (el) {
+                    el.style.pointerEvents = 'none';
+                    el.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+                    el.style.opacity = '0';
+                    el.style.transform = 'scale(0.95)';
+                    setTimeout(() => el.remove(), 220);
+                }
+            });
+
+            // Optimistic local state update (blocksByDay)
+            for (const d in _blocksByDay) {
+                if (Array.isArray(_blocksByDay[d])) {
+                    _blocksByDay[d] = _blocksByDay[d].filter(b => !blocksToRemoveFromMemory.includes(String(b.id)));
+                }
+            }
+            
+            // Also remove from store schedule
+            const storedSchedule = getCurrentSchedule() || [];
+            setCurrentSchedule(storedSchedule.filter(b => !blocksToRemoveFromMemory.includes(String(b.id))));
+
+            // Also remove associated task from store tasks if applicable
+            if (taskId) {
+                const storedTasks = getCurrentTasks() || [];
+                import('./store.js?v=AUTO').then(store => {
+                    store.setCurrentTasks(storedTasks.filter(t => t.id !== taskId));
+                });
+            }
+
+            try {
+                const res = await authFetch(`${API}/tasks/block/${blockId}`, { method: 'DELETE' });
+                if (!res.ok && res.status !== 404) {
+                    console.error(`[DELETE] Block ${blockId} delete failed with HTTP ${res.status}`);
+                    await refreshScheduleOnly(safeContainer);
+                    return;
+                }
+                // Sync Focus view
+                renderFocus(getCurrentTasks());
+            } catch (err) {
+                console.error('[DELETE] Delete network error:', err);
+                await refreshScheduleOnly(safeContainer);
+            }
+        };
+
+        if (blockType === 'hobby') {
+            showConfirmModal({ title: "Are you sure?", msg: "Your brain cells might miss this break!", icon: "🧘", okText: "Delete anyway", onConfirm: executeDelete });
+        } else {
+            showConfirmModal({ title: "Delete this block?", msg: "This will remove the scheduled time for this task.", icon: "🗑", okText: "Delete", onConfirm: executeDelete });
         }
-
+    } finally {
         _deletingBlocks.delete(String(blockId));
-    };
-
-    if (blockType === 'hobby') {
-        showConfirmModal({ title: "Are you sure?", msg: "Your brain cells might miss this break!", icon: "🧘", okText: "Delete anyway", onConfirm: executeDelete });
-    } else {
-        showConfirmModal({ title: "Delete this block?", msg: "This will remove the scheduled time for this task.", icon: "🗑", okText: "Delete", onConfirm: executeDelete });
     }
 }
 
@@ -553,18 +607,8 @@ function setupGridListeners(container) {
     container.oncontextmenu = (e) => { e.preventDefault(); };
 
     // Desktop: double-click on a block opens the edit modal.
-    // Touch devices use the double-tap handler in interactions.js instead.
-    container.ondblclick = (e) => {
-        const blockEl = e.target.closest('.schedule-block:not(.block-break):not(.is-completed)');
-        if (!blockEl) return;
-        if (e.target.closest('.task-checkbox, .delete-reveal-btn')) return;
-        const blockId = blockEl.dataset.blockId;
-        if (blockId) {
-            window.dispatchEvent(new CustomEvent('sf:edit-block', {
-                detail: { blockId, el: blockEl }
-            }));
-        }
-    };
+    // This is now handled by the unified double-tap system in interactions.js
+    // to prevent duplicate listeners and ensure consistency across devices.
 
     // For addEventListener-based listeners, remove the previous named handler before
     // adding a new one. This prevents duplicate listeners accumulating across renders
@@ -589,9 +633,9 @@ export function renderFocus(tasks) {
     const today = getTodayStr();
 
     // Inject virtual tasks for schedule blocks without a task_id (practice, padding)
-    const schedule = getCurrentSchedule() || [];
+    const schedule = Array.isArray(getCurrentSchedule()) ? getCurrentSchedule() : [];
     const virtualTasks = schedule
-        .filter(b => !b.task_id && (b.block_type === 'study' || b.block_type === 'hobby'))
+        .filter(b => b && !b.task_id && (b.block_type === 'study' || b.block_type === 'hobby'))
         .map(b => {
             const s = new Date(b.start_time.replace(' ', 'T').replace(/Z$/, ''));
             const e = new Date(b.end_time.replace(' ', 'T').replace(/Z$/, ''));
@@ -610,7 +654,15 @@ export function renderFocus(tasks) {
             };
         });
 
-    const allTasks = [...tasks, ...virtualTasks];
+    // Deduplicate by id — guards against the backend returning the same task
+    // twice or virtual blocks colliding with real tasks.
+    const seen = new Set();
+    const allTasks = [...(tasks || []), ...virtualTasks].filter(t => {
+        const key = String(t.id);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
     const sortedTasks = allTasks.sort((a, b) => {
         if (a.day_date !== b.day_date) return (a.day_date || '').localeCompare(b.day_date || '');
         return (a.title || '').localeCompare(b.title || '');

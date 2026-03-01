@@ -119,6 +119,20 @@ def get_auditor_draft(current_user: dict = Depends(get_current_user)):
     return draft
 
 
+@router.delete("/auditor-draft")
+def dismiss_auditor_draft(current_user: dict = Depends(get_current_user)):
+    """Clear the stored Auditor draft so the resume-banner stops appearing."""
+    user_id = current_user["id"]
+    db = get_db()
+    db.execute(
+        "UPDATE exams SET auditor_draft = NULL WHERE user_id = ? AND status = 'upcoming'",
+        (user_id,),
+    )
+    db.commit()
+    db.close()
+    return {"message": "Auditor draft dismissed"}
+
+
 @router.post("/approve-and-schedule")
 async def approve_and_schedule(body: dict, current_user: dict = Depends(get_current_user)):
     """Step 2 of Split-Brain: accept approved tasks, run Strategist + Enforcer, save schedule."""
@@ -251,7 +265,7 @@ async def approve_and_schedule(body: dict, current_user: dict = Depends(get_curr
         ]
 
         # 5. Run the Python Enforcer (generate_multi_exam_schedule)
-        schedule = generate_multi_exam_schedule(current_user, exam_list, saved_tasks)
+        schedule = generate_multi_exam_schedule(current_user, exam_list, saved_tasks, start_buffer_hours=2.0)
 
         # 6. Save schedule blocks
         now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -355,7 +369,7 @@ def regenerate_schedule(current_user: dict = Depends(get_current_user)):
     tasks_rows = db.execute(
         """SELECT t.*, e.name as exam_name FROM tasks t
            LEFT JOIN exams e ON t.exam_id = e.id
-           WHERE t.user_id = ?
+           WHERE t.user_id = ? AND t.status != 'done'
            ORDER BY t.day_date, t.sort_order""",
         (user_id,)
     ).fetchall()
@@ -393,7 +407,7 @@ def regenerate_schedule(current_user: dict = Depends(get_current_user)):
     _old_stdout = sys.stdout
     sys.stdout = _scheduler_log
     try:
-        new_schedule = generate_multi_exam_schedule(current_user, exam_list, pending_tasks)
+        new_schedule = generate_multi_exam_schedule(current_user, exam_list, pending_tasks, start_buffer_hours=0.0)
     finally:
         sys.stdout = _old_stdout
     _scheduler_output = _scheduler_log.getvalue()
@@ -922,7 +936,7 @@ Return format:
 
     # Run Hourly Scheduler
     from brain.scheduler import generate_multi_exam_schedule
-    schedule = generate_multi_exam_schedule(current_user, exams, all_pending_tasks)
+    schedule = generate_multi_exam_schedule(current_user, exams, all_pending_tasks, start_buffer_hours=0.0)
 
     # Save schedule blocks
     # Clear ALL old schedule blocks for this user before saving regenerated ones

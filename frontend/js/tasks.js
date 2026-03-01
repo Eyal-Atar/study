@@ -117,9 +117,25 @@ export async function loadExams(onLogout, forceRegen = false) {
         updateStats();
         renderExamLegend();
         
-        // If we have no tasks/schedule yet, or forceRegen is true, call regenerate-schedule
-        const currentTasks = getCurrentTasks();
-        if (forceRegen || !currentTasks || currentTasks.length === 0) {
+        // Fetch existing tasks and schedule from server
+        const tasksRes = await authFetch(`${API}/tasks`);
+        const scheduleRes = await authFetch(`${API}/schedule`);
+        
+        let tasks = [];
+        let schedule = [];
+        
+        if (tasksRes.ok) tasks = await tasksRes.json();
+        if (scheduleRes.ok) schedule = await scheduleRes.json();
+        
+        setCurrentTasks(tasks);
+        setCurrentSchedule(schedule);
+        updateStats();
+        renderCalendar(tasks, schedule);
+        renderFocus(tasks);
+
+        // ONLY regenerate if forceRegen is true OR we have absolutely no tasks BUT we have exams
+        if (forceRegen || (tasks.length === 0 && exams.length > 0)) {
+            console.log('loadExams: Triggering regenerate-schedule...');
             const tres = await authFetch(`${API}/regenerate-schedule`, { method: 'POST' });
             if (tres.ok) {
                 const data = await tres.json();
@@ -131,7 +147,7 @@ export async function loadExams(onLogout, forceRegen = false) {
             }
         }
     } catch (e) {
-        console.error(e);
+        console.error('loadExams failed:', e);
     }
 }
 
@@ -392,7 +408,7 @@ export async function toggleDone(taskId, btn, blockId = null) {
     } else {
         // Toggle from Focus: sync schedule in memory and DOM so Roadmap shows same state
         (currentSchedule || []).forEach(b => {
-            if (b.task_id === taskId) b.completed = isDone ? 1 : 0;
+            if (b.task_id === taskId) b.completed = isDone ? 0 : 1;
         });
         const blocks = document.querySelectorAll(`.schedule-block[data-task-id="${taskId}"]`);
         blocks.forEach(b => {
@@ -455,9 +471,9 @@ export async function toggleDone(taskId, btn, blockId = null) {
         if (isBlockToggle && block) {
             block.completed = isDone ? 1 : 0;
         } else {
-            task.status = isDone ? 'done' : 'pending';
+            if (task) task.status = isDone ? 'done' : 'pending';
             (currentSchedule || []).forEach(b => {
-                if (b.task_id === taskId) b.completed = isDone ? 0 : 1;
+                if (b.task_id === taskId) b.completed = isDone ? 1 : 0;
             });
         }
         updateStats();
@@ -987,9 +1003,14 @@ function _showResumeBanner() {
         renderAuditorReview(window._auditorDraft);
         showScreen('screen-auditor-review');
     });
-    document.getElementById('btn-dismiss-resume').addEventListener('click', () => {
+    document.getElementById('btn-dismiss-resume').addEventListener('click', async () => {
         banner.remove();
         window._auditorDraft = null;
+        // Clear draft from DB so the banner doesn't reappear on reload
+        try {
+            const API = getAPI();
+            await authFetch(`${API}/auditor-draft`, { method: 'DELETE' });
+        } catch (_) { /* non-fatal */ }
     });
 }
 
