@@ -84,14 +84,21 @@ self.addEventListener('fetch', event => {
   }
 
   // API calls: network-first, cache fallback, then offline response
+  // NOTE: brain_router has no prefix — routes are /schedule, /auditor-draft, etc.
+  //       The old /brain prefix matched nothing. Enumerate actual route prefixes instead.
   if (
     url.pathname.startsWith('/auth') ||
     url.pathname.startsWith('/tasks') ||
     url.pathname.startsWith('/exams') ||
     url.pathname.startsWith('/users') ||
-    url.pathname.startsWith('/brain') ||
+    url.pathname.startsWith('/schedule') ||
+    url.pathname.startsWith('/auditor-draft') ||
+    url.pathname.startsWith('/approve-and-schedule') ||
     url.pathname.startsWith('/regenerate') ||
-    url.pathname.startsWith('/generate-roadmap')
+    url.pathname.startsWith('/generate-roadmap') ||
+    url.pathname.startsWith('/brain-chat') ||
+    url.pathname.startsWith('/push') ||
+    url.pathname.startsWith('/notifications')
   ) {
     event.respondWith(
       fetch(request).catch(() => {
