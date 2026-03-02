@@ -492,14 +492,23 @@ async function handleDeleteBlock(blockId, blockType, container) {
 async function handleSaveBlock(blockId, updates, container) {
     const API = getAPI();
     try {
-        const day = dayKeys[currentDayIndex];
-        const block = (_blocksByDay[day] || []).find(b => b.id == blockId);
+        // Search across ALL days — the block may not be on the currently-visible day
+        let block = null;
+        let dayDate = null;
+        for (const d of dayKeys) {
+            const found = (_blocksByDay[d] || []).find(b => String(b.id) === String(blockId));
+            if (found) { block = found; dayDate = d; break; }
+        }
         if (!block) return;
+
         const { startHour, hourHeight } = getGridParams();
-        const dayDate = block.day_date;
         const startDate = new Date(`${dayDate}T${updates.startTimeStr}:00`);
         const endDate = new Date(startDate.getTime() + updates.duration * 60000);
+        const toLocalISO = (date) => new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().slice(0, 19);
+        const newStartISO = toLocalISO(startDate);
+        const newEndISO = toLocalISO(endDate);
 
+        // 1. Optimistic DOM update — move the block visually before the network call
         const blockEl = container.querySelector(`.schedule-block[data-block-id="${blockId}"]`);
         if (blockEl) {
             const newVisualTop = ((startDate.getHours() + startDate.getMinutes() / 60) - startHour) * hourHeight;
@@ -519,14 +528,49 @@ async function handleSaveBlock(blockId, updates, container) {
             setTimeout(() => blockEl.classList.remove('block-repositioning'), 400);
         }
 
-        const toLocalISO = (date) => new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().slice(0, 19);
-        await authFetch(`${API}/tasks/block/${blockId}`, {
+        // 2. Send PATCH to the server
+        const res = await authFetch(`${API}/tasks/block/${blockId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ task_title: updates.title, start_time: toLocalISO(startDate), end_time: toLocalISO(endDate) })
+            body: JSON.stringify({ task_title: updates.title, start_time: newStartISO, end_time: newEndISO })
         });
+
+        if (!res.ok) {
+            // PATCH failed — revert to server state so the DOM is accurate
+            console.error(`[handleSaveBlock] PATCH failed (HTTP ${res.status}), reverting`);
+            await refreshScheduleOnly(container);
+            return;
+        }
+
+        // 3. PATCH succeeded — update in-memory state so the block stays at its new
+        //    position across day-navigation re-renders. Do NOT call refreshScheduleOnly
+        //    because that triggers a full renderCalendar() which overwrites the optimistic
+        //    DOM position with whatever the server returns at that instant.
+        if (_blocksByDay[dayDate]) {
+            const idx = _blocksByDay[dayDate].findIndex(b => String(b.id) === String(blockId));
+            if (idx !== -1) {
+                _blocksByDay[dayDate][idx] = {
+                    ..._blocksByDay[dayDate][idx],
+                    task_title: updates.title ?? _blocksByDay[dayDate][idx].task_title,
+                    start_time: newStartISO,
+                    end_time: newEndISO,
+                };
+            }
+        }
+        // Also patch the global schedule store so Focus view stays in sync
+        const storedSchedule = getCurrentSchedule() || [];
+        setCurrentSchedule(storedSchedule.map(b =>
+            String(b.id) === String(blockId)
+                ? { ...b, task_title: updates.title ?? b.task_title, start_time: newStartISO, end_time: newEndISO }
+                : b
+        ));
+        // Refresh Focus view (reads from store, no network call)
+        renderFocus(getCurrentTasks());
+    } catch (err) {
+        console.error('Update failed:', err);
+        // On unexpected error revert to server state
         await refreshScheduleOnly(container);
-    } catch (err) { console.error('Update failed:', err); }
+    }
 }
 
 // Stable named handler references stored on the container so that
