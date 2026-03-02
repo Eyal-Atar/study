@@ -6,9 +6,19 @@ from server.config import DB_PATH, UPLOAD_DIR
 
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    # timeout=5: retry for up to 5s if another writer holds a lock momentarily,
+    # instead of raising "database is locked" immediately.
+    # check_same_thread=False: FastAPI uses a thread pool; each request gets its
+    # own connection so sharing between threads is safe.
+    conn = sqlite3.connect(DB_PATH, timeout=5, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # WAL mode allows concurrent readers and writers without blocking each other.
+    # In the default DELETE (rollback journal) mode, any open reader holds a shared
+    # lock that prevents a writer from acquiring the exclusive lock needed for UPDATE.
+    # The notification scheduler subprocess inherits SQLite FDs from the parent and
+    # holds shared locks, causing PATCH requests to return "database is locked" (500).
+    conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
 
