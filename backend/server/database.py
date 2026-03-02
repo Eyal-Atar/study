@@ -122,10 +122,42 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
 
+        CREATE TABLE IF NOT EXISTS user_xp (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL UNIQUE,
+            total_xp INTEGER DEFAULT 0,
+            current_level INTEGER DEFAULT 1,
+            daily_xp INTEGER DEFAULT 0,
+            daily_xp_date TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS user_streaks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL UNIQUE,
+            current_streak INTEGER DEFAULT 0,
+            longest_streak INTEGER DEFAULT 0,
+            last_login_date TEXT,
+            streak_broken INTEGER DEFAULT 0,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS user_badges (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            badge_key TEXT NOT NULL,
+            earned_at TEXT DEFAULT (datetime('now')),
+            UNIQUE (user_id, badge_key),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
         CREATE INDEX IF NOT EXISTS idx_exams_user_date ON exams(user_id, exam_date);
         CREATE INDEX IF NOT EXISTS idx_exam_files_exam ON exam_files(exam_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_exam ON tasks(exam_id);
         CREATE INDEX IF NOT EXISTS idx_schedule_day ON schedule_blocks(day_date);
+        CREATE INDEX IF NOT EXISTS idx_user_xp_user ON user_xp(user_id);
+        CREATE INDEX IF NOT EXISTS idx_user_streaks_user ON user_streaks(user_id);
+        CREATE INDEX IF NOT EXISTS idx_user_badges_user ON user_badges(user_id);
     """)
 
     # Migrations: add auth columns if missing
@@ -275,6 +307,11 @@ def init_db():
     exam_columns = {row[1] for row in conn.execute("PRAGMA table_info(exams)").fetchall()}
     if "auditor_draft" not in exam_columns:
         conn.execute("ALTER TABLE exams ADD COLUMN auditor_draft TEXT")
+
+    # Migrations: xp_awarded on schedule_blocks
+    block_columns_xp = {row[1] for row in conn.execute("PRAGMA table_info(schedule_blocks)").fetchall()}
+    if "xp_awarded" not in block_columns_xp:
+        conn.execute("ALTER TABLE schedule_blocks ADD COLUMN xp_awarded INTEGER DEFAULT 0")
 
     # Migrations: extracted_text on exam_files + update CHECK constraint to include summary/sample_exam
     # SQLite cannot ALTER CHECK constraints, so we must rebuild the table if the constraint is outdated.
