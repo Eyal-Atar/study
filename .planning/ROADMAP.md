@@ -58,8 +58,9 @@
 | 15. Progress & Deferral | 2/2 | Complete | 2026-02-25 |
 | 16. PWA Push & Smart Triggers | 1/1 | Complete | 2026-02-25 |
 | 17. Split-Brain Core Scheduler | 4/4 | Complete | 2026-03-01 |
+| 19. Gamification (XP, Streaks, Morning Prompt) | 5/5 | Planned | 2026-03-03 |
 
-**Overall:** 92% complete (11/12 phases)
+**Overall:** 94% complete (12/13 phases)
 
 ### Phase 17: Split-Brain Core Scheduler
 
@@ -74,24 +75,26 @@ Plans:
 - [x] 17-03-PLAN.md — Intermediate Review Page (frontend) + Strategist call (API Call 2) (completed 2026-02-28)
 - [x] 17-04-PLAN.md — Dashboard Daily Progress (XP Bar) and final Phase 17 cleanup (completed 2026-03-01)
 
-### Phase 18: מטרת העל: יצירת חוויית משחוק (Gamification) שקטה, מינימליסטית ואלגנטית. מערכת XP מעגלית, מעקב כניסות רצופות, אלגוריתם 'בוקר שאחרי' לניהול משימות, ומערכת פידבקים מינימליסטית.
+### Phase 18: Gamification Phase 1 (Deferred)
 
-**Goal:** [To be planned]
+**Goal:** Initial gamification framework (reserved for future expansion)
 **Depends on:** Phase 17
-**Plans:** 0 plans
+**Status:** Deferred
+
+### Phase 19: Gamification (XP, Login Streaks, Morning Prompt Rescheduling)
+
+**Goal:** Implement a quiet, minimalist gamification system with XP tracking (levels 1-50), login streak detection (splash screens at 3+ days with milestones at 7/14/30), morning prompt for rescheduling unfinished tasks, and achievements tab with earned badges. Maintains StudyFlow's zen mentor aesthetic.
+**Depends on:** Phase 17
+**Requirements:** [GAM-01, GAM-02, GAM-03, GAM-04, GAM-05, GAM-06, GAM-07, GAM-08, GAM-09, GAM-10, GAM-11]
+**Status:** Planned (2026-03-03)
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 18 to break down)
-
-### Phase 19: מטרת העל: יצירת חוויית משחוק (Gamification) שקטה, מינימליסטית ואלגנטית. מערכת XP מעגלית, מעקב כניסות רצופות (Login Streaks), אלגוריתם 'בוקר שאחרי' לניהול משימות שלא הושלמו, ומערכת פידבקים מינימליסטית.
-
-**Goal:** [To be planned]
-**Depends on:** Phase 18
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (run /gsd:plan-phase 19 to break down)
+- [ ] 19-01-PLAN.md — Database schema (user_xp, user_streaks, user_badges) and gamification utilities
+- [ ] 19-02-PLAN.md — Backend API endpoints (login-check, award-xp, reschedule-task, summary)
+- [ ] 19-03-PLAN.md — Achievements Tab UI, SVG progress circles, badge grid, splash/prompt modals
+- [ ] 19-04-PLAN.md — Frontend integration (startup sequence, task completion XP wiring)
+- [ ] 19-05-PLAN.md — Phase 19 final verification checkpoint
 
 ---
 
-*Roadmap updated: 2026-03-01*
+*Roadmap updated: 2026-03-03*
