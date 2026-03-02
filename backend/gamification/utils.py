@@ -1,0 +1,213 @@
+"""Gamification utility functions — XP calculation, streak updates, badge checking."""
+
+import math
+from datetime import datetime, timezone, timedelta
+
+
+def _today_in_tz(tz_offset: int) -> str:
+    """Return today's date string YYYY-MM-DD in user's local timezone."""
+    utc_now = datetime.now(timezone.utc)
+    local_dt = utc_now + timedelta(hours=tz_offset)
+    return local_dt.strftime("%Y-%m-%d")
+
+
+def calculate_xp(focus_score: int, estimated_hours: float) -> int:
+    """Calculate XP earned for completing a task.
+
+    Formula: round(focus_score * estimated_hours * 10)
+    focus_score range: 1-10
+    Returns integer XP value.
+    """
+    return round(focus_score * estimated_hours * 10)
+
+
+def update_user_xp(db, user_id: int, xp_earned: int, tz_offset: int = 0) -> dict:
+    """Add xp_earned to user's XP totals and recalculate level.
+
+    Creates the user_xp row if it does not exist yet.
+    Resets daily_xp when the date rolls over.
+    Returns dict with total_xp, current_level, daily_xp, level_up flag.
+    """
+    today = _today_in_tz(tz_offset)
+
+    row = db.execute(
+        "SELECT id, total_xp, current_level, daily_xp, daily_xp_date FROM user_xp WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()
+
+    if row is None:
+        db.execute(
+            "INSERT INTO user_xp (user_id, total_xp, current_level, daily_xp, daily_xp_date) VALUES (?, 0, 1, 0, ?)",
+            (user_id, today),
+        )
+        row = db.execute(
+            "SELECT id, total_xp, current_level, daily_xp, daily_xp_date FROM user_xp WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+
+    prev_total_xp = row["total_xp"]
+    prev_level = row["current_level"]
+
+    # Reset daily XP when date changes
+    daily_xp = row["daily_xp"] if row["daily_xp_date"] == today else 0
+
+    new_total_xp = prev_total_xp + xp_earned
+    new_daily_xp = daily_xp + xp_earned
+
+    # Level formula: level = min(50, floor(total_xp / 1000) + 1)
+    new_level = min(50, math.floor(new_total_xp / 1000) + 1)
+
+    db.execute(
+        """UPDATE user_xp
+           SET total_xp = ?, current_level = ?, daily_xp = ?, daily_xp_date = ?
+           WHERE user_id = ?""",
+        (new_total_xp, new_level, new_daily_xp, today, user_id),
+    )
+    db.commit()
+
+    return {
+        "total_xp": new_total_xp,
+        "current_level": new_level,
+        "daily_xp": new_daily_xp,
+        "level_up": new_level > prev_level,
+    }
+
+
+def update_streak(db, user_id: int, tz_offset: int = 0) -> dict:
+    """Update login streak for the user and return streak state.
+
+    Creates the user_streaks row if it does not exist yet.
+    Returns dict with current_streak, longest_streak, last_login_date,
+    streak_broken, first_login_today fields.
+    """
+    today = _today_in_tz(tz_offset)
+
+    row = db.execute(
+        "SELECT id, current_streak, longest_streak, last_login_date, streak_broken FROM user_streaks WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()
+
+    if row is None:
+        db.execute(
+            "INSERT INTO user_streaks (user_id, current_streak, longest_streak, last_login_date, streak_broken) VALUES (?, 1, 1, ?, 0)",
+            (user_id, today),
+        )
+        db.commit()
+        return {
+            "current_streak": 1,
+            "longest_streak": 1,
+            "last_login_date": today,
+            "streak_broken": False,
+            "first_login_today": True,
+        }
+
+    last_date = row["last_login_date"]
+    current_streak = row["current_streak"]
+    longest_streak = row["longest_streak"]
+
+    # Already logged in today — no change
+    if last_date == today:
+        return {
+            "current_streak": current_streak,
+            "longest_streak": longest_streak,
+            "last_login_date": last_date,
+            "streak_broken": bool(row["streak_broken"]),
+            "first_login_today": False,
+        }
+
+    # Determine if yesterday or older
+    if last_date is not None:
+        try:
+            last_dt = datetime.strptime(last_date, "%Y-%m-%d")
+            today_dt = datetime.strptime(today, "%Y-%m-%d")
+            delta_days = (today_dt - last_dt).days
+        except ValueError:
+            delta_days = 999  # Treat malformed date as a break
+    else:
+        delta_days = 1  # New row, count as consecutive
+
+    streak_broken = False
+    if delta_days == 1:
+        # Consecutive day — extend streak
+        current_streak += 1
+    else:
+        # Gap detected — streak broken
+        streak_broken = True
+        current_streak = 1
+
+    if current_streak > longest_streak:
+        longest_streak = current_streak
+
+    # streak_broken flag in DB: 1 if broken since last splash (cleared by splash endpoint)
+    new_streak_broken_flag = 1 if streak_broken else 0
+
+    db.execute(
+        """UPDATE user_streaks
+           SET current_streak = ?, longest_streak = ?, last_login_date = ?, streak_broken = ?
+           WHERE user_id = ?""",
+        (current_streak, longest_streak, today, new_streak_broken_flag, user_id),
+    )
+    db.commit()
+
+    return {
+        "current_streak": current_streak,
+        "longest_streak": longest_streak,
+        "last_login_date": today,
+        "streak_broken": streak_broken,
+        "first_login_today": True,
+    }
+
+
+# Badge criteria: (badge_key, check_fn(user_xp_row, streak_row))
+_BADGE_CRITERIA = [
+    # Streak milestones
+    ("iron_will_7",     lambda xp, s: s["current_streak"] >= 7),
+    ("iron_will_30",    lambda xp, s: s["current_streak"] >= 30),
+    ("iron_will_100",   lambda xp, s: s["current_streak"] >= 100),
+    # Level milestones
+    ("knowledge_seeker_5",  lambda xp, s: xp["current_level"] >= 5),
+    ("knowledge_seeker_10", lambda xp, s: xp["current_level"] >= 10),
+    ("knowledge_seeker_25", lambda xp, s: xp["current_level"] >= 25),
+    ("knowledge_seeker_50", lambda xp, s: xp["current_level"] >= 50),
+    # XP milestones
+    ("xp_1000",  lambda xp, s: xp["total_xp"] >= 1000),
+    ("xp_5000",  lambda xp, s: xp["total_xp"] >= 5000),
+    ("xp_10000", lambda xp, s: xp["total_xp"] >= 10000),
+]
+
+
+def check_and_award_badges(db, user_id: int, user_xp_row: dict, streak_row: dict) -> list:
+    """Check badge criteria and award any newly earned badges.
+
+    user_xp_row: dict with total_xp, current_level, daily_xp
+    streak_row: dict with current_streak, longest_streak
+
+    Returns list of newly earned badge_keys.
+    """
+    # Fetch already-earned badge keys
+    existing = {
+        row["badge_key"]
+        for row in db.execute(
+            "SELECT badge_key FROM user_badges WHERE user_id = ?", (user_id,)
+        ).fetchall()
+    }
+
+    newly_earned = []
+    for badge_key, criterion in _BADGE_CRITERIA:
+        if badge_key in existing:
+            continue
+        try:
+            if criterion(user_xp_row, streak_row):
+                db.execute(
+                    "INSERT OR IGNORE INTO user_badges (user_id, badge_key) VALUES (?, ?)",
+                    (user_id, badge_key),
+                )
+                newly_earned.append(badge_key)
+        except Exception:
+            # Never let a badge check crash the caller
+            pass
+
+    if newly_earned:
+        db.commit()
+
+    return newly_earned
