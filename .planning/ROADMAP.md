@@ -74,6 +74,24 @@ Plans:
 - [x] 17-03-PLAN.md — Intermediate Review Page (frontend) + Strategist call (API Call 2) (completed 2026-02-28)
 - [x] 17-04-PLAN.md — Dashboard Daily Progress (XP Bar) and final Phase 17 cleanup (completed 2026-03-01)
 
+### Phase 18: מטרת העל: יצירת חוויית משחוק (Gamification) שקטה, מינימליסטית ואלגנטית. מערכת XP מעגלית, מעקב כניסות רצופות, אלגוריתם 'בוקר שאחרי' לניהול משימות, ומערכת פידבקים מינימליסטית.
+
+**Goal:** [To be planned]
+**Depends on:** Phase 17
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 18 to break down)
+
+### Phase 19: מטרת העל: יצירת חוויית משחוק (Gamification) שקטה, מינימליסטית ואלגנטית. מערכת XP מעגלית, מעקב כניסות רצופות (Login Streaks), אלגוריתם 'בוקר שאחרי' לניהול משימות שלא הושלמו, ומערכת פידבקים מינימליסטית.
+
+**Goal:** [To be planned]
+**Depends on:** Phase 18
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 19 to break down)
+
 ---
 
 *Roadmap updated: 2026-03-01*
