@@ -1,5 +1,5 @@
 /* frontend/js/auth.js */
-import { getAPI, setAuthToken, setCurrentUser, authFetch, resetStore, getCurrentUser } from './store.js?v=AUTO';
+import { getAPI, setCurrentUser, authFetch, resetStore, getCurrentUser } from './store.js?v=AUTO';
 import { showRegenBar } from './brain.js?v=AUTO';
 import { showScreen, shakeEl, showError, hideError, spawnConfetti } from './ui.js?v=AUTO';
 
@@ -48,10 +48,7 @@ async function subscribeToPush() {
     }
 }
 
-// Listen for push subscription request.
-// This event is dispatched ONLY after permission has already been granted
-// (from the requestNotificationPermission() global function in index.html).
-window.addEventListener('request-push-permission', subscribeToPush);
+// Push subscription is handled by notifications.js — removed duplicate listener here.
 
 let onAuthSuccess = () => {};
 let onboardingState = {

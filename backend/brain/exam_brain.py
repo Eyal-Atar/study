@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import anthropic
 import fitz  # PyMuPDF
 
@@ -322,6 +322,7 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
         message = await self.client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=8192,
+            timeout=60.0,
             messages=[{"role": "user", "content": prompt}],
         )
         raw_response = message.content[0].text.strip()
@@ -399,19 +400,22 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
         print(f"DEBUG ExamBrain.call_split_brain: launching {len(self.exams)} parallel Auditor calls")
         exam_results = await asyncio.gather(*[
             self._call_auditor_for_exam(exam) for exam in self.exams
-        ])
+        ], return_exceptions=True)
 
         # Merge all per-exam results with globally unique task_index + remapped dependency_id
         all_tasks = []
         all_gaps = []
         merged_topic_map = {}
         offset = 0
-        for result in exam_results:
+        for i, result in enumerate(exam_results):
+            if isinstance(result, Exception):
+                print(f"WARNING ExamBrain.call_split_brain: exam {self.exams[i]['id']} failed: {result}")
+                continue
             exam_tasks = result["tasks"]
-            for task in exam_tasks:
+            for idx, task in enumerate(exam_tasks):
                 if task.get("dependency_id") is not None:
                     task["dependency_id"] = task["dependency_id"] + offset
-                task["task_index"] = offset + exam_tasks.index(task)
+                task["task_index"] = offset + idx
             offset += len(exam_tasks)
             all_tasks.extend(exam_tasks)
             all_gaps.extend(result["gaps"])
@@ -468,10 +472,12 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
         except:
             buffer_time_str = "in 2 hours"
 
-        # Build exam deadlines info
+        # Build exam deadlines info using timezone-aware local time
         exams_info = []
-        now = datetime.now()
-        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        tz_offset = self.user.get("timezone_offset", 0) or 0
+        _now_utc = datetime.now(timezone.utc)
+        _local_now = _now_utc - timedelta(minutes=tz_offset)
+        today = _local_now.replace(hour=0, minute=0, second=0, microsecond=0)
         for e in self.exams:
             try:
                 ed_str = e["exam_date"].replace("Z", "+00:00")
@@ -580,6 +586,7 @@ RETURN ONLY A VALID JSON ARRAY:
         message = await self.client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=8192,
+            timeout=60.0,
             messages=[{"role": "user", "content": prompt}],
         )
         raw_response = message.content[0].text.strip()

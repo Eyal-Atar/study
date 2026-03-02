@@ -20,10 +20,6 @@ export const getLatestAiDebug = () => store.latestAiDebug;
 export const setLatestAiDebug = (debug) => { store.latestAiDebug = debug; };
 
 // Token management removed - using HttpOnly cookies instead
-export const getAuthToken = () => null; // No longer used
-export const setAuthToken = (token) => {
-    // No-op: tokens are now stored in HttpOnly cookies
-};
 
 export const getCurrentUser = () => store.currentUser;
 export const setCurrentUser = (user) => { store.currentUser = user; };

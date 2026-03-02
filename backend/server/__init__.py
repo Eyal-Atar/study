@@ -61,12 +61,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="StudyFlow API", version="1.0.0", lifespan=lifespan)
 
+_cors_origins = os.environ.get("CORS_ORIGINS", "").split(",")
+_cors_origins = [o.strip() for o in _cors_origins if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins if _cors_origins else ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
-    allow_credentials=True,
+    allow_credentials=bool(_cors_origins),  # credentials only with explicit origins
 )
 
 # Session middleware for OAuth and cookie-based auth

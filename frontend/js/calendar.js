@@ -1,4 +1,4 @@
-import { getCurrentExams, getCurrentTasks, getAPI, authFetch, getCurrentSchedule, setCurrentSchedule, getCurrentUser, getTodayStr } from './store.js?v=AUTO';
+import { getCurrentExams, getCurrentTasks, setCurrentTasks, getAPI, authFetch, getCurrentSchedule, setCurrentSchedule, getCurrentUser, getTodayStr } from './store.js?v=AUTO';
 import { examColorClass, showTaskEditModal, showConfirmModal, examHex } from './ui.js?v=AUTO';
 import { initInteractions } from './interactions.js?v=AUTO';
 
@@ -371,13 +371,14 @@ async function refreshScheduleOnly(container) {
         
         // Also refresh tasks to ensure memory is in sync with backend deletions
         const tasksRes = await authFetch(`${API}/tasks`);
+        let latestTasks = getCurrentTasks();
         if (tasksRes.ok) {
-            const newTasks = await tasksRes.json();
-            import('./store.js?v=AUTO').then(store => store.setCurrentTasks(newTasks));
+            latestTasks = await tasksRes.json();
+            setCurrentTasks(latestTasks);
         }
 
-        renderCalendar(getCurrentTasks(), newSchedule);
-        renderFocus(getCurrentTasks());
+        renderCalendar(latestTasks, newSchedule);
+        renderFocus(latestTasks);
     } catch (err) { console.error('Schedule refresh failed:', err); }
 }
 
@@ -459,9 +460,7 @@ async function handleDeleteBlock(blockId, blockType, container) {
             // Also remove associated task from store tasks if applicable
             if (taskId) {
                 const storedTasks = getCurrentTasks() || [];
-                import('./store.js?v=AUTO').then(store => {
-                    store.setCurrentTasks(storedTasks.filter(t => t.id !== taskId));
-                });
+                setCurrentTasks(storedTasks.filter(t => t.id !== taskId));
             }
 
             try {
@@ -476,16 +475,23 @@ async function handleDeleteBlock(blockId, blockType, container) {
             } catch (err) {
                 console.error('[DELETE] Delete network error:', err);
                 await refreshScheduleOnly(safeContainer);
+            } finally {
+                _deletingBlocks.delete(String(blockId));
             }
         };
 
+        const onCancel = () => {
+            _deletingBlocks.delete(String(blockId));
+        };
+
         if (blockType === 'hobby') {
-            showConfirmModal({ title: "Are you sure?", msg: "Your brain cells might miss this break!", icon: "🧘", okText: "Delete anyway", onConfirm: executeDelete });
+            showConfirmModal({ title: "Are you sure?", msg: "Your brain cells might miss this break!", icon: "🧘", okText: "Delete anyway", onConfirm: executeDelete, onCancel });
         } else {
-            showConfirmModal({ title: "Delete this block?", msg: "This will remove the scheduled time for this task.", icon: "🗑", okText: "Delete", onConfirm: executeDelete });
+            showConfirmModal({ title: "Delete this block?", msg: "This will remove the scheduled time for this task.", icon: "🗑", okText: "Delete", onConfirm: executeDelete, onCancel });
         }
-    } finally {
+    } catch (err) {
         _deletingBlocks.delete(String(blockId));
+        throw err;
     }
 }
 
@@ -786,112 +792,6 @@ export function renderFocus(tasks) {
     });
 }
 
-function renderDailyList(container, tasks) {
-    const currentExams = getCurrentExams();
-    const examIdx = {};
-    currentExams.forEach((e, i) => { examIdx[e.id] = i; });
-
-    const days = {};
-    tasks.forEach(task => {
-        const day = task.day_date || task.deadline || 'unscheduled';
-        if (!days[day]) days[day] = [];
-        days[day].push(task);
-    });
-    Object.values(days).forEach(arr => arr.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)));
-
-    const dayKeysAll = Object.keys(days).filter(d => d !== 'unscheduled').sort();
-    const today = getTodayStr();
-    const examDateSet = {};
-    currentExams.forEach((e, i) => { examDateSet[e.exam_date] = { name: e.name, idx: i }; });
-
-    let html = '<div class="absolute left-[15px] top-0 bottom-0 w-[2px] bg-gradient-to-b from-accent-500 via-mint-400 to-gold-400 opacity-20"></div>';
-    
-    if (days['unscheduled']) {
-        html += `<div class="fade-in relative mb-8">
-            <div class="absolute -left-8 top-1 w-[14px] h-[14px] rounded-full border-2 border-white/10 bg-dark-700"></div>
-            <div class="flex items-center gap-2 mb-3">
-                <span class="text-sm font-bold text-white/50 uppercase tracking-widest">Unscheduled Tasks</span>
-                <span class="text-[10px] bg-accent-500/20 text-accent-400 px-1.5 py-0.5 rounded font-bold">AI GENERATED</span>
-            </div>
-            <div class="space-y-1.5 ml-1">`;
-        
-        days['unscheduled'].forEach(task => {
-            const eIdx = examIdx[task.exam_id] ?? 0;
-            const isDone = task.status === 'done';
-            html += `
-            <div class="card-hover bg-dark-600/60 rounded-xl p-3 border border-white/5 flex items-center gap-3 ${isDone ? 'opacity-40' : ''}">
-                <button data-task-id="${task.id}" class="task-checkbox flex-shrink-0 w-6 h-6 rounded-full border-2 ${isDone ? 'bg-mint-500 border-mint-500' : 'border-white/20 hover:border-accent-400'} flex items-center justify-center transition-all">
-                    ${isDone ? '<svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
-                </button>
-                <div class="w-2.5 h-8 rounded-full ${examColorClass(eIdx,'bg')} flex-shrink-0"></div>
-                <div class="flex-1 min-w-0">
-                    <div class="font-medium text-sm ${isDone ? 'line-through text-white/40' : ''} truncate">${task.title}</div>
-                    <div class="text-[10px] text-white/30 uppercase font-bold tracking-wider mt-0.5">Priority: ${task.priority || 5}</div>
-                </div>
-            </div>`;
-        });
-        html += `</div></div>`;
-    }
-
-    dayKeysAll.forEach(day => {
-        const dayTasks = days[day];
-        const isToday = day === today;
-        const isPast = day < today;
-        const date = new Date(day + 'T00:00:00');
-        const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-        const dayNum = date.getDate();
-        const monthName = date.toLocaleDateString('en-US', { month: 'short' });
-        const examOnDay = examDateSet[day];
-        const isExamDay = dayTasks.some(t => t.title && t.title.startsWith('EXAM DAY'));
-
-        html += `<div class="fade-in relative mb-5 ${isPast ? 'opacity-50' : ''}">
-            <div class="absolute -left-8 top-1 w-[14px] h-[14px] rounded-full border-2
-                ${isToday ? 'border-accent-400 bg-accent-500 node-pulse' : isPast ? 'border-mint-400/50 bg-mint-500/50' : isExamDay || examOnDay ? 'border-gold-400 bg-gold-500' : 'border-white/20 bg-dark-700'}
-            "></div>
-            <div class="flex items-center gap-2 mb-2 flex-wrap">
-                <span class="text-sm font-bold ${isToday ? 'text-accent-400' : isExamDay || examOnDay ? 'text-gold-400' : 'text-white/50'}">${isToday ? 'TODAY' : dayName}</span>
-                <span class="text-xs text-white/30">${monthName} ${dayNum}</span>
-            </div>`;
-
-        if (isExamDay || examOnDay) {
-            const idx = examOnDay ? examOnDay.idx : (examIdx[dayTasks[0].exam_id] ?? 0);
-            const examName = examOnDay ? examOnDay.name : (dayTasks[0].title.replace('EXAM DAY: ', ''));
-            html += `<div class="mb-2 px-3 py-2 rounded-xl ${examColorClass(idx,'bg20')} border ${examColorClass(idx,'border')}">
-                <span class="text-sm font-bold ${examColorClass(idx,'text')}">EXAM: ${examName}</span>
-            </div>`;
-        }
-
-        const activities = isExamDay ? dayTasks.filter(t => !t.title.startsWith('EXAM DAY')) : dayTasks;
-        if (activities.length > 0) {
-            html += '<div class="space-y-1.5 ml-1">';
-            activities.forEach(task => {
-                const eIdx = examIdx[task.exam_id] ?? 0;
-                const isDone = task.status === 'done';
-                html += `
-                <div class="card-hover bg-dark-600/60 rounded-xl p-3 border border-white/5 flex items-center gap-3 ${isDone ? 'opacity-40' : ''}">
-                    <button data-task-id="${task.id}" class="task-checkbox flex-shrink-0 w-6 h-6 rounded-full border-2 ${isDone ? 'bg-mint-500 border-mint-500' : 'border-white/20 hover:border-accent-400'} flex items-center justify-center transition-all">
-                        ${isDone ? '<svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
-                    </button>
-                    <div class="w-2.5 h-8 rounded-full ${examColorClass(eIdx,'bg')} flex-shrink-0"></div>
-                    <div class="flex-1 min-w-0">
-                        <div class="font-medium text-sm ${isDone ? 'line-through text-white/40' : ''} truncate">${task.title}</div>
-                    </div>
-                </div>`;
-            });
-            html += '</div>';
-        }
-        html += '</div>';
-    });
-    container.innerHTML = html;
-    
-    container.querySelectorAll('.task-checkbox').forEach(btn => {
-        btn.onclick = (e) => {
-            e.stopPropagation();
-            const taskId = parseInt(btn.dataset.taskId);
-            if (!isNaN(taskId)) window.dispatchEvent(new CustomEvent('task-toggle', { detail: { taskId, btn } }));
-        };
-    });
-}
 
 function renderCurrentTimeIndicator(container, startHour, hourHeight) {
     if (_timeIndicatorInterval !== null) {

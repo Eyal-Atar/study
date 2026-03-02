@@ -27,10 +27,10 @@ TIMING_OFFSETS = {
     "30_before": 30,
 }
 
-_anthropic = anthropic.Anthropic()
+_anthropic = anthropic.AsyncAnthropic()
 
 
-def _generate_message(subject: str, task_title: str, minutes_until: int) -> str:
+async def _generate_message(subject: str, task_title: str, minutes_until: int) -> str:
     """Call Claude to generate a WhatsApp-friend style motivational message."""
     if minutes_until <= 0:
         return f"הלוז מתחיל! {task_title} — מתחילים עכשיו 📚"
@@ -41,9 +41,10 @@ def _generate_message(subject: str, task_title: str, minutes_until: int) -> str:
             f"Use emojis. Sound like a funny, slightly sarcastic friend, NOT a robot app. "
             f"Keep it under 120 characters. One sentence only."
         )
-        msg = _anthropic.messages.create(
-            model="claude-3-haiku-20240307",
+        msg = await _anthropic.messages.create(
+            model="claude-haiku-4-5-20251001",
             max_tokens=80,
+            timeout=15.0,
             messages=[{"role": "user", "content": prompt}]
         )
         return msg.content[0].text.strip()
@@ -171,25 +172,28 @@ async def _check_and_send_notifications():
                     diff = start_utc - now_utc
                     mins_rem = int(diff.total_seconds() / 60)
                     
-                    body = _generate_message(subject, task_title, mins_rem if mins_rem > 0 else 0)
+                    body = await _generate_message(subject, task_title, mins_rem if mins_rem > 0 else 0)
                     title = "הלוז מתחיל 📚" if mins_rem <= 0 else "StudyFlow 📚"
-                    
-                    # Mark as notified immediately to prevent double-sends
-                    db.execute("UPDATE schedule_blocks SET push_notified = 1 WHERE id = ?", (block["id"],))
-                    db.commit()
                     
                     print(f"DEBUG: Triggering push for user {user['id']} for block {block['id']}", flush=True)
                     # Send to all devices for this user
-                    send_to_user(
-                        db, 
-                        user["id"], 
-                        title, 
-                        body, 
-                        url="/", 
-                        block_id=block["id"]
-                    )
+                    try:
+                        send_to_user(
+                            db,
+                            user["id"],
+                            title,
+                            body,
+                            url="/",
+                            block_id=block["id"]
+                        )
+                        # Mark as notified ONLY after successful push delivery
+                        db.execute("UPDATE schedule_blocks SET push_notified = 1 WHERE id = ?", (block["id"],))
+                    except Exception as push_err:
+                        logger.warning(f"Push delivery failed for block {block['id']}: {push_err}")
                     logger.info(f"Triggered push for user {user['id']} for block {block['id']} (Catch-up: {mins_rem}m)")
 
+        # Single commit for all push_notified updates in this cycle
+        db.commit()
     except Exception as e:
         logger.error(f"Notification scheduler error: {e}")
     finally:
@@ -203,7 +207,7 @@ def start_scheduler() -> AsyncIOScheduler:
     scheduler.add_job(
         _check_and_send_notifications,
         trigger="interval",
-        seconds=10,
+        seconds=60,
         id="push_notification_job",
         replace_existing=True
     )

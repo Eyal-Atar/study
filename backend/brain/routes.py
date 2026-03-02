@@ -44,14 +44,20 @@ async def generate_roadmap(current_user: dict = Depends(get_current_user)):
         ).fetchall()
         if not exams:
             db.close()
-            return {"error": "No upcoming exams found. Add exams first!"}, 400
+            raise HTTPException(status_code=400, detail="No upcoming exams found. Add exams first!")
 
         exam_list = []
+        # Batch fetch all exam files to avoid N+1 query
+        exam_ids_list = [exam["id"] for exam in exams]
+        all_files = db.execute(
+            f"SELECT * FROM exam_files WHERE exam_id IN ({','.join('?' * len(exam_ids_list))})",
+            exam_ids_list
+        ).fetchall()
+        files_by_exam = {}
+        for f in all_files:
+            files_by_exam.setdefault(f["exam_id"], []).append(dict(f))
         for exam in exams:
-            files = db.execute(
-                "SELECT * FROM exam_files WHERE exam_id = ?", (exam["id"],)
-            ).fetchall()
-            exam_list.append({**dict(exam), "files": [dict(f) for f in files]})
+            exam_list.append({**dict(exam), "files": files_by_exam.get(exam["id"], [])})
 
         exam_ids = [e["id"] for e in exams]
 
@@ -194,14 +200,7 @@ async def approve_and_schedule(body: dict, current_user: dict = Depends(get_curr
         db.execute("BEGIN TRANSACTION")
 
         # Clear existing tasks and schedule_blocks for this user
-        old_task_ids = [
-            r["id"] for r in db.execute(
-                "SELECT id FROM tasks WHERE user_id = ?", (user_id,)
-            ).fetchall()
-        ]
-        if old_task_ids:
-            task_ph = ",".join("?" * len(old_task_ids))
-            db.execute(f"DELETE FROM schedule_blocks WHERE task_id IN ({task_ph})", old_task_ids)
+        # Delete all blocks and tasks for this user (full regeneration)
         db.execute("DELETE FROM schedule_blocks WHERE user_id = ?", (user_id,))
         db.execute("DELETE FROM tasks WHERE user_id = ?", (user_id,))
 
@@ -402,14 +401,18 @@ def regenerate_schedule(current_user: dict = Depends(get_current_user)):
     pending_tasks = [t for t in all_tasks if t.get("status") != "done"]
     print(f"DEBUG: regenerate_schedule re-running Enforcer: {len(pending_tasks)} pending tasks, {len(exam_list)} exams")
 
-    import io, sys
+    import io, sys, threading
     _scheduler_log = io.StringIO()
     _old_stdout = sys.stdout
-    sys.stdout = _scheduler_log
-    try:
-        new_schedule = generate_multi_exam_schedule(current_user, exam_list, pending_tasks, start_buffer_hours=0.0)
-    finally:
-        sys.stdout = _old_stdout
+    # Use a lock to make stdout replacement thread-safe
+    _stdout_lock = getattr(sys, '_stdout_lock', threading.Lock())
+    sys._stdout_lock = _stdout_lock
+    with _stdout_lock:
+        sys.stdout = _scheduler_log
+        try:
+            new_schedule = generate_multi_exam_schedule(current_user, exam_list, pending_tasks, start_buffer_hours=0.0)
+        finally:
+            sys.stdout = _old_stdout
     _scheduler_output = _scheduler_log.getvalue()
     print(_scheduler_output)  # also print to real stdout
 
@@ -510,6 +513,8 @@ def regenerate_schedule(current_user: dict = Depends(get_current_user)):
         db.execute("ROLLBACK")
         print(f"ERROR: regenerate_schedule DB write failed: {exc}")
         traceback.print_exc()
+        db.close()
+        raise HTTPException(status_code=500, detail=f"Schedule regeneration failed: {str(exc)}")
 
     # Read the full schedule back from DB — this includes both auto-generated blocks
     # AND manually-edited blocks that were re-inserted above. Returning new_schedule
@@ -662,8 +667,9 @@ Output the delta using the format above. Remember: only output blocks that ACTUA
     client = anthropic.Anthropic(api_key=api_key)
     try:
         message = client.messages.create(
-            model="claude-3-haiku-20240307",
+            model="claude-haiku-4-5-20251001",
             max_tokens=1000,
+            timeout=15.0,
             system=system_prompt,
             messages=[{"role": "user", "content": user_message}]
         )
@@ -865,113 +871,133 @@ Return format:
 }}"""
 
     client = anthropic.Anthropic(api_key=api_key)
-    message = client.messages.create(
-        model="claude-3-haiku-20240307",
-        max_tokens=4096,
-        messages=[{"role": "user", "content": prompt}]
-    )
+    try:
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=8192,
+            timeout=30.0,
+            messages=[{"role": "user", "content": prompt}]
+        )
+    except Exception as e:
+        db.close()
+        raise HTTPException(status_code=500, detail=f"AI call failed: {str(e)}")
 
     response_text = message.content[0].text.strip()
     if response_text.startswith("```"):
         response_text = response_text.split("\n", 1)[1]
         response_text = response_text.rsplit("```", 1)[0]
 
-    result = json.loads(response_text)
+    try:
+        result = json.loads(response_text)
+    except json.JSONDecodeError as exc:
+        db.close()
+        raise HTTPException(status_code=422, detail=f"AI returned invalid JSON: {str(exc)}")
     brain_reply = result.get("brain_reply", "Calendar updated.")
     new_tasks = result.get("tasks", [])
 
-    # Replace pending tasks
+    # Replace pending tasks inside a transaction
     exam_ids = [e["id"] for e in exams]
     valid_exam_ids = set(exam_ids)
-    if exam_ids:
-        placeholders = ",".join("?" * len(exam_ids))
 
-        old_task_ids = [
-            r["id"] for r in db.execute(
-                f"SELECT id FROM tasks WHERE exam_id IN ({placeholders}) AND status != 'done'",
+    try:
+        db.execute("BEGIN TRANSACTION")
+
+        if exam_ids:
+            placeholders = ",".join("?" * len(exam_ids))
+
+            old_task_ids = [
+                r["id"] for r in db.execute(
+                    f"SELECT id FROM tasks WHERE exam_id IN ({placeholders}) AND status != 'done'",
+                    exam_ids
+                ).fetchall()
+            ]
+            if old_task_ids:
+                task_ph = ",".join("?" * len(old_task_ids))
+                db.execute(f"DELETE FROM schedule_blocks WHERE task_id IN ({task_ph}) AND is_manually_edited = 0", old_task_ids)
+
+            db.execute(
+                f"DELETE FROM tasks WHERE exam_id IN ({placeholders}) AND status != 'done'",
                 exam_ids
-            ).fetchall()
-        ]
-        if old_task_ids:
-            task_ph = ",".join("?" * len(old_task_ids))
-            db.execute(f"DELETE FROM schedule_blocks WHERE task_id IN ({task_ph})", old_task_ids)
+            )
 
-        db.execute(
-            f"DELETE FROM tasks WHERE exam_id IN ({placeholders}) AND status != 'done'",
-            exam_ids
-        )
-        db.commit()
-
-    for task in new_tasks:
-        if task.get("status") == "done":
-            continue
-        task_exam_id = task.get("exam_id")
-        if task_exam_id not in valid_exam_ids:
-            if len(valid_exam_ids) == 1:
-                task_exam_id = list(valid_exam_ids)[0]
-            else:
+        for task in new_tasks:
+            if task.get("status") == "done":
                 continue
-        db.execute(
-            """INSERT INTO tasks (user_id, exam_id, title, topic, subject,
-               deadline, day_date, sort_order, estimated_hours, difficulty, is_padding)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (user_id, task_exam_id, task["title"], task.get("topic"),
-             task.get("subject"), task.get("day_date"),
-             task.get("day_date"), task.get("sort_order", 0),
-             task.get("estimated_hours", 2.0), task.get("difficulty", 3),
-             1 if task.get("is_padding") else 0)
-        )
+            task_exam_id = task.get("exam_id")
+            if task_exam_id not in valid_exam_ids:
+                if len(valid_exam_ids) == 1:
+                    task_exam_id = list(valid_exam_ids)[0]
+                else:
+                    continue
+            db.execute(
+                """INSERT INTO tasks (user_id, exam_id, title, topic, subject,
+                   deadline, day_date, sort_order, estimated_hours, difficulty, is_padding)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (user_id, task_exam_id, task["title"], task.get("topic"),
+                 task.get("subject"), task.get("day_date"),
+                 task.get("day_date"), task.get("sort_order", 0),
+                 task.get("estimated_hours", 2.0), task.get("difficulty", 3),
+                 1 if task.get("is_padding") else 0)
+            )
 
-    db.commit()
+        # Roll over past tasks
+        rollover_tasks(db, user_id, current_user.get("timezone_offset"))
 
-    # Roll over past tasks and fetch all current pending tasks
-    rollover_tasks(db, user_id, current_user.get("timezone_offset"))
-    db.commit()
-    
-    all_pending_tasks_rows = db.execute(
-        "SELECT * FROM tasks WHERE user_id = ? AND status != 'done' ORDER BY day_date, sort_order",
-        (user_id,)
-    ).fetchall()
-    all_pending_tasks = [dict(t) for t in all_pending_tasks_rows]
+        all_pending_tasks_rows = db.execute(
+            "SELECT * FROM tasks WHERE user_id = ? AND status != 'done' ORDER BY day_date, sort_order",
+            (user_id,)
+        ).fetchall()
+        all_pending_tasks = [dict(t) for t in all_pending_tasks_rows]
 
-    # Run Hourly Scheduler
-    from brain.scheduler import generate_multi_exam_schedule
-    schedule = generate_multi_exam_schedule(current_user, exams, all_pending_tasks, start_buffer_hours=0.0)
+        # Run Hourly Scheduler
+        from brain.scheduler import generate_multi_exam_schedule
+        schedule = generate_multi_exam_schedule(current_user, exams, all_pending_tasks, start_buffer_hours=0.0)
 
-    # Save schedule blocks
-    # Clear ALL old schedule blocks for this user before saving regenerated ones
-    db.execute("DELETE FROM schedule_blocks WHERE user_id = ?", (user_id,))
-    
-    now_iso = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+        # Preserve manually-edited blocks before wiping
+        manually_edited_rows = db.execute(
+            "SELECT * FROM schedule_blocks WHERE user_id = ? AND is_manually_edited = 1",
+            (user_id,)
+        ).fetchall()
+        manually_edited_blocks = [dict(r) for r in manually_edited_rows]
+        manually_edited_task_ids = {b["task_id"] for b in manually_edited_blocks if b["task_id"]}
 
-    for block in schedule:
-        db_task_id = block.task_id if block.block_type != "hobby" else None
-        
-        # Avoid notifying for blocks that already started in the past
-        is_notified = 1 if block.start_time < now_iso else 0
+        # Clear auto-generated schedule blocks
+        db.execute("DELETE FROM schedule_blocks WHERE user_id = ? AND is_manually_edited = 0", (user_id,))
 
-        db.execute(
-            """INSERT INTO schedule_blocks (user_id, task_id, exam_id, exam_name, task_title, 
-               start_time, end_time, day_date, block_type, is_delayed, is_split, part_number, total_parts, push_notified)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (user_id, db_task_id, block.exam_id, block.exam_name, block.task_title, 
-             block.start_time, block.end_time, block.day_date, block.block_type, 
-             1 if block.is_delayed else 0, block.is_split, block.part_number, block.total_parts, is_notified)
-        )
-        if db_task_id:
-            # Sync the day_date to the task so 'Daily Focus' works
-            db.execute("UPDATE tasks SET day_date = ? WHERE id = ?", (block.day_date, db_task_id))
-            if block.is_delayed:
-                db.execute("UPDATE tasks SET is_delayed = 1 WHERE id = ?", (db_task_id,))
-    
-    # Reload up-to-date tasks (especially those whose day_date changed)
-    final_tasks_rows = db.execute(
-        "SELECT * FROM tasks WHERE user_id = ? AND status != 'done' ORDER BY day_date, sort_order",
-        (user_id,)
-    ).fetchall()
-    final_tasks = [dict(t) for t in final_tasks_rows]
+        now_iso = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
 
-    db.commit()
+        for block in schedule:
+            db_task_id = block.task_id if block.block_type != "hobby" else None
+            if db_task_id and db_task_id in manually_edited_task_ids:
+                continue
+
+            is_notified = 1 if block.start_time < now_iso else 0
+
+            db.execute(
+                """INSERT INTO schedule_blocks (user_id, task_id, exam_id, exam_name, task_title,
+                   start_time, end_time, day_date, block_type, is_delayed, is_split, part_number, total_parts, push_notified)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (user_id, db_task_id, block.exam_id, block.exam_name, block.task_title,
+                 block.start_time, block.end_time, block.day_date, block.block_type,
+                 1 if block.is_delayed else 0, block.is_split, block.part_number, block.total_parts, is_notified)
+            )
+            if db_task_id:
+                db.execute("UPDATE tasks SET day_date = ? WHERE id = ?", (block.day_date, db_task_id))
+                if block.is_delayed:
+                    db.execute("UPDATE tasks SET is_delayed = 1 WHERE id = ?", (db_task_id,))
+
+        # Reload up-to-date tasks
+        final_tasks_rows = db.execute(
+            "SELECT * FROM tasks WHERE user_id = ? AND status != 'done' ORDER BY day_date, sort_order",
+            (user_id,)
+        ).fetchall()
+        final_tasks = [dict(t) for t in final_tasks_rows]
+
+        db.execute("COMMIT")
+    except Exception as exc:
+        db.execute("ROLLBACK")
+        db.close()
+        raise HTTPException(status_code=500, detail=f"Brain chat scheduling failed: {str(exc)}")
 
     # Notify user that roadmap is ready
     send_to_user(db, user_id, "הלוז עודכן! 🪄", "התוכנית שלך עודכנה על ידי המוח.", url="/")

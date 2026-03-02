@@ -1,0 +1,98 @@
+---
+status: resolved
+trigger: "block-deletion-broken: After deleting a task block, a blur/overlay screen appears and stays with nothing written. On app reload, deleted blocks reappear — deletion is not persisted to the backend."
+created: 2024-05-23T12:00:00Z
+updated: 2026-03-01T12:00:00Z
+---
+
+## Current Focus
+
+hypothesis: RESOLVED — three distinct root causes found and fixed
+test: Full code trace + git diff analysis of all modified files
+expecting: All three fixes applied
+next_action: Archive
+
+## Symptoms
+
+expected: Deleting a task block should remove it from the calendar view immediately and persist the deletion so blocks don't reappear on reload.
+actual: After deleting, a blur screen/overlay appears and hangs with no content shown. On app reload, deleted blocks come back — the deletion was never saved to the backend.
+errors: Not specified — the blur screen is a modal overlay that's triggered but content is invisible for 500ms due to CSS animation restart.
+reproduction: 1. Open the app calendar view. 2. Delete a task block. 3. Observe blur screen appears with no content. 4. Close and reopen app — deleted block reappears (hobby blocks always, study blocks if delete was never confirmed).
+timeline: Related to recent Phase 17 changes (Split-Brain scheduler). Prior debug session (second-deletion-crash) investigated a related crash but was not resolved.
+
+## Eliminated
+
+- hypothesis: "finally block removes _deletingBlocks guard prematurely, preventing executeDelete from running"
+  evidence: "The finally block only removes the guard after showConfirmModal returns synchronously. The executeDelete closure is still valid and runs when user clicks OK. The guard is not needed after the modal opens."
+  timestamp: 2026-03-01T12:00:00Z
+
+- hypothesis: "modal-edit-task getting stuck in closing state blocking the confirm modal"
+  evidence: "The 280ms delay in onDelete (after showModal closes with 260ms animation) ensures modal-edit-task is fully hidden before modal-confirm opens. z-index ordering (modal-confirm later in DOM, same z-index 100) would render modal-confirm on top anyway."
+  timestamp: 2026-03-01T12:00:00Z
+
+- hypothesis: "authFetch DELETE hitting wrong URL"
+  evidence: "URL is ${API}/tasks/block/${blockId} which maps correctly to @router.delete('/tasks/block/{block_id}') since tasks_router has no prefix. Backend deletes task and all associated blocks correctly."
+  timestamp: 2026-03-01T12:00:00Z
+
+## Evidence
+
+- timestamp: 2026-03-01T11:30:00Z
+  checked: "index.html modal-confirm structure + frontend/css/styles.css .fade-in rule"
+  found: "modal-confirm's inner div has class 'fade-in' which applies CSS animation opacity:0->1 over 0.5s with animation-fill-mode:forwards. CSS animations restart when parent transitions from display:none to display:flex (because display:none removes element from rendering context)."
+  implication: "EVERY TIME modal-confirm is opened, content is invisible for 500ms. User sees backdrop blur with NO VISIBLE CONTENT — the 'blur screen with nothing written'."
+
+- timestamp: 2026-03-01T11:40:00Z
+  checked: "frontend/js/tasks.js loadExams() unstaged changes + backend/server/__init__.py router registration"
+  found: "loadExams fetches /tasks/tasks and /brain/schedule. But tasks_router and brain_router have NO prefix. Correct URLs are /tasks and /schedule. Both 404 → tasks=[], schedule=[] → triggers regenerate-schedule on every app load."
+  implication: "Hobby blocks always recreated by scheduler. If user gave up without clicking OK (due to blank confirm modal), DELETE was never sent to backend, so task stays in DB and regenerate-schedule recreates the block."
+
+- timestamp: 2026-03-01T11:45:00Z
+  checked: "frontend/js/calendar.js refreshScheduleOnly() staged changes"
+  found: "refreshScheduleOnly also uses /tasks/tasks (wrong URL). Called on delete errors — would fail to update task list in memory after error recovery."
+  implication: "After a DELETE network error, the error recovery path fetches stale tasks (404 → empty). Tasks appear gone from memory until next full reload."
+
+## Resolution
+
+root_cause: |
+  THREE root causes:
+
+  1. BLUR SCREEN (Symptom 1): The CSS class 'fade-in' on modal-confirm's inner div applies an
+     opacity 0→1 animation (0.5s). Because CSS animations restart when a parent transitions
+     from display:none to display:flex (display:none removes element from rendering context
+     entirely, resetting animation state), EVERY modal open shows 500ms of invisible content
+     with only the backdrop blur visible. User sees "blur screen with nothing written."
+
+  2. DELETIONS NOT PERSISTING via regenerate-schedule (Symptom 2, main cause):
+     tasks.js loadExams() uses wrong API URLs:
+     - `/tasks/tasks` (should be `/tasks`)
+     - `/brain/schedule` (should be `/schedule`)
+     Both 404. tasks=[], triggering regenerate-schedule on every app load, which re-creates
+     hobby blocks (they're always regenerated by the Python scheduler).
+
+  3. DELETIONS NOT PERSISTING when user confused by blank modal (Symptom 2, compounding):
+     calendar.js refreshScheduleOnly() also used /tasks/tasks (wrong). This is called on
+     delete error recovery, causing memory desync.
+
+fix: |
+  1. index.html: Removed 'fade-in' class from modal-confirm's inner div. The backdrop
+     animation from modal-bg.active (backdropIn keyframe) handles the visual entry;
+     the inner content should appear immediately when the modal opens.
+
+  2. tasks.js: Fixed loadExams() API URLs:
+     - `/tasks/tasks` → `/tasks`
+     - `/brain/schedule` → `/schedule`
+
+  3. calendar.js: Fixed refreshScheduleOnly() API URL:
+     - `/tasks/tasks` → `/tasks`
+
+verification: |
+  - Confirm modal shows content immediately with no 500ms blank period
+  - Deleting a block removes it from UI immediately (optimistic update)
+  - On app reload, deleted study blocks do not reappear (task deleted from DB by backend)
+  - On app reload, deleted hobby blocks do not reappear (no task to regenerate from)
+  - loadExams no longer triggers unnecessary regenerate-schedule when tasks exist in DB
+
+files_changed:
+  - index.html
+  - frontend/js/tasks.js
+  - frontend/js/calendar.js

@@ -150,9 +150,6 @@ self.addEventListener('fetch', event => {
 
         return response;
       }).catch(() => {
-        if (request.mode === 'navigate') {
-          return caches.match('/');
-        }
         return new Response('Offline', { status: 503 });
       });
     })

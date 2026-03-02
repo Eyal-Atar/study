@@ -244,6 +244,8 @@ def init_db():
         conn.execute("ALTER TABLE schedule_blocks ADD COLUMN is_manually_edited INTEGER DEFAULT 0")
     if "deferred_original_day" not in block_columns:
         conn.execute("ALTER TABLE schedule_blocks ADD COLUMN deferred_original_day TEXT")
+    if "push_notified" not in block_columns:
+        conn.execute("ALTER TABLE schedule_blocks ADD COLUMN push_notified INTEGER DEFAULT 0")
     if "is_split" not in block_columns:
         conn.execute("ALTER TABLE schedule_blocks ADD COLUMN is_split INTEGER DEFAULT 0")
     if "part_number" not in block_columns:

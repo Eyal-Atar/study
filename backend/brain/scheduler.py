@@ -57,8 +57,15 @@ def generate_multi_exam_schedule(
     tz_offset = user.get("timezone_offset", 0) or 0
     hobby_name = user.get("hobby_name") or "Hobby"
     peak_productivity = user.get("peak_productivity", "Morning") or "Morning"
-    
-    sleep_h, sleep_m = map(int, user.get("sleep_time", "23:00").split(":"))
+
+    try:
+        sleep_h, sleep_m = map(int, user.get("sleep_time", "23:00").split(":"))
+    except (ValueError, TypeError):
+        sleep_h, sleep_m = 23, 0
+    try:
+        wake_h_default, wake_m_default = map(int, user.get("wake_up_time", "08:00").split(":"))
+    except (ValueError, TypeError):
+        wake_h_default, wake_m_default = 8, 0
     STUDY_CUTOFF_HOUR = (sleep_h - 1) % 24
     MIN_BLOCK_MIN = 30
     TASK_BUFFER_MIN = 10
@@ -121,15 +128,23 @@ def generate_multi_exam_schedule(
         long_break_taken = False
         last_task_was_simulation = False
         last_block_end = None
-        
+
         current_day_date = datetime.strptime(day_str, "%Y-%m-%d").date()
-        
+
         if current_day_date in exam_dates_only:
             continue
 
         is_day_before_exam = (current_day_date + timedelta(days=1)) in exam_dates_only
-        
+
+        # Define once per day instead of inside while loop
+        def _is_task_valid(t: dict, _day=current_day_date) -> bool:
+            eid = t.get("exam_id")
+            if not eid or eid not in exam_date_lookup:
+                return True
+            return _day < exam_date_lookup[eid]
+
         skipped_this_day = set()
+        cutoff_dt = None  # initialized here so padding/motivation can use it safely
 
         for window in windows:
             if used_on_day_min >= day_limit_min:
@@ -138,16 +153,14 @@ def generate_multi_exam_schedule(
             window_is_peak = _is_peak_window(window.start_local, peak_productivity)
             window_remaining_min = min(window.capacity_min, day_limit_min - used_on_day_min)
             current_time = window.start_local
-            
+
             if is_day_before_exam:
-                wake_h, wake_m = map(int, user.get("wake_up_time", "08:00").split(":"))
-                sleep_h, sleep_m = map(int, user.get("sleep_time", "23:00").split(":"))
                 day_dt = datetime.strptime(day_str, "%Y-%m-%d")
-                if sleep_h < wake_h:
+                if sleep_h < wake_h_default:
                     sleep_dt = (day_dt + timedelta(days=1)).replace(hour=sleep_h, minute=sleep_m)
                 else:
                     sleep_dt = day_dt.replace(hour=sleep_h, minute=sleep_m)
-                
+
                 sleep_dt = sleep_dt.replace(tzinfo=timezone.utc)
                 cutoff_dt = sleep_dt - timedelta(hours=5)
                 
@@ -167,12 +180,6 @@ def generate_multi_exam_schedule(
             while window_remaining_min >= 1.0: # Minimum window to try scheduling
                 if current_time.hour >= STUDY_CUTOFF_HOUR and current_time.hour > window.start_local.hour:
                     break
-
-                def _is_task_valid(t: dict) -> bool:
-                    eid = t.get("exam_id")
-                    if not eid or eid not in exam_date_lookup:
-                        return True
-                    return current_day_date < exam_date_lookup[eid]
 
                 overdue_tasks = [
                     t for t in tasks
@@ -348,14 +355,16 @@ def generate_multi_exam_schedule(
                 day_date=day_str, block_type="study"
             ))
 
-        wake_h, wake_m = map(int, user.get("wake_up_time", "08:00").split(":"))
-        sleep_h, sleep_m = map(int, user.get("sleep_time", "23:00").split(":"))
         day_dt = datetime.strptime(day_str, "%Y-%m-%d")
-        if sleep_h < wake_h:
+        if sleep_h < wake_h_default:
             h_end_local = (day_dt + timedelta(days=1)).replace(hour=sleep_h, minute=sleep_m)
         else:
             h_end_local = day_dt.replace(hour=sleep_h, minute=sleep_m)
         h_start_local = h_end_local - timedelta(hours=1)
+        # Guard against hobby overlapping with last study/padding block
+        if last_block_end and h_start_local < last_block_end:
+            h_start_local = last_block_end + timedelta(minutes=TASK_BUFFER_MIN)
+            h_end_local = max(h_end_local, h_start_local + timedelta(minutes=30))
         schedule.append(ScheduleBlock(
             task_id=None, exam_id=None, exam_name="Relax",
             task_title=hobby_name, subject="Hobby",
@@ -377,8 +386,14 @@ def generate_multi_exam_schedule(
     return schedule
 
 def _get_windows_for_day(user: dict, day_local: datetime, min_block_min: int = 45) -> list[WiredWindow]:
-    wake_h, wake_m = map(int, user.get("wake_up_time", "08:00").split(":"))
-    sleep_h, sleep_m = map(int, user.get("sleep_time", "23:00").split(":"))
+    try:
+        wake_h, wake_m = map(int, user.get("wake_up_time", "08:00").split(":"))
+    except (ValueError, TypeError):
+        wake_h, wake_m = 8, 0
+    try:
+        sleep_h, sleep_m = map(int, user.get("sleep_time", "23:00").split(":"))
+    except (ValueError, TypeError):
+        sleep_h, sleep_m = 23, 0
     start_time = day_local.replace(hour=wake_h, minute=wake_m) + timedelta(hours=1)
     if sleep_h < wake_h:
         end_time = (day_local + timedelta(days=1)).replace(hour=sleep_h, minute=sleep_m)
@@ -396,6 +411,9 @@ def _get_windows_for_day(user: dict, day_local: datetime, min_block_min: int = 4
             try:
                 b_start = day_local.replace(hour=int(brk["start"].split(":")[0]), minute=int(brk["start"].split(":")[1]))
                 b_end = day_local.replace(hour=int(brk["end"].split(":")[0]), minute=int(brk["end"].split(":")[1]))
+                # Handle breaks crossing midnight (e.g. 23:00-01:00)
+                if b_end <= b_start:
+                    b_end = b_end + timedelta(days=1)
                 windows = _subtract_range(windows, b_start, b_end)
             except: continue
     hobby_name = user.get("hobby_name")

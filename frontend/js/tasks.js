@@ -99,7 +99,13 @@ function syncAfterToggle(taskId, isBlockToggle) {
     }).catch(() => {});
 }
 
+let _loadExamsInProgress = false;
 export async function loadExams(onLogout, forceRegen = false) {
+    if (_loadExamsInProgress) {
+        console.log('loadExams: skipping — already in progress');
+        return;
+    }
+    _loadExamsInProgress = true;
     const API = getAPI();
     try {
         const res = await authFetch(`${API}/exams`);
@@ -156,6 +162,8 @@ export async function loadExams(onLogout, forceRegen = false) {
         }
     } catch (e) {
         console.error('loadExams failed:', e);
+    } finally {
+        _loadExamsInProgress = false;
     }
 }
 
