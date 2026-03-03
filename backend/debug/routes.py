@@ -143,3 +143,37 @@ def reset_progress(current_user: dict = Depends(get_current_user)):
         return {"status": "ok", "message": "Progress reset successfully."}
     finally:
         db.close()
+
+@router.post("/trigger-morning-prompt")
+def trigger_morning_prompt(current_user: dict = Depends(get_current_user)):
+    """Fake a new day login by setting last_login_date to yesterday and triggering the morning tasks prompt."""
+    user_id = current_user["id"]
+    tz_offset = current_user.get("timezone_offset", 0) or 0
+    db = get_db()
+    try:
+        # 1. Backdate the last login so the next login-check thinks it's a new day
+        yesterday = (datetime.now(timezone.utc) + timedelta(hours=tz_offset) - timedelta(days=1)).strftime("%Y-%m-%d")
+        db.execute(
+            "UPDATE user_streaks SET last_login_date = ? WHERE user_id = ?",
+            (yesterday, user_id)
+        )
+        db.commit()
+
+        # 2. Trigger the morning prompt UI on the phone immediately
+        # We'll use a special debug action that calls showMorningPrompt directly
+        from gamification.routes import _get_morning_tasks
+        tasks = _get_morning_tasks(db, user_id, tz_offset)
+        
+        send_to_user(
+            db, user_id,
+            title="Morning Review ☕",
+            body="Time to review yesterday's unfinished tasks.",
+            url="/",
+            extra_data={
+                "debug_action": "morning-prompt",
+                "debug_payload": { "tasks": tasks }
+            }
+        )
+        return {"status": "ok", "faked_date": yesterday, "task_count": len(tasks)}
+    finally:
+        db.close()

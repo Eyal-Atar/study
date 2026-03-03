@@ -88,6 +88,14 @@
                         <span class="text-xl">✅</span>
                     </button>
 
+                    <button onclick="triggerMorningPrompt()" class="btn-trigger w-full flex items-center justify-between p-4 rounded-2xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 text-left">
+                        <div>
+                            <div class="font-bold text-sm text-sky-400">Trigger Morning Review</div>
+                            <div class="text-xs text-sky-400/50">Show yesterday's unfinished tasks prompt</div>
+                        </div>
+                        <span class="text-xl">☕</span>
+                    </button>
+
                     <div class="pt-4 border-t border-white/5">
                         <label class="block text-xs font-bold text-white/30 uppercase tracking-widest mb-3">Streak Splashes (No Badge)</label>
                         <div class="grid grid-cols-4 gap-2">
@@ -227,6 +235,17 @@
                 showStatus('Success: Today Complete & Celebration Triggered', 'mint');
             } catch (err) {
                 alert('Failed to mark today done');
+            }
+        };
+
+        window.triggerMorningPrompt = async () => {
+            const api = getAPI();
+            try {
+                const res = await authFetch(`${api}/debug/trigger-morning-prompt`, { method: 'POST' });
+                if (!res.ok) throw new Error('Trigger failed');
+                showStatus('Success: Morning Review Triggered', 'mint');
+            } catch (err) {
+                alert('Failed to trigger morning review');
             }
         };
 

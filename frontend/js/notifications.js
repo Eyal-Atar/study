@@ -312,6 +312,9 @@ if ('serviceWorker' in navigator) {
                 } else if (action === 'new-badge') {
                     const { appendNewBadges } = await import('./profile.js?v=AUTO');
                     appendNewBadges([payload?.badge || 'iron_will_7']);
+                } else if (action === 'morning-prompt') {
+                    const { showMorningPrompt } = await import('./profile.js?v=AUTO');
+                    showMorningPrompt(payload?.tasks || []);
                 } else if (action === 'award-xp') {
                     const { updateXPDisplay } = await import('./profile.js?v=AUTO');
                     const earned = payload?.xp_earned || 50;
