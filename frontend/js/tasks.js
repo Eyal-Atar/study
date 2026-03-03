@@ -479,6 +479,24 @@ export async function toggleDone(taskId, btn, blockId = null) {
             }
         }
 
+        // Gamification: award XP when a block is marked done (fire-and-forget, non-blocking)
+        if (patchRes.ok && !isDone && isBlockToggle && blockId) {
+            authFetch(`${API}/gamification/award-xp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task_id: taskId, block_id: blockId })
+            })
+                .then(r => r.json())
+                .then(xpResult => {
+                    if (xpResult && xpResult.xp_earned > 0) {
+                        console.log('XP awarded:', xpResult);
+                    }
+                })
+                .catch(e => {
+                    console.warn('XP award failed:', e);
+                });
+        }
+
         // We already updated DOM and store; only sync task status from blocks and refresh Focus + exam stats (no full refetch)
         syncAfterToggle(taskId, isBlockToggle);
     } catch (e) {
