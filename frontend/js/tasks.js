@@ -2,6 +2,7 @@ import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, s
 import { shakeEl, spawnConfetti, examColorClass, showModal, showConfirmModal, showScreen, LoadingAnimator } from './ui.js?v=AUTO';
 import { renderCalendar, renderFocus, renderExamLegend } from './calendar.js?v=AUTO';
 import { showRegenBar, hideRegenBar } from './brain.js?v=AUTO';
+import { updateXPDisplay } from './profile.js?v=AUTO';
 
 // Notification permission prompt tracking
 const NOTIF_PROMPT_KEY = 'sf_notif_prompt_shown';
@@ -489,7 +490,7 @@ export async function toggleDone(taskId, btn, blockId = null) {
                 .then(r => r.json())
                 .then(xpResult => {
                     if (xpResult && xpResult.xp_earned > 0) {
-                        console.log('XP awarded:', xpResult);
+                        updateXPDisplay(xpResult);   // animate circles live
                     }
                 })
                 .catch(e => {
