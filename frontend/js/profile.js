@@ -9,21 +9,30 @@ const CIRCLE_CIRCUMFERENCE = 238.76;
 
 // ─── Badge icon mapping ───────────────────────────────────────────────────────
 const BADGE_ICONS = {
-    // First-time achievements (added by Plan 19.1-03)
+    // First-time achievements
     first_task:          '✅',
     first_login:         '👋',
     week_streak:         '🔥',
     streak_broken_once:  '💔',
-    // Streak milestones (existing backend keys)
+    // Streak milestones
     iron_will_7:         '🔥🔥',
-    iron_will_30:        '⚡',
-    iron_will_100:       '🏆',
-    // Level milestones (existing backend keys)
+    iron_will_10:        '⚡',
+    iron_will_14:        '🏆',
+    iron_will_30:        '💎',
+    iron_will_100:       '👑',
+    // Level milestones
     knowledge_seeker_5:  '⭐',
     knowledge_seeker_10: '🌟',
+    knowledge_seeker_20: '💡',
     knowledge_seeker_25: '💎',
     knowledge_seeker_50: '👑',
-    // XP milestones (existing backend keys)
+    knowledge_seeker_100: '🌌',
+    // Task milestones
+    task_master_10:      '📖',
+    task_master_20:      '📚',
+    task_master_50:      '📜',
+    task_master_100:     '🏅',
+    // XP milestones
     xp_1000:             '🎯',
     xp_5000:             '🚀',
     xp_10000:            '🌌',
@@ -43,14 +52,23 @@ function getBadgeLabel(badgeKey) {
         week_streak:         '7-Day Streak',
         streak_broken_once:  'Streak Broken',
         // Streak milestones
-        iron_will_7:         'Iron Will — 7 Days',
-        iron_will_30:        'Iron Will — 30 Days',
-        iron_will_100:       'Iron Will — 100 Days',
+        iron_will_7:         '7-Day Streak',
+        iron_will_10:        '10-Day Streak',
+        iron_will_14:        '14-Day Streak',
+        iron_will_30:        '30-Day Streak',
+        iron_will_100:       '100-Day Streak',
         // Level milestones
         knowledge_seeker_5:  'Knowledge Seeker — Lvl 5',
         knowledge_seeker_10: 'Knowledge Seeker — Lvl 10',
+        knowledge_seeker_20: 'Knowledge Seeker — Lvl 20',
         knowledge_seeker_25: 'Knowledge Seeker — Lvl 25',
         knowledge_seeker_50: 'Knowledge Seeker — Lvl 50',
+        knowledge_seeker_100: 'Grand Master — Lvl 100',
+        // Task milestones
+        task_master_10:      '10 Tasks Completed',
+        task_master_20:      '20 Tasks Completed',
+        task_master_50:      '50 Tasks Completed',
+        task_master_100:     '100 Tasks Completed',
         // XP milestones
         xp_1000:             '1,000 XP Earned',
         xp_5000:             '5,000 XP Earned',

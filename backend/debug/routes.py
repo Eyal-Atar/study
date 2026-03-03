@@ -116,3 +116,30 @@ def mark_today_done(current_user: dict = Depends(get_current_user)):
         return {"status": "ok", "message": f"All study blocks for {today} marked as done."}
     finally:
         db.close()
+
+@router.post("/reset-progress")
+def reset_progress(current_user: dict = Depends(get_current_user)):
+    """Reset all gamification progress (XP, streaks, badges) for the current user."""
+    user_id = current_user["id"]
+    db = get_db()
+    try:
+        db.execute("DELETE FROM user_xp WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM user_streaks WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM user_badges WHERE user_id = ?", (user_id,))
+        db.execute("UPDATE schedule_blocks SET xp_awarded = 0 WHERE user_id = ?", (user_id,))
+        db.commit()
+        
+        # Trigger UI refresh on phone
+        send_to_user(
+            db, user_id,
+            title="Progress Reset 🔄",
+            body="Your achievements have been reset for testing.",
+            url="/",
+            extra_data={
+                "debug_action": "award-xp", # award-xp action refreshes circles
+                "debug_payload": { "total": 0, "level": 1, "daily": 0 }
+            }
+        )
+        return {"status": "ok", "message": "Progress reset successfully."}
+    finally:
+        db.close()

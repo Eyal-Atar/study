@@ -166,18 +166,27 @@ def update_streak(db, user_id: int, tz_offset: int = 0) -> dict:
 # Badge criteria: (badge_key, check_fn(user_xp_row, streak_row))
 _BADGE_CRITERIA = [
     # Streak milestones
-    ("iron_will_7",     lambda xp, s: s["current_streak"] >= 7),
-    ("iron_will_30",    lambda xp, s: s["current_streak"] >= 30),
-    ("iron_will_100",   lambda xp, s: s["current_streak"] >= 100),
+    ("iron_will_7",      lambda xp, s: s["current_streak"] >= 7),
+    ("iron_will_10",     lambda xp, s: s["current_streak"] >= 10),
+    ("iron_will_14",     lambda xp, s: s["current_streak"] >= 14),
+    ("iron_will_30",     lambda xp, s: s["current_streak"] >= 30),
+    ("iron_will_100",    lambda xp, s: s["current_streak"] >= 100),
     # Level milestones
-    ("knowledge_seeker_5",  lambda xp, s: xp["current_level"] >= 5),
-    ("knowledge_seeker_10", lambda xp, s: xp["current_level"] >= 10),
-    ("knowledge_seeker_25", lambda xp, s: xp["current_level"] >= 25),
-    ("knowledge_seeker_50", lambda xp, s: xp["current_level"] >= 50),
+    ("knowledge_seeker_5",   lambda xp, s: xp["current_level"] >= 5),
+    ("knowledge_seeker_10",  lambda xp, s: xp["current_level"] >= 10),
+    ("knowledge_seeker_20",  lambda xp, s: xp["current_level"] >= 20),
+    ("knowledge_seeker_25",  lambda xp, s: xp["current_level"] >= 25),
+    ("knowledge_seeker_50",  lambda xp, s: xp["current_level"] >= 50),
+    ("knowledge_seeker_100", lambda xp, s: xp["current_level"] >= 100),
     # XP milestones
     ("xp_1000",  lambda xp, s: xp["total_xp"] >= 1000),
     ("xp_5000",  lambda xp, s: xp["total_xp"] >= 5000),
     ("xp_10000", lambda xp, s: xp["total_xp"] >= 10000),
+    # Task milestones
+    ("task_master_10",  lambda xp, s: (xp.get("tasks_completed") or 0) >= 10),
+    ("task_master_20",  lambda xp, s: (xp.get("tasks_completed") or 0) >= 20),
+    ("task_master_50",  lambda xp, s: (xp.get("tasks_completed") or 0) >= 50),
+    ("task_master_100", lambda xp, s: (xp.get("tasks_completed") or 0) >= 100),
     # First-time achievement badges (Phase 19.1-03)
     # Fires on first ever task completed (tasks_completed key present from 19.1-03)
     ("first_task",         lambda xp, s: (xp.get("tasks_completed") or 0) >= 1),

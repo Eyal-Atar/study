@@ -62,38 +62,58 @@
                     <span class="text-accent-400">✨</span> UI Animations
                 </h2>
                 <div class="space-y-4">
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         <button onclick="trigger('streak-splash', { streak: 2 }, '2-Day Streak!')" 
-                                class="btn-trigger p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
+                                class="btn-trigger p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
                             <div class="text-xl mb-1">🐣</div>
                             <div class="font-bold text-[10px] uppercase tracking-wider">2 Days</div>
                         </button>
                         <button onclick="trigger('streak-splash', { streak: 7, isMilestone: true }, '7-Day Streak!')" 
-                                class="btn-trigger p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
+                                class="btn-trigger p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
                             <div class="text-xl mb-1">🔥</div>
                             <div class="font-bold text-[10px] uppercase tracking-wider">7 Days</div>
                         </button>
                         <button onclick="trigger('streak-splash', { streak: 10, isMilestone: true }, '10-Day Streak!')" 
-                                class="btn-trigger p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
+                                class="btn-trigger p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
                             <div class="text-xl mb-1">⚡</div>
                             <div class="font-bold text-[10px] uppercase tracking-wider">10 Days</div>
                         </button>
                         <button onclick="trigger('streak-splash', { streak: 14, isMilestone: true }, '14-Day Streak!')" 
-                                class="btn-trigger p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
+                                class="btn-trigger p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
                             <div class="text-xl mb-1">🏆</div>
                             <div class="font-bold text-[10px] uppercase tracking-wider">14 Days</div>
                         </button>
+                        <button onclick="trigger('streak-splash', { streak: 30, isMilestone: true }, '30-Day Streak!')" 
+                                class="btn-trigger p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
+                            <div class="text-xl mb-1">⚡💎</div>
+                            <div class="font-bold text-[10px] uppercase tracking-wider">30 Days</div>
+                        </button>
+                        <button onclick="trigger('celebration', null, 'Goal Reached!')" 
+                                class="btn-trigger p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
+                            <div class="text-xl mb-1">🎊</div>
+                            <div class="font-bold text-[10px] uppercase tracking-wider">Goal</div>
+                        </button>
                     </div>
 
-                    <button onclick="trigger('celebration', null, 'Goal Reached!')" 
-                            class="btn-trigger w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-left">
-                        <div>
-                            <div class="font-bold text-sm">Daily Celebration</div>
-                            <div class="text-xs text-white/40">Full-screen confetti + message</div>
-                        </div>
-                        <span class="text-xl">🎊</span>
-                    </button>
-                    
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
+                        <button onclick="trigger('new-badge', { badge: 'task_master_10' }, '10 Tasks!')" 
+                                class="btn-trigger p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
+                            <div class="text-sm">📖 10</div>
+                        </button>
+                        <button onclick="trigger('new-badge', { badge: 'task_master_20' }, '20 Tasks!')" 
+                                class="btn-trigger p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
+                            <div class="text-sm">📚 20</div>
+                        </button>
+                        <button onclick="trigger('new-badge', { badge: 'task_master_50' }, '50 Tasks!')" 
+                                class="btn-trigger p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
+                            <div class="text-sm">📜 50</div>
+                        </button>
+                        <button onclick="trigger('new-badge', { badge: 'task_master_100' }, '100 Tasks!')" 
+                                class="btn-trigger p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
+                            <div class="text-sm">🏅 100</div>
+                        </button>
+                    </div>
+
                     <button onclick="trigger('award-xp', { xp_earned: 50, total: 1550, level: 2, daily: 180 }, 'XP Awarded!')" 
                             class="btn-trigger w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-left">
                         <div>
@@ -139,6 +159,10 @@
 
                     <button onclick="awardXP()" class="w-full mt-4 py-3 rounded-xl border border-mint-500/30 text-mint-400 text-xs font-bold hover:bg-mint-500/10 transition-colors btn-trigger">
                         Award 500 XP (Server + Sync)
+                    </button>
+
+                    <button onclick="resetProgress()" class="w-full py-3 rounded-xl bg-coral-500/10 border border-coral-500/20 text-coral-400 text-xs font-bold hover:bg-coral-500/20 transition-colors btn-trigger">
+                        Reset All Progress (XP/Streak/Badges)
                     </button>
                 </div>
             </section>
@@ -212,6 +236,19 @@
                 showStatus('Success: Today Complete & Celebration Triggered', 'mint');
             } catch (err) {
                 alert('Failed to mark today done');
+            }
+        };
+
+        window.resetProgress = async () => {
+            if (!confirm('Are you sure? This will delete all your XP, streaks, and badges!')) return;
+            const api = getAPI();
+            try {
+                const res = await authFetch(`${api}/debug/reset-progress`, { method: 'POST' });
+                if (!res.ok) throw new Error('Reset failed');
+                showStatus('Success: Progress Reset', 'mint');
+                alert('All progress has been reset.');
+            } catch (err) {
+                alert('Failed to reset progress');
             }
         };
 
