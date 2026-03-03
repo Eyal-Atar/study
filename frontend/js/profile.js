@@ -134,6 +134,30 @@ function renderBadgeGrid(badges) {
 
 // ─── Live badge append (called after award-xp returns badges_earned) ──────────
 
+export function showBadgeSplash(badgeKey) {
+    const modal = document.getElementById('modal-badge-splash');
+    const iconEl = document.getElementById('splash-badge-icon');
+    const nameEl = document.getElementById('splash-badge-name');
+    if (!modal || !iconEl || !nameEl) return;
+
+    iconEl.textContent = getBadgeIcon(badgeKey);
+    nameEl.textContent = getBadgeLabel(badgeKey);
+    modal.classList.add('active');
+
+    // Confetti!
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    spawnConfetti({ getBoundingClientRect: () => ({ left: centerX - 30, top: centerY, width: 60, height: 0 }) });
+
+    const btn = document.getElementById('btn-close-badge-splash');
+    if (btn) {
+        btn.onclick = () => modal.classList.remove('active');
+    }
+
+    // Auto-dismiss after 4 seconds
+    setTimeout(() => modal.classList.remove('active'), 4000);
+}
+
 export function appendNewBadges(badgeKeys) {
     if (!badgeKeys || badgeKeys.length === 0) return;
     const container = document.getElementById('achievement-badges');
@@ -156,6 +180,9 @@ export function appendNewBadges(badgeKeys) {
 
     // Prepend — newest first, matching API order
     container.insertAdjacentHTML('afterbegin', newCards);
+
+    // Show splash for the first (newest) badge in the list
+    showBadgeSplash(badgeKeys[0]);
 }
 
 // ─── Achievements Tab Rendering ───────────────────────────────────────────────
