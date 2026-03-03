@@ -313,6 +313,12 @@ def init_db():
     if "xp_awarded" not in block_columns_xp:
         conn.execute("ALTER TABLE schedule_blocks ADD COLUMN xp_awarded INTEGER DEFAULT 0")
 
+    # Add tasks_completed to user_xp if not present (Phase 19.1-03 migration)
+    _xp_cols = {row[1] for row in conn.execute("PRAGMA table_info(user_xp)").fetchall()}
+    if "tasks_completed" not in _xp_cols:
+        conn.execute("ALTER TABLE user_xp ADD COLUMN tasks_completed INTEGER DEFAULT 0")
+        conn.commit()
+
     # Migrations: extracted_text on exam_files + update CHECK constraint to include summary/sample_exam
     # SQLite cannot ALTER CHECK constraints, so we must rebuild the table if the constraint is outdated.
     exam_file_columns = {row[1] for row in conn.execute("PRAGMA table_info(exam_files)").fetchall()}
