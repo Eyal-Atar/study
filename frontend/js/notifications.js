@@ -294,7 +294,10 @@ if ('serviceWorker' in navigator) {
         if (!event.data) return;
 
         if (event.data.type === 'PUSH_RECEIVED') {
-            showToast(event.data.title, event.data.body, event.data.blockId);
+            // Show toast only for real study notifications (no debug_action)
+            if (!event.data.debug_action) {
+                showToast(event.data.title, event.data.body, event.data.blockId);
+            }
 
             // Handle Debug Triggers (for Control Panel)
             if (event.data.debug_action) {
