@@ -313,6 +313,9 @@ window._rescheduleTask = async function(taskId, action, btn) {
             btn.textContent = 'Done';
             btn.classList.replace('bg-accent-500/20', 'bg-mint-500/20');
             btn.classList.replace('text-accent-400', 'text-mint-400');
+            
+            // Dispatch refresh so the task appears in today's roadmap immediately
+            window.dispatchEvent(new CustomEvent('calendar-needs-refresh'));
         }
     } catch (e) {
         console.warn('rescheduleTask failed:', e);
