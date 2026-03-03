@@ -8,16 +8,26 @@ const CIRCLE_CIRCUMFERENCE = 238.76;
 
 // ─── Badge icon mapping ───────────────────────────────────────────────────────
 const BADGE_ICONS = {
-    first_task:       '✅',
-    ten_tasks:        '🔟',
-    fifty_tasks:      '💪',
-    streak_3:         '🔥',
-    streak_7:         '🔥🔥',
-    streak_30:        '⚡',
-    level_5:          '⭐',
-    level_10:         '🌟',
-    level_20:         '🏆',
-    default:          '🎖',
+    // First-time achievements (added by Plan 19.1-03)
+    first_task:          '✅',
+    first_login:         '👋',
+    week_streak:         '🔥',
+    streak_broken_once:  '💔',
+    // Streak milestones (existing backend keys)
+    iron_will_7:         '🔥🔥',
+    iron_will_30:        '⚡',
+    iron_will_100:       '🏆',
+    // Level milestones (existing backend keys)
+    knowledge_seeker_5:  '⭐',
+    knowledge_seeker_10: '🌟',
+    knowledge_seeker_25: '💎',
+    knowledge_seeker_50: '👑',
+    // XP milestones (existing backend keys)
+    xp_1000:             '🎯',
+    xp_5000:             '🚀',
+    xp_10000:            '🌌',
+    // Fallback
+    default:             '🎖',
 };
 
 function getBadgeIcon(badgeKey) {
@@ -26,15 +36,24 @@ function getBadgeIcon(badgeKey) {
 
 function getBadgeLabel(badgeKey) {
     const labels = {
-        first_task:   'First Task Done',
-        ten_tasks:    '10 Tasks Done',
-        fifty_tasks:  '50 Tasks Done',
-        streak_3:     '3-Day Streak',
-        streak_7:     '7-Day Streak',
-        streak_30:    '30-Day Streak',
-        level_5:      'Level 5',
-        level_10:     'Level 10',
-        level_20:     'Level 20',
+        // First-time achievements
+        first_task:          'First Task Done',
+        first_login:         'First Login',
+        week_streak:         '7-Day Streak',
+        streak_broken_once:  'Streak Broken',
+        // Streak milestones
+        iron_will_7:         'Iron Will — 7 Days',
+        iron_will_30:        'Iron Will — 30 Days',
+        iron_will_100:       'Iron Will — 100 Days',
+        // Level milestones
+        knowledge_seeker_5:  'Knowledge Seeker — Lvl 5',
+        knowledge_seeker_10: 'Knowledge Seeker — Lvl 10',
+        knowledge_seeker_25: 'Knowledge Seeker — Lvl 25',
+        knowledge_seeker_50: 'Knowledge Seeker — Lvl 50',
+        // XP milestones
+        xp_1000:             '1,000 XP Earned',
+        xp_5000:             '5,000 XP Earned',
+        xp_10000:            '10,000 XP Earned',
     };
     return labels[badgeKey] || badgeKey.replace(/_/g, ' ');
 }
@@ -92,6 +111,32 @@ function renderBadgeGrid(badges) {
             </div>
         </div>
     `).join('');
+}
+
+// ─── Live badge append (called after award-xp returns badges_earned) ──────────
+
+export function appendNewBadges(badgeKeys) {
+    if (!badgeKeys || badgeKeys.length === 0) return;
+    const container = document.getElementById('achievement-badges');
+    if (!container) return;
+
+    // Remove empty-state placeholder if present
+    const placeholder = container.querySelector('p');
+    if (placeholder) placeholder.remove();
+
+    const now = new Date().toISOString().substring(0, 10);
+    const newCards = badgeKeys.map(key => `
+        <div class="flex items-center gap-3 bg-dark-900/40 rounded-xl p-3 border border-white/5 badge-new-flash">
+            <span class="text-2xl">${getBadgeIcon(key)}</span>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-white truncate">${getBadgeLabel(key)}</p>
+                <p class="text-xs text-white/30">${now}</p>
+            </div>
+        </div>
+    `).join('');
+
+    // Prepend — newest first, matching API order
+    container.insertAdjacentHTML('afterbegin', newCards);
 }
 
 // ─── Achievements Tab Rendering ───────────────────────────────────────────────

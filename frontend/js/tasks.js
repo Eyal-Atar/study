@@ -2,7 +2,7 @@ import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, s
 import { shakeEl, spawnConfetti, examColorClass, showModal, showConfirmModal, showScreen, LoadingAnimator } from './ui.js?v=AUTO';
 import { renderCalendar, renderFocus, renderExamLegend } from './calendar.js?v=AUTO';
 import { showRegenBar, hideRegenBar } from './brain.js?v=AUTO';
-import { updateXPDisplay } from './profile.js?v=AUTO';
+import { updateXPDisplay, appendNewBadges } from './profile.js?v=AUTO';
 
 // Notification permission prompt tracking
 const NOTIF_PROMPT_KEY = 'sf_notif_prompt_shown';
@@ -491,6 +491,9 @@ export async function toggleDone(taskId, btn, blockId = null) {
                 .then(xpResult => {
                     if (xpResult && xpResult.xp_earned > 0) {
                         updateXPDisplay(xpResult);   // animate circles live
+                    }
+                    if (xpResult && xpResult.badges_earned && xpResult.badges_earned.length > 0) {
+                        appendNewBadges(xpResult.badges_earned);
                     }
                 })
                 .catch(e => {
