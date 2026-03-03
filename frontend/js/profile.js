@@ -267,6 +267,34 @@ window._rescheduleTask = async function(taskId, action, btn) {
     }
 };
 
+// ─── showDailyCelebration ─────────────────────────────────────────────────────
+
+let _celebrationAutoClose = null;
+
+export function showDailyCelebration() {
+    const modal = document.getElementById('modal-daily-celebration');
+    if (!modal) return;
+
+    // Show the modal
+    modal.classList.add('active');
+
+    // Wire close button
+    const closeBtn = modal.querySelector('#btn-close-celebration');
+    if (closeBtn) {
+        closeBtn.onclick = () => {
+            modal.classList.remove('active');
+            if (_celebrationAutoClose) clearTimeout(_celebrationAutoClose);
+        };
+    }
+
+    // Auto-dismiss after 3.5 seconds
+    if (_celebrationAutoClose) clearTimeout(_celebrationAutoClose);
+    _celebrationAutoClose = setTimeout(() => {
+        modal.classList.remove('active');
+        _celebrationAutoClose = null;
+    }, 3500);
+}
+
 // ─── registerLoginCheckFlow ──────────────────────────────────────────────────
 
 export function registerLoginCheckFlow() {

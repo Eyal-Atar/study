@@ -129,6 +129,7 @@ def init_db():
             current_level INTEGER DEFAULT 1,
             daily_xp INTEGER DEFAULT 0,
             daily_xp_date TEXT,
+            tasks_completed INTEGER DEFAULT 0,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
 

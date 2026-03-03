@@ -59,9 +59,9 @@
 | 16. PWA Push & Smart Triggers | 1/1 | Complete | 2026-02-25 |
 | 17. Split-Brain Core Scheduler | 4/4 | Complete | 2026-03-01 |
 | 19. Gamification (XP, Streaks, Morning Prompt) | 5/5 | Complete   | 2026-03-03 |
-| 19.1. Fix Gamification Bugs (XP, Badges, Celebration) | 2/4 | In progress | - |
+| 19.1. Fix Gamification Bugs (XP, Badges, Celebration) | 4/4 | Complete | 2026-03-03 |
 
-**Overall:** 94% complete (12/13 phases)
+**Overall:** 100% complete (13/13 phases)
 
 ### Phase 17: Split-Brain Core Scheduler
 
@@ -87,7 +87,7 @@ Plans:
 **Goal:** Implement a quiet, minimalist gamification system with XP tracking (levels 1-50), login streak detection (splash screens at 3+ days with milestones at 7/14/30), morning prompt for rescheduling unfinished tasks, and achievements tab with earned badges. Maintains StudyFlow's zen mentor aesthetic.
 **Depends on:** Phase 17
 **Requirements:** [GAM-01, GAM-02, GAM-03, GAM-04, GAM-05, GAM-06, GAM-07, GAM-08, GAM-09, GAM-10, GAM-11]
-**Status:** Planned (2026-03-03)
+**Status:** Complete (2026-03-03)
 
 Plans:
 - [x] 19-01-PLAN.md — Database schema (user_xp, user_streaks, user_badges) and gamification utilities (completed 2026-03-03)
@@ -104,10 +104,10 @@ Plans:
 
 **Goal:** Close gamification UI gaps — live XP circle sync after block completion, badge display after award, and daily completion celebration screen.
 **Depends on:** Phase 19
-**Status:** In progress
+**Status:** Complete (2026-03-03)
 
 Plans:
 - [x] 19.1-01-PLAN.md — Fix XP circle display sync (live update after block completion) (completed 2026-03-03)
 - [x] 19.1-02-PLAN.md — Fix badge grid rendering: align frontend badge keys with backend (completed 2026-03-03)
-- [ ] 19.1-03-PLAN.md — Celebration screen for daily completion
-- [ ] 19.1-04-PLAN.md — (TBD)
+- [x] 19.1-03-PLAN.md — Implement first-time achievement badge unlocks (backend) (completed 2026-03-03)
+- [x] 19.1-04-PLAN.md — Add celebration screen for daily completion (frontend) (completed 2026-03-03)

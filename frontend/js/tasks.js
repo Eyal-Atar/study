@@ -2,10 +2,13 @@ import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, s
 import { shakeEl, spawnConfetti, examColorClass, showModal, showConfirmModal, showScreen, LoadingAnimator } from './ui.js?v=AUTO';
 import { renderCalendar, renderFocus, renderExamLegend } from './calendar.js?v=AUTO';
 import { showRegenBar, hideRegenBar } from './brain.js?v=AUTO';
-import { updateXPDisplay, appendNewBadges } from './profile.js?v=AUTO';
+import { updateXPDisplay, appendNewBadges, showDailyCelebration } from './profile.js?v=AUTO';
 
 // Notification permission prompt tracking
 const NOTIF_PROMPT_KEY = 'sf_notif_prompt_shown';
+
+// Module-level guard for daily celebration (fires once per session per day)
+let _celebrationState = { shown: false, date: null };
 
 function hasShownNotifPrompt() {
     return localStorage.getItem(NOTIF_PROMPT_KEY) === '1';
@@ -335,6 +338,36 @@ export function updateStats() {
     }
 }
 
+/** Check if all study blocks for today are done. If so, show celebration. */
+function checkAndShowDailyCelebration() {
+    const today = getTodayStr();
+
+    // Reset if date has rolled over
+    if (_celebrationState.date !== today) {
+        _celebrationState = { shown: false, date: today };
+    }
+
+    if (_celebrationState.shown) return;
+
+    const schedule = getCurrentSchedule() || [];
+    const todayStudyBlocks = schedule.filter(
+        b => b.day_date === today && b.block_type === 'study'
+    );
+
+    // Need at least one study block to avoid false-positive on empty days
+    if (todayStudyBlocks.length === 0) return;
+
+    const allDone = todayStudyBlocks.every(b => b.completed === 1);
+    if (!allDone) return;
+
+    _celebrationState.shown = true;
+
+    // Delay slightly so per-block confetti finishes first
+    setTimeout(() => {
+        showDailyCelebration();
+    }, 500);
+}
+
 export async function deleteExam(examId) {
     if (!confirm('Delete this exam and all its files?')) return;
     
@@ -499,6 +532,9 @@ export async function toggleDone(taskId, btn, blockId = null) {
                 .catch(e => {
                     console.warn('XP award failed:', e);
                 });
+
+            // Check if all of today's study blocks are completed to show celebration screen
+            checkAndShowDailyCelebration();
         }
 
         // We already updated DOM and store; only sync task status from blocks and refresh Focus + exam stats (no full refetch)

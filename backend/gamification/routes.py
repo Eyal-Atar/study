@@ -48,11 +48,11 @@ def _get_morning_tasks(db, user_id: int, tz_offset: int) -> list:
 
 def _get_xp_row(db, user_id: int) -> dict:
     row = db.execute(
-        "SELECT total_xp, current_level, daily_xp, daily_xp_date FROM user_xp WHERE user_id = ?",
+        "SELECT total_xp, current_level, daily_xp, daily_xp_date, tasks_completed FROM user_xp WHERE user_id = ?",
         (user_id,),
     ).fetchone()
     if row is None:
-        return {"total_xp": 0, "current_level": 1, "daily_xp": 0, "daily_xp_date": None}
+        return {"total_xp": 0, "current_level": 1, "daily_xp": 0, "daily_xp_date": None, "tasks_completed": 0}
     return dict(row)
 
 
@@ -267,12 +267,12 @@ def get_summary(current_user: dict = Depends(get_current_user)):
     try:
         # XP data
         xp_row = db.execute(
-            "SELECT total_xp, current_level, daily_xp, daily_xp_date FROM user_xp WHERE user_id = ?",
+            "SELECT total_xp, current_level, daily_xp, daily_xp_date, tasks_completed FROM user_xp WHERE user_id = ?",
             (user_id,),
         ).fetchone()
 
         if xp_row is None:
-            xp_data = {"total_xp": 0, "current_level": 1, "daily_xp": 0, "daily_xp_date": today}
+            xp_data = {"total_xp": 0, "current_level": 1, "daily_xp": 0, "daily_xp_date": today, "tasks_completed": 0}
         else:
             xp_data = dict(xp_row)
             # Reset daily_xp if date has changed
