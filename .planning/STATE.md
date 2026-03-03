@@ -8,9 +8,9 @@ See: .planning/PROJECT.md
 
 **Milestone:** v1.0 milestone
 **Current phase:** Phase 19 — Gamification (Achievements, Login Streaks, Morning Prompt)
-**Current plan:** 04 of 05 complete
-**Status:** Plan 19-04 complete — frontend integration wired (startup + XP awarding)
-**Last session:** 2026-03-03T10:13:00Z
+**Current plan:** 04 of 05 complete (03 also now complete — executed out of order)
+**Status:** Plan 19-03 complete — Achievements tab UI, SVG XP circles, splash/morning-prompt modals added to index.html
+**Last session:** 2026-03-03T10:11:49.768Z
 
 ## Session Log
 
@@ -46,6 +46,9 @@ See: .planning/PROJECT.md
 - [Phase 19-04]: profile.js created with registerLoginCheckFlow, initGamification, showStreakSplash, showMorningPrompt exports
 - [Phase 19-04]: award-xp uses !isDone condition (pre-toggle state) — fires when block was just marked done; scoped to isBlockToggle only
 - [Phase 19-04]: XP and login-check calls are fire-and-forget — .catch() suppresses errors, UX never blocked by gamification
+- [Phase 19-03]: Achievements tab labeled "XP" for compact 4-button tab bar in Profile Settings
+- [Phase 19-03]: SVG circles use stroke-dashoffset=238.76 (empty) as initial state; JS animates to progress on tab open via initGamification
+- [Phase 19-03]: initGamification called via dynamic import in initProfileTabs when tab-achievements clicked — lazy load avoids preloading
 
 ## Accumulated Context
 
