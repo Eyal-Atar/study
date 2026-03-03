@@ -127,6 +127,7 @@ def init_db():
             user_id INTEGER NOT NULL UNIQUE,
             total_xp INTEGER DEFAULT 0,
             current_level INTEGER DEFAULT 1,
+            highest_level_reached INTEGER DEFAULT 1,
             daily_xp INTEGER DEFAULT 0,
             daily_xp_date TEXT,
             tasks_completed INTEGER DEFAULT 0,
@@ -318,6 +319,12 @@ def init_db():
     _xp_cols = {row[1] for row in conn.execute("PRAGMA table_info(user_xp)").fetchall()}
     if "tasks_completed" not in _xp_cols:
         conn.execute("ALTER TABLE user_xp ADD COLUMN tasks_completed INTEGER DEFAULT 0")
+        conn.commit()
+
+    if "highest_level_reached" not in _xp_cols:
+        conn.execute("ALTER TABLE user_xp ADD COLUMN highest_level_reached INTEGER DEFAULT 1")
+        # Sync highest_level with current_level for existing rows
+        conn.execute("UPDATE user_xp SET highest_level_reached = current_level")
         conn.commit()
 
     # Migrations: extracted_text on exam_files + update CHECK constraint to include summary/sample_exam

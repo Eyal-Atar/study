@@ -38,22 +38,23 @@ def update_user_xp(db, user_id: int, xp_earned: int, tz_offset: int = 0) -> dict
     today = _today_in_tz(tz_offset)
 
     row = db.execute(
-        "SELECT id, total_xp, current_level, daily_xp, daily_xp_date, tasks_completed FROM user_xp WHERE user_id = ?",
+        "SELECT id, total_xp, current_level, highest_level_reached, daily_xp, daily_xp_date, tasks_completed FROM user_xp WHERE user_id = ?",
         (user_id,),
     ).fetchone()
 
     if row is None:
         db.execute(
-            "INSERT INTO user_xp (user_id, total_xp, current_level, daily_xp, daily_xp_date, tasks_completed) VALUES (?, 0, 1, 0, ?, 0)",
+            "INSERT INTO user_xp (user_id, total_xp, current_level, highest_level_reached, daily_xp, daily_xp_date, tasks_completed) VALUES (?, 0, 1, 1, 0, ?, 0)",
             (user_id, today),
         )
         row = db.execute(
-            "SELECT id, total_xp, current_level, daily_xp, daily_xp_date, tasks_completed FROM user_xp WHERE user_id = ?",
+            "SELECT id, total_xp, current_level, highest_level_reached, daily_xp, daily_xp_date, tasks_completed FROM user_xp WHERE user_id = ?",
             (user_id,),
         ).fetchone()
 
     prev_total_xp = row["total_xp"]
     prev_level = row["current_level"]
+    highest_level = row["highest_level_reached"] or 1
 
     # Reset daily XP when date changes
     daily_xp = row["daily_xp"] if row["daily_xp_date"] == today else 0
@@ -66,20 +67,22 @@ def update_user_xp(db, user_id: int, xp_earned: int, tz_offset: int = 0) -> dict
 
     # Level formula: level = min(50, floor(total_xp / 1000) + 1)
     new_level = min(50, math.floor(new_total_xp / 1000) + 1)
+    new_highest_level = max(highest_level, new_level)
 
     db.execute(
         """UPDATE user_xp
-           SET total_xp = ?, current_level = ?, daily_xp = ?, daily_xp_date = ?, tasks_completed = ?
+           SET total_xp = ?, current_level = ?, highest_level_reached = ?, daily_xp = ?, daily_xp_date = ?, tasks_completed = ?
            WHERE user_id = ?""",
-        (new_total_xp, new_level, new_daily_xp, today, tasks_completed, user_id),
+        (new_total_xp, new_level, new_highest_level, new_daily_xp, today, tasks_completed, user_id),
     )
     db.commit()
 
     return {
         "total_xp": new_total_xp,
         "current_level": new_level,
+        "highest_level_reached": new_highest_level,
         "daily_xp": new_daily_xp,
-        "level_up": new_level > prev_level,
+        "level_up": new_level > highest_level, # ONLY level_up if we beat the all-time high
         "tasks_completed": tasks_completed,
     }
 
@@ -91,12 +94,12 @@ def revoke_user_xp(db, user_id: int, xp_to_remove: int, tz_offset: int = 0) -> d
     today = _today_in_tz(tz_offset)
 
     row = db.execute(
-        "SELECT total_xp, current_level, daily_xp, daily_xp_date, tasks_completed FROM user_xp WHERE user_id = ?",
+        "SELECT total_xp, current_level, highest_level_reached, daily_xp, daily_xp_date, tasks_completed FROM user_xp WHERE user_id = ?",
         (user_id,),
     ).fetchone()
 
     if row is None:
-        return {"total_xp": 0, "current_level": 1, "daily_xp": 0, "tasks_completed": 0}
+        return {"total_xp": 0, "current_level": 1, "highest_level_reached": 1, "daily_xp": 0, "tasks_completed": 0}
 
     # Ensure we don't go below zero
     new_total_xp = max(0, row["total_xp"] - xp_to_remove)
@@ -107,8 +110,9 @@ def revoke_user_xp(db, user_id: int, xp_to_remove: int, tz_offset: int = 0) -> d
     if row["daily_xp_date"] == today:
         new_daily_xp = max(0, row["daily_xp"] - xp_to_remove)
 
-    # Recalculate level
+    # Recalculate level (but DON'T lower highest_level_reached)
     new_level = min(50, math.floor(new_total_xp / 1000) + 1)
+    highest_level = row["highest_level_reached"] or 1
 
     db.execute(
         """UPDATE user_xp
@@ -121,6 +125,7 @@ def revoke_user_xp(db, user_id: int, xp_to_remove: int, tz_offset: int = 0) -> d
     return {
         "total_xp": new_total_xp,
         "current_level": new_level,
+        "highest_level_reached": highest_level,
         "daily_xp": new_daily_xp,
         "tasks_completed": new_tasks_completed,
     }

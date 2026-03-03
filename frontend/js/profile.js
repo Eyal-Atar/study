@@ -317,16 +317,28 @@ export function showMorningPrompt(tasks) {
 
 // ─── reschedule helper (global for inline onclick) ─────────────────────────
 
-window._rescheduleTask = async function(taskId, action, btn) {
+window._rescheduleTask = async function(taskId, action, btn, forceTomorrow = false) {
     const API = getAPI();
     try {
         if (btn) btn.disabled = true;
         const res = await authFetch(`${API}/gamification/reschedule-task/${taskId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action }),
+            body: JSON.stringify({ action, force_tomorrow: forceTomorrow }),
         });
+        const data = await res.json();
+
         if (res.ok) {
+            if (data.status === 'no_gap') {
+                if (confirm(data.message)) {
+                    // Try again with forceTomorrow = true
+                    return window._rescheduleTask(taskId, action, btn, true);
+                } else {
+                    if (btn) btn.disabled = false;
+                    return;
+                }
+            }
+
             const item = document.getElementById(`morning-item-${taskId}`);
             if (item) {
                 item.style.opacity = '0.5';
@@ -355,6 +367,24 @@ window._rescheduleTask = async function(taskId, action, btn) {
 // ─── showDailyCelebration ─────────────────────────────────────────────────────
 
 let _celebrationAutoClose = null;
+
+export function showDailySummary(data) {
+    const modal = document.getElementById('modal-daily-summary');
+    const yMsg = document.getElementById('summary-yesterday-msg');
+    const tMsg = document.getElementById('summary-today-msg');
+    if (!modal || !data) return;
+
+    if (yMsg) {
+        yMsg.textContent = `You completed ${data.yesterday_tasks || 0} task${data.yesterday_tasks === 1 ? '' : 's'}.`;
+    }
+    if (tMsg) {
+        tMsg.textContent = `${data.today_goal || 4.0} hours of focused study.`;
+    }
+
+    modal.classList.add('active');
+    const btn = document.getElementById('btn-close-summary');
+    if (btn) btn.onclick = () => modal.classList.remove('active');
+}
 
 export function showDailyCelebration() {
     const modal = document.getElementById('modal-daily-celebration');
@@ -404,8 +434,16 @@ export function registerLoginCheckFlow() {
                 showStreakSplash(data.streak, true);
             }
 
-            // After splash (or immediately if no splash), show morning prompt
-            const morningDelay = (data.streak >= 3 && data.is_milestone) ? 4500 : 0;
+            // After splash (or immediately if no splash), show daily summary
+            const summaryDelay = (data.streak >= 3 && data.is_milestone) ? 4500 : 0;
+            if (data.daily_summary) {
+                setTimeout(() => {
+                    showDailySummary(data.daily_summary);
+                }, summaryDelay);
+            }
+
+            // After summary (or splash), show morning prompt
+            const morningDelay = summaryDelay + (data.daily_summary ? 4000 : 0);
             if (data.morning_tasks && data.morning_tasks.length > 0) {
                 setTimeout(() => {
                     showMorningPrompt(data.morning_tasks);

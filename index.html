@@ -968,6 +968,28 @@
         </div>
     </div>
 
+    <!-- DAILY SUMMARY MODAL -->
+    <div id="modal-daily-summary" class="modal-bg">
+        <div class="w-full max-w-xs mx-4 bg-dark-700 rounded-3xl border border-white/10 shadow-2xl p-8 text-center">
+            <div class="text-5xl mb-3">🌅</div>
+            <p class="text-2xl font-black text-white mb-2">Good Morning!</p>
+            <div class="space-y-4 mb-6">
+                <div class="bg-white/5 rounded-2xl p-4 border border-white/5">
+                    <p class="text-[10px] uppercase tracking-widest text-white/40 mb-1">Yesterday</p>
+                    <p id="summary-yesterday-msg" class="text-sm font-semibold text-white">You completed 0 tasks.</p>
+                </div>
+                <div class="bg-accent-500/10 rounded-2xl p-4 border border-accent-500/20">
+                    <p class="text-[10px] uppercase tracking-widest text-accent-400 mb-1">Today's Goal</p>
+                    <p id="summary-today-msg" class="text-sm font-semibold text-white">4.0 hours of focused study.</p>
+                </div>
+            </div>
+            <button id="btn-close-summary"
+                    class="w-full py-3 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold transition-all">
+                Let's go!
+            </button>
+        </div>
+    </div>
+
     <!-- MORNING PROMPT MODAL -->
     <div id="modal-morning-prompt" class="modal-bg">
         <div class="w-full max-w-sm mx-4 bg-dark-700 rounded-3xl border border-white/10 shadow-2xl overflow-hidden">

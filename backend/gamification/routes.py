@@ -25,6 +25,7 @@ class AwardXpRequest(BaseModel):
 
 class RescheduleRequest(BaseModel):
     action: str  # "reschedule" | "delete" | "skip"
+    force_tomorrow: bool = False
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -144,6 +145,24 @@ def login_check(current_user: dict = Depends(get_current_user)):
         # First login today — gather full morning prompt data
         morning_tasks = _get_morning_tasks(db, user_id, tz_offset)
 
+        # Gather yesterday's summary
+        yesterday = (datetime.now(timezone.utc) - timedelta(minutes=tz_offset) - timedelta(days=1)).strftime("%Y-%m-%d")
+        y_stats = db.execute(
+            """SELECT COUNT(*) as count, SUM(xp_awarded) as awarded 
+               FROM schedule_blocks 
+               WHERE user_id = ? AND day_date = ? AND block_type = 'study' AND completed = 1""",
+            (user_id, yesterday)
+        ).fetchone()
+        
+        # We don't track per-day XP history in user_xp, but we can estimate from blocks
+        # Each awarded block roughly corresponds to the XP calculated at that time.
+        # For simplicity, let's just count tasks.
+        
+        daily_summary = {
+            "yesterday_tasks": y_stats["count"] if y_stats else 0,
+            "today_goal": current_user.get("neto_study_hours", 4.0)
+        }
+
         # Fetch current XP row for badge check
         xp_row = _get_xp_row(db, user_id)
 
@@ -157,6 +176,7 @@ def login_check(current_user: dict = Depends(get_current_user)):
             "streak_broken": streak_result["streak_broken"],
             "is_milestone": bool(streak_result.get("is_milestone")),
             "morning_tasks": morning_tasks,
+            "daily_summary": daily_summary,
             "badges_newly_earned": badges_newly_earned,
         }
     finally:
@@ -329,12 +349,15 @@ def reschedule_task(task_id: int, body: RescheduleRequest, current_user: dict = 
             raise HTTPException(status_code=404, detail="Task not found")
 
         today = _today_in_tz(tz_offset)
+        target_day = today
+        if body.force_tomorrow:
+            target_day = (datetime.now(timezone.utc) - timedelta(minutes=tz_offset) + timedelta(days=1)).strftime("%Y-%m-%d")
 
         if action == "reschedule":
-            # 1. Update task to today
+            # 1. Update task to target day
             db.execute(
                 "UPDATE tasks SET day_date = ?, is_delayed = 1, status = 'pending' WHERE id = ? AND user_id = ?",
-                (today, task_id, user_id),
+                (target_day, task_id, user_id),
             )
             # 2. Delete old schedule blocks for this task
             db.execute(
@@ -342,9 +365,9 @@ def reschedule_task(task_id: int, body: RescheduleRequest, current_user: dict = 
                 (task_id, user_id)
             )
             
-            # 3. Find a gap today
+            # 3. Find a gap on target day
             est_h = task.get("estimated_hours") or 1.0
-            gap_start, gap_end = _find_gap_for_task(db, current_user, today, est_h)
+            gap_start, gap_end = _find_gap_for_task(db, current_user, target_day, est_h)
             
             if gap_start and gap_end:
                 # 4. Insert new block in the gap
@@ -362,21 +385,30 @@ def reschedule_task(task_id: int, body: RescheduleRequest, current_user: dict = 
                        start_time, end_time, day_date, block_type, is_delayed, push_notified)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'study', 1, 0)""",
                     (user_id, task_id, task.get("exam_id"), exam_name, task["title"],
-                     start_str, end_str, today)
+                     start_str, end_str, target_day)
                 )
-            
-            db.commit()
-            return {"message": "Task rescheduled to today gap", "task_id": task_id, "new_date": today}
+                db.commit()
+                return {"status": "ok", "message": f"Task rescheduled to {target_day} gap", "task_id": task_id, "new_date": target_day}
+            else:
+                # No gap found today — return proposal for tomorrow (unless already forced tomorrow)
+                if not body.force_tomorrow:
+                    db.rollback() # Don't commit the task move yet
+                    return {
+                        "status": "no_gap", 
+                        "message": "No available gap today. Move to tomorrow instead?",
+                        "proposal": "tomorrow"
+                    }
+                else:
+                    # Forced tomorrow but still no gap? Just move task, scheduler will handle it on next full regen
+                    db.commit()
+                    return {"status": "ok", "message": f"Task moved to {target_day} (no gap found)", "task_id": task_id, "new_date": target_day}
 
-        elif action == "delete":
-            # Truly delete task and its blocks
+        elif action == "delete" or action == "skip":
+            # Truly delete task and its blocks (Skip now means Delete)
             db.execute("DELETE FROM tasks WHERE id = ? AND user_id = ?", (task_id, user_id))
             db.execute("DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ?", (task_id, user_id))
             db.commit()
-            return {"message": "Task deleted", "task_id": task_id}
-
-        else:  # skip
-            return {"message": "Task skipped (no change)", "task_id": task_id}
+            return {"message": f"Task {'deleted' if action == 'delete' else 'skipped/deleted'}", "task_id": task_id}
     finally:
         db.close()
 
