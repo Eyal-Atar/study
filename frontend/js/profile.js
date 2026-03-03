@@ -93,12 +93,20 @@ function updateXPCircles(xpData) {
         dailyCircle.style.transition = 'stroke-dashoffset 0.6s ease';
     }
     const dailyLabel = document.getElementById('xp-daily-label');
-    if (dailyLabel) dailyLabel.textContent = `${xpData.daily_xp || 0} XP`;
+    if (dailyLabel) dailyLabel.textContent = `${Math.floor(xpData.daily_xp || 0)} XP`;
 
     // Overall XP circle: 0 – 1000 XP per level
     const XP_PER_LEVEL = 1000;
-    const levelXp = (xpData.total_xp || 0) % XP_PER_LEVEL;
-    const overallProgress = levelXp / XP_PER_LEVEL;
+    const isMaxLevel = (xpData.current_level || 1) >= 50;
+    
+    let overallProgress = 0;
+    if (isMaxLevel) {
+        overallProgress = 1; // Full circle for level 50
+    } else {
+        const levelXp = (xpData.total_xp || 0) % XP_PER_LEVEL;
+        overallProgress = levelXp / XP_PER_LEVEL;
+    }
+    
     const overallOffset = CIRCLE_CIRCUMFERENCE * (1 - overallProgress);
 
     const overallCircle = document.getElementById('xp-circle-overall');
@@ -220,7 +228,7 @@ export async function initGamification() {
 // ─── updateXPDisplay ──────────────────────────────────────────────────────────
 
 export function updateXPDisplay(xpResult) {
-    if (!xpResult || xpResult.xp_earned <= 0) return;
+    if (!xpResult) return;
     updateXPCircles({
         daily_xp: xpResult.daily_xp,
         total_xp: xpResult.new_total,

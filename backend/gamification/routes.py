@@ -188,6 +188,64 @@ def award_xp(body: AwardXpRequest, current_user: dict = Depends(get_current_user
         db.close()
 
 
+# ─── POST /gamification/revoke-xp ────────────────────────────────────────────
+
+@router.post("/revoke-xp")
+def revoke_xp(body: AwardXpRequest, current_user: dict = Depends(get_current_user)):
+    """Revoke XP when a block is marked undone.
+    
+    Resets xp_awarded=0 on the block and subtracts XP from user totals.
+    """
+    user_id = current_user["id"]
+    tz_offset = current_user.get("timezone_offset", 0) or 0
+
+    db = get_db()
+    try:
+        # 1. Verify block exists and had XP awarded
+        block = db.execute(
+            """SELECT sb.id, sb.task_id, sb.xp_awarded
+               FROM schedule_blocks sb
+               WHERE sb.id = ? AND sb.user_id = ?""",
+            (body.block_id, user_id),
+        ).fetchone()
+
+        if not block or not block["xp_awarded"]:
+            return {"xp_revoked": 0}
+
+        # 2. Fetch task for XP calculation
+        task = db.execute(
+            "SELECT id, focus_score, estimated_hours FROM tasks WHERE id = ? AND user_id = ?",
+            (block["task_id"], user_id),
+        ).fetchone()
+
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        focus_score = task["focus_score"] if task["focus_score"] is not None else 5
+        estimated_hours = task["estimated_hours"] if task["estimated_hours"] is not None else 1.0
+        xp_to_revoke = calculate_xp(focus_score, estimated_hours)
+
+        # 3. Reset block flag
+        db.execute(
+            "UPDATE schedule_blocks SET xp_awarded = 0 WHERE id = ? AND user_id = ?",
+            (body.block_id, user_id),
+        )
+        db.commit()
+
+        # 4. Subtract from totals
+        from gamification.utils import revoke_user_xp
+        xp_result = revoke_user_xp(db, user_id, xp_to_revoke, tz_offset)
+
+        return {
+            "xp_revoked": xp_to_revoke,
+            "new_total": xp_result["total_xp"],
+            "new_level": xp_result["current_level"],
+            "daily_xp": xp_result["daily_xp"],
+        }
+    finally:
+        db.close()
+
+
 # ─── POST /gamification/reschedule-task/{task_id} ────────────────────────────
 
 @router.post("/reschedule-task/{task_id}")

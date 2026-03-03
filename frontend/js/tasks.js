@@ -424,7 +424,7 @@ export async function toggleDone(taskId, btn, blockId = null) {
         task.status = isDone ? 'pending' : 'done';
     }
 
-    if (!isDone) spawnConfetti(btn);
+    // Visual state update only (confetti moved to XP award success)
     
     // Update visual state
     if (isBlockToggle && blockId) {
@@ -523,6 +523,7 @@ export async function toggleDone(taskId, btn, blockId = null) {
                 .then(r => r.json())
                 .then(xpResult => {
                     if (xpResult && xpResult.xp_earned > 0) {
+                        spawnConfetti(btn); // only confetti if actually earned
                         updateXPDisplay(xpResult);   // animate circles live
                     }
                     if (xpResult && xpResult.badges_earned && xpResult.badges_earned.length > 0) {
@@ -535,6 +536,30 @@ export async function toggleDone(taskId, btn, blockId = null) {
 
             // Check if all of today's study blocks are completed to show celebration screen
             checkAndShowDailyCelebration();
+        }
+
+        // Gamification: revoke XP when a block is marked undone
+        if (patchRes.ok && isDone && isBlockToggle && blockId) {
+            authFetch(`${API}/gamification/revoke-xp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task_id: taskId, block_id: blockId })
+            })
+                .then(r => r.json())
+                .then(xpResult => {
+                    if (xpResult && xpResult.xp_revoked > 0) {
+                        // Update circles to reflect lost XP
+                        updateXPDisplay({
+                            xp_earned: 0, // no confetti for revocation
+                            new_total: xpResult.new_total,
+                            new_level: xpResult.new_level,
+                            daily_xp: xpResult.daily_xp
+                        });
+                    }
+                })
+                .catch(e => {
+                    console.warn('XP revocation failed:', e);
+                });
         }
 
         // We already updated DOM and store; only sync task status from blocks and refresh Focus + exam stats (no full refetch)

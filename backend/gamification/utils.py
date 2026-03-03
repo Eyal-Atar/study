@@ -78,6 +78,48 @@ def update_user_xp(db, user_id: int, xp_earned: int, tz_offset: int = 0) -> dict
     }
 
 
+def revoke_user_xp(db, user_id: int, xp_to_remove: int, tz_offset: int = 0) -> dict:
+    """Subtract xp_to_remove from user's XP totals and decrement tasks_completed.
+    Used when a user unchecks a task that was previously awarded XP.
+    """
+    today = _today_in_tz(tz_offset)
+
+    row = db.execute(
+        "SELECT total_xp, current_level, daily_xp, daily_xp_date, tasks_completed FROM user_xp WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()
+
+    if row is None:
+        return {"total_xp": 0, "current_level": 1, "daily_xp": 0, "tasks_completed": 0}
+
+    # Ensure we don't go below zero
+    new_total_xp = max(0, row["total_xp"] - xp_to_remove)
+    new_tasks_completed = max(0, (row["tasks_completed"] or 0) - 1)
+    
+    # Only subtract from daily if the award was from today
+    new_daily_xp = row["daily_xp"]
+    if row["daily_xp_date"] == today:
+        new_daily_xp = max(0, row["daily_xp"] - xp_to_remove)
+
+    # Recalculate level
+    new_level = min(50, math.floor(new_total_xp / 1000) + 1)
+
+    db.execute(
+        """UPDATE user_xp
+           SET total_xp = ?, current_level = ?, daily_xp = ?, daily_xp_date = ?, tasks_completed = ?
+           WHERE user_id = ?""",
+        (new_total_xp, new_level, new_daily_xp, today, new_tasks_completed, user_id),
+    )
+    db.commit()
+
+    return {
+        "total_xp": new_total_xp,
+        "current_level": new_level,
+        "daily_xp": new_daily_xp,
+        "tasks_completed": new_tasks_completed,
+    }
+
+
 def update_streak(db, user_id: int, tz_offset: int = 0) -> dict:
     """Update login streak for the user and return streak state.
 
