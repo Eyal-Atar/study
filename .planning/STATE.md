@@ -8,9 +8,9 @@ See: .planning/PROJECT.md
 
 **Milestone:** v1.0 milestone
 **Current phase:** Phase 19 — Gamification (Achievements, Login Streaks, Morning Prompt)
-**Current plan:** Not planned yet
-**Status:** Phase 19 context gathered, ready for planning
-**Last session:** 2026-03-03T09:58:08.401Z
+**Current plan:** 04 of 05 complete
+**Status:** Plan 19-04 complete — frontend integration wired (startup + XP awarding)
+**Last session:** 2026-03-03T10:13:00Z
 
 ## Session Log
 
@@ -43,6 +43,9 @@ See: .planning/PROJECT.md
 - Motivation sequence: Motivation block (Finish Line) now explicitly uses `last_block_end` to ensure it is placed after all study/padding activities. (17-post)
 - [Phase 19-02]: Gamification router registered at /gamification prefix with four endpoints: login-check, award-xp, reschedule-task, summary
 - [Phase 19-02]: reschedule action updates both tasks.day_date and schedule_blocks dates/times to maintain sync
+- [Phase 19-04]: profile.js created with registerLoginCheckFlow, initGamification, showStreakSplash, showMorningPrompt exports
+- [Phase 19-04]: award-xp uses !isDone condition (pre-toggle state) — fires when block was just marked done; scoped to isBlockToggle only
+- [Phase 19-04]: XP and login-check calls are fire-and-forget — .catch() suppresses errors, UX never blocked by gamification
 
 ## Accumulated Context
 
