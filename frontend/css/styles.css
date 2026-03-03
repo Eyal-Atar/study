@@ -1105,3 +1105,17 @@ button, a, select, input[type="checkbox"], input[type="radio"], label {
     color: #a78bfa;
     box-shadow: 0 1px 4px rgba(107, 71, 245, 0.15);
 }
+
+/* ─── Gamification Live Animations ─── */
+
+/* Pulse animation for newly earned badges appearing in the grid */
+.badge-new-flash {
+    animation: badge-pulse 2.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes badge-pulse {
+    0% { background-color: rgba(56, 189, 248, 0.4); border-color: rgba(56, 189, 248, 0.8); transform: scale(1.05); }
+    30% { background-color: rgba(56, 189, 248, 0.2); border-color: rgba(56, 189, 248, 0.4); transform: scale(1.02); }
+    100% { background-color: rgba(15, 23, 42, 0.4); border-color: rgba(255, 255, 255, 0.05); transform: scale(1); }
+}
+
