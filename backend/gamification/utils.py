@@ -26,22 +26,23 @@ def update_user_xp(db, user_id: int, xp_earned: int, tz_offset: int = 0) -> dict
 
     Creates the user_xp row if it does not exist yet.
     Resets daily_xp when the date rolls over.
-    Returns dict with total_xp, current_level, daily_xp, level_up flag.
+    Increments tasks_completed by 1 on every call.
+    Returns dict with total_xp, current_level, daily_xp, level_up flag, tasks_completed.
     """
     today = _today_in_tz(tz_offset)
 
     row = db.execute(
-        "SELECT id, total_xp, current_level, daily_xp, daily_xp_date FROM user_xp WHERE user_id = ?",
+        "SELECT id, total_xp, current_level, daily_xp, daily_xp_date, tasks_completed FROM user_xp WHERE user_id = ?",
         (user_id,),
     ).fetchone()
 
     if row is None:
         db.execute(
-            "INSERT INTO user_xp (user_id, total_xp, current_level, daily_xp, daily_xp_date) VALUES (?, 0, 1, 0, ?)",
+            "INSERT INTO user_xp (user_id, total_xp, current_level, daily_xp, daily_xp_date, tasks_completed) VALUES (?, 0, 1, 0, ?, 0)",
             (user_id, today),
         )
         row = db.execute(
-            "SELECT id, total_xp, current_level, daily_xp, daily_xp_date FROM user_xp WHERE user_id = ?",
+            "SELECT id, total_xp, current_level, daily_xp, daily_xp_date, tasks_completed FROM user_xp WHERE user_id = ?",
             (user_id,),
         ).fetchone()
 
@@ -51,6 +52,9 @@ def update_user_xp(db, user_id: int, xp_earned: int, tz_offset: int = 0) -> dict
     # Reset daily XP when date changes
     daily_xp = row["daily_xp"] if row["daily_xp_date"] == today else 0
 
+    # Increment tasks_completed counter
+    tasks_completed = (row["tasks_completed"] or 0) + 1
+
     new_total_xp = prev_total_xp + xp_earned
     new_daily_xp = daily_xp + xp_earned
 
@@ -59,9 +63,9 @@ def update_user_xp(db, user_id: int, xp_earned: int, tz_offset: int = 0) -> dict
 
     db.execute(
         """UPDATE user_xp
-           SET total_xp = ?, current_level = ?, daily_xp = ?, daily_xp_date = ?
+           SET total_xp = ?, current_level = ?, daily_xp = ?, daily_xp_date = ?, tasks_completed = ?
            WHERE user_id = ?""",
-        (new_total_xp, new_level, new_daily_xp, today, user_id),
+        (new_total_xp, new_level, new_daily_xp, today, tasks_completed, user_id),
     )
     db.commit()
 
@@ -70,6 +74,7 @@ def update_user_xp(db, user_id: int, xp_earned: int, tz_offset: int = 0) -> dict
         "current_level": new_level,
         "daily_xp": new_daily_xp,
         "level_up": new_level > prev_level,
+        "tasks_completed": tasks_completed,
     }
 
 
@@ -173,6 +178,16 @@ _BADGE_CRITERIA = [
     ("xp_1000",  lambda xp, s: xp["total_xp"] >= 1000),
     ("xp_5000",  lambda xp, s: xp["total_xp"] >= 5000),
     ("xp_10000", lambda xp, s: xp["total_xp"] >= 10000),
+    # First-time achievement badges (Phase 19.1-03)
+    # Fires on first ever task completed (tasks_completed key present from 19.1-03)
+    ("first_task",         lambda xp, s: (xp.get("tasks_completed") or 0) >= 1),
+    # Fires on first ever login: current_streak == 1 and longest_streak == 1 proxy
+    # (longest_streak == 1 is only True on the first ever login day)
+    ("first_login",        lambda xp, s: s["current_streak"] >= 1 and s["longest_streak"] == 1),
+    # Fires when user reaches a 7-day streak (achievement moment distinct from iron_will_7 milestone)
+    ("week_streak",        lambda xp, s: s["current_streak"] >= 7),
+    # Fires when streak is broken (streak_broken flag is True in streak_row)
+    ("streak_broken_once", lambda xp, s: bool(s.get("streak_broken", False))),
 ]
 
 
