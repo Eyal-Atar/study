@@ -10,7 +10,7 @@ See: .planning/PROJECT.md
 **Current phase:** Phase 19 — Gamification (Achievements, Login Streaks, Morning Prompt)
 **Current plan:** Not planned yet
 **Status:** Phase 19 context gathered, ready for planning
-**Last session:** 2026-03-03 — Discussed Phase 19 gamification: Achievements Tab placement, XP visualization, Login Streaks, Morning Prompt rescheduling.
+**Last session:** 2026-03-03T09:58:08.401Z
 
 ## Session Log
 
@@ -41,6 +41,8 @@ See: .planning/PROJECT.md
 - Legacy single-call AI methods removed from ExamBrain: analyze_all_exams, _analyze_single_exam_with_ai, _build_strategy_prompt. (17-04)
 - Fragmentation logic: Scheduler now allows small task fragments (< MIN_BLOCK_MIN) if they are the remainder of a task, preventing scheduling halts. (17-post)
 - Motivation sequence: Motivation block (Finish Line) now explicitly uses `last_block_end` to ensure it is placed after all study/padding activities. (17-post)
+- [Phase 19-02]: Gamification router registered at /gamification prefix with four endpoints: login-check, award-xp, reschedule-task, summary
+- [Phase 19-02]: reschedule action updates both tasks.day_date and schedule_blocks dates/times to maintain sync
 
 ## Accumulated Context
 
