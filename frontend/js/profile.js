@@ -1,6 +1,6 @@
 /* StudyFlow — Gamification Frontend Module (ES6 Module) */
 
-import { getAPI, authFetch } from './store.js?v=AUTO';
+import { getAPI, authFetch, getCurrentUser } from './store.js?v=AUTO';
 import { spawnConfetti } from './ui.js?v=AUTO';
 
 // ─── SVG circle constants ─────────────────────────────────────────────────────
@@ -82,8 +82,11 @@ function getBadgeLabel(badgeKey) {
 function updateXPCircles(xpData) {
     if (!xpData) return;
 
-    // Daily XP circle: 0 – 200 XP goal per day
-    const DAILY_GOAL = 200;
+    // Daily XP circle: Dynamic goal based on study hours (Baseline: 50 XP/hour)
+    const user = getCurrentUser();
+    const netoStudyHours = parseFloat(user?.neto_study_hours) || 4.0;
+    const DAILY_GOAL = 50 * netoStudyHours;
+    
     const dailyProgress = Math.min((xpData.daily_xp || 0) / DAILY_GOAL, 1);
     const dailyOffset = CIRCLE_CIRCUMFERENCE * (1 - dailyProgress);
 
