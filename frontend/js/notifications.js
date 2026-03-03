@@ -310,8 +310,8 @@ if ('serviceWorker' in navigator) {
                     const { showDailyCelebration } = await import('./profile.js?v=AUTO');
                     showDailyCelebration();
                 } else if (action === 'new-badge') {
-                    const { showBadgeSplash } = await import('./profile.js?v=AUTO');
-                    showBadgeSplash(payload?.badge || 'iron_will_7');
+                    const { appendNewBadges } = await import('./profile.js?v=AUTO');
+                    appendNewBadges([payload?.badge || 'iron_will_7']);
                 } else if (action === 'award-xp') {
                     const { updateXPDisplay } = await import('./profile.js?v=AUTO');
                     const earned = payload?.xp_earned || 50;
