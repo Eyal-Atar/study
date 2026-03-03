@@ -45,6 +45,7 @@ from tasks.routes import router as tasks_router
 from brain.routes import router as brain_router
 from notifications.routes import router as notifications_router
 from notifications.scheduler import start_scheduler
+from gamification.routes import router as gamification_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -91,6 +92,7 @@ app.include_router(exams_router, tags=["exams"])
 app.include_router(tasks_router, tags=["tasks"])
 app.include_router(brain_router, tags=["brain"])
 app.include_router(notifications_router, tags=["notifications"])
+app.include_router(gamification_router, prefix="/gamification", tags=["gamification"])
 
 
 # ─── PWA files ───────────────────────────────────────────────
