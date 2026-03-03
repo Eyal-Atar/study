@@ -1,6 +1,7 @@
 /* StudyFlow — Gamification Frontend Module (ES6 Module) */
 
 import { getAPI, authFetch } from './store.js?v=AUTO';
+import { spawnConfetti } from './ui.js?v=AUTO';
 
 // ─── SVG circle constants ─────────────────────────────────────────────────────
 // r=38, circumference = 2 * PI * 38 ≈ 238.76
@@ -277,6 +278,16 @@ export function showDailyCelebration() {
 
     // Show the modal
     modal.classList.add('active');
+
+    // Spawn confetti from multiple points for full-screen effect
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    const dummyOrigin = { getBoundingClientRect: () => ({ left: centerX - 30, top: centerY, width: 60, height: 0 }) };
+    
+    // Multiple bursts
+    spawnConfetti(dummyOrigin);
+    setTimeout(() => spawnConfetti({ getBoundingClientRect: () => ({ left: centerX * 0.5, top: centerY * 1.2, width: 40, height: 0 }) }), 200);
+    setTimeout(() => spawnConfetti({ getBoundingClientRect: () => ({ left: centerX * 1.5, top: centerY * 1.2, width: 40, height: 0 }) }), 400);
 
     // Wire close button
     const closeBtn = modal.querySelector('#btn-close-celebration');

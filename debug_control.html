@@ -33,6 +33,7 @@
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .btn-trigger:active { transform: scale(0.95); }
+        .btn-trigger:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body class="font-sans text-white min-h-screen p-6 md:p-12">
@@ -50,6 +51,10 @@
             </div>
         </header>
 
+        <div id="login-warning" class="hidden mb-8 p-6 rounded-2xl bg-coral-500/10 border border-coral-500/20 text-coral-400 text-sm text-center">
+            You are not logged in. <a href="/" class="underline font-bold">Click here to log in</a> first, then return to this page.
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Animations Section -->
             <section class="card rounded-3xl p-8">
@@ -57,23 +62,28 @@
                     <span class="text-accent-400">✨</span> UI Animations
                 </h2>
                 <div class="space-y-4">
-                    <button onclick="trigger('streak-splash', { streak: 7, isMilestone: true }, '7-Day Streak!')" 
-                            class="btn-trigger w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-left">
-                        <div>
-                            <div class="font-bold text-sm">Streak Splash (7 Days)</div>
-                            <div class="text-xs text-white/40">Shows the fiery milestone screen</div>
-                        </div>
-                        <span class="text-xl">🔥</span>
-                    </button>
-
-                    <button onclick="trigger('streak-splash', { streak: 3 }, '3-Day Streak!')" 
-                            class="btn-trigger w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-left">
-                        <div>
-                            <div class="font-bold text-sm">Streak Splash (3 Days)</div>
-                            <div class="text-xs text-white/40">Standard streak appearance</div>
-                        </div>
-                        <span class="text-xl">✨</span>
-                    </button>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="trigger('streak-splash', { streak: 2 }, '2-Day Streak!')" 
+                                class="btn-trigger p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
+                            <div class="text-xl mb-1">🐣</div>
+                            <div class="font-bold text-[10px] uppercase tracking-wider">2 Days</div>
+                        </button>
+                        <button onclick="trigger('streak-splash', { streak: 7, isMilestone: true }, '7-Day Streak!')" 
+                                class="btn-trigger p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
+                            <div class="text-xl mb-1">🔥</div>
+                            <div class="font-bold text-[10px] uppercase tracking-wider">7 Days</div>
+                        </button>
+                        <button onclick="trigger('streak-splash', { streak: 10, isMilestone: true }, '10-Day Streak!')" 
+                                class="btn-trigger p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
+                            <div class="text-xl mb-1">⚡</div>
+                            <div class="font-bold text-[10px] uppercase tracking-wider">10 Days</div>
+                        </button>
+                        <button onclick="trigger('streak-splash', { streak: 14, isMilestone: true }, '14-Day Streak!')" 
+                                class="btn-trigger p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-center">
+                            <div class="text-xl mb-1">🏆</div>
+                            <div class="font-bold text-[10px] uppercase tracking-wider">14 Days</div>
+                        </button>
+                    </div>
 
                     <button onclick="trigger('celebration', null, 'Goal Reached!')" 
                             class="btn-trigger w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-left">
@@ -84,7 +94,7 @@
                         <span class="text-xl">🎊</span>
                     </button>
                     
-                    <button onclick="trigger('award-xp', { total: 1550, level: 2, daily: 180 }, 'XP Awarded!')" 
+                    <button onclick="trigger('award-xp', { xp_earned: 50, total: 1550, level: 2, daily: 180 }, 'XP Awarded!')" 
                             class="btn-trigger w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-left">
                         <div>
                             <div class="font-bold text-sm">XP Progress Sync</div>
@@ -110,13 +120,12 @@
                         <span class="text-xl">🎖️</span>
                     </button>
 
-                    <button onclick="trigger('new-badge', { badge: 'knowledge_seeker_50' }, 'Expert Badge!')" 
-                            class="btn-trigger w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-left">
+                    <button onclick="markTodayDone()" class="btn-trigger w-full flex items-center justify-between p-4 rounded-2xl bg-mint-500/10 hover:bg-mint-500/20 border border-mint-500/20 text-left">
                         <div>
-                            <div class="font-bold text-sm">Award Badge: Lvl 50</div>
-                            <div class="text-xs text-white/40">The "Crown" achievement</div>
+                            <div class="font-bold text-sm text-mint-400">Mark All Today Done</div>
+                            <div class="text-xs text-mint-400/50">Update DB + Trigger Celebration</div>
                         </div>
-                        <span class="text-xl">👑</span>
+                        <span class="text-xl">✅</span>
                     </button>
 
                     <div class="pt-4 border-t border-white/5">
@@ -129,7 +138,7 @@
                     </div>
 
                     <button onclick="awardXP()" class="w-full mt-4 py-3 rounded-xl border border-mint-500/30 text-mint-400 text-xs font-bold hover:bg-mint-500/10 transition-colors btn-trigger">
-                        Award 500 XP to Server
+                        Award 500 XP (Server + Sync)
                     </button>
                 </div>
             </section>
@@ -142,7 +151,7 @@
 
     <!-- Scripts -->
     <script type="module">
-        import { getAPI, authFetch, isAuthenticated } from '/js/store.js?v=AUTO';
+        import { getAPI, authFetch } from '/js/store.js?v=AUTO';
 
         window.trigger = async (action, data, title) => {
             const api = getAPI();
@@ -157,11 +166,14 @@
                         data
                     })
                 });
-                if (!res.ok) throw new Error(res.statusText);
-                console.log('Trigger success:', action);
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || res.statusText);
+                }
+                showStatus('Success: Triggered ' + action, 'mint');
             } catch (err) {
                 console.error('Trigger failed:', err);
-                alert('Failed to send trigger. Is your phone subscribed to push?');
+                alert('Trigger failed: ' + err.message);
             }
         };
 
@@ -169,11 +181,12 @@
             const api = getAPI();
             const count = parseInt(document.getElementById('streak-input').value);
             try {
-                await authFetch(`${api}/debug/set-streak`, {
+                const res = await authFetch(`${api}/debug/set-streak`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ streak_count: count })
                 });
+                if (!res.ok) throw new Error('Update failed');
                 alert('Server streak updated to ' + count);
             } catch (err) {
                 alert('Failed to update streak');
@@ -183,21 +196,50 @@
         window.awardXP = async () => {
             const api = getAPI();
             try {
-                await authFetch(`${api}/debug/award-xp-debug`, { method: 'POST' });
-                alert('500 XP awarded on server');
+                const res = await authFetch(`${api}/debug/award-xp-debug`, { method: 'POST' });
+                if (!res.ok) throw new Error('Update failed');
+                showStatus('Success: 500 XP Awarded & Synced', 'mint');
             } catch (err) {
                 alert('Failed to award XP');
             }
         };
 
-        // Check auth status
-        if (!isAuthenticated()) {
-            document.getElementById('auth-status').textContent = 'Not Logged In';
-            document.getElementById('auth-status').classList.add('text-coral-400');
-        } else {
-            document.getElementById('auth-status').textContent = 'Connected & Authenticated';
-            document.getElementById('auth-status').classList.add('text-mint-400');
+        window.markTodayDone = async () => {
+            const api = getAPI();
+            try {
+                const res = await authFetch(`${api}/debug/mark-today-done`, { method: 'POST' });
+                if (!res.ok) throw new Error('Update failed');
+                showStatus('Success: Today Complete & Celebration Triggered', 'mint');
+            } catch (err) {
+                alert('Failed to mark today done');
+            }
+        };
+
+        function showStatus(msg, color) {
+            const status = document.getElementById('auth-status');
+            status.textContent = msg;
+            status.className = `text-xs font-medium px-3 py-1 rounded-full bg-white/5 border border-white/10 text-${color}-400`;
         }
+
+        // Check auth status
+        async function checkAuth() {
+            const api = getAPI();
+            try {
+                const res = await authFetch(`${api}/auth/me`);
+                if (res.ok) {
+                    const user = await res.json();
+                    showStatus(`Connected: ${user.name}`, 'mint');
+                } else {
+                    showStatus('Not Logged In', 'coral');
+                    document.getElementById('login-warning').classList.remove('hidden');
+                    document.querySelectorAll('.btn-trigger').forEach(b => b.disabled = true);
+                }
+            } catch (err) {
+                showStatus('Connection Error', 'coral');
+            }
+        }
+
+        checkAuth();
     </script>
 </body>
 </html>

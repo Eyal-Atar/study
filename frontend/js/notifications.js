@@ -314,12 +314,14 @@ if ('serviceWorker' in navigator) {
                     appendNewBadges([payload?.badge || 'iron_will_7']);
                 } else if (action === 'award-xp') {
                     const { updateXPDisplay } = await import('./profile.js?v=AUTO');
+                    const earned = payload?.xp_earned || 50;
                     updateXPDisplay({
-                        xp_earned: 50,
+                        xp_earned: earned,
                         new_total: payload?.total || 1250,
                         new_level: payload?.level || 2,
                         daily_xp: payload?.daily || 150
                     });
+                    showToast('XP Awarded! 🎯', `You just earned ${earned} bonus XP!`);
                 }
             }
         }
