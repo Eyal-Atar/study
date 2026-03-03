@@ -166,11 +166,16 @@ export function initProfileTabs() {
 
             // Hide all panes
             tabPanes.forEach(pane => pane.classList.add('hidden'));
-            
+
             // Show target pane
             const targetId = btn.getAttribute('data-target');
             const targetPane = document.getElementById(targetId);
             if (targetPane) targetPane.classList.remove('hidden');
+
+            // Load gamification data when Achievements tab is opened
+            if (targetId === 'tab-achievements') {
+                import('./profile.js?v=AUTO').then(m => m.initGamification()).catch(() => {});
+            }
         });
     });
 }
