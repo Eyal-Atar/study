@@ -7,10 +7,10 @@ See: .planning/PROJECT.md
 ## Position
 
 **Milestone:** v1.0 milestone
-**Current phase:** Phase 19 — Gamification (Achievements, Login Streaks, Morning Prompt)
-**Current plan:** 05 of 05 complete — Phase 19 COMPLETE
-**Status:** Plan 19-05 complete — Final verification checkpoint prepared; server running at http://localhost:8000; awaiting human QA sign-off
-**Last session:** 2026-03-03T10:14:17.832Z
+**Current phase:** Phase 19.1 — Fix Gamification Bugs (XP Circles, Badge Display, Celebration Screen)
+**Current plan:** 01 of 04 complete
+**Status:** Plan 19.1-01 complete — XP circle live sync fixed; starting 19.1-02
+**Last session:** 2026-03-03T10:55:57Z
 
 ## Session Log
 
@@ -50,6 +50,7 @@ See: .planning/PROJECT.md
 - [Phase 19-03]: SVG circles use stroke-dashoffset=238.76 (empty) as initial state; JS animates to progress on tab open via initGamification
 - [Phase 19-03]: initGamification called via dynamic import in initProfileTabs when tab-achievements clicked — lazy load avoids preloading
 - [Phase 19-05]: Verification-only checkpoint — no code changes. Server confirmed at http://localhost:8000. All gamification HTML/JS/API elements verified present.
+- [Phase 19.1-01]: updateXPDisplay imported into tasks.js and called in award-xp .then() handler — XP circles animate live on block completion
 
 ## Accumulated Context
 
@@ -61,6 +62,7 @@ See: .planning/PROJECT.md
 - Phase 17 added: Split-Brain Core Scheduler (Auditor + Strategist two-call architecture)
 - Phase 18: (reserved)
 - Phase 19 added: Gamification (Achievements Tab with XP Progress, Login Streaks Tracker, Morning Prompt Rescheduling, Minimal Feedback System)
+- Phase 19.1 inserted (URGENT GAP CLOSURE): Fix gamification bugs (XP circles not updating, badges not displaying, add celebration screen for daily completion)
 
 ### Phase 17 DB Schema (as of Plan 01)
 - tasks: + focus_score INTEGER DEFAULT 5, + dependency_id INTEGER
