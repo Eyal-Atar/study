@@ -28,13 +28,18 @@ class RescheduleRequest(BaseModel):
     force_tomorrow: bool = False
 
 
+class BatchRescheduleRequest(BaseModel):
+    task_ids: list[int]
+    action: str  # "reschedule" | "delete"
+
+
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _get_morning_tasks(db, user_id: int, tz_offset: int) -> list:
     """Return tasks from yesterday (or earlier) that were not completed."""
     today = _today_in_tz(tz_offset)
     rows = db.execute(
-        """SELECT t.id, t.title, t.subject, t.estimated_hours, t.day_date, t.priority
+        """SELECT t.id, t.title, t.subject, t.estimated_hours, t.day_date, t.priority, t.exam_id
            FROM tasks t
            WHERE t.user_id = ?
              AND t.status NOT IN ('done', 'deferred')
@@ -67,34 +72,37 @@ def _get_streak_row(db, user_id: int) -> dict:
     return dict(row)
 
 
-def _find_gap_for_task(db, user: dict, today_str: str, duration_h: float) -> tuple:
-    """Find the first available gap in today's schedule for a task of given duration."""
+def _find_gap_for_task(db, user: dict, target_date_str: str, duration_h: float) -> tuple:
+    """Find the first available gap in a specific date's schedule for a task of given duration."""
     # 1. Get user's day boundaries
     wake_up = user.get("wake_up_time", "08:00")
     sleep_time = user.get("sleep_time", "23:00")
     tz_offset = user.get("timezone_offset", 0) or 0
     
-    # Current local time (don't schedule in the past)
-    now_utc = datetime.now(timezone.utc)
-    local_now = now_utc - timedelta(minutes=tz_offset)
-    
     # Natural day start (wake up)
-    day_start = datetime.strptime(f"{today_str} {wake_up}", "%Y-%m-%d %H:%M")
-    day_end = datetime.strptime(f"{today_str} {sleep_time}", "%Y-%m-%d %H:%M")
+    day_start = datetime.strptime(f"{target_date_str} {wake_up}", "%Y-%m-%d %H:%M")
+    day_end = datetime.strptime(f"{target_date_str} {sleep_time}", "%Y-%m-%d %H:%M")
     
     # If sleep is early next day (e.g. 01:00)
     if day_end <= day_start:
         day_end += timedelta(days=1)
         
-    # Start searching from the later of (wake up + 1h) or (now + 15m)
-    search_start = max(day_start + timedelta(hours=1), local_now + timedelta(minutes=15))
+    # Search start: if target is today, don't schedule in past.
+    today_str = _today_in_tz(tz_offset)
+    if target_date_str == today_str:
+        now_utc = datetime.now(timezone.utc)
+        local_now = now_utc - timedelta(minutes=tz_offset)
+        search_start = max(day_start + timedelta(hours=1), local_now + timedelta(minutes=15))
+    else:
+        # For future days, start at wake-up
+        search_start = day_start
     
-    # 2. Get existing blocks for today
+    # 2. Get existing blocks for target day
     existing_blocks = db.execute(
         """SELECT start_time, end_time FROM schedule_blocks 
            WHERE user_id = ? AND day_date = ? 
            ORDER BY start_time ASC""",
-        (user["id"], today_str)
+        (user["id"], target_date_str)
     ).fetchall()
     
     # 3. Iterate through gaps
@@ -102,22 +110,25 @@ def _find_gap_for_task(db, user: dict, today_str: str, duration_h: float) -> tup
     duration_min = duration_h * 60
     
     for block in existing_blocks:
-        b_start = datetime.strptime(block["start_time"].replace('T', ' ').split('.')[0], "%Y-%m-%d %H:%M:%S")
-        
-        # Check gap between current_gap_start and this block's start
-        gap_min = (b_start - current_gap_start).total_seconds() / 60
-        if gap_min >= duration_min:
-            return current_gap_start, current_gap_start + timedelta(minutes=duration_min)
-        
-        # Move gap start to end of this block
-        b_end = datetime.strptime(block["end_time"].replace('T', ' ').split('.')[0], "%Y-%m-%d %H:%M:%S")
-        current_gap_start = max(current_gap_start, b_end)
+        try:
+            b_start = datetime.strptime(block["start_time"].replace('T', ' ').split('.')[0], "%Y-%m-%d %H:%M:%S")
+            
+            # Check gap between current_gap_start and this block's start
+            gap_min = (b_start - current_gap_start).total_seconds() / 60
+            if gap_min >= duration_min:
+                return current_gap_start, current_gap_start + timedelta(minutes=duration_min)
+            
+            # Move gap start to end of this block
+            b_end = datetime.strptime(block["end_time"].replace('T', ' ').split('.')[0], "%Y-%m-%d %H:%M:%S")
+            current_gap_start = max(current_gap_start, b_end)
+        except:
+            continue
         
     # 4. Check gap after last block
     if (day_end - current_gap_start).total_seconds() / 60 >= duration_min:
         return current_gap_start, current_gap_start + timedelta(minutes=duration_min)
         
-    # 5. Fallback: if no gap found today, return None (will be handled by caller)
+    # 5. Fallback: if no gap found
     return None, None
 
 
@@ -409,6 +420,83 @@ def reschedule_task(task_id: int, body: RescheduleRequest, current_user: dict = 
             db.execute("DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ?", (task_id, user_id))
             db.commit()
             return {"message": f"Task {'deleted' if action == 'delete' else 'skipped/deleted'}", "task_id": task_id}
+    finally:
+        db.close()
+
+
+# ─── POST /gamification/batch-reschedule ────────────────────────────────────
+
+@router.post("/batch-reschedule")
+def batch_reschedule(body: BatchRescheduleRequest, current_user: dict = Depends(get_current_user)):
+    """Handle multiple task actions from the morning review at once."""
+    user_id = current_user["id"]
+    tz_offset = current_user.get("timezone_offset", 0) or 0
+    db = get_db()
+    
+    results = []
+    
+    try:
+        for task_id in body.task_ids:
+            task = db.execute(
+                "SELECT id, title, estimated_hours, exam_id FROM tasks WHERE id = ? AND user_id = ?",
+                (task_id, user_id)
+            ).fetchone()
+            
+            if not task: continue
+            
+            if body.action == "delete":
+                db.execute("DELETE FROM tasks WHERE id = ? AND user_id = ?", (task_id, user_id))
+                db.execute("DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ?", (task_id, user_id))
+                results.append({"id": task_id, "title": task["title"], "status": "deleted"})
+            
+            elif body.action == "reschedule":
+                # Try Today -> Tomorrow -> +2 Days
+                found_date = None
+                found_gap = None
+                
+                for days_out in [0, 1, 2]:
+                    target_dt = datetime.now(timezone.utc) - timedelta(minutes=tz_offset) + timedelta(days=days_out)
+                    target_str = target_dt.strftime("%Y-%m-%d")
+                    gap_start, gap_end = _find_gap_for_task(db, current_user, target_str, task["estimated_hours"] or 1.0)
+                    
+                    if gap_start:
+                        found_date = target_str
+                        found_gap = (gap_start, gap_end)
+                        break
+                
+                if found_date:
+                    # Move task
+                    db.execute(
+                        "UPDATE tasks SET day_date = ?, is_delayed = 1, status = 'pending' WHERE id = ? AND user_id = ?",
+                        (found_date, task_id, user_id)
+                    )
+                    db.execute("DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ?", (task_id, user_id))
+                    
+                    # Create new block
+                    exam_name = None
+                    if task["exam_id"]:
+                        e_row = db.execute("SELECT name FROM exams WHERE id = ?", (task["exam_id"],)).fetchone()
+                        if e_row: exam_name = e_row["name"]
+
+                    db.execute(
+                        """INSERT INTO schedule_blocks (user_id, task_id, exam_id, exam_name, task_title,
+                           start_time, end_time, day_date, block_type, is_delayed, push_notified)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'study', 1, 0)""",
+                        (user_id, task_id, task["exam_id"], exam_name, task["title"],
+                         found_gap[0].strftime("%Y-%m-%d %H:%M:%S"), 
+                         found_gap[1].strftime("%Y-%m-%d %H:%M:%S"), found_date)
+                    )
+                    results.append({"id": task_id, "title": task["title"], "status": "moved", "new_date": found_date})
+                else:
+                    # No gap found even in +2 days? Just move to +2 anyway, scheduler handles overflow
+                    future_dt = datetime.now(timezone.utc) - timedelta(minutes=tz_offset) + timedelta(days=2)
+                    future_str = future_dt.strftime("%Y-%m-%d")
+                    db.execute("UPDATE tasks SET day_date = ?, is_delayed = 1, status = 'pending' WHERE id = ? AND user_id = ?", (future_str, task_id, user_id))
+                    db.execute("DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ?", (task_id, user_id))
+                    results.append({"id": task_id, "title": task["title"], "status": "moved", "new_date": future_str, "note": "overflow"})
+        
+        db.commit()
+        return {"results": results}
     finally:
         db.close()
 

@@ -274,95 +274,161 @@ export function showStreakSplash(streak, isMilestone) {
 export function showMorningPrompt(tasks) {
     console.log('[DEBUG] showMorningPrompt called with tasks:', tasks);
     const modal = document.getElementById('modal-morning-prompt');
-    if (!modal) {
-        console.error('[DEBUG] modal-morning-prompt not found in DOM');
-        return;
-    }
+    if (!modal) return;
+
+    const contentArea = modal.querySelector('#morning-prompt-content');
+    const listEl = modal.querySelector('#morning-prompt-list');
+    const summaryArea = modal.querySelector('#morning-summary');
+    const actionArea = modal.querySelector('#morning-prompt-actions');
+    
+    if (!listEl || !summaryArea || !actionArea) return;
+
+    // Reset UI state
+    listEl.classList.remove('hidden');
+    summaryArea.classList.add('hidden');
+    actionArea.classList.remove('hidden');
+
     if (!tasks || tasks.length === 0) {
-        console.warn('[DEBUG] showMorningPrompt returned early: no tasks provided');
+        modal.classList.remove('active');
         return;
     }
 
-    const listEl = modal.querySelector('#morning-prompt-list');
-    if (listEl) {
-        const API = getAPI();
-        listEl.innerHTML = tasks.map(t => `
-            <div id="morning-item-${t.id}" class="flex items-center justify-between gap-3 bg-dark-900/40 rounded-xl p-3 border border-white/5 mb-2">
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold text-white truncate">${t.title || 'Untitled'}</p>
-                    <p class="text-xs text-white/40">${t.subject || ''} · ${t.estimated_hours || 1}h</p>
-                </div>
-                <div class="flex gap-2">
-                    <button
-                        class="px-3 py-1.5 rounded-lg bg-accent-500/20 text-accent-400 text-[10px] font-bold uppercase tracking-wider hover:bg-accent-500/40 transition-colors"
-                        onclick="window._rescheduleTask(${t.id}, 'reschedule', this)"
-                    >Reschedule</button>
-                    <button
-                        class="px-3 py-1.5 rounded-lg bg-coral-500/10 text-coral-400 text-[10px] font-bold uppercase tracking-wider hover:bg-coral-500/20 transition-colors"
-                        onclick="window._rescheduleTask(${t.id}, 'delete', this)"
-                    >Delete</button>
-                </div>
+    // Render task list with checkboxes
+    listEl.innerHTML = tasks.map(t => `
+        <label class="flex items-center gap-3 bg-dark-900/40 rounded-2xl p-4 border border-white/5 active:scale-[0.98] transition-all cursor-pointer">
+            <input type="checkbox" name="morning-task" value="${t.id}" checked
+                   class="w-5 h-5 rounded-lg accent-accent-500 bg-dark-700 border-white/10">
+            <div class="flex-1 min-w-0 ml-1">
+                <p class="text-sm font-bold text-white truncate">${t.title || 'Untitled'}</p>
+                <p class="text-[10px] text-white/40 uppercase tracking-wider font-semibold">${t.subject || 'No Subject'} · ${t.estimated_hours || 1}h</p>
             </div>
-        `).join('');
-    }
+        </label>
+    `).join('');
 
     modal.classList.add('active');
 
-    // Wire "All done" button
-    const doneBtn = modal.querySelector('#btn-morning-done');
-    if (doneBtn) {
-        doneBtn.onclick = () => modal.classList.remove('active');
-    }
+    // Wire actions
+    const btnPush = modal.querySelector('#btn-morning-push');
+    const btnDeleteAll = modal.querySelector('#btn-morning-delete-all');
+    const btnSkip = modal.querySelector('#btn-morning-skip');
+    const btnCloseSummary = modal.querySelector('#btn-morning-close-summary');
+
+    btnPush.onclick = async () => {
+        const allCheckboxes = Array.from(modal.querySelectorAll('input[name="morning-task"]'));
+        const selectedIds = allCheckboxes.filter(i => i.checked).map(i => parseInt(i.value));
+        const unselectedIds = allCheckboxes.filter(i => !i.checked).map(i => parseInt(i.value));
+        
+        if (selectedIds.length === 0 && unselectedIds.length === 0) return;
+
+        try {
+            btnPush.disabled = true;
+            btnPush.textContent = 'Processing...';
+
+            // 1. Reschedule selected
+            let moveResults = [];
+            if (selectedIds.length > 0) {
+                const resMove = await authFetch(`${API}/gamification/batch-reschedule`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task_ids: selectedIds, action: 'reschedule' }),
+                });
+                const dataMove = await resMove.json();
+                if (resMove.ok && dataMove.results) moveResults = dataMove.results;
+            }
+
+            // 2. Delete unselected (Skip = Deletion)
+            let deleteResults = [];
+            if (unselectedIds.length > 0) {
+                const resDel = await authFetch(`${API}/gamification/batch-reschedule`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task_ids: unselectedIds, action: 'delete' }),
+                });
+                const dataDel = await resDel.json();
+                if (resDel.ok && dataDel.results) deleteResults = dataDel.results;
+            }
+
+            _showMorningSummary([...moveResults, ...deleteResults]);
+        } catch (e) {
+            console.error('Push failed:', e);
+            btnPush.disabled = false;
+            btnPush.textContent = 'Push to Today';
+        }
+    };
+
+    btnDeleteAll.onclick = async () => {
+        if (!confirm('Are you sure you want to delete all unfinished tasks?')) return;
+        const allIds = tasks.map(t => t.id);
+        try {
+            btnDeleteAll.disabled = true;
+            btnDeleteAll.textContent = 'Deleting...';
+            const res = await authFetch(`${API}/gamification/batch-reschedule`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task_ids: allIds, action: 'delete' }),
+            });
+            const data = await res.json();
+            if (res.ok && data.results) _showMorningSummary(data.results);
+        } catch (e) {
+            console.error('Delete all failed:', e);
+            btnDeleteAll.disabled = false;
+            btnDeleteAll.textContent = 'Delete All';
+        }
+    };
+
+    btnSkip.onclick = () => modal.classList.remove('active');
+    
+    btnCloseSummary.onclick = () => {
+        modal.classList.remove('active');
+        // Refresh roadmap to show moved tasks
+        window.dispatchEvent(new CustomEvent('calendar-needs-refresh'));
+    };
 }
 
-// ─── reschedule helper (global for inline onclick) ─────────────────────────
+function _showMorningSummary(results) {
+    const modal = document.getElementById('modal-morning-prompt');
+    const listEl = modal.querySelector('#morning-prompt-list');
+    const summaryArea = modal.querySelector('#morning-summary');
+    const summaryList = modal.querySelector('#morning-summary-list');
+    const actionArea = modal.querySelector('#morning-prompt-actions');
 
-window._rescheduleTask = async function(taskId, action, btn, forceTomorrow = false) {
-    const API = getAPI();
-    try {
-        if (btn) btn.disabled = true;
-        const res = await authFetch(`${API}/gamification/reschedule-task/${taskId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action, force_tomorrow: forceTomorrow }),
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-            if (data.status === 'no_gap') {
-                if (confirm(data.message)) {
-                    // Try again with forceTomorrow = true
-                    return window._rescheduleTask(taskId, action, btn, true);
-                } else {
-                    if (btn) btn.disabled = false;
-                    return;
-                }
-            }
-
-            const item = document.getElementById(`morning-item-${taskId}`);
-            if (item) {
-                item.style.opacity = '0.5';
-                item.style.pointerEvents = 'none';
-                if (action === 'delete') {
-                    item.style.textDecoration = 'line-through';
-                }
-            }
-            if (btn) {
-                btn.textContent = action === 'delete' ? 'Deleted' : 'Moved';
-                btn.classList.replace('bg-accent-500/20', 'bg-mint-500/20');
-                btn.classList.replace('text-accent-400', 'text-mint-400');
-                btn.classList.replace('bg-coral-500/10', 'bg-mint-500/20');
-                btn.classList.replace('text-coral-400', 'text-mint-400');
-            }
-            
-            // Dispatch refresh so the task state updates in the Roadmap immediately
-            window.dispatchEvent(new CustomEvent('calendar-needs-refresh'));
-        }
-    } catch (e) {
-        console.warn('rescheduleTask failed:', e);
-        if (btn) btn.disabled = false;
+    if (!results || results.length === 0) {
+        modal.classList.remove('active');
+        return;
     }
-};
+
+    // Switch to summary view
+    listEl.classList.add('hidden');
+    actionArea.classList.add('hidden');
+    summaryArea.classList.remove('hidden');
+
+    summaryList.innerHTML = results.map(r => {
+        let text = r.title;
+        if (r.status === 'moved') {
+            const today = new Date();
+            const tomorrow = new Date(); tomorrow.setDate(today.getDate() + 1);
+            
+            const fmt = (d) => d.toISOString().split('T')[0];
+            let dateLabel = r.new_date;
+            if (r.new_date === fmt(today)) dateLabel = '<span class="text-accent-400">Today</span>';
+            else if (r.new_date === fmt(tomorrow)) dateLabel = '<span class="text-mint-400">Tomorrow</span>';
+            
+            text = `Moved <b>${r.title}</b> to ${dateLabel}`;
+        } else {
+            text = `Deleted <b>${r.title}</b>`;
+        }
+        return `<li class="flex items-start gap-2 py-1 border-b border-white/5 last:border-0 text-xs text-white/80">
+            <span class="text-mint-400 mt-0.5">✓</span>
+            <span>${text}</span>
+        </li>`;
+    }).join('');
+    
+    // Success Confetti
+    if (typeof spawnConfetti === 'function') {
+        const rect = summaryArea.getBoundingClientRect();
+        spawnConfetti({ getBoundingClientRect: () => ({ left: rect.left + rect.width/2, top: rect.top, width: 0, height: 0 }) });
+    }
+}
 
 // ─── showDailyCelebration ─────────────────────────────────────────────────────
 
