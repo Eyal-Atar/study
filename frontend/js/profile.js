@@ -261,9 +261,16 @@ export function showStreakSplash(streak, isMilestone) {
 // ─── showMorningPrompt ────────────────────────────────────────────────────────
 
 export function showMorningPrompt(tasks) {
+    console.log('[DEBUG] showMorningPrompt called with tasks:', tasks);
     const modal = document.getElementById('modal-morning-prompt');
-    if (!modal) return;
-    if (!tasks || tasks.length === 0) return;
+    if (!modal) {
+        console.error('[DEBUG] modal-morning-prompt not found in DOM');
+        return;
+    }
+    if (!tasks || tasks.length === 0) {
+        console.warn('[DEBUG] showMorningPrompt returned early: no tasks provided');
+        return;
+    }
 
     const listEl = modal.querySelector('#morning-prompt-list');
     if (listEl) {

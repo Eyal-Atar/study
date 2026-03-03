@@ -165,6 +165,19 @@ def trigger_morning_prompt(current_user: dict = Depends(get_current_user)):
         from gamification.routes import _get_morning_tasks
         tasks = _get_morning_tasks(db, user_id, tz_offset)
         
+        # Fallback: if no real tasks, add a dummy one for testing the UI
+        if not tasks:
+            tasks = [{
+                "id": 99999,
+                "title": "Test Yesterday Task",
+                "subject": "Debug Mode",
+                "estimated_hours": 1.5,
+                "day_date": yesterday,
+                "priority": 1
+            }]
+        
+        print(f"DEBUG trigger_morning_prompt: user_id={user_id}, task_count={len(tasks)}")
+        
         send_to_user(
             db, user_id,
             title="Morning Review ☕",
