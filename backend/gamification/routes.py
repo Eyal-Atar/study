@@ -101,7 +101,7 @@ def login_check(current_user: dict = Depends(get_current_user)):
             "streak": streak_result["current_streak"],
             "longest_streak": streak_result["longest_streak"],
             "streak_broken": streak_result["streak_broken"],
-            "is_milestone": streak_result.get("is_milestone", False),
+            "is_milestone": bool(streak_result.get("is_milestone")),
             "morning_tasks": morning_tasks,
             "badges_newly_earned": badges_newly_earned,
         }

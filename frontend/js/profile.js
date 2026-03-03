@@ -370,13 +370,13 @@ export function registerLoginCheckFlow() {
         .then(data => {
             if (!data.first_login_today) return;
 
-            // First login today — show streak splash if streak >= 3
-            if (data.streak >= 3) {
-                showStreakSplash(data.streak, data.is_milestone);
+            // First login today — show streak splash ONLY if it is a milestone (7, 10, 14, 30, 100)
+            if (data.streak >= 3 && data.is_milestone) {
+                showStreakSplash(data.streak, true);
             }
 
             // After splash (or immediately if no splash), show morning prompt
-            const morningDelay = data.streak >= 3 ? 4500 : 0;
+            const morningDelay = (data.streak >= 3 && data.is_milestone) ? 4500 : 0;
             if (data.morning_tasks && data.morning_tasks.length > 0) {
                 setTimeout(() => {
                     showMorningPrompt(data.morning_tasks);

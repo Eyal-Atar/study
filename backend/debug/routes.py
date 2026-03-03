@@ -165,10 +165,29 @@ def trigger_morning_prompt(current_user: dict = Depends(get_current_user)):
         from gamification.routes import _get_morning_tasks
         tasks = _get_morning_tasks(db, user_id, tz_offset)
         
-        # Check if there are ANY undone tasks from before today
-        # _get_morning_tasks only gets tasks with day_date < today
-        
-        # Fallback: if no real tasks found from ANY previous day, add dummy for testing
+        # If no tasks are found for 'yesterday', check if there are ANY past tasks and move them
+        if not tasks:
+            # Look for ANY pending task from the past
+            past_task = db.execute(
+                "SELECT id FROM tasks WHERE user_id = ? AND day_date < ? AND status NOT IN ('done', 'deferred') LIMIT 1",
+                (user_id, yesterday)
+            ).fetchone()
+            
+            if past_task:
+                # Move them all to 'yesterday' so the prompt logic picks them up
+                db.execute(
+                    "UPDATE tasks SET day_date = ? WHERE user_id = ? AND day_date < ? AND status NOT IN ('done', 'deferred')",
+                    (yesterday, user_id, yesterday)
+                )
+                db.execute(
+                    "UPDATE schedule_blocks SET day_date = ? WHERE user_id = ? AND day_date < ? AND block_type = 'study'",
+                    (yesterday, user_id, yesterday)
+                )
+                db.commit()
+                # Re-fetch
+                tasks = _get_morning_tasks(db, user_id, tz_offset)
+
+        # Fallback: if STILL no real tasks found from ANY previous day, add dummy for testing
         if not tasks:
             tasks = [{
                 "id": 99999,
