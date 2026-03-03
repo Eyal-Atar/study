@@ -178,3 +178,28 @@ def trigger_morning_prompt(current_user: dict = Depends(get_current_user)):
         return {"status": "ok", "faked_date": yesterday, "task_count": len(tasks)}
     finally:
         db.close()
+
+@router.post("/backdate-tasks")
+def backdate_tasks(current_user: dict = Depends(get_current_user)):
+    """Move all of today's tasks to yesterday to make them 'unfinished' for testing."""
+    user_id = current_user["id"]
+    tz_offset = current_user.get("timezone_offset", 0) or 0
+    db = get_db()
+    try:
+        today = _today_in_tz(tz_offset)
+        yesterday = (datetime.now(timezone.utc) + timedelta(hours=tz_offset) - timedelta(days=1)).strftime("%Y-%m-%d")
+        
+        # 1. Update tasks
+        db.execute(
+            "UPDATE tasks SET day_date = ? WHERE user_id = ? AND day_date = ?",
+            (yesterday, user_id, today)
+        )
+        # 2. Update schedule blocks
+        db.execute(
+            "UPDATE schedule_blocks SET day_date = ? WHERE user_id = ? AND day_date = ?",
+            (yesterday, user_id, today)
+        )
+        db.commit()
+        return {"status": "ok", "from": today, "to": yesterday}
+    finally:
+        db.close()

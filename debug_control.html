@@ -96,6 +96,14 @@
                         <span class="text-xl">☕</span>
                     </button>
 
+                    <button onclick="backdateTasks()" class="btn-trigger w-full flex items-center justify-between p-4 rounded-2xl bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-left">
+                        <div>
+                            <div class="font-bold text-sm text-orange-400">Backdate Today's Tasks</div>
+                            <div class="text-xs text-orange-400/50">Move all today's tasks to "yesterday"</div>
+                        </div>
+                        <span class="text-xl">📅</span>
+                    </button>
+
                     <div class="pt-4 border-t border-white/5">
                         <label class="block text-xs font-bold text-white/30 uppercase tracking-widest mb-3">Streak Splashes (No Badge)</label>
                         <div class="grid grid-cols-4 gap-2">
@@ -246,6 +254,18 @@
                 showStatus('Success: Morning Review Triggered', 'mint');
             } catch (err) {
                 alert('Failed to trigger morning review');
+            }
+        };
+
+        window.backdateTasks = async () => {
+            const api = getAPI();
+            try {
+                const res = await authFetch(`${api}/debug/backdate-tasks`, { method: 'POST' });
+                if (!res.ok) throw new Error('Backdate failed');
+                showStatus('Success: Tasks Backdated', 'mint');
+                alert('All today\'s tasks moved to "yesterday". You can now trigger the morning review.');
+            } catch (err) {
+                alert('Failed to backdate tasks');
             }
         };
 
