@@ -16,6 +16,7 @@ import { initRegenerate } from './brain.js?v=AUTO';
 import { initInteractions } from './interactions.js?v=AUTO';
 import { showScreen, initMobileTabBar, showIosOnboarding, initProfileTabs } from './ui.js?v=AUTO';
 import { initPush } from './notifications.js?v=AUTO';
+import { registerLoginCheckFlow } from './profile.js?v=AUTO';
 
 // Initialize the application
 let _dashboardInitialized = false;
@@ -169,6 +170,13 @@ function initDashboard() {
     }
 
     loadExams(handleLogout);
+
+    // Gamification: splash screen and morning prompt on first login of day
+    try {
+        registerLoginCheckFlow();
+    } catch (e) {
+        console.error('registerLoginCheckFlow failed:', e);
+    }
 
     // Check for stored Auditor draft and offer to resume the review
     checkAuditorDraftOnInit().catch(() => {});
