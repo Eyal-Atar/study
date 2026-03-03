@@ -143,6 +143,10 @@ def update_streak(db, user_id: int, tz_offset: int = 0) -> dict:
     if current_streak > longest_streak:
         longest_streak = current_streak
 
+    # Milestone detection
+    milestones = {7, 10, 14, 30, 100}
+    is_milestone = current_streak in milestones
+
     # streak_broken flag in DB: 1 if broken since last splash (cleared by splash endpoint)
     new_streak_broken_flag = 1 if streak_broken else 0
 
@@ -160,6 +164,7 @@ def update_streak(db, user_id: int, tz_offset: int = 0) -> dict:
         "last_login_date": today,
         "streak_broken": streak_broken,
         "first_login_today": True,
+        "is_milestone": is_milestone,
     }
 
 
