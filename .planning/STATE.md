@@ -8,9 +8,9 @@ See: .planning/PROJECT.md
 
 **Milestone:** v1.0 milestone
 **Current phase:** Phase 19.1 — Fix Gamification Bugs (XP Circles, Badge Display, Celebration Screen)
-**Current plan:** 01 of 04 complete
-**Status:** Plan 19.1-01 complete — XP circle live sync fixed; starting 19.1-02
-**Last session:** 2026-03-03T10:55:57Z
+**Current plan:** 02 of 04 complete
+**Status:** Plan 19.1-02 complete — badge grid rendering fixed with correct backend keys; appendNewBadges live wired; starting 19.1-03
+**Last session:** 2026-03-03T11:10:00Z
 
 ## Session Log
 
@@ -51,6 +51,8 @@ See: .planning/PROJECT.md
 - [Phase 19-03]: initGamification called via dynamic import in initProfileTabs when tab-achievements clicked — lazy load avoids preloading
 - [Phase 19-05]: Verification-only checkpoint — no code changes. Server confirmed at http://localhost:8000. All gamification HTML/JS/API elements verified present.
 - [Phase 19.1-01]: updateXPDisplay imported into tasks.js and called in award-xp .then() handler — XP circles animate live on block completion
+- [Phase 19.1-02]: BADGE_ICONS and getBadgeLabel rewritten to match backend _BADGE_CRITERIA keys (iron_will_7/30/100, knowledge_seeker_5/10/25/50, xp_1000/5000/10000); Plan 19.1-03 keys pre-populated
+- [Phase 19.1-02]: appendNewBadges exported from profile.js; wired into tasks.js award-xp .then() to prepend earned badges live without full re-render
 
 ## Accumulated Context
 

@@ -59,7 +59,7 @@
 | 16. PWA Push & Smart Triggers | 1/1 | Complete | 2026-02-25 |
 | 17. Split-Brain Core Scheduler | 4/4 | Complete | 2026-03-01 |
 | 19. Gamification (XP, Streaks, Morning Prompt) | 5/5 | Complete   | 2026-03-03 |
-| 19.1. Fix Gamification Bugs (XP, Badges, Celebration) | 1/4 | In progress | - |
+| 19.1. Fix Gamification Bugs (XP, Badges, Celebration) | 2/4 | In progress | - |
 
 **Overall:** 94% complete (12/13 phases)
 
@@ -108,6 +108,6 @@ Plans:
 
 Plans:
 - [x] 19.1-01-PLAN.md — Fix XP circle display sync (live update after block completion) (completed 2026-03-03)
-- [ ] 19.1-02-PLAN.md — Badge display after award
+- [x] 19.1-02-PLAN.md — Fix badge grid rendering: align frontend badge keys with backend (completed 2026-03-03)
 - [ ] 19.1-03-PLAN.md — Celebration screen for daily completion
 - [ ] 19.1-04-PLAN.md — (TBD)
