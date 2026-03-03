@@ -153,7 +153,7 @@ def trigger_morning_prompt(current_user: dict = Depends(get_current_user)):
     db = get_db()
     try:
         # 1. Backdate the last login so the next login-check thinks it's a new day
-        yesterday = (datetime.now(timezone.utc) + timedelta(hours=tz_offset) - timedelta(days=1)).strftime("%Y-%m-%d")
+        yesterday = (datetime.now(timezone.utc) - timedelta(minutes=tz_offset) - timedelta(days=1)).strftime("%Y-%m-%d")
         db.execute(
             "UPDATE user_streaks SET last_login_date = ? WHERE user_id = ?",
             (yesterday, user_id)
@@ -222,7 +222,7 @@ def backdate_tasks(current_user: dict = Depends(get_current_user)):
     db = get_db()
     try:
         today = _today_in_tz(tz_offset)
-        yesterday = (datetime.now(timezone.utc) + timedelta(hours=tz_offset) - timedelta(days=1)).strftime("%Y-%m-%d")
+        yesterday = (datetime.now(timezone.utc) - timedelta(minutes=tz_offset) - timedelta(days=1)).strftime("%Y-%m-%d")
         
         # 1. Update tasks
         db.execute(

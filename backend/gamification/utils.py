@@ -5,9 +5,15 @@ from datetime import datetime, timezone, timedelta
 
 
 def _today_in_tz(tz_offset: int) -> str:
-    """Return today's date string YYYY-MM-DD in user's local timezone."""
+    """Return today's date string YYYY-MM-DD in user's local timezone.
+    
+    tz_offset: Difference in minutes between UTC and local time (JS getTimezoneOffset).
+    E.g., -120 for UTC+2.
+    """
     utc_now = datetime.now(timezone.utc)
-    local_dt = utc_now + timedelta(hours=tz_offset)
+    # JS getTimezoneOffset() is (UTC - Local) in minutes.
+    # So Local = UTC - Offset.
+    local_dt = utc_now - timedelta(minutes=tz_offset)
     return local_dt.strftime("%Y-%m-%d")
 
 

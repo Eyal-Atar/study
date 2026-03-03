@@ -287,15 +287,21 @@ export function showMorningPrompt(tasks) {
     if (listEl) {
         const API = getAPI();
         listEl.innerHTML = tasks.map(t => `
-            <div class="flex items-center justify-between gap-3 bg-dark-900/40 rounded-xl p-3 border border-white/5 mb-2">
+            <div id="morning-item-${t.id}" class="flex items-center justify-between gap-3 bg-dark-900/40 rounded-xl p-3 border border-white/5 mb-2">
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-semibold text-white truncate">${t.title || 'Untitled'}</p>
                     <p class="text-xs text-white/40">${t.subject || ''} · ${t.estimated_hours || 1}h</p>
                 </div>
-                <button
-                    class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-accent-500/20 text-accent-400 text-xs font-semibold hover:bg-accent-500/40 transition-colors"
-                    onclick="window._rescheduleTask(${t.id}, 'reschedule', this)"
-                >Reschedule</button>
+                <div class="flex gap-2">
+                    <button
+                        class="px-3 py-1.5 rounded-lg bg-accent-500/20 text-accent-400 text-[10px] font-bold uppercase tracking-wider hover:bg-accent-500/40 transition-colors"
+                        onclick="window._rescheduleTask(${t.id}, 'reschedule', this)"
+                    >Reschedule</button>
+                    <button
+                        class="px-3 py-1.5 rounded-lg bg-coral-500/10 text-coral-400 text-[10px] font-bold uppercase tracking-wider hover:bg-coral-500/20 transition-colors"
+                        onclick="window._rescheduleTask(${t.id}, 'delete', this)"
+                    >Delete</button>
+                </div>
             </div>
         `).join('');
     }
@@ -320,12 +326,24 @@ window._rescheduleTask = async function(taskId, action, btn) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action }),
         });
-        if (res.ok && btn) {
-            btn.textContent = 'Done';
-            btn.classList.replace('bg-accent-500/20', 'bg-mint-500/20');
-            btn.classList.replace('text-accent-400', 'text-mint-400');
+        if (res.ok) {
+            const item = document.getElementById(`morning-item-${taskId}`);
+            if (item) {
+                item.style.opacity = '0.5';
+                item.style.pointerEvents = 'none';
+                if (action === 'delete') {
+                    item.style.textDecoration = 'line-through';
+                }
+            }
+            if (btn) {
+                btn.textContent = action === 'delete' ? 'Deleted' : 'Moved';
+                btn.classList.replace('bg-accent-500/20', 'bg-mint-500/20');
+                btn.classList.replace('text-accent-400', 'text-mint-400');
+                btn.classList.replace('bg-coral-500/10', 'bg-mint-500/20');
+                btn.classList.replace('text-coral-400', 'text-mint-400');
+            }
             
-            // Dispatch refresh so the task appears in today's roadmap immediately
+            // Dispatch refresh so the task state updates in the Roadmap immediately
             window.dispatchEvent(new CustomEvent('calendar-needs-refresh'));
         }
     } catch (e) {
