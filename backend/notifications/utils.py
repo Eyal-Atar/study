@@ -5,7 +5,7 @@ from server.config import VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_CLAIMS
 
 logger = logging.getLogger(__name__)
 
-def send_to_user(db, user_id, title, body, url=None, block_id=None):
+def send_to_user(db, user_id, title, body, url=None, block_id=None, extra_data=None):
     """
     Send a push notification to all registered devices for a given user.
     """
@@ -22,13 +22,17 @@ def send_to_user(db, user_id, title, body, url=None, block_id=None):
         return
 
     print(f"DEBUG send_to_user: Found {len(subscriptions)} subscriptions", flush=True)
+    payload_data = {
+        "url": url,
+        "blockId": block_id
+    }
+    if extra_data:
+        payload_data.update(extra_data)
+
     payload = {
         "title": title,
         "body": body,
-        "data": {
-            "url": url,
-            "blockId": block_id
-        }
+        "data": payload_data
     }
     payload_json = json.dumps(payload)
 

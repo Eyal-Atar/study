@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyFlow — Remote Control Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        dark: { 900: '#0B0F1A', 800: '#121829', 700: '#1A2138', 600: '#232B44' },
+                        accent: { 400: '#7C5CFC', 500: '#6B47F5', 600: '#5A35E0' },
+                        mint: { 400: '#34D399', 500: '#10B981' },
+                        coral: { 400: '#FB7185', 500: '#F43F5E' },
+                        gold: { 400: '#FBBF24', 500: '#F59E0B' },
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #0B0F1A; }
+        .card { 
+            background: rgba(26, 33, 56, 0.4);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .btn-trigger {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn-trigger:active { transform: scale(0.95); }
+    </style>
+</head>
+<body class="font-sans text-white min-h-screen p-6 md:p-12">
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-12 flex items-center justify-between">
+            <div>
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-10 h-10 rounded-xl bg-accent-500 flex items-center justify-center text-xl shadow-lg shadow-accent-500/20">🎮</div>
+                    <h1 class="text-2xl font-bold tracking-tight">Remote Control</h1>
+                </div>
+                <p class="text-white/40 text-sm">Trigger animations and updates on your iPhone</p>
+            </div>
+            <div id="auth-status" class="text-xs font-medium px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/40">
+                Checking connection...
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Animations Section -->
+            <section class="card rounded-3xl p-8">
+                <h2 class="text-lg font-bold mb-6 flex items-center gap-2">
+                    <span class="text-accent-400">✨</span> UI Animations
+                </h2>
+                <div class="space-y-4">
+                    <button onclick="trigger('streak-splash', { streak: 7, isMilestone: true }, '7-Day Streak!')" 
+                            class="btn-trigger w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-left">
+                        <div>
+                            <div class="font-bold text-sm">Streak Splash (7 Days)</div>
+                            <div class="text-xs text-white/40">Shows the fiery milestone screen</div>
+                        </div>
+                        <span class="text-xl">🔥</span>
+                    </button>
+
+                    <button onclick="trigger('streak-splash', { streak: 3 }, '3-Day Streak!')" 
+                            class="btn-trigger w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-left">
+                        <div>
+                            <div class="font-bold text-sm">Streak Splash (3 Days)</div>
+                            <div class="text-xs text-white/40">Standard streak appearance</div>
+                        </div>
+                        <span class="text-xl">✨</span>
+                    </button>
+
+                    <button onclick="trigger('celebration', null, 'Goal Reached!')" 
+                            class="btn-trigger w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-left">
+                        <div>
+                            <div class="font-bold text-sm">Daily Celebration</div>
+                            <div class="text-xs text-white/40">Full-screen confetti + message</div>
+                        </div>
+                        <span class="text-xl">🎊</span>
+                    </button>
+                    
+                    <button onclick="trigger('award-xp', { total: 1550, level: 2, daily: 180 }, 'XP Awarded!')" 
+                            class="btn-trigger w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-left">
+                        <div>
+                            <div class="font-bold text-sm">XP Progress Sync</div>
+                            <div class="text-xs text-white/40">Animate circle progress live</div>
+                        </div>
+                        <span class="text-xl">🎯</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- State & Achievements Section -->
+            <section class="card rounded-3xl p-8">
+                <h2 class="text-lg font-bold mb-6 flex items-center gap-2">
+                    <span class="text-gold-400">🏆</span> Achievements & State
+                </h2>
+                <div class="space-y-4">
+                    <button onclick="trigger('new-badge', { badge: 'iron_will_7' }, 'New Badge!')" 
+                            class="btn-trigger w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-left">
+                        <div>
+                            <div class="font-bold text-sm">Award Badge: 7 Days</div>
+                            <div class="text-xs text-white/40">Adds badge to UI with flash</div>
+                        </div>
+                        <span class="text-xl">🎖️</span>
+                    </button>
+
+                    <button onclick="trigger('new-badge', { badge: 'knowledge_seeker_50' }, 'Expert Badge!')" 
+                            class="btn-trigger w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-left">
+                        <div>
+                            <div class="font-bold text-sm">Award Badge: Lvl 50</div>
+                            <div class="text-xs text-white/40">The "Crown" achievement</div>
+                        </div>
+                        <span class="text-xl">👑</span>
+                    </button>
+
+                    <div class="pt-4 border-t border-white/5">
+                        <label class="block text-xs font-bold text-white/30 uppercase tracking-widest mb-3">Database Overrides</label>
+                        <div class="flex gap-2">
+                            <input id="streak-input" type="number" value="7" class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm w-full focus:outline-none focus:border-accent-500">
+                            <button onclick="setStreak()" class="bg-accent-500 hover:bg-accent-600 px-4 py-2 rounded-xl text-sm font-bold btn-trigger">Update</button>
+                        </div>
+                        <p class="text-[10px] text-white/30 mt-2">Forces server streak. Next login on phone will trigger splash.</p>
+                    </div>
+
+                    <button onclick="awardXP()" class="w-full mt-4 py-3 rounded-xl border border-mint-500/30 text-mint-400 text-xs font-bold hover:bg-mint-500/10 transition-colors btn-trigger">
+                        Award 500 XP to Server
+                    </button>
+                </div>
+            </section>
+        </div>
+
+        <footer class="mt-12 pt-8 border-t border-white/5 text-center">
+            <button onclick="location.href='/dashboard'" class="text-xs text-white/30 hover:text-white transition-colors">Return to Dashboard</button>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module">
+        import { getAPI, authFetch, isAuthenticated } from '/js/store.js?v=AUTO';
+
+        window.trigger = async (action, data, title) => {
+            const api = getAPI();
+            try {
+                const res = await authFetch(`${api}/debug/trigger`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action,
+                        title: title || "Debug Trigger",
+                        body: "Animation triggered from Control Panel",
+                        data
+                    })
+                });
+                if (!res.ok) throw new Error(res.statusText);
+                console.log('Trigger success:', action);
+            } catch (err) {
+                console.error('Trigger failed:', err);
+                alert('Failed to send trigger. Is your phone subscribed to push?');
+            }
+        };
+
+        window.setStreak = async () => {
+            const api = getAPI();
+            const count = parseInt(document.getElementById('streak-input').value);
+            try {
+                await authFetch(`${api}/debug/set-streak`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ streak_count: count })
+                });
+                alert('Server streak updated to ' + count);
+            } catch (err) {
+                alert('Failed to update streak');
+            }
+        };
+
+        window.awardXP = async () => {
+            const api = getAPI();
+            try {
+                await authFetch(`${api}/debug/award-xp-debug`, { method: 'POST' });
+                alert('500 XP awarded on server');
+            } catch (err) {
+                alert('Failed to award XP');
+            }
+        };
+
+        // Check auth status
+        if (!isAuthenticated()) {
+            document.getElementById('auth-status').textContent = 'Not Logged In';
+            document.getElementById('auth-status').classList.add('text-coral-400');
+        } else {
+            document.getElementById('auth-status').textContent = 'Connected & Authenticated';
+            document.getElementById('auth-status').classList.add('text-mint-400');
+        }
+    </script>
+</body>
+</html>

@@ -290,11 +290,41 @@ function getDeviceName() {
 
 // Listen for messages from Service Worker
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.addEventListener('message', event => {
-        if (event.data && event.data.type === 'PUSH_RECEIVED') {
+    navigator.serviceWorker.addEventListener('message', async event => {
+        if (!event.data) return;
+
+        if (event.data.type === 'PUSH_RECEIVED') {
             showToast(event.data.title, event.data.body, event.data.blockId);
+
+            // Handle Debug Triggers (for Control Panel)
+            if (event.data.debug_action) {
+                const action = event.data.debug_action;
+                const payload = event.data.debug_payload;
+                console.log('[DEBUG] Triggering action:', action, payload);
+
+                // Use dynamic imports to avoid circular dependencies and lazy-load gamification UI
+                if (action === 'streak-splash') {
+                    const { showStreakSplash } = await import('./profile.js?v=AUTO');
+                    showStreakSplash(payload?.streak || 7, payload?.isMilestone || false);
+                } else if (action === 'celebration') {
+                    const { showDailyCelebration } = await import('./profile.js?v=AUTO');
+                    showDailyCelebration();
+                } else if (action === 'new-badge') {
+                    const { appendNewBadges } = await import('./profile.js?v=AUTO');
+                    appendNewBadges([payload?.badge || 'iron_will_7']);
+                } else if (action === 'award-xp') {
+                    const { updateXPDisplay } = await import('./profile.js?v=AUTO');
+                    updateXPDisplay({
+                        xp_earned: 50,
+                        new_total: payload?.total || 1250,
+                        new_level: payload?.level || 2,
+                        daily_xp: payload?.daily || 150
+                    });
+                }
+            }
         }
-        if (event.data && event.data.type === 'SCROLL_TO_BLOCK') {
+        
+        if (event.data.type === 'SCROLL_TO_BLOCK') {
             window.dispatchEvent(new CustomEvent('SCROLL_TO_BLOCK', { detail: { blockId: event.data.blockId } }));
         }
     });

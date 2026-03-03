@@ -164,7 +164,12 @@ self.addEventListener('push', event => {
     body: data.body || 'Time to study!',
     icon: '/static/icon-192.png',
     badge: '/static/icon-192.png',
-    data: { url: data.url || '/', blockId: data.data?.blockId }
+    data: { 
+      url: data.url || '/', 
+      blockId: data.data?.blockId,
+      debug_action: data.data?.debug_action,
+      debug_payload: data.data?.debug_payload
+    }
   };
 
   // Notify clients that a push was received (for in-app toast)
@@ -175,7 +180,9 @@ self.addEventListener('push', event => {
           type: 'PUSH_RECEIVED',
           title: title,
           body: options.body,
-          blockId: options.data.blockId
+          blockId: options.data.blockId,
+          debug_action: options.data.debug_action,
+          debug_payload: options.data.debug_payload
         });
       });
       return self.registration.showNotification(title, options);
