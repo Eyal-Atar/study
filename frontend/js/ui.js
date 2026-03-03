@@ -239,31 +239,51 @@ export function initMobileTabBar() {
         roadmap: document.getElementById('mobile-roadmap-content'),
         focus:   document.getElementById('mobile-focus-panel'),
         exams:   document.getElementById('mobile-exams-panel'),
+        profile: document.getElementById('mobile-profile-panel'),
     };
     const tabTitle = document.getElementById('mobile-tab-title');
-    const titles = { roadmap: 'Roadmap', focus: "Today's Focus", exams: 'My Exams' };
+    const titles = { roadmap: 'Roadmap', focus: "Today's Focus", exams: 'My Exams', profile: 'Profile' };
 
     function switchTab(tab) {
-        // On desktop, never hide anything
-        if (window.innerWidth >= 768) return;
+        // On desktop, we want to allow switching to Profile too
+        const isDesktop = window.innerWidth >= 768;
 
         Object.entries(panels).forEach(([key, el]) => {
             if (!el) return;
             if (key === tab) {
                 el.classList.remove('hidden');
             } else {
-                el.classList.add('hidden');
+                // If on desktop, only hide/show Profile vs Dashboard content
+                if (isDesktop) {
+                    if (tab === 'profile') {
+                        // Switch to Profile: hide roadmap/exams/focus
+                        if (key !== 'profile') el.classList.add('hidden');
+                    } else {
+                        // Switch to Roadmap/Exams/Focus: show everything EXCEPT profile
+                        if (key === 'profile') el.classList.add('hidden');
+                        else el.classList.remove('hidden');
+                    }
+                } else {
+                    el.classList.add('hidden');
+                }
             }
         });
 
         if (tabTitle) tabTitle.textContent = titles[tab] || '';
 
-        // Update active tab button styling
-        tabBar.querySelectorAll('.mobile-tab-btn').forEach(btn => {
+        // Update active tab button styling (handles both mobile and desktop nav)
+        document.querySelectorAll('.mobile-tab-btn').forEach(btn => {
             const isActive = btn.dataset.tab === tab;
             btn.classList.toggle('text-accent-400', isActive);
             btn.classList.toggle('text-white/40', !isActive);
         });
+
+        // Special handling for Profile tab: ensure sub-tabs are initialized and fields populated
+        if (tab === 'profile') {
+            if (typeof window._populateSettingsFields === 'function') window._populateSettingsFields();
+            if (typeof window._refreshNotifDebug === 'function') window._refreshNotifDebug();
+            import('./profile.js?v=AUTO').then(m => m.initGamification()).catch(() => {});
+        }
     }
 
     tabBar.querySelectorAll('.mobile-tab-btn').forEach(btn => {
@@ -275,9 +295,14 @@ export function initMobileTabBar() {
         document.getElementById('btn-add-exam-top')?.click();
     });
 
-    // Avatar opens the settings modal (contains profile + notifications + sign out)
+    // Avatar switches to Profile tab
     document.getElementById('mobile-user-avatar')?.addEventListener('click', () => {
-        document.getElementById('btn-show-settings')?.click();
+        switchTab('profile');
+    });
+
+    // Settings button also switches to Profile tab
+    document.getElementById('btn-show-settings')?.addEventListener('click', () => {
+        switchTab('profile');
     });
 
     // Sign Out from the settings modal bottom button
@@ -288,10 +313,18 @@ export function initMobileTabBar() {
     // Initialize default tab (roadmap)
     switchTab('roadmap');
 
-    // On resize to desktop: show all panels (undo mobile hide)
+    // On resize to desktop: handle panels visibility
     window.addEventListener('resize', () => {
         if (window.innerWidth >= 768) {
-            Object.values(panels).forEach(el => el?.classList.remove('hidden'));
+            // If profile is active, keep it shown and keep others hidden
+            // Otherwise show all EXCEPT profile
+            const isProfileActive = document.querySelector('.mobile-tab-btn[data-tab="profile"]')?.classList.contains('text-accent-400');
+            if (!isProfileActive) {
+                Object.entries(panels).forEach(([key, el]) => {
+                    if (key === 'profile') el?.classList.add('hidden');
+                    else el?.classList.remove('hidden');
+                });
+            }
         }
     });
 }

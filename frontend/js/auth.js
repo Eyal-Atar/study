@@ -252,37 +252,37 @@ export function initAuth(callbacks = {}) {
 
     // Settings
     const btnShowSettings = document.getElementById('btn-show-settings');
-    const btnCloseSettings = document.getElementById('btn-close-settings');
-    const modalSettings = document.getElementById('modal-settings');
     const btnSaveSettings = document.getElementById('btn-save-settings');
     const settingsHours = document.getElementById('settings-hours');
     const settingsHoursLabel = document.getElementById('settings-hours-label');
 
-    if (btnShowSettings) {
-        btnShowSettings.onclick = () => {
-            const user = getCurrentUser();
-            if (!user) return;
-            document.getElementById('settings-name').value = user.name || '';
-            document.getElementById('settings-hobby').value = user.hobby_name || '';
-            document.getElementById('settings-wake').value = user.wake_up_time || '08:00';
-            document.getElementById('settings-sleep').value = user.sleep_time || '23:00';
+    // Helper to populate settings fields from current user data
+    window._populateSettingsFields = () => {
+        const user = getCurrentUser();
+        if (!user) return;
+        if (document.getElementById('settings-name')) document.getElementById('settings-name').value = user.name || '';
+        if (document.getElementById('settings-hobby')) document.getElementById('settings-hobby').value = user.hobby_name || '';
+        if (document.getElementById('settings-wake')) document.getElementById('settings-wake').value = user.wake_up_time || '08:00';
+        if (document.getElementById('settings-sleep')) document.getElementById('settings-sleep').value = user.sleep_time || '23:00';
+        if (document.getElementById('settings-hours')) {
             document.getElementById('settings-hours').value = user.neto_study_hours || 4.0;
-            document.getElementById('settings-hours-label').textContent = (user.neto_study_hours || 4.0).toFixed(1);
-            document.getElementById('settings-peak').value = user.peak_productivity || 'Morning';
-            // Notification preferences
-            const notifTiming = document.getElementById('settings-notif-timing');
-            if (notifTiming) notifTiming.value = user.notif_timing || 'at_start';
-            const notifPerTask = document.getElementById('settings-notif-per-task');
-            if (notifPerTask) notifPerTask.checked = (user.notif_per_task ?? 1) === 1;
-            const notifDailySummary = document.getElementById('settings-notif-daily-summary');
-            if (notifDailySummary) notifDailySummary.checked = (user.notif_daily_summary ?? 0) === 1;
-            if (typeof window._updateNotifStatus === 'function') window._updateNotifStatus();
-            modalSettings.classList.add('active');
-        };
-    }
+            if (document.getElementById('settings-hours-label')) {
+                document.getElementById('settings-hours-label').textContent = (user.neto_study_hours || 4.0).toFixed(1);
+            }
+        }
+        if (document.getElementById('settings-peak')) document.getElementById('settings-peak').value = user.peak_productivity || 'Morning';
+        
+        // Notification preferences
+        const notifTiming = document.getElementById('settings-notif-timing');
+        if (notifTiming) notifTiming.value = user.notif_timing || 'at_start';
+        const notifPerTask = document.getElementById('settings-notif-per-task');
+        if (notifPerTask) notifPerTask.checked = (user.notif_per_task ?? 1) === 1;
+        const notifDailySummary = document.getElementById('settings-notif-daily-summary');
+        if (notifDailySummary) notifDailySummary.checked = (user.notif_daily_summary ?? 0) === 1;
+        
+        if (typeof window._updateNotifStatus === 'function') window._updateNotifStatus();
+    };
 
-    if (btnCloseSettings) btnCloseSettings.onclick = () => modalSettings.classList.remove('active');
-    
     if (settingsHours) {
         settingsHours.oninput = () => {
             if (settingsHoursLabel) settingsHoursLabel.textContent = parseFloat(settingsHours.value).toFixed(1);
@@ -428,10 +428,6 @@ export async function handleLogout() {
     const API = getAPI();
     try { await authFetch(`${API}/auth/logout`, { method: 'POST' }); } catch (e) {}
     
-    // Close settings modal if open
-    const modalSettings = document.getElementById('modal-settings');
-    if (modalSettings) modalSettings.classList.remove('active');
-    
     resetStore();
     showScreen('screen-welcome');
 }
@@ -535,8 +531,6 @@ export async function handleSaveSettings() {
         // Update greeting in dashboard
         const greetingEl = document.getElementById('user-greeting');
         if (greetingEl) greetingEl.textContent = `Hey, ${user.name}`;
-
-        document.getElementById('modal-settings').classList.remove('active');
 
         // Show regen bar if study hours changed
         if (newHours !== oldHours) {
