@@ -1,0 +1,75 @@
+[
+  {
+    "scenario_id": "SC-001",
+    "description": "Standard exam prep with 3 tasks and a gym break.",
+    "current_time": "2024-03-20T09:00:00Z",
+    "tasks": [
+      { "title": "Calculus Review", "duration": 120 },
+      { "title": "Linear Algebra Practice", "duration": 90 },
+      { "title": "Probability Intro", "duration": 60 }
+    ],
+    "constraints": {
+      "sleep": ["23:00", "07:00"],
+      "gym": ["17:00", "18:30"],
+      "lectures": []
+    }
+  },
+  {
+    "scenario_id": "SC-002",
+    "description": "Heavy lecture day with late-night study.",
+    "current_time": "2024-03-21T08:00:00Z",
+    "tasks": [
+      { "title": "Physics Lab Prep", "duration": 180 },
+      { "title": "Quantum Mechanics Homework", "duration": 120 }
+    ],
+    "constraints": {
+      "sleep": ["00:00", "08:00"],
+      "lectures": [
+        ["09:00", "12:00"],
+        ["13:00", "15:00"]
+      ]
+    }
+  },
+  {
+    "scenario_id": "SC-003",
+    "description": "Multiple short tasks with midday focus gap.",
+    "current_time": "2024-03-22T07:30:00Z",
+    "tasks": [
+      { "title": "History Reading", "duration": 45 },
+      { "title": "Essay Outline", "duration": 60 },
+      { "title": "Source Citation", "duration": 30 },
+      { "title": "Email Professor", "duration": 15 }
+    ],
+    "constraints": {
+      "sleep": ["22:30", "07:00"],
+      "gap": ["12:00", "14:00"]
+    }
+  },
+  {
+    "scenario_id": "SC-004",
+    "description": "Weekend catch-up: all-day availability.",
+    "current_time": "2024-03-23T10:00:00Z",
+    "tasks": [
+      { "title": "Database Project", "duration": 240 },
+      { "title": "ML Model Training", "duration": 120 },
+      { "title": "Research Paper Draft", "duration": 180 }
+    ],
+    "constraints": {
+      "sleep": ["01:00", "09:00"]
+    }
+  },
+  {
+    "scenario_id": "SC-005",
+    "description": "Pre-exam cram: high pressure, limited time.",
+    "current_time": "2024-03-24T14:00:00Z",
+    "tasks": [
+      { "title": "Mock Exam 1", "duration": 180 },
+      { "title": "Formula Review", "duration": 60 },
+      { "title": "Weak Topic Deep Dive", "duration": 120 }
+    ],
+    "constraints": {
+      "sleep": ["23:00", "06:00"],
+      "exam_start": "2024-03-25T09:00:00Z"
+    }
+  }
+]
