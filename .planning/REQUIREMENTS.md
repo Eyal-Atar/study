@@ -21,7 +21,7 @@ Requirements for feature-complete v1 public launch.
 
 - [x] **SCHED-01**: Every task is assigned a specific hourly time slot (e.g., "08:00 - 11:00")
 - [x] **SCHED-02**: Schedule includes daily hobby/break time slot based on user's registered hobby
-- [ ] **SCHED-03**: User can manually adjust schedule (move tasks, change times)
+- [x] **SCHED-03**: User can manually adjust schedule (move tasks, change times)
 
 ### Brain & Roadmap
 
@@ -31,7 +31,7 @@ Requirements for feature-complete v1 public launch.
 
 ### Task Management
 
-- [ ] **TASK-01**: User can click a task to edit its details (title, duration, time)
+- [x] **TASK-01**: User can click a task to edit its details (title, duration, time)
 
 ### Notifications
 
@@ -52,10 +52,17 @@ Requirements for feature-complete v1 public launch.
 
 ### Evaluation & Optimization
 
-- [ ] **EVAL-01**: Isolated Streamlit dashboard for LLM comparison.
-- [ ] **EVAL-02**: Side-by-side view with JSON tree, latency, and cost metrics.
-- [ ] **EVAL-03**: Interactive playground with live prompt editor and batch testing.
-- [ ] **EVAL-04**: Automated Judge for logical validation and compensating prompt generation.
+- [x] **EVAL-01**: Isolated Streamlit dashboard for LLM comparison.
+- [x] **EVAL-02**: Side-by-side view with JSON tree, latency, and cost metrics.
+- [x] **EVAL-03**: Interactive playground with live prompt editor and batch testing.
+- [x] **EVAL-04**: Automated Judge for logical validation and compensating prompt generation.
+
+### Gamification (Zen Mentor)
+
+- [x] **GAM-01**: User earns XP for completing study blocks.
+- [x] **GAM-02**: Login streak tracking with milestone splash screens (7, 14, 30 days).
+- [x] **GAM-03**: Morning review modal for rescheduling unfinished tasks from yesterday.
+- [x] **GAM-04**: Achievements tab in profile with earned badges (Knowledge Seeker, Iron Will, etc.).
 
 ## v2 Requirements
 
@@ -111,17 +118,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROF-02 | 07 | Complete |
 | SCHED-01 | 08 | Complete |
 | SCHED-02 | 08 | Complete |
-| SCHED-03 | 09 | Not Started |
-| BRAIN-01 | 10 | Not Started |
-| BRAIN-02 | 10 | Not Started |
-| BRAIN-03 | 10 | Not Started |
-| TASK-01 | 09 | Not Started |
-| NOTIF-01 | 11 | Not Started |
-| NOTIF-02 | 11 | Not Started |
+| SCHED-03 | 09 | Complete |
+| BRAIN-01 | 10 | Complete |
+| BRAIN-02 | 10 | Complete |
+| BRAIN-03 | 10 | Complete |
+| TASK-01 | 09 | Complete |
+| NOTIF-01 | 11/16 | Complete |
+| NOTIF-02 | 11/16 | Complete |
 | I18N-01 | 12 | Not Started |
 | I18N-02 | 12 | Not Started |
 | I18N-03 | 12 | Not Started |
-| INFRA-01 | 11 | Not Started |
+| INFRA-01 | 11/16 | Complete |
 | INFRA-02 | 13 | Not Started |
-| INFRA-03 | 11 | Not Started |
-| EVAL-01-04 | 20 | Not Started |
+| INFRA-03 | 11/16 | Complete |
+| GAM-01-04 | 19 | Complete |
+| EVAL-01-04 | 20 | Complete |

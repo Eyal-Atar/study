@@ -2,7 +2,7 @@
 
 ## What This Is
 
-An AI-powered study planner that helps students manage multiple exams by generating personalized, day-by-day study schedules with hourly time slots. Students upload exam materials (syllabi, past exams), and the AI "Brain" (Claude) analyzes them to create an optimized roadmap that adapts to schedule changes. Built as a web app targeting public launch.
+An AI-powered study planner that helps students manage multiple exams by generating personalized, day-by-day study schedules with hourly time slots. Students upload exam materials (syllabi, past exams), and the AI "Brain" (Claude/GPT) analyzes them to create an optimized roadmap that adapts to schedule changes. Built as a web app targeting public launch.
 
 ## Core Value
 
@@ -26,8 +26,16 @@ Students open the app every day and know exactly what to study, when, and for ho
 - ✓ Google OAuth login (Sign in with Google) — Phase 6
 - ✓ User Profiles & Onboarding Wizard — Phase 7
 - ✓ Hourly time slot scheduling with timezone support — Phase 8
+- ✓ Mobile-First UX: Bottom tab navigation and touch interactions — Phase 14
+- ✓ Progress & Deferral: Interactive progress bars and task skipping — Phase 15
+- ✓ PWA & Push: VAPID notifications and smart study triggers — Phase 16
+- ✓ Split-Brain Scheduler: Two-call AI architecture (Auditor + Strategist) — Phase 17
+- ✓ Gamification: XP system, Login Streaks, and Morning Review — Phase 19
+- ✓ Evaluation Dashboard: Isolated LLM arena for side-by-side optimization — Phase 20
 
 ### Active
+
+- *v1.0 Release Stabilization*
 
 ### Out of Scope
 
@@ -35,38 +43,36 @@ Students open the app every day and know exactly what to study, when, and for ho
 - Admin panel / user management — not needed for v1 launch
 - Real-time chat between users — not a social app
 - Video/audio content support — PDF and text only for v1
-- Hobby feature (full implementation) — placeholder only in exclusive zone for now
 - Mobile native app — PWA covers mobile use case
 
 ## Context
 
-- Brownfield project with 4 completed phases (backend, brain, auth+frontend, restructure)
-- FastAPI + SQLite + vanilla JS stack, Claude API for AI features
-- No tests exist — manual testing only
-- No deployment infrastructure yet
-- Single monolithic frontend file (index.html + app.js) that will need careful updates
-- Scheduler algorithm in `backend/brain/scheduler.py` needs significant rework for hourly slots
-- ExamBrain in `backend/brain/exam_brain.py` needs prompt updates for new exclusive zone strategy
-- Existing `roadmap.md` documents completed phases and planned features
+- FastAPI + SQLite + vanilla JS stack, Litellm for multi-model support (Claude, GPT, Gemini)
+- Streamlit-based evaluation arena for model testing
+- No formal automated tests — manual verification + LLM Judge
+- PWA support for mobile installation
+- Scheduler algorithm in `backend/brain/scheduler.py` uses greedy-fill with fragmentation support
 
 ## Constraints
 
 - **Tech stack**: Continue with FastAPI + SQLite + vanilla JS — no framework migration
-- **AI provider**: Anthropic Claude API (already integrated)
+- **AI provider**: Multi-model support via Litellm/OpenRouter
 - **Frontend**: No build step — keep CDN-based Tailwind + vanilla JS approach
-- **Auth**: Must support both existing email/password AND new Google OAuth
-- **Database**: SQLite for v1 (PostgreSQL migration is a v2 concern)
-- **Budget**: Minimize Claude API token usage where possible (cache, summarize)
+- **Auth**: Supports both email/password and Google OAuth
+- **Database**: SQLite with WAL mode for concurrent access
+- **Budget**: Optimized token usage via compact JSON formats and split-brain architecture
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Replace brain chat with regenerate input | Chat was underused; global regeneration is more intuitive for schedule changes | — Pending |
-| Google OAuth over other providers | Most students have Google accounts; single provider keeps scope manageable | — Pending |
-| Keep vanilla JS frontend | Avoids migration cost; app complexity doesn't yet warrant a framework | — Pending |
-| PWA instead of native app | Lower cost, single codebase, students can install from browser | — Pending |
-| Hourly scheduling over vague tasks | Core usability improvement — students need to know exactly when to study | — Pending |
+| Replace brain chat with regenerate input | Chat was underused; global regeneration is more intuitive for schedule changes | ✓ Completed |
+| Google OAuth over other providers | Most students have Google accounts; single provider keeps scope manageable | ✓ Completed |
+| Keep vanilla JS frontend | Avoids migration cost; app complexity doesn't yet warrant a framework | ✓ Completed |
+| PWA instead of native app | Lower cost, single codebase, students can install from browser | ✓ Completed |
+| Hourly scheduling over vague tasks | Core usability improvement — students need to know exactly when to study | ✓ Completed |
+| Split-Brain Architecture | Reduces token usage and improves reliability by separating analysis from planning | ✓ Completed |
+| Automated Judge Logic | Enables quantitative quality measurement without manual schedule audits | ✓ Completed |
 
 ---
-*Last updated: 2026-02-17 after initialization*
+*Last updated: 2026-03-07 after Phase 20 resolution*

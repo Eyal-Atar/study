@@ -28,6 +28,7 @@ See: .planning/PROJECT.md
 - 2026-03-06: Phase 20 Plan 01 complete — Evaluation Infrastructure & Side-by-Side Dashboard.
 - 2026-03-06: Phase 20 Plan 02 complete — Interactive Playground & Batch Testing.
 - 2026-03-06: Phase 20 Plan 03 complete — Automated Judge & Feedback Loop. Phase 20 COMPLETE.
+- 2026-03-06: Fixed morning routine "push to today" and deletion persistence. Refactored internal_regenerate_schedule for better transaction management.
 
 ## Decisions
 
