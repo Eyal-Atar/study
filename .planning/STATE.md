@@ -7,9 +7,9 @@ See: .planning/PROJECT.md
 ## Position
 
 **Milestone:** v1.0 milestone
-**Current phase:** Phase 19.1 — Fix Gamification Bugs (XP Circles, Badge Display, Celebration Screen)
-**Current plan:** 04 of 04 complete
-**Status:** Phase 19.1 COMPLETE — XP circle sync fixed; badge grid rendering aligned with backend; first-time badges implemented; daily completion celebration added.
+**Current phase:** Phase 20 — LLM Optimization & Evaluation Dashboard
+**Current plan:** 03 of 03 complete
+**Status:** Complete — Isolated Streamlit-based evaluation arena for model comparison and side-by-side verification.
 **Last session:** 2026-03-03T11:20:00Z
 
 ## Session Log
@@ -24,6 +24,10 @@ See: .planning/PROJECT.md
 - 2026-02-28: Phase 17 Plan 04 complete — Dashboard Daily Progress bar (neto_study_hours quota), padding task visual distinction in calendar, ExamBrain legacy method cleanup.
 - 2026-03-01: Final refinement: Fixed bug where task fragments < 30min would stall the scheduler; fixed simulation rollover; ensured Motivation block (Finish Line) always appears last. Phase 17 COMPLETE.
 - 2026-03-03: Phase 19.1 COMPLETE. XP circles update live; badge keys aligned; first-time achievements implemented; daily celebration screen wired and guarded.
+- 2026-03-06: Phase 20 added — LLM Optimization & Evaluation Dashboard (isolated Streamlit arena).
+- 2026-03-06: Phase 20 Plan 01 complete — Evaluation Infrastructure & Side-by-Side Dashboard.
+- 2026-03-06: Phase 20 Plan 02 complete — Interactive Playground & Batch Testing.
+- 2026-03-06: Phase 20 Plan 03 complete — Automated Judge & Feedback Loop. Phase 20 COMPLETE.
 
 ## Decisions
 
@@ -66,6 +70,7 @@ See: .planning/PROJECT.md
 - Phase 18: (reserved)
 - Phase 19 added: Gamification (Achievements Tab with XP Progress, Login Streaks Tracker, Morning Prompt Rescheduling, Minimal Feedback System)
 - Phase 19.1 inserted (URGENT GAP CLOSURE): Fix gamification bugs (XP circles not updating, badges not displaying, add celebration screen for daily completion)
+- Phase 20: LLM Optimization & Evaluation Dashboard (Isolated Streamlit arena)
 
 ### Phase 17 DB Schema (as of Plan 01)
 - tasks: + focus_score INTEGER DEFAULT 5, + dependency_id INTEGER

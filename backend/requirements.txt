@@ -4,6 +4,7 @@ python-multipart>=0.0.9
 anthropic>=0.34.2
 pydantic>=2.10.0
 python-dotenv>=1.0.1
+litellm
 authlib>=1.6.8
 itsdangerous>=2.2.0
 pymupdf>=1.24.0

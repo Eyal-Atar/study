@@ -12,6 +12,7 @@ from gamification.utils import (
     check_and_award_badges,
     _today_in_tz,
 )
+from brain.routes import internal_regenerate_schedule
 
 router = APIRouter()
 
@@ -72,91 +73,22 @@ def _get_streak_row(db, user_id: int) -> dict:
     return dict(row)
 
 
-def _find_gap_for_task(db, user: dict, target_date_str: str, duration_h: float) -> tuple:
-    """Find the first available gap in a specific date's schedule for a task of given duration."""
-    # 1. Get user's day boundaries
-    wake_up = user.get("wake_up_time", "08:00")
-    sleep_time = user.get("sleep_time", "23:00")
-    tz_offset = user.get("timezone_offset", 0) or 0
-    
-    # Natural day start (wake up)
-    day_start = datetime.strptime(f"{target_date_str} {wake_up}", "%Y-%m-%d %H:%M")
-    day_end = datetime.strptime(f"{target_date_str} {sleep_time}", "%Y-%m-%d %H:%M")
-    
-    # If sleep is early next day (e.g. 01:00)
-    if day_end <= day_start:
-        day_end += timedelta(days=1)
-        
-    # Search start: if target is today, don't schedule in past.
-    today_str = _today_in_tz(tz_offset)
-    if target_date_str == today_str:
-        now_utc = datetime.now(timezone.utc)
-        local_now = now_utc - timedelta(minutes=tz_offset)
-        search_start = max(day_start + timedelta(hours=1), local_now + timedelta(minutes=15))
-    else:
-        # For future days, start at wake-up
-        search_start = day_start
-    
-    # 2. Get existing blocks for target day
-    existing_blocks = db.execute(
-        """SELECT start_time, end_time FROM schedule_blocks 
-           WHERE user_id = ? AND day_date = ? 
-           ORDER BY start_time ASC""",
-        (user["id"], target_date_str)
-    ).fetchall()
-    
-    # 3. Iterate through gaps
-    current_gap_start = search_start
-    duration_min = duration_h * 60
-    
-    for block in existing_blocks:
-        try:
-            b_start = datetime.strptime(block["start_time"].replace('T', ' ').split('.')[0], "%Y-%m-%d %H:%M:%S")
-            
-            # Check gap between current_gap_start and this block's start
-            gap_min = (b_start - current_gap_start).total_seconds() / 60
-            if gap_min >= duration_min:
-                return current_gap_start, current_gap_start + timedelta(minutes=duration_min)
-            
-            # Move gap start to end of this block
-            b_end = datetime.strptime(block["end_time"].replace('T', ' ').split('.')[0], "%Y-%m-%d %H:%M:%S")
-            current_gap_start = max(current_gap_start, b_end)
-        except:
-            continue
-        
-    # 4. Check gap after last block
-    if (day_end - current_gap_start).total_seconds() / 60 >= duration_min:
-        return current_gap_start, current_gap_start + timedelta(minutes=duration_min)
-        
-    # 5. Fallback: if no gap found
-    return None, None
-
-
 # ─── POST /gamification/login-check ──────────────────────────────────────────
 
 @router.post("/login-check")
 def login_check(current_user: dict = Depends(get_current_user)):
-    """First-of-day gate: update streak, return morning prompt data.
-
-    Returns early with { first_login_today: False } on repeated calls the same day.
-    On first call: returns streak info, morning tasks, and any newly earned badges.
-    """
+    """First-of-day gate: update streak, return morning prompt data."""
     user_id = current_user["id"]
     tz_offset = current_user.get("timezone_offset", 0) or 0
 
     db = get_db()
     try:
-        # update_streak handles first-login detection and streak counting
         streak_result = update_streak(db, user_id, tz_offset)
 
         if not streak_result["first_login_today"]:
-            # Not the first login today — return minimal response
             return {"first_login_today": False}
 
-        # First login today — gather full morning prompt data
         morning_tasks = _get_morning_tasks(db, user_id, tz_offset)
-
-        # Gather yesterday's summary
         yesterday = (datetime.now(timezone.utc) - timedelta(minutes=tz_offset) - timedelta(days=1)).strftime("%Y-%m-%d")
         y_stats = db.execute(
             """SELECT COUNT(*) as count, SUM(xp_awarded) as awarded 
@@ -165,19 +97,12 @@ def login_check(current_user: dict = Depends(get_current_user)):
             (user_id, yesterday)
         ).fetchone()
         
-        # We don't track per-day XP history in user_xp, but we can estimate from blocks
-        # Each awarded block roughly corresponds to the XP calculated at that time.
-        # For simplicity, let's just count tasks.
-        
         daily_summary = {
             "yesterday_tasks": y_stats["count"] if y_stats else 0,
             "today_goal": current_user.get("neto_study_hours", 4.0)
         }
 
-        # Fetch current XP row for badge check
         xp_row = _get_xp_row(db, user_id)
-
-        # Check for newly earned badges after streak update
         badges_newly_earned = check_and_award_badges(db, user_id, xp_row, streak_result)
 
         return {
@@ -198,17 +123,12 @@ def login_check(current_user: dict = Depends(get_current_user)):
 
 @router.post("/award-xp")
 def award_xp(body: AwardXpRequest, current_user: dict = Depends(get_current_user)):
-    """Award XP for a completed schedule block.
-
-    Idempotent: returns xp_earned=0 if the block was already awarded.
-    Checks badge criteria after updating XP.
-    """
+    """Award XP for a completed schedule block."""
     user_id = current_user["id"]
     tz_offset = current_user.get("timezone_offset", 0) or 0
 
     db = get_db()
     try:
-        # 1. Verify block exists and belongs to user
         block = db.execute(
             """SELECT sb.id, sb.task_id, sb.completed, sb.xp_awarded
                FROM schedule_blocks sb
@@ -222,7 +142,6 @@ def award_xp(body: AwardXpRequest, current_user: dict = Depends(get_current_user
         if not block["completed"]:
             raise HTTPException(status_code=400, detail="Block is not completed yet")
 
-        # 2. Idempotency check
         if block["xp_awarded"]:
             return {
                 "xp_earned": 0,
@@ -233,7 +152,6 @@ def award_xp(body: AwardXpRequest, current_user: dict = Depends(get_current_user
                 "badges_earned": [],
             }
 
-        # 3. Fetch task for XP calculation
         task = db.execute(
             "SELECT id, focus_score, estimated_hours FROM tasks WHERE id = ? AND user_id = ?",
             (body.task_id, user_id),
@@ -244,20 +162,15 @@ def award_xp(body: AwardXpRequest, current_user: dict = Depends(get_current_user
 
         focus_score = task["focus_score"] if task["focus_score"] is not None else 5
         estimated_hours = task["estimated_hours"] if task["estimated_hours"] is not None else 1.0
-
         xp_earned = calculate_xp(focus_score, estimated_hours)
 
-        # 4. Mark block as XP awarded (prevents double-award)
         db.execute(
             "UPDATE schedule_blocks SET xp_awarded = 1 WHERE id = ? AND user_id = ?",
             (body.block_id, user_id),
         )
         db.commit()
 
-        # 5. Update total XP and level
         xp_result = update_user_xp(db, user_id, xp_earned, tz_offset)
-
-        # 6. Check badges
         streak_row = _get_streak_row(db, user_id)
         badges_earned = check_and_award_badges(db, user_id, xp_result, streak_row)
 
@@ -277,16 +190,12 @@ def award_xp(body: AwardXpRequest, current_user: dict = Depends(get_current_user
 
 @router.post("/revoke-xp")
 def revoke_xp(body: AwardXpRequest, current_user: dict = Depends(get_current_user)):
-    """Revoke XP when a block is marked undone.
-    
-    Resets xp_awarded=0 on the block and subtracts XP from user totals.
-    """
+    """Revoke XP when a block is marked undone."""
     user_id = current_user["id"]
     tz_offset = current_user.get("timezone_offset", 0) or 0
 
     db = get_db()
     try:
-        # 1. Verify block exists and had XP awarded
         block = db.execute(
             """SELECT sb.id, sb.task_id, sb.xp_awarded
                FROM schedule_blocks sb
@@ -297,7 +206,6 @@ def revoke_xp(body: AwardXpRequest, current_user: dict = Depends(get_current_use
         if not block or not block["xp_awarded"]:
             return {"xp_revoked": 0}
 
-        # 2. Fetch task for XP calculation
         task = db.execute(
             "SELECT id, focus_score, estimated_hours FROM tasks WHERE id = ? AND user_id = ?",
             (block["task_id"], user_id),
@@ -310,14 +218,12 @@ def revoke_xp(body: AwardXpRequest, current_user: dict = Depends(get_current_use
         estimated_hours = task["estimated_hours"] if task["estimated_hours"] is not None else 1.0
         xp_to_revoke = calculate_xp(focus_score, estimated_hours)
 
-        # 3. Reset block flag
         db.execute(
             "UPDATE schedule_blocks SET xp_awarded = 0 WHERE id = ? AND user_id = ?",
             (body.block_id, user_id),
         )
         db.commit()
 
-        # 4. Subtract from totals
         from gamification.utils import revoke_user_xp
         xp_result = revoke_user_xp(db, user_id, xp_to_revoke, tz_offset)
 
@@ -335,12 +241,7 @@ def revoke_xp(body: AwardXpRequest, current_user: dict = Depends(get_current_use
 
 @router.post("/reschedule-task/{task_id}")
 def reschedule_task(task_id: int, body: RescheduleRequest, current_user: dict = Depends(get_current_user)):
-    """Handle morning prompt actions for an unfinished task.
-
-    action="reschedule": move day_date to today (rollover)
-    action="delete": set status to 'deferred'
-    action="skip": no change (acknowledged but left as-is)
-    """
+    """Handle morning prompt actions for an unfinished task."""
     user_id = current_user["id"]
     tz_offset = current_user.get("timezone_offset", 0) or 0
     action = body.action
@@ -350,9 +251,8 @@ def reschedule_task(task_id: int, body: RescheduleRequest, current_user: dict = 
 
     db = get_db()
     try:
-        # Verify task belongs to user
         task = db.execute(
-            "SELECT id, title, day_date, status, user_id FROM tasks WHERE id = ? AND user_id = ?",
+            "SELECT id, title, day_date, status, user_id, estimated_hours, exam_id FROM tasks WHERE id = ? AND user_id = ?",
             (task_id, user_id),
         ).fetchone()
 
@@ -365,57 +265,29 @@ def reschedule_task(task_id: int, body: RescheduleRequest, current_user: dict = 
             target_day = (datetime.now(timezone.utc) - timedelta(minutes=tz_offset) + timedelta(days=1)).strftime("%Y-%m-%d")
 
         if action == "reschedule":
-            # 1. Update task to target day
             db.execute(
                 "UPDATE tasks SET day_date = ?, is_delayed = 1, status = 'pending' WHERE id = ? AND user_id = ?",
                 (target_day, task_id, user_id),
             )
-            # 2. Delete old schedule blocks for this task
             db.execute(
                 "DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ?",
                 (task_id, user_id)
             )
             
-            # 3. Find a gap on target day
-            est_h = task.get("estimated_hours") or 1.0
-            gap_start, gap_end = _find_gap_for_task(db, current_user, target_day, est_h)
-            
-            if gap_start and gap_end:
-                # 4. Insert new block in the gap
-                start_str = gap_start.strftime("%Y-%m-%d %H:%M:%S")
-                end_str = gap_end.strftime("%Y-%m-%d %H:%M:%S")
-                
-                # Fetch exam name for block
-                exam_name = None
-                if task.get("exam_id"):
-                    e_row = db.execute("SELECT name FROM exams WHERE id = ?", (task["exam_id"],)).fetchone()
-                    if e_row: exam_name = e_row["name"]
-
-                db.execute(
-                    """INSERT INTO schedule_blocks (user_id, task_id, exam_id, exam_name, task_title,
-                       start_time, end_time, day_date, block_type, is_delayed, push_notified)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'study', 1, 0)""",
-                    (user_id, task_id, task.get("exam_id"), exam_name, task["title"],
-                     start_str, end_str, target_day)
-                )
-                db.commit()
-                return {"status": "ok", "message": f"Task rescheduled to {target_day} gap", "task_id": task_id, "new_date": target_day}
-            else:
-                # No gap found today — return proposal for tomorrow (unless already forced tomorrow)
-                if not body.force_tomorrow:
-                    db.rollback() # Don't commit the task move yet
-                    return {
-                        "status": "no_gap", 
-                        "message": "No available gap today. Move to tomorrow instead?",
-                        "proposal": "tomorrow"
-                    }
-                else:
-                    # Forced tomorrow but still no gap? Just move task, scheduler will handle it on next full regen
-                    db.commit()
-                    return {"status": "ok", "message": f"Task moved to {target_day} (no gap found)", "task_id": task_id, "new_date": target_day}
+            try:
+                regen_result = internal_regenerate_schedule(user_id, current_user, db)
+                return {
+                    "status": "ok", 
+                    "message": f"Task rescheduled to {target_day} and schedule balanced", 
+                    "task_id": task_id, 
+                    "new_date": target_day,
+                    "schedule": regen_result.get("schedule")
+                }
+            except Exception as e:
+                db.rollback()
+                raise HTTPException(status_code=500, detail=f"Rescheduling failed: {str(e)}")
 
         elif action == "delete" or action == "skip":
-            # Truly delete task and its blocks (Skip now means Delete)
             db.execute("DELETE FROM tasks WHERE id = ? AND user_id = ?", (task_id, user_id))
             db.execute("DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ?", (task_id, user_id))
             db.commit()
@@ -434,8 +306,10 @@ def batch_reschedule(body: BatchRescheduleRequest, current_user: dict = Depends(
     db = get_db()
     
     results = []
+    today = _today_in_tz(tz_offset)
     
     try:
+        needs_regen = False
         for task_id in body.task_ids:
             task = db.execute(
                 "SELECT id, title, estimated_hours, exam_id FROM tasks WHERE id = ? AND user_id = ?",
@@ -450,53 +324,24 @@ def batch_reschedule(body: BatchRescheduleRequest, current_user: dict = Depends(
                 results.append({"id": task_id, "title": task["title"], "status": "deleted"})
             
             elif body.action == "reschedule":
-                # Try Today -> Tomorrow -> +2 Days
-                found_date = None
-                found_gap = None
-                
-                for days_out in [0, 1, 2]:
-                    target_dt = datetime.now(timezone.utc) - timedelta(minutes=tz_offset) + timedelta(days=days_out)
-                    target_str = target_dt.strftime("%Y-%m-%d")
-                    gap_start, gap_end = _find_gap_for_task(db, current_user, target_str, task["estimated_hours"] or 1.0)
-                    
-                    if gap_start:
-                        found_date = target_str
-                        found_gap = (gap_start, gap_end)
-                        break
-                
-                if found_date:
-                    # Move task
-                    db.execute(
-                        "UPDATE tasks SET day_date = ?, is_delayed = 1, status = 'pending' WHERE id = ? AND user_id = ?",
-                        (found_date, task_id, user_id)
-                    )
-                    db.execute("DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ?", (task_id, user_id))
-                    
-                    # Create new block
-                    exam_name = None
-                    if task["exam_id"]:
-                        e_row = db.execute("SELECT name FROM exams WHERE id = ?", (task["exam_id"],)).fetchone()
-                        if e_row: exam_name = e_row["name"]
-
-                    db.execute(
-                        """INSERT INTO schedule_blocks (user_id, task_id, exam_id, exam_name, task_title,
-                           start_time, end_time, day_date, block_type, is_delayed, push_notified)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'study', 1, 0)""",
-                        (user_id, task_id, task["exam_id"], exam_name, task["title"],
-                         found_gap[0].strftime("%Y-%m-%d %H:%M:%S"), 
-                         found_gap[1].strftime("%Y-%m-%d %H:%M:%S"), found_date)
-                    )
-                    results.append({"id": task_id, "title": task["title"], "status": "moved", "new_date": found_date})
-                else:
-                    # No gap found even in +2 days? Just move to +2 anyway, scheduler handles overflow
-                    future_dt = datetime.now(timezone.utc) - timedelta(minutes=tz_offset) + timedelta(days=2)
-                    future_str = future_dt.strftime("%Y-%m-%d")
-                    db.execute("UPDATE tasks SET day_date = ?, is_delayed = 1, status = 'pending' WHERE id = ? AND user_id = ?", (future_str, task_id, user_id))
-                    db.execute("DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ?", (task_id, user_id))
-                    results.append({"id": task_id, "title": task["title"], "status": "moved", "new_date": future_str, "note": "overflow"})
+                db.execute(
+                    "UPDATE tasks SET day_date = ?, is_delayed = 1, status = 'pending' WHERE id = ? AND user_id = ?",
+                    (today, task_id, user_id)
+                )
+                db.execute("DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ?", (task_id, user_id))
+                results.append({"id": task_id, "title": task["title"], "status": "moved", "new_date": today})
+                needs_regen = True
         
+        if needs_regen:
+            internal_regenerate_schedule(user_id, current_user, db)
+        
+        # Always commit any pending changes (e.g., deletions or non-regen moves)
         db.commit()
+
         return {"results": results}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Batch reschedule failed: {str(e)}")
     finally:
         db.close()
 
@@ -505,18 +350,13 @@ def batch_reschedule(body: BatchRescheduleRequest, current_user: dict = Depends(
 
 @router.get("/summary")
 def get_summary(current_user: dict = Depends(get_current_user)):
-    """Return full gamification state for the dashboard.
-
-    Returns XP data, streak data, and all earned badges.
-    Automatically resets daily_xp if the date has rolled over.
-    """
+    """Return full gamification state for the dashboard."""
     user_id = current_user["id"]
     tz_offset = current_user.get("timezone_offset", 0) or 0
     today = _today_in_tz(tz_offset)
 
     db = get_db()
     try:
-        # XP data
         xp_row = db.execute(
             "SELECT total_xp, current_level, daily_xp, daily_xp_date, tasks_completed FROM user_xp WHERE user_id = ?",
             (user_id,),
@@ -526,7 +366,6 @@ def get_summary(current_user: dict = Depends(get_current_user)):
             xp_data = {"total_xp": 0, "current_level": 1, "daily_xp": 0, "daily_xp_date": today, "tasks_completed": 0}
         else:
             xp_data = dict(xp_row)
-            # Reset daily_xp if date has changed
             if xp_data.get("daily_xp_date") != today:
                 db.execute(
                     "UPDATE user_xp SET daily_xp = 0, daily_xp_date = ? WHERE user_id = ?",
@@ -536,7 +375,6 @@ def get_summary(current_user: dict = Depends(get_current_user)):
                 xp_data["daily_xp"] = 0
                 xp_data["daily_xp_date"] = today
 
-        # Streak data
         streak_row = db.execute(
             "SELECT current_streak, longest_streak, last_login_date, streak_broken FROM user_streaks WHERE user_id = ?",
             (user_id,),
@@ -548,7 +386,6 @@ def get_summary(current_user: dict = Depends(get_current_user)):
             streak_data = dict(streak_row)
             streak_data["streak_broken"] = bool(streak_data["streak_broken"])
 
-        # All earned badges
         badge_rows = db.execute(
             "SELECT badge_key, earned_at FROM user_badges WHERE user_id = ? ORDER BY earned_at DESC",
             (user_id,),

@@ -18,15 +18,25 @@ def evaluate_output(scenario, model_output_content):
     """
     Evaluates the model output for both structural and logical correctness.
     """
-    judge_model = os.getenv("JUDGE_MODEL", "gpt-4o")
+    judge_model = os.getenv("JUDGE_MODEL", "openrouter/openai/gpt-4o-mini")
 
-    # 1. Structural Pass/Fail (Simple JSON Check)
+    # 1. Structural Pass/Fail (Clean and Parse)
     structural_pass = False
     parsed_json = None
+    
+    # CLEANING LOGIC: Strip markdown code blocks if present
+    clean_content = model_output_content.strip()
+    if clean_content.startswith("```"):
+        # Remove first and last lines (the ```json and ```)
+        lines = clean_content.split("\n")
+        if len(lines) >= 2:
+            clean_content = "\n".join(lines[1:-1])
+    
     try:
-        parsed_json = json.loads(model_output_content)
+        parsed_json = json.loads(clean_content)
         # Check for essential 'schedule' key (StudyFlow convention)
-        if "schedule" in parsed_json:
+        # Check for both 'schedule' (Strategist) and 'tasks' (Auditor)
+        if "schedule" in parsed_json or "tasks" in parsed_json:
             structural_pass = True
     except Exception:
         structural_pass = False

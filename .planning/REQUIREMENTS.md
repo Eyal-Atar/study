@@ -50,6 +50,13 @@ Requirements for feature-complete v1 public launch.
 - [ ] **INFRA-02**: App deployed to production (Render/Railway) with real domain
 - [x] **INFRA-03**: Basic offline support via service worker caching
 
+### Evaluation & Optimization
+
+- [ ] **EVAL-01**: Isolated Streamlit dashboard for LLM comparison.
+- [ ] **EVAL-02**: Side-by-side view with JSON tree, latency, and cost metrics.
+- [ ] **EVAL-03**: Interactive playground with live prompt editor and batch testing.
+- [ ] **EVAL-04**: Automated Judge for logical validation and compensating prompt generation.
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
@@ -117,3 +124,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-01 | 11 | Not Started |
 | INFRA-02 | 13 | Not Started |
 | INFRA-03 | 11 | Not Started |
+| EVAL-01-04 | 20 | Not Started |

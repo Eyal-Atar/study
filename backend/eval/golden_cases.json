@@ -1,75 +1,104 @@
 [
   {
     "scenario_id": "SC-001",
-    "description": "Standard exam prep with 3 tasks and a gym break.",
-    "current_time": "2024-03-20T09:00:00Z",
+    "description": "HIGH COMPLEXITY: Algorithms & Data Structures - Night Owl Profile.",
+    "current_time": "2026-03-10T10:00:00Z",
+    "exam": {
+      "id": 55,
+      "name": "אלגוריתמים ומבני נתונים",
+      "subject": "מדעי המחשב",
+      "exam_date": "2026-03-15T09:00:00Z"
+    },
+    "user_profile": {
+      "neto_study_hours": 5.0,
+      "peak_productivity": "Night",
+      "sleep_time": "02:00",
+      "wake_up_time": "10:00",
+      "hobby_name": "Music Production",
+      "timezone_offset": -120
+    },
+    "all_exam_context": "Course Syllabus: Algorithms & Data Structures (CS201)\n\nModule 1: Asymptotic Analysis\n- Big-O, Big-Theta, Big-Omega notation.\n- Master Theorem for recurrences.\n- Recursion tree method.\n\nModule 2: Sorting & Selection\n- Heapsort, Quicksort (randomized), Mergesort.\n- Lower bounds for sorting.\n- Linear time sorting: Radix, Counting, Bucket sort.\n- Medians and Order Statistics.\n\nModule 3: Data Structures\n- Hash Tables: Chaining, Open addressing, Universal hashing.\n- Binary Search Trees (BST): Insertion, Deletion, Search.\n- Red-Black Trees: Rotations, balancing properties.\n- Dynamic Programming: Longest Common Subsequence, Matrix Chain Multiplication.\n\nModule 4: Graph Algorithms\n- BFS and DFS implementations and applications.\n- Topological sort.\n- Minimum Spanning Trees (MST): Kruskal and Prim.\n- Single-Source Shortest Paths: Dijkstra, Bellman-Ford.\n- All-Pairs Shortest Paths: Floyd-Warshall.\n\nModule 5: Advanced Topics\n- Maximum Flow: Ford-Fulkerson method.\n- P vs NP completeness basics.\n\nRequired Reading: CLRS (Cormen, Leiserson, Rivest, Stein) Chapters 1-16, 22-25.",
+    "total_hours": 20.0,
     "tasks": [
-      { "title": "Calculus Review", "duration": 120 },
-      { "title": "Linear Algebra Practice", "duration": 90 },
-      { "title": "Probability Intro", "duration": 60 }
-    ],
-    "constraints": {
-      "sleep": ["23:00", "07:00"],
-      "gym": ["17:00", "18:30"],
-      "lectures": []
-    }
+      {
+        "id": 1,
+        "title": "ניתוח סיבוכיות: Master Theorem ותרגול רקורסיות",
+        "estimated_hours": 1.5,
+        "focus_score": 9,
+        "dependency_id": null
+      },
+      {
+        "id": 2,
+        "title": "מימוש Heapsort וניהול ערימה (Max-Heap)",
+        "estimated_hours": 2.0,
+        "focus_score": 8,
+        "dependency_id": 1
+      },
+      {
+        "id": 3,
+        "title": "תרגול תכנון דינמי: Longest Common Subsequence",
+        "estimated_hours": 3.0,
+        "focus_score": 10,
+        "dependency_id": null
+      }
+    ]
   },
   {
-    "scenario_id": "SC-002",
-    "description": "Heavy lecture day with late-night study.",
-    "current_time": "2024-03-21T08:00:00Z",
+    "scenario_id": "SC-006",
+    "description": "ULTIMATE REALITY: Intro to CS (Python) - Full 17k Database Extract.",
+    "current_time": "2026-03-06T10:00:00Z",
+    "exam": {
+      "id": 20,
+      "name": "מבוא למדמח",
+      "subject": "בפייתון",
+      "exam_date": "2026-03-08T09:00:00Z"
+    },
+    "user_profile": {
+      "neto_study_hours": 7.0,
+      "peak_productivity": "Morning",
+      "sleep_time": "23:00",
+      "wake_up_time": "08:00",
+      "hobby_name": "Gym",
+      "timezone_offset": -120
+    },
+    "all_exam_context": "1 \n \n  מבוא למדעי המחשב\n6.03.2025 , בחינת מועד ג', סמסטר א', תשפ\"ה\n \n:מרצה\n  רועי פורן\n \n מתרגלים: ניר סגל, פאטימה\nמורה\n, אלון פפיני. \n \n \n \n :משך הבחינה\nשעתיים וחצי.\n \n.חומר עזר: אסור כל חומר עזר\n \n \n :הנחיות\n \n1. \n יש לענות על כל\nהשאלות. \n \n2. \n.השימוש בחומר עזר אסור\n \n3. \n יש להקפיד על\nכתב \nיד \nקריא. \n \n4. \n.יש לכתוב את התשובות בטופס הבחינה\n \nפתרונות שיכתבו בדפי טיוטה לא יבדקו.\n \n5. \n בבחינה10\n \n.עמודים, כולל עמוד זה\n \n \n \n ! בהצלחה\n \n \n \n \n \n \n \n א \nב \n.ג1  \n.ג2  \n \n ציון \n \n \n \n\n2 \n \n חלק\nא - \n ?מה ידפיס הקוד הבא\n \n בסעיפים הבאים יש לרשום במשבצת את הפלט של\nשורות הקוד המופיעות בסעיף.\n \nיש לענות על \n \nלפחות\n 4 \n מתוך5 \n .הסעיפים\n \nבמידה \n ו -\n5 סעיפים נענו\n, תלקחנה בחשבון 4 \n התשובות הטובות ביותר. הציון המקסימלי על חלק זה הוא20\n. \nא. \n \n1 \nA=[1] \n2 \nB=[1] \n3 \nA.append(B) \n4 \nprint(A) \n5 \nA.extend([B]) \n6 \nprint(A) \n \nב. \n \n1 \na = {1, 2, 3} \n2 \nb = {3, 4, 5} \n3 \nprint(a & b) \n4 \nprint(a ^ b) \n \nג. \n \n1 \na = {1: [1], 2: [2]} \n2 \nb = a.copy() \n3 \na[1][0] = [0] \n4 \nprint(b[1]) \n \n \nד . \n \n1 \na = [1, 2, 3, 4] \n2 \nb = a[1:3] \n3 \nb[0] = 8 \n4 \nprint(a) \n \n \nה. \n \n1 \ndef func(x=[]): \n2 \n    x.append(1) \n3 \n    return x \n4 \n    \n5 \nprint(func()) \n6 \nprint(func()) \n  \n5 נק'\n5 נק'\n5 נק'\n5 נק'\n5 נק'\n\n3 \n \nחלק ב\n – מה הקוד אמור לעשות ומה הבאג\n \nבשאלות הבאות מופיעים חלקי קוד בהם יש באג. יש לתאר מה הקוד אמור לעשות כמיטב הבנת\nך\n, ומה הבאג.\n \nא. \n \n1 \ndef reverse_list(lst): \n2 \n    for i in range(len(lst) // 2): \n3 \n        lst[i], lst[len(lst) - i] = lst[len(lst) - i], lst[i] \n4 \n    return lst \n5 \nprint(reverse_list([1, 2, 3, 4, 5])) \n \n \n \n \n \n \nב. \n \n1 \ndef count_occurrences(string, char): \n2 \n    counter = 0 \n3 \n    for i in range(len(string) - 1): \n4 \n        if string[i] == char: \n5 \n            counter += 1 \n6 \n    return counter \n7 \nprint(count_occurrences(\"banana\", \"a\")) \n \n \n \n \n \n \n \n \nג. \n \n1 \ndef bubble_sort(arr): \n2 \n    n = len(arr) \n3 \n    for i in range(n): \n4 \n        for j in range(0, n-i-1): \n5 \n            if arr[j] > arr[j+1]: \n6 \n                arr[j+1] = arr[j] \n7 \n                arr[j] = arr[j+1] \n8 \n    return arr \n9 \nprint(bubble_sort([5, 3, 8, 6, 7, 2])) \n \n \n \n \n \n5 נק'\n5 נק'\n \n5 נק'\n \n\n4 \n \nחלק ג\n – \nשאלות פתוחות \n \n בחלק זה יש לכתוב קוד\nולענות במילים \nלפי הדרישה. \nיש להקפיד על הזחה )indentation\n( \n ברורה ולהשתדל שהסינטקס\n .יהיה מדויק\nאין להשתמש במחלקות או מודולים\n. \nהשימוש בפונקציות ומתודות של פייתון מותר בתנאי שהן אינן עוקפות את \n .המטרה המרכזית של השאלה\nבמידת הצורך\n, \nניתן לכתוב פתרונות בעמודים 8-9\n . יש לציין בגוף המבחן בסמוך לשאלה\n .שהפתרון נמצא בעמודים אלה. בנוסף, יש לציין בעמודים אלה את מספר השאלה הסעיף שעליו הפתרון עונה\n \n שאלה1 \n רצף\nריבועי\n \nהוא רצף של מספרים עוקבים שסכומם הוא \nריבוע של מספר שלם\n.  \n :לדוגמא\n \n1. \n] הרצף1\n ,\n2\n ,\n3[ הוא\n  לא  \nרצף מושלם כי\n 1+2+3=6\n שא\nינו \nריבוע של מספר\n . \n2. \n הרצף\n[2, 3, 4]\n   כן  הוא\nרצף מושלם כי 2+3+4=9\n \n שהוא חזקה של2 . \n3. \n \n ] הרצף4\n ,\n5\n ,\n6\n ,\n7\n ,\n14[ אינו רצף מושלם כי\n \nאמנם \n 4+5+6+7+10=36\n , אך הרצף לא מכיל מספרים עוקבים )חסר\n8 ו -\n9\n .(\n \nא. \nיש לממש פונקציה\n \nשחתימתה \n \nis_square_seq(seq) \n \n אשר מקבלת\nרשימה של מספרים\n num\n \n ומחזירהTrue\n   אם\nהרשימה היא רצף ריבועי ו \n -\nFalse\n \n .אחרת\n \n  \n10\n \n נק'\n\n5 \n \n.ב יש לממש פונקציה\n \nשחתימתה \n \nfind_square_seq(seq) \n \n אשר מקבלת רשימה של מספרים שלמיםseq\n \n ומחזירה את תת\n -\n הרצף הארוך ביותר שהוא רצף ריבועי. אם קיימים מספר\n  תת-\n רצפים ריבועיים באורך מקסימלי, יש להחזיר את הראשון שמופיע ברשימה. אם אין תת\n -\n רצף ריבועי, יש להחזיר\nרשימה ריקה. על הפונקציה לעבוד בסיבוכיות 𝑂𝑂൫𝑛𝑛2𝑓𝑓(𝑛𝑛)൯\n כאשר\n 𝑛𝑛\n הוא אורך הרשימה\n  ו-\n𝑓𝑓(𝑛𝑛)\n \n היא הסיבוכיות של\nהפונקציה מהסעיף הקודם\n. ניתן להשתמש בפונקציה \n  הזו\nגם אם לא ממשתם אותה. \n \n  \n10\n \n נק'\n \n\n6 \n \nג. \nכיצד ניתן לייעל את הפונקציה מהסעיף הקודם? \n  .יש להציע ולממש אלגוריתם עם סיבוכיות זמן נמוכה יותר\n \n  \n10\n \n נק'\n \n\n7 \n \nד . \n ניתן להגדיל את סיבוכיות המקום על מנת להקטן את\nסיבוכיות הזמן. יש לממש פונקציה\n \nM = find_square_seq_pre(num) \n \n המקבלת מספר שלםnum\n ומחזירה רשימה דו-\n מימדיתM\n . על הפונקציה למצוא את תתי הרצפים הארוכים ביותר עבור\nכל רצף של מספרים אשר קטנים מ-\nnum\n , ולאכסן את התוצאות ברשימה הדו\n -\n מימדית לפי הבנתכם. בנוסף, יש\nלממש את \nהפונקציה \n \nfind_square_seq_memo(seq, M) \n \n אשר מקבלת רשימה של מספרים אשר כולם קטנים מ\n -\nnum, ואת הרשימה הדו-\n מימדיתM\n , ומחזירה את הרצף הארוך\nביותר, בסיבוכיות זמן 𝑂𝑂(1)\n . \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n  \n10\n \n נק'\n\n8 \n \n שאלה2 \n נתון לוח עם אותיות בגודל𝑛𝑛× 𝑛𝑛\n ורשימת מילים. עלינו למצוא רצ\n  פים\nשל אותיות בלוח הנות\nנים את \n ה\nמיל \n  ים\nברשימה\n. \n :כללים\n \n1. ניתן לנוע מתא לתא סמוך\n \nבכיוונים למעלה, למטה, ימינה ושמאלה. לא ניתן לנוע באלכסון. \n \n2. \n .אין לעבור באותו תא פעמיים עבור אותה מילה\n \n3. \n אות בתא מסוים יכולה להיות חלק מ\n -\n2 \n .מילים לכל היותר\n \nא. \nיש לממש פונקציה שחתימתה \n \nfind_word(board, word) \n אשר מקבלת רשימה דו מימדית של אותיותboard\n \n המייצגת את הלוח, ומילהword\n . הפונקציה תחזירTrue\n \n אם המילה\nקיימת בלוח לפי הכללים ו-\nFalse\n \n אחרת. יש לממש את האלגוריתם בעזרתbacktracking\n .\n מומלץ לעיין גם בסעיף\nהבא על מנת לתכנן נכון את הפונקציה.\n \n :דוגמא\n \n1 \nboard = [ \n2 \n  ['A', 'B', 'C', 'E'], \n3 \n  ['S', 'F', 'C', 'S'], \n4 \n  ['A', 'D', 'E', 'E'] \n5 \n] \n6 \n \n7 \nfind_word(board, \"ABCCS\") → True \n8 \nfind_word(board, \"SAD\") → True \n9 \nfind_word(board, \"ABCB\") → False \n  \n10\n \n נק'\n \n\n9 \n \n \n  \n\n10 \n \nב. \n יש לממש פונקציה שחתימתה\n \nfind_all_word(board, words) \n \n אשר מקבלת רשימה דו מימדית של אותיותboard\n \n המייצגת את הלוח, ורשימה של מחרוזותwords\n . הפונקציה תחזיר את\nרשימה המילים מתוך words\n \n אשר קיימות בלוח, לפי הכללים. סדר החיפוש של המילים צריך להיות לפי הסדר ברשימה\nwords\n .. ניתן להשתמש בפונקציה מהסעיף הקודם גם אם לא מימשתם אותה\n \n10\n \n נק'\n \n\\n\\n---\\n\\n1 \n \n  מבוא למדעי המחשב\n27.02.2025 , בחינת מועד ב', סמסטר א', תשפ\"ה\n \n:מרצה\n  רועי פורן\n \n מתרגלים: ניר סגל, פאטימה\nמורה\n, אלון פפיני. \n \n \n \n :משך הבחינה\nשעתיים וחצי.\n \n.חומר עזר: אסור כל חומר עזר\n \n \n :הנחיות\n \n1. \n יש לענות על כל\nהשאלות. \n \n2. \n.השימוש בחומר עזר אסור\n \n3. \n יש להקפיד על\nכתב \nיד \nקריא. \n \n4. יש לכתוב את התשובות בטופס הבחינה\n. \nפתרונות שיכתבו בדפי טיוטה לא יבדקו.\n \n5. \n בבחינה8 \n .עמודים, כולל עמוד זה\nעמוד\n  ים9-10\n נותרו ריקים\n \nבכו\n .  ונה\n \n \n ! בהצלחה\n \n \n \n \n \n \n \n א \nב \n.ג1  \n.ג2  \n \n ציון \n \n \n \n\n2 \n \n חלק\nא - \n ?מה ידפיס הקוד הבא\n \n בסעיפים הבאים יש לרשום במשבצת את הפלט של שורות\nהקוד המופיעות בסעיף.\n \nיש לענות על \n \nלפחות\n 4 \n מתוך5 \n .הסעיפים\n \nבמידה \n ו -\n5 סעיפים נע\n,  נו\nתלקחנה בחשבון 4 התשובות הטובו\nת ביותר. הציון \nהמקסימלי על חלק זה הוא 20\n. \nא. \n \n1 \nlist1=[1] \n2 \nlist2=[2] \n3 \nlist1.append(list2) \n4 \nlist1.append(4) \n5 \nlist2.append(3) \n6 \nprint(list1) \n \nב. \n \n1 \na = {1} \n2 \nb = {2} \n3 \nprint(a<b) \n \nג. \n \n1 \na='12' \n2 \ndict = {a:2*a for a in a} \n3 \nprint(dict) \n \nד . \n \n1 \ndef func(a): \n2 \n    print(a) \n3 \n    a=[3,4] \n4 \n \n5 \na=[1,2] \n6 \nfunc(a) \n7 \nprint(a) \n \nה. \n \n8 \na=[2,3] \n9 \nb=[4,5] \n10 for i,(j,k) in enumerate(zip(a,b)): \n11     print(i,j,k)\n  \n5 נק'\n5 נק'\n5 נק'\n5 נק'\n5 נק'\n\n3 \n \nח\nלק ב\n – מה הקוד אמור לעשות ומה הבאג\n \n בשאלות הבאות מופיעים חלקי קוד בהם יש באג. יש לתאר מה הקוד אמור\nלעשות כמיטב הבנת\nך\n, ומה הבאג.\n \nא. \n \n1 \ndef inner_product(a,b): \n2 \n    n = len(a) \n3 \n    return [sum(a[i]*b[i] for i in range(n))] \n4 \ninner_product([1,2],[4,5]) \n \n \n \n \n \n \n \nב. \n \n1 \ndef find_max(A): \n2 \n    max=0 \n3 \n    for i in range(len(A)): \n4 \n        if A[i]>max: \n5 \n            max=A[i] \n6 \n    return max \n7 \nprint(find_max([5,-2,8,3,10])) \n \n \n \n \n \n \n \n \n \nג. \n \n1 \ndef Annoy(n,A,B,C): \n2 \n    if n==1: \n3 \n        print('Move from',A,'to',C) \n4 \n        return \n5 \n    Annoy(n-1,A,B,C) \n6 \n    print('Move from',A,'to',C) \n7 \n    Annoy(n-1,B,C,A) \n8 \nAnnoy(3,1,3,2) \n \n \n \n \n \n \n5 נק'\n5 נק'\n \n5 נק'\n \n\n4 \n \nחלק ג\n – \nשאלות פתוחות \n \n בחלק זה יש לכתוב קוד\nולענות במילים \nלפי הדרישה. \nיש להקפיד על הזחה )indentation\n( \n ברורה ולהשתדל שהסינטקס\n .יהיה מדויק\nאין להשתמש במחלקות או מודולים\n. \nהשימוש בפונקציות ומתודות של פייתון מותר בתנאי שהן אינן עוקפות את \nהמטרה המ\nר\nכזית של השאלה. \nבמידת הצורך\n, \nניתן לכתוב פתרונות \nבעמודים 8-9\n . יש לציין בגוף המבחן בסמוך לשאלה\n .שהפתרון נמצא בעמודים אלה. בנוסף, יש לציין בעמודים אלה את מספר השאלה הסעיף שעליו הפתרון עונה\n \n שאלה1 \n מספר4\n-פריק\n \nהוא מספר המתחלק בדיוק ב \n -\n4 \n .מספרים אחרים\nלדוגמא: \n \n1. \n6 \n הוא\n 4\n -פריק כי הוא מתחלק ב-\n1,2,3,6\n \n2. \n8 \n הוא\n 4\n -פריק כי הוא מתחלק ב-\n1,2,4,8\n \n3. \n10\n \n הוא\n 4\n -\n פריק כי הוא מתחלק ב\n -\n1,2,5,10\n \n4. \n15\n \n הוא\n 4\n -\n פריק כי הוא מתחלק ב\n -\n1,3,5,15\n \n5. \n9 אינו\n 4\n-פריק כי הוא מתחלק רק ב-\n1,3,9\n \n6. \n12\n אינו\n 4\n-פריק כי הוא מתחלק ב\n -\n1,2,3,4,6,12\n \nא. \nיש לממש פונקציה\n \nשחתימתה \n \nis_4_comp(num) \n \nא\nשר מקבלת מספר שלם חיובי num\n \n ומחזירהTrue\n \n אםnum\n \n הוא4\n-פריק ו-\nFalse\n \n.אם הוא לא\n \nעל הפונקציה לעבוד \nבסיבוכיות 𝑂𝑂൫√𝑛𝑛൯\n \n כאשר𝑛𝑛\n \n הוא הערך שלnum\n . פתרונות שלא יעמדו\nבדריש\nת הסיבוכיות\n \nיקבלנו ניקוד חלקי.\n \n  \n10\n \n נק'\n\n5 \n \nב. \nנסמן את סדרת המספרים ה\n -\n4\n -פריקים ב-\n𝑝𝑝𝑘𝑘\n4\n \n כאשר𝑘𝑘= 1,2,3, …\n. \n כלומר\n \n𝑝𝑝1\n4, 𝑝𝑝2\n4, 𝑝𝑝3\n4, … = 6,8,10,14,15,21 … \n כעת נתונה לנו רשימה\nממוינת\n p4n\n אשר\n \nאיבריה הם\n \nהאיברים הראשונים של\n 𝑝𝑝𝑘𝑘\n4\n .יש לממש פונקציה\n \nשחתימתה \n \nis_4_comp_ext(num, p4n) \n \n אשר מקבלת מספר שלם חיוביnum\n \n ואת הרשימהp4n\n .\n כמו בסעיף\n,  א' \nהפונקציה מחזירה True\n \n אםnum\n \n הוא4\n -\n פריק\nו-\nFalse\n \n .אם הוא לא\nלעומת הסעיף הקודם\n, הפונקציה is_4_comp_ext\n \n יכולה\n \nלבצע \nחיפוש בינארי על הרשימה \np4n\n , במידה\n ו -\nnum\n קטן מה\nא\nיבר המקסימלי של p4n\n. אחרת, יש ל\nהשתמש בפו\n נ\nקציה מה\nסעיף הקודם. \n \nיש ל\nממש את הפונק\nציה כפי שמתואר בפסקה הקודמת. \nניתן להשתמש בפונקציה מסעיף א' גם אם לא ממשתם \nאותה. כמו -\nכן, באפשרותכם להגדיר חתימה של פונקציה המבצעת חיפוש בינארי על רשימה, מבלי לכתוב את המימוש שלה\n, אך יש \nלהסביר מה הם הארגומנטים שלה ומה היא מחזירה\n  . \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \nג. \nנתון שגודל הרשימה p4n\n \n הוא𝑚𝑚\n , והערך שלnum\n \n הוא𝑛𝑛\n \n )כמו בסעיף א'(. מה סיבוכיות זמן הריצה של האלגוריתם\nמסעיף ב' במקרה הגרוע? יש לספק תשובה מדויקת ככל שניתן. \n \n \n \n \n \nד . \n)בו\nנוס( עבור אי\nלו ע\nכי  ר num\n \n יהיה עדיף להשתמש בפונקציה מסעיף\n א' \nבמקום חיפוש בינ\nארי?\n  רק תשובה מלאה תת\nקבל. \n \n  \n10\n \n נק'\n \n10\n \n נק'\n \n2 נק'\n\n6 \n \nה. \nכעת נתונה לנו \n ה\nפונקציה magic_p4n(k)\n אשר מקבלת\n \nמספר שלם k\n \n ומחזירה את𝑝𝑝𝑘𝑘\n4\n \n בסיבוכיות זמן𝑂𝑂(1)\n . יש\nלממש פונקציה \nשחתימ\nת  ה \nis_4_comp_magic(num) \n \n אשר מקבלת מספר שלם חיוביnum\n \n ומחזירהTrue\n \n אםnum\n \n הוא4\n -\n פריק ו\n -\nFalse\n \n אם הוא לא. על הפונקציה לעבוד\nבסיבוכיות 𝑂𝑂(log 𝑘𝑘)\n \n כאשר𝑘𝑘\n \n הוא הערך שלnum\n . אין צורך להוכיח את הסיבוכיות של הפתרון. פתרונות שלא יעמדו\nבדרישות הסיבוכיות לא יתקבלו. \n \n  \n10\n \n נק'\n \n\n7 \n \n שאלה2 \nבבעיית ה\n -\nsubset-sum\n, המכונה בקצרה\n S3\n , \n נתונה רשימה של מספרים חיוביים\n \nושלמים\n, ונדרש להכריע האם קיימת תת \nקבוצה של מספרים מהרשימה שסכומם שווה לערך \nחיובי שלם \nנתון כלשהו. \nלמשל, עבור הרשימה \n[1,9,2,9,6]\n \n והערך\n8 \n התשובה היאTrue\n כיוון ש-\n2+6=8\n .\n עבור הערך9 \n התשובה היאTrue\n גם כן, כיוון ש-\n9 בעצמו מופיע ברשימ\nה )פעמיים(\n,  \nובנוסף גם 1+2+6=9\n .\n עבור הערך4\n \n נקבלFalse\n . \nא. \nבעיית ה-\nsubset-sum-count\n \n המכונה גםS3C\n ,\n דומה לבעייתS3\n ,\n רק שבמקום להחזירTrue\n \n אוFalse\n , \n מוחזר\nמספר תתי הקבוצות שסכומם שווה לערך הנתון. \n ב\nדוגמא למעלה, עבור הערך 8 \n נקבל1\n , עבור הערך9 \n נקבל3 )כיוון ש-\n9 \n (מופיע פעמיים\nועבור הערך 4 \n נקבל0\n .יש לממש פונקציה שחתימתה\n \nS3C(A, num) \n \n המקבלת רשימהA \n עם מספרים חיוביים ושלמים, וערך חיובי שלםnum\n ,\n ומחזירה את מספר תתי הקבוצות שלA \n שסכומם\nשווה ל \n -\nnum\n . \n  \n10\n \n נק'\n \n\n8 \n \nב. \nבבעיית \n הpartition-sum-count-\n \n נתונה רשימה של מספרים חיוביים ושלמים ונדרש לחשב בכמה דרכים ניתן\nלחלק את הרשימה לשתי תתי קבוצות כך שסכומן זהה. למשל את הרשימה \n[1,2,4,5]\n \n ניתן לחלק לשתי תתי הקבוצות\n , \nה\nמיוצגות על ידי הרשימות \n[1,5]\n ו-\n[2,4]\n, \n שסכומן הוא6\n ,אבל את הרשימה\n \n[1,2,4,5,2]\n \n לא ניתן לחלק לשתי\nתתי קבוצות כאלה. \nיש לממש פונקציה שחתימתה\n \npartition-sum-count(A) \n \n אשר מקבלת רשימהA ומחזירה\n \nאת מספר הדרכים לחלק את A \n .לשתי רשימות שסכומן שווה\nמומ\nל  ץ \nלהשתמש בפונקציה \nמהסעיף הקודם\n. ניתן לעשות \nזאת \nגם אם לא ממשתם אותה\n . \n \n \n \n \n \n \n \n \n \nג. \nבבעיית ה-\nordered-subset-string-sum\n ,, או בקיצורOS3\n, \n נתונה רשימה של מחרוזות ומחרוזת נתונה ונדרש\nלהכריע האם ניתן לבטא את המחרוזת ע\"י שרשור של מחרוזות מהרשימה\n \nלפי הסדר שהן מופיעות ברשימה\n. למשל \nעבור  הרשימה  \n]'h','el','lo\n['\n  \n  והמחרוזת\n 'hello\n '  ניתן  לעשות  זאת  כיוון  ש\n -\n'h'+'el'+'lo' = \n'hello'\n . את המחרוזת\n'loel'\n \n לא\nניתן לקבל\n \nכיוון\n \nשאמנם \n'lo'+'el'='loel'\n , אבל\n'lo'\n ו-\n'el'\n \n לא\nמופיעות בסדר \nהזה ברשימה\n. \nיש לממש פונקציה שחתימתה \n \nOS3(A,s) \nהמקבל\nת \nרשימה A\n \n ומחרוזתs\n , ומחזירהTrue\n \n אם ניתן לקבל אתs\n ע\"י שרשור מחרוזות מ-\nA\n לפי הסדר, ו-\nFalse\n \n.אחרת\n \n  \n5 נק'\n10\n \n נק'\n \n\n9 \n \n  \n\n10 \n \n \n\\n\\n---\\n\\n1 \n \n  מבוא למדעי המחשב\n05.02.2025 , בחינת מועד א', סמסטר א', תשפ\"ה\n \n:מרצה\n  רועי פורן\n \n .מתרגלים: ניר סגל, פאטימה גרה, אלון פפיני\n \n \n \n :משך הבחינה\nשעתיים וחצי.\n \n.חומר עזר: אסור כל חומר עזר\n \n \n :הנחיות\n \n1. \n יש לענות על כל\nהשאלות. \n \n2. \n.השימוש בחומר עזר אסור\n \n3. \n יש להקפיד על\nכתב \nיד \nקריא. \n \n4. יש לכתוב את התשובות בטופס הבחינה\n  במקום הניתן לכך\n. \nפתרונות שיכתבו בדפי טיוטה \nלא יבדקו.\n \n \n \n \n \n ! בהצלחה\n \n: שם\n:. ת.ז\n \n \n \n \n א \nב \n.ג1  \n.ג2  \n \n ציון \n \n \n\n2 \n \n חלק\nא - \n ?מה ידפיס הקוד הבא\n \n בסעיפים הבאים יש לרשום במשבצת את\nהפלט של שורות הקוד המופיעות בסעיף. \n \nא. \n \n1 \nlist1 = [1, 2, 3] \n2 \nlist2 = list1 \n3 \nlist2.append(4) \n4 \nprint(list1) \n5 \nprint(list2) \n \nב.  \n1 \ndef modify_list(A,B): \n2 \n    global B \n3 \n    A.append(4) \n4 \n    B.append(4) \n5 \n     \n6 \nA = [1, 2, 3] \n7 \nB = [1, 2, 3] \n8 \nmodify_list(numbers) \n9 \nprint(numbers) \n \nג . \n \n \n1 \ndef func(s): \n2 \n    s2 = s \n3 \n    s = s + \"a\" \n4 \n    print(s) \n5 \n    print(s2) \n6 \n    print(s2 is s) \n7 \n \n8 \nfunc(\"b\") \n \n \nד. \nבסעיף זה Node\n \n הואdataclass\n המתאר איבר ברשימה מקושרת\n \n)ראה/י שאלה 2 \n('בחלק ג\n. איברי הרשימה הם: \n \n \n1 \ndef foo(node): \n2 \n    first_pointer = node \n3 \n    second_pointer = node.next \n4 \n \n5 \n    while second_pointer and second_pointer.next: \n6 \n        first_pointer = first_pointer.next \n7 \n        second_pointer = second_pointer.next.next \n8 \n     \n9 \n    print(first_pointer.value) \n10 node = Node(1,Node(2,Node(3,Node(4,Node(5,Node(6)))))) \n11 foo(node) \n5 נק'\n5 נק'\n5 נק'\n5 נק'\n\n3 \n \nחלק ב\n – מה הקוד אמור לעשות ומה הבאג\n \nבשאלות הבאות מופיעים חלקי קוד בהם יש באג. יש לתאר מה הקוד אמור לעשות כמיטב הבנת\nך\n, ומה הבאג. \n \nא.  \n1 \nnumbers = [1, 2, 3, 4, 5] \n2 \nsquared_evens = [x**2 if x % 2 == 0 for x in numbers] \n \n \n \n \n \n \n \n \n \n \nב.  \n1 \nA = range(10) \n2 \nB = range(10) \n3 \ncombined = [a + b for a, b in A, B] \n \n \n \n \n \n \n \n \n \n \nג . \n \n1 \nM = [[1, 2], [4, 5], [7, 8]] \n2 \nM_transpose= [[M[j][i] for i in range(len(M))] \n3 \n                       for j in range(len(M[0]))] \n \n \n \n \n \n \n \n  \n5 נק'\n5 נק'\n5 נק'\n\n4 \n \nחלק ג\n – \nשאלות פתוחות \n \n בחלק זה יש לכתוב קוד\nולענות במילים \nלפי הדרישה. \nיש להקפיד על הזחה )indentation\n( \n ברורה ולהשתדל שהסינטקס יהיה\n .מדויק\nאין להשתמש במחלקות או מודולים\n  . \n \n שאלה1 \n שאלה זו עוסקת\nבוריאציה על בעית מגדלי ה \n  נוי  א\nהנקראית \"מגדלי האנוי בשני צבעים\"\n. בגרסא זו ישנן שתי ערימות של דיסקיות\n, \nאחת בצבע שחור ואחת בצבע לבן, וארבעה מוטות. מטרת המשחק היא להחליף בין מיקומי הערימות. כמו במגדלי ה \nא\nנוי, לא ניתן \nלהניח דיסקית גדולה על דיסקית קטנה, \nגם אם הן בצבעים שונים\n. ניתן להניח דיסקית שחורה על לבנה וההיפך, אם הן \nבאותו גודל\n . \nלא ניתן להעביר שתי דיסקיות בו זמנית\n, גם אם הן בצבעים שונים. \n \n \n \nא. \nיש לממש את הפונקציה \n \nHanoi_n(n, from, to, via) \n \n אשר מעבירהn \n דיסק\nי\nות מהמוט from\n \n למוטto\n \n דרך המוטvia\n ,\n עבור\nבעיית \n \nמגדלי ה\n א\nנוי הרגילה \n. \nהערה: הפונקציה \nhanoi_n\n \n לא מעבירה בהכרח את כל הערימה, אלא רק\nחלק ממנה.\n \n  \n0\n1\n2\n3\n0\n1\n2\n3\n10\n \n נק'\n \n מצב התחלתי \n מצב סופי \n\n5 \n \nב. \nנתון כי מספר הפעולות הנדרש עבור hanoi_n\n \n הוא𝐻𝐻(𝑛𝑛)\n \n כאשר\nפעולה מוגדרת כהעברת דיסקית\n \nממוט למוט. יש \nלממש את הפונקציה\n \nhanoi_BH(n) \n אשר פותרת את בעיית\nמגדלי האנוי בשני צבעים\n \nכפי שמתוארת למעלה\n. יש להציע פתרון שמספר הפעולות בו הוא \nבדיוק 3𝐻𝐻(𝑛𝑛)\n .\n ,שוב\nמדובר על \nמספר הזזות ולא על סיבוכיות\n \nזמן ריצה. ניתן להשתמש בפונקציה Hanoi_n\n \n מסעיף\nא' גם אם לא ממשת אותה. \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \nג. \nבסעיף זה \nיש \nלממש\n \nמחדש\n \nאת אותה פונקציה מסעיף ב', אבל כ\nאשר מספר הפעולות הוא\n 𝐻𝐻(𝑛𝑛) + 2𝐻𝐻(𝑛𝑛−1) + 2\n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \nד . \nמצא\n/י \nביטוי רקורסיבי ל -\n𝐻𝐻(𝑛𝑛)\n. \n  \n10\n \n נק'\n10\n \n נק'\n5 נק'\n\n6 \n \n שאלה2 \nב\nשאלה זו נשתמש ברשימה מקושרת על מנת לייצג ולהשוות בין מספרים שלמים. נתון שצומת ברשימה מיוצגת \nבעזרת הטיפוס \nהבא:\n \n1 \nfrom dataclasses import dataclass \n2 \n@dataclass \n3 \nclass Node: \n4 \n    value: int \n5 \n    next: 'Node' = None \n \nא. \nיש לממש את הפונקציה \n \nnum_to_linked_list(a) \n \n אשר מקבלת מספר חיובי שלםa\n , ומחזירה ראש של רשימה מקושרת. הרשימה תכיל בכל צומת ספרה אחת שלa\n , בסדר\nעולה, מאחדות, לעשרות, מאות וכן הלאה. לדוגמא, עבור המספר 1357\n \n תתקבל הרשימה7->5->3->1\n . \n  \n10\n \n נק'\n \n\n7 \n \nב. \nיש לממש את הפונקציה \n \ncompare_linked_lists(node1, node2) \n אשר מקבלת ראשים של שתי רשימות מקושרותnode1, node2\n  ה\nמתארות \n \nמספרים שלמים חיוביים כפי שמתואר \nבסעיף א', ומחזירה 1 אם המספר ב\n -\nnode1 \n \n ,גדול יותר\n -\n1 אם הוא קטן יותר, ו\n -\n0 \n .אם הם שווים\n \n \n  \n10\n \n נק'\n\n8 \n \nג. \nיש לממש את הפונקציה \n \nbubble_sort_linked_lists(lst) \n המקבלת רשימה שבה כל איבר הוא ראש של רשימה מקושרת המתארת מספר כמו בסעיף א'. על הפונקציה למיין את\nהרשימה בעזרת אלגוריתם bubble sort\n . יש לממש את האלגוריתם במלואו. ניתן להשתמש בפונקציה מסעיף ב' גם אם\nלא ממשתם אותה. \n \n10\n \n נק'\n \n\n",
+    "total_hours": 14.0,
     "tasks": [
-      { "title": "Physics Lab Prep", "duration": 180 },
-      { "title": "Quantum Mechanics Homework", "duration": 120 }
-    ],
-    "constraints": {
-      "sleep": ["00:00", "08:00"],
-      "lectures": [
-        ["09:00", "12:00"],
-        ["13:00", "15:00"]
-      ]
-    }
-  },
-  {
-    "scenario_id": "SC-003",
-    "description": "Multiple short tasks with midday focus gap.",
-    "current_time": "2024-03-22T07:30:00Z",
-    "tasks": [
-      { "title": "History Reading", "duration": 45 },
-      { "title": "Essay Outline", "duration": 60 },
-      { "title": "Source Citation", "duration": 30 },
-      { "title": "Email Professor", "duration": 15 }
-    ],
-    "constraints": {
-      "sleep": ["22:30", "07:00"],
-      "gap": ["12:00", "14:00"]
-    }
-  },
-  {
-    "scenario_id": "SC-004",
-    "description": "Weekend catch-up: all-day availability.",
-    "current_time": "2024-03-23T10:00:00Z",
-    "tasks": [
-      { "title": "Database Project", "duration": 240 },
-      { "title": "ML Model Training", "duration": 120 },
-      { "title": "Research Paper Draft", "duration": 180 }
-    ],
-    "constraints": {
-      "sleep": ["01:00", "09:00"]
-    }
-  },
-  {
-    "scenario_id": "SC-005",
-    "description": "Pre-exam cram: high pressure, limited time.",
-    "current_time": "2024-03-24T14:00:00Z",
-    "tasks": [
-      { "title": "Mock Exam 1", "duration": 180 },
-      { "title": "Formula Review", "duration": 60 },
-      { "title": "Weak Topic Deep Dive", "duration": 120 }
-    ],
-    "constraints": {
-      "sleep": ["23:00", "06:00"],
-      "exam_start": "2024-03-25T09:00:00Z"
-    }
+      {
+        "id": 1,
+        "title": "מעבר על יסודות פייתון: טיפוסים, משתנים והשמות",
+        "estimated_hours": 1.0,
+        "focus_score": 8,
+        "dependency_id": null
+      },
+      {
+        "id": 2,
+        "title": "תרגול העמקה: הבדל בין copy shallow ו-deep copy",
+        "estimated_hours": 1.0,
+        "focus_score": 9,
+        "dependency_id": 1
+      },
+      {
+        "id": 3,
+        "title": "סימולציה מלאה: exam2025aMoedC.pdf (תנאי אמת, ללא עזרים, עם סטופר)",
+        "estimated_hours": 2.5,
+        "focus_score": 10,
+        "dependency_id": null
+      },
+      {
+        "id": 4,
+        "title": "תחקור מלא וכתיבת דגשים: exam2025aMoedC.pdf",
+        "estimated_hours": 1.5,
+        "focus_score": 8,
+        "dependency_id": 3
+      },
+      {
+        "id": 5,
+        "title": "בנייה ידנית: הנדסת רקורסיה (backtracking, divide-and-conquer, memoization)",
+        "estimated_hours": 1.5,
+        "focus_score": 9,
+        "dependency_id": null
+      }
+    ]
   }
 ]

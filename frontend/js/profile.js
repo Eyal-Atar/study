@@ -6,6 +6,7 @@ import { spawnConfetti } from './ui.js?v=AUTO';
 // ─── SVG circle constants ─────────────────────────────────────────────────────
 // r=38, circumference = 2 * PI * 38 ≈ 238.76
 const CIRCLE_CIRCUMFERENCE = 238.76;
+const API = getAPI();
 
 // ─── Badge icon mapping ───────────────────────────────────────────────────────
 const BADGE_ICONS = {
@@ -217,7 +218,6 @@ function renderAchievementsTab(summary) {
 // ─── initGamification ─────────────────────────────────────────────────────────
 
 export async function initGamification() {
-    const API = getAPI();
     try {
         const res = await authFetch(`${API}/gamification/summary`);
         if (!res.ok) return;
@@ -310,7 +310,6 @@ export function showMorningPrompt(tasks) {
     // Wire actions
     const btnPush = modal.querySelector('#btn-morning-push');
     const btnDeleteAll = modal.querySelector('#btn-morning-delete-all');
-    const btnSkip = modal.querySelector('#btn-morning-skip');
     const btnCloseSummary = modal.querySelector('#btn-morning-close-summary');
 
     btnPush.onclick = async () => {
@@ -336,7 +335,7 @@ export function showMorningPrompt(tasks) {
                 if (resMove.ok && dataMove.results) moveResults = dataMove.results;
             }
 
-            // 2. Delete unselected (Skip = Deletion)
+            // 2. Delete unselected (No decide later = handle everything)
             let deleteResults = [];
             if (unselectedIds.length > 0) {
                 const resDel = await authFetch(`${API}/gamification/batch-reschedule`, {
@@ -352,7 +351,7 @@ export function showMorningPrompt(tasks) {
         } catch (e) {
             console.error('Push failed:', e);
             btnPush.disabled = false;
-            btnPush.textContent = 'Push to Today';
+            btnPush.textContent = 'Push to next days';
         }
     };
 
@@ -370,14 +369,12 @@ export function showMorningPrompt(tasks) {
             const data = await res.json();
             if (res.ok && data.results) _showMorningSummary(data.results);
         } catch (e) {
-            console.error('Delete all failed:', e);
+            console.error('Delete failed:', e);
             btnDeleteAll.disabled = false;
-            btnDeleteAll.textContent = 'Delete All';
+            btnDeleteAll.textContent = 'Delete';
         }
     };
 
-    btnSkip.onclick = () => modal.classList.remove('active');
-    
     btnCloseSummary.onclick = () => {
         modal.classList.remove('active');
         // Refresh roadmap to show moved tasks
@@ -489,7 +486,6 @@ export function showDailyCelebration() {
 // ─── registerLoginCheckFlow ──────────────────────────────────────────────────
 
 export function registerLoginCheckFlow() {
-    const API = getAPI();
     authFetch(`${API}/gamification/login-check`, { method: 'POST' })
         .then(r => r.json())
         .then(data => {

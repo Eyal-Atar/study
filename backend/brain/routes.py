@@ -358,12 +358,24 @@ async def approve_and_schedule(body: dict, current_user: dict = Depends(get_curr
 @router.post("/regenerate-schedule")
 def regenerate_schedule(current_user: dict = Depends(get_current_user)):
     """Re-run the Enforcer on existing tasks and return refreshed calendar data."""
+    db = get_db()
+    try:
+        result = internal_regenerate_schedule(current_user["id"], current_user, db)
+        return result
+    finally:
+        db.close()
+
+def internal_regenerate_schedule(user_id: int, current_user: dict, db) -> dict:
+    """Internal logic to re-run the Enforcer on existing tasks. 
+    Does NOT close the DB connection.
+    """
     from server.config import DB_PATH
     from brain.scheduler import generate_multi_exam_schedule
     import traceback
-    print(f"DEBUG: regenerate_schedule for user {current_user['id']} using DB {DB_PATH}")
-    user_id = current_user["id"]
-    db = get_db()
+    import io, sys, threading
+    from collections import Counter
+
+    print(f"DEBUG: internal_regenerate_schedule for user {user_id}")
 
     tasks_rows = db.execute(
         """SELECT t.*, e.name as exam_name FROM tasks t
@@ -375,20 +387,16 @@ def regenerate_schedule(current_user: dict = Depends(get_current_user)):
     all_tasks = [dict(t) for t in tasks_rows]
 
     # DEBUG: Log task distribution by day_date
-    from collections import Counter
     day_counts = Counter(t.get("day_date") for t in all_tasks)
     print(f"DEBUG REGEN: total={len(all_tasks)} tasks by day: {dict(sorted(day_counts.items()))}")
-    print(f"DEBUG REGEN: exam_ids in tasks: {list(set(t.get('exam_id') for t in all_tasks))}")
-    print(f"DEBUG REGEN: user neto_study_hours={current_user.get('neto_study_hours')}, tz_offset={current_user.get('timezone_offset')}")
 
     if not all_tasks:
         schedule_rows = db.execute(
             "SELECT * FROM schedule_blocks WHERE user_id = ? ORDER BY day_date, start_time",
             (user_id,)
         ).fetchall()
-        schedule = [dict(s) for s in schedule_rows]
-        db.close()
-        return {"tasks": [], "schedule": schedule, "message": "All tasks completed!"}
+        db.commit()  # Ensure any pending changes from caller are persisted
+        return {"tasks": [], "schedule": [dict(s) for s in schedule_rows], "message": "All tasks completed!"}
 
     # Load exams for the scheduler
     exams_rows = db.execute(
@@ -399,39 +407,32 @@ def regenerate_schedule(current_user: dict = Depends(get_current_user)):
 
     # Re-run the Enforcer on non-done tasks
     pending_tasks = [t for t in all_tasks if t.get("status") != "done"]
-    print(f"DEBUG: regenerate_schedule re-running Enforcer: {len(pending_tasks)} pending tasks, {len(exam_list)} exams")
-
-    import io, sys, threading
+    
     _scheduler_log = io.StringIO()
     _old_stdout = sys.stdout
-    # Use a lock to make stdout replacement thread-safe
     _stdout_lock = getattr(sys, '_stdout_lock', threading.Lock())
     sys._stdout_lock = _stdout_lock
+    
     with _stdout_lock:
         sys.stdout = _scheduler_log
         try:
             new_schedule = generate_multi_exam_schedule(current_user, exam_list, pending_tasks, start_buffer_hours=0.0)
         finally:
             sys.stdout = _old_stdout
+    
     _scheduler_output = _scheduler_log.getvalue()
-    print(_scheduler_output)  # also print to real stdout
 
     if new_schedule is None:
-        # Exception path — fall back to reading existing blocks
         schedule_rows = db.execute(
             "SELECT * FROM schedule_blocks WHERE user_id = ? ORDER BY day_date, start_time",
             (user_id,)
         ).fetchall()
-        db.close()
+        db.commit()  # Persist caller changes even if scheduler fails
         return {"tasks": all_tasks, "schedule": [dict(s) for s in schedule_rows], "_scheduler_log": _scheduler_output}
 
     # Replace schedule blocks in DB, preserving manually-edited blocks
     try:
-        db.execute("BEGIN TRANSACTION")
-
         # Save manually-edited blocks before wiping the schedule.
-        # These are blocks the user explicitly dragged or edited — they must
-        # survive a schedule regeneration unchanged.
         manually_edited_rows = db.execute(
             """SELECT * FROM schedule_blocks
                WHERE user_id = ? AND is_manually_edited = 1""",
@@ -440,17 +441,13 @@ def regenerate_schedule(current_user: dict = Depends(get_current_user)):
         manually_edited_blocks = [dict(r) for r in manually_edited_rows]
         manually_edited_task_ids = {b["task_id"] for b in manually_edited_blocks if b["task_id"]}
 
-        # Delete all auto-generated blocks; manually-edited ones are preserved via re-insert.
         db.execute("DELETE FROM schedule_blocks WHERE user_id = ?", (user_id,))
 
         now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
-        # Re-insert auto-generated schedule — skip tasks already covered by a
-        # manually-edited block so the user's positioning wins.
         for block in new_schedule:
             db_task_id = block.task_id if block.block_type != "hobby" else None
             if db_task_id and db_task_id in manually_edited_task_ids:
-                # User manually positioned this task's block — honour their edit.
                 continue
             is_notified = 1 if block.start_time < now_iso else 0
             db.execute(
@@ -476,8 +473,10 @@ def regenerate_schedule(current_user: dict = Depends(get_current_user)):
                     is_notified,
                 ),
             )
+            # Sync task day_date with the first block found for it
+            if db_task_id:
+                db.execute("UPDATE tasks SET day_date = ? WHERE id = ?", (block.day_date, db_task_id))
 
-        # Re-insert the manually-edited blocks, restoring the user's positions.
         for b in manually_edited_blocks:
             is_notified = 1 if b["start_time"] < now_iso else 0
             db.execute(
@@ -502,24 +501,17 @@ def regenerate_schedule(current_user: dict = Depends(get_current_user)):
                     b["part_number"],
                     b["total_parts"],
                     is_notified,
-                    1,  # is_manually_edited preserved
+                    1,
                     b["completed"],
                 ),
             )
-        print(f"DEBUG: regenerate_schedule preserved {len(manually_edited_blocks)} manually-edited block(s)")
 
-        db.execute("COMMIT")
+        db.commit()
     except Exception as exc:
-        db.execute("ROLLBACK")
-        print(f"ERROR: regenerate_schedule DB write failed: {exc}")
+        db.rollback()
         traceback.print_exc()
-        db.close()
-        raise HTTPException(status_code=500, detail=f"Schedule regeneration failed: {str(exc)}")
+        raise exc
 
-    # Read the full schedule back from DB — this includes both auto-generated blocks
-    # AND manually-edited blocks that were re-inserted above. Returning new_schedule
-    # directly would omit manually-edited blocks, causing them to disappear from the
-    # frontend even though they exist in the DB.
     final_schedule_rows = db.execute(
         "SELECT * FROM schedule_blocks WHERE user_id = ? ORDER BY day_date, start_time",
         (user_id,)
@@ -530,24 +522,17 @@ def regenerate_schedule(current_user: dict = Depends(get_current_user)):
     for b in schedule_dicts:
         if b.get("block_type") == "study" and b.get("task_id"):
             study_blocks_by_day[b["day_date"]] = study_blocks_by_day.get(b["day_date"], 0) + 1
-    debug_info = {
-        "total_tasks": len(all_tasks),
-        "pending_tasks": len(pending_tasks),
-        "tasks_by_day": dict(sorted(day_counts.items())),
-        "exam_ids": list(set(t.get("exam_id") for t in all_tasks)),
-        "study_blocks_by_day": dict(sorted(study_blocks_by_day.items())),
-        "neto_study_hours": current_user.get("neto_study_hours"),
-        "tz_offset": current_user.get("timezone_offset"),
-        "scheduler_log": _scheduler_output,
-    }
-    print(f"DEBUG: regenerate_schedule complete — {len(all_tasks)} tasks, {len(schedule_dicts)} blocks (incl. manually-edited), study_by_day={study_blocks_by_day}")
-    db.close()
 
     return {
         "tasks": all_tasks,
         "schedule": schedule_dicts,
-        "_debug": debug_info,
+        "_debug": {
+            "total_tasks": len(all_tasks),
+            "study_blocks_by_day": study_blocks_by_day,
+            "scheduler_log": _scheduler_output,
+        },
     }
+
 
 
 @router.post("/regenerate-delta")
@@ -555,18 +540,15 @@ async def regenerate_delta(body: RegenerateDeltaRequest, current_user: dict = De
     """Token-efficient delta schedule regeneration.
 
     Fetches next 14 days of schedule blocks, builds a compressed pipe-delimited
-    snapshot, sends to Claude with a delta-only system prompt, parses the response,
+    snapshot, sends to AI with a delta-only system prompt, parses the response,
     and surgically updates ONLY auto-generated FLX blocks that the AI says moved.
     FIX blocks (exams) and manually-edited blocks (is_manually_edited=1) are never touched.
     """
-    import anthropic
+    import litellm
     import re
     from datetime import datetime, timedelta, timezone
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=400, detail="AI features require an API key")
-
+    model = os.environ.get("LLM_MODEL", "openrouter/openai/gpt-4o-mini")
     user_id = current_user["id"]
     db = get_db()
 
@@ -663,17 +645,18 @@ Reason for regeneration: {body.reason}
 
 Output the delta using the format above. Remember: only output blocks that ACTUALLY need to move."""
 
-    # 4. Call Claude API
-    client = anthropic.Anthropic(api_key=api_key)
+    # 4. Call AI API
     try:
-        message = client.messages.create(
-            model="claude-haiku-4-5-20251001",
+        response = await litellm.acompletion(
+            model=model,
             max_tokens=1000,
-            timeout=15.0,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_message}]
+            temperature=0,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ]
         )
-        response_text = message.content[0].text.strip()
+        response_text = response.choices[0].message.content.strip()
     except Exception as e:
         db.close()
         raise HTTPException(status_code=500, detail=f"AI call failed: {str(e)}")
@@ -791,12 +774,9 @@ def get_schedule(current_user: dict = Depends(get_current_user)):
 
 @router.post("/brain-chat")
 async def brain_chat(body: BrainMessage, current_user: dict = Depends(get_current_user)):
-    import anthropic
+    import litellm
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=400, detail="AI features require an API key")
-
+    model = os.environ.get("LLM_MODEL", "openrouter/openai/gpt-4o-mini")
     user_id = current_user["id"]
     db = get_db()
 
@@ -870,19 +850,18 @@ Return format:
   "tasks": [...]
 }}"""
 
-    client = anthropic.Anthropic(api_key=api_key)
     try:
-        message = client.messages.create(
-            model="claude-haiku-4-5-20251001",
+        response = await litellm.acompletion(
+            model=model,
             max_tokens=8192,
-            timeout=30.0,
-            messages=[{"role": "user", "content": prompt}]
+            temperature=0,
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"}
         )
+        response_text = response.choices[0].message.content.strip()
     except Exception as e:
         db.close()
         raise HTTPException(status_code=500, detail=f"AI call failed: {str(e)}")
-
-    response_text = message.content[0].text.strip()
     if response_text.startswith("```"):
         response_text = response_text.split("\n", 1)[1]
         response_text = response_text.rsplit("```", 1)[0]

@@ -5,7 +5,7 @@ import asyncio
 import json
 import os
 from datetime import datetime, timedelta, timezone
-import anthropic
+import litellm
 import fitz  # PyMuPDF
 
 EXCLUSIVE_ZONE_DAYS = 4
@@ -30,8 +30,7 @@ class ExamBrain:
     def __init__(self, user: dict, exams: list[dict]):
         self.user = user
         self.exams = exams
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        self.client = anthropic.AsyncAnthropic(api_key=api_key) if api_key else None
+        self.model = os.environ.get("LLM_MODEL", "openrouter/openai/gpt-4o-mini")
 
     # ------------------------------------------------------------------
     # Auditor helpers (Plan 02)
@@ -71,7 +70,7 @@ class ExamBrain:
                         )
 
                 # Fallback: use old parsed_context (topics/intensity/objectives)
-                if not file_texts and exam.get("parsed_context"):
+                if not file_texts and exam["parsed_context"]:
                     file_texts.append(
                         f"[LEGACY CONTEXT]\n{exam['parsed_context']}"
                     )
@@ -112,7 +111,7 @@ class ExamBrain:
                 days_until = max(1, (exam_date.date() - today.date()).days)
                 total += days_until * neto_h
             except Exception as e:
-                print(f"ExamBrain._calculate_total_hours: skipping exam {exam.get('id')}: {e}")
+                print(f"ExamBrain._calculate_total_hours: skipping exam {exam['id']}: {e}")
                 total += 10.0  # safe fallback
 
         return round(total, 2)
@@ -215,7 +214,7 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
                         f"[{f['file_type'].upper()}: {f['filename']}]\n{f['extracted_text']}"
                     )
 
-            if not file_texts and exam.get("parsed_context"):
+            if not file_texts and exam["parsed_context"]:
                 file_texts.append(f"[LEGACY CONTEXT]\n{exam['parsed_context']}")
 
             exam_block = exam_header + "\n\n".join(file_texts)
@@ -319,13 +318,17 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
             f"{exam_hours}h budget, prompt {len(prompt)} chars"
         )
 
-        message = await self.client.messages.create(
-            model="claude-haiku-4-5-20251001",
+        # Force Density Instruction added to User Message
+        user_message = f"Generate the Knowledge Audit for Exam {exam['id']} ({exam['name']}). \n\nCRITICAL: You must generate a HIGH-DENSITY list of tasks. For this amount of syllabus material, I expect at least 40-60 granular sub-tasks to be generated to fill the {exam_hours} hour budget."
+
+        response = await litellm.acompletion(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt + "\n\n" + user_message}],
             max_tokens=8192,
-            timeout=60.0,
-            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            response_format={"type": "json_object"}
         )
-        raw_response = message.content[0].text.strip()
+        raw_response = response.choices[0].message.content.strip()
         print(
             f"DEBUG ExamBrain._call_auditor_for_exam: exam {exam['id']} — "
             f"raw response {len(raw_response)} chars"
@@ -394,9 +397,6 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
         re-indexes task_index and dependency_id globally, then returns the
         combined Auditor output for frontend review.
         """
-        if not self.client:
-            raise RuntimeError("ANTHROPIC_API_KEY is not set — cannot run Auditor")
-
         print(f"DEBUG ExamBrain.call_split_brain: launching {len(self.exams)} parallel Auditor calls")
         exam_results = await asyncio.gather(*[
             self._call_auditor_for_exam(exam) for exam in self.exams
@@ -442,29 +442,25 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
     # ------------------------------------------------------------------
 
     def _build_strategist_prompt(self, approved_tasks: list, days_available: int) -> str:
-        """Build the system prompt for the Strategist (API Call 2).
-
-        The Strategist distributes approved tasks across available days,
-        assigns each task a day_index and internal_priority,
-        and generates padding tasks to fill any gaps in the daily quota.
-
-        Args:
-            approved_tasks: List of task dicts (each with title, exam_id,
-                            estimated_hours, focus_score, reasoning, dependency_id).
-            days_available: Number of calendar days until the last exam.
-
-        Returns:
-            A prompt string for Claude Haiku.
-        """
+        """Build the system prompt for the Strategist (API Call 2)."""
         neto_h = float(self.user.get("neto_study_hours", 4.0))
         peak = self.user.get("peak_productivity", "Morning")
-        task_list_json = json.dumps(approved_tasks, ensure_ascii=False, indent=2)
         
-        # Include current local time if available
+        # Minimized task list for the prompt
+        minimized_tasks = []
+        for t in approved_tasks:
+            minimized_tasks.append({
+                "i": t.get("task_index"),
+                "h": t.get("estimated_hours"),
+                "f": t.get("focus_score"),
+                "e": t.get("exam_id"),
+                "d": t.get("dependency_id")
+            })
+        task_list_json = json.dumps(minimized_tasks, ensure_ascii=False)
+        
         local_time_str = self.user.get("current_local_time", "Not provided")
         sleep_time = self.user.get("sleep_time", "23:00")
         
-        # Task 3: Calculate 2-hour buffer
         try:
             now_dt = datetime.strptime(local_time_str, "%H:%M")
             buffer_dt = now_dt + timedelta(hours=2)
@@ -472,11 +468,9 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
         except:
             buffer_time_str = "in 2 hours"
 
-        # Build exam deadlines info using timezone-aware local time
         exams_info = []
         tz_offset = self.user.get("timezone_offset", 0) or 0
-        _now_utc = datetime.now(timezone.utc)
-        _local_now = _now_utc - timedelta(minutes=tz_offset)
+        _local_now = datetime.now(timezone.utc) - timedelta(minutes=tz_offset)
         today = _local_now.replace(hour=0, minute=0, second=0, microsecond=0)
         for e in self.exams:
             try:
@@ -494,7 +488,7 @@ You are a Strategic Schedule Architect.
 
 STUDENT PROFILE:
 - Current Local Time: {local_time_str}
-- Daily net study quota: {neto_h} hours ({int(neto_h * 60)} minutes)
+- Daily net study quota: {neto_h} hours
 - Peak productivity window: {peak}
 - Days available: {days_available} (day_index 0 is TODAY)
 - Sleep time: {sleep_time}
@@ -502,187 +496,109 @@ STUDENT PROFILE:
 EXAM DEADLINES:
 {exams_info_str}
 
-TASKS TO SCHEDULE:
+TASKS TO SCHEDULE (i=index, h=hours, f=focus, e=exam_id, d=dependency):
 {task_list_json}
 
 RULES:
-1. TIME AWARENESS & TODAY'S SCHEDULE (CRITICAL):
-   - It is currently {local_time_str}.
-   - You MUST schedule the very first tasks for TODAY (day_index 0), starting exactly around {buffer_time_str}.
-   - Fill the remaining hours of today until the user's sleep time ({sleep_time}).
-   - Do NOT leave today empty unless it is already past sleep time.
-   - After finishing today, continue scheduling normally for the following days.
-2. STUDY WINDOW: You have {days_available} days to plan.
-   - day_index 0 = today
-   - Each exam has its own day_index deadline. DO NOT schedule tasks for an exam on or after its day_index.
-   - The day_index immediately before an exam is the CRITICAL final study day for that exam.
-   - You MUST spread tasks logically across the window. Do not cram everything into Day 0 if you have 7 days available.
-3. NO STUDY ON OR AFTER EXAM DAY: Heavy study MUST end the day before the specific exam.
-4. Place tasks with focus_score >= 8 in the PEAK productivity window days (prefer earlier in the day when scheduling is determined by the Enforcer).
-5. Respect dependency_id: a task must be assigned to an equal or later day than its dependency.
-6. Interleave exam subjects across days to prevent burnout. Avoid assigning the same exam for more than 2 consecutive days unless it is the only remaining exam.
-7. Assign each task an internal_priority (1-100, where 100 = highest priority).
+1. TIME AWARENESS: It is {local_time_str}. Start TODAY (day_index 0) around {buffer_time_str}.
+2. Fill the daily {neto_h}h quota. day_index 0 = today.
+3. DEADLINES: Study for an exam MUST end at least 1 day BEFORE its deadline.
+4. Focus score >= 8 should be placed in peak windows.
+5. Respect dependencies: a task must be on the same or later day as its dependency.
+6. COMPACT OUTPUT: Return a JSON object with a "schedule" key containing a list of [task_index, day_index, internal_priority].
 
-RETURN ONLY A VALID JSON ARRAY:
-[
-  {{
-    "task_index": <int, 0-based index into input list>,
-    "day_index": <int, 0 = today>,
-    "internal_priority": <int 1-100>
-  }}
-]"""
+RETURN FORMAT:
+{{
+  "schedule": [
+    [task_index, day_index, priority],
+    ...
+  ]
+}}"""
 
     async def call_strategist(self, approved_tasks: list) -> list:
-        """Execute the Strategist API Call 2 of the Split-Brain architecture.
-
-        Takes the user-approved task list from the Auditor review, calls Claude
-        Haiku once to distribute tasks across available days, and returns a list
-        of task objects augmented with day_index and internal_priority.
-
-        Padding tasks (task_index == -1) are constructed as new task dicts and
-        appended to the result.
-
-        Args:
-            approved_tasks: List of task dicts as approved by the user on the
-                            Intermediate Review Page.
-
-        Returns:
-            A list of task dicts, each with day_index and internal_priority added.
-            Padding tasks are included with a is_padding=True flag.
-
-        Raises:
-            RuntimeError: If ANTHROPIC_API_KEY is not set.
-        """
-        if not self.client:
-            raise RuntimeError("ANTHROPIC_API_KEY is not set — cannot run Strategist")
-
-        # Calculate days available until the last exam
+        """Execute the Strategist API Call 2 of the Split-Brain architecture."""
         from datetime import timezone
         tz_offset = self.user.get("timezone_offset", 0) or 0
         local_now = datetime.now(timezone.utc) - timedelta(minutes=tz_offset)
-        today_local = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
         
         days_available = 1
         for exam in self.exams:
             try:
                 ed_str = exam["exam_date"].replace("Z", "+00:00")
-                exam_date = datetime.fromisoformat(ed_str).replace(tzinfo=None)
-                # We want the number of days from today until the day BEFORE the exam.
-                days_until = (exam_date.date() - today_local.date()).days
+                exam_date = datetime.fromisoformat(ed_str)
+                days_until = (exam_date.date() - local_now.date()).days
                 days_available = max(days_available, days_until)
             except Exception:
                 pass
 
-        # Calculate local time for the Strategist
         self.user["current_local_time"] = local_now.strftime("%H:%M")
 
         prompt = self._build_strategist_prompt(approved_tasks, days_available)
-        print(
-            f"DEBUG ExamBrain.call_strategist: calling Claude Haiku — "
-            f"{len(approved_tasks)} approved tasks, {days_available} days available, "
-            f"prompt length {len(prompt)} chars"
-        )
+        print(f"DEBUG ExamBrain.call_strategist: calling {self.model} with {len(approved_tasks)} tasks")
 
-        message = await self.client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=8192,
-            timeout=60.0,
+        response = await litellm.acompletion(
+            model=self.model,
             messages=[{"role": "user", "content": prompt}],
+            max_tokens=8192,
+            temperature=0,
+            response_format={"type": "json_object"}
         )
-        raw_response = message.content[0].text.strip()
+        raw_response = response.choices[0].message.content.strip()
         print(f"DEBUG ExamBrain.call_strategist: raw response length {len(raw_response)} chars")
 
-        # Robust JSON parsing: strip markdown fences, find first [ and last ]
-        response_text = raw_response
-        if response_text.startswith("```"):
-            response_text = response_text.split("\n", 1)[1] if "\n" in response_text else response_text[3:]
-            response_text = response_text.rsplit("```", 1)[0]
-
-        first_bracket = response_text.find("[")
-        last_bracket = response_text.rfind("]")
-        if first_bracket != -1 and last_bracket != -1 and last_bracket > first_bracket:
-            response_text = response_text[first_bracket: last_bracket + 1]
-
         try:
-            assignments = json.loads(response_text)
+            data = json.loads(raw_response)
+            assignments = data.get("schedule", [])
         except json.JSONDecodeError as exc:
             print(f"ExamBrain.call_strategist: JSON parse failed — {exc}\nRaw: {raw_response[:500]}")
             raise RuntimeError("AI returned invalid JSON during strategy planning. Please try again.")
 
-        # Map task_index back to actual task objects and augment with scheduling data
         result = []
         seen_task_indices = set()
         fallback_exam_id = self.exams[0]["id"] if self.exams else None
 
-        # Build a lookup for exam deadlines to clamp day_index
         exam_deadlines = {}
         for e in self.exams:
             try:
                 ed_str = e["exam_date"].replace("Z", "+00:00")
-                exam_date = datetime.fromisoformat(ed_str).replace(tzinfo=None)
-                exam_deadlines[e["id"]] = (exam_date.date() - today_local.date()).days
+                exam_date = datetime.fromisoformat(ed_str)
+                exam_deadlines[e["id"]] = (exam_date.date() - local_now.date()).days
             except:
                 continue
 
         for item in assignments:
-            task_index = item.get("task_index")
+            if not isinstance(item, list) or len(item) < 3:
+                continue
             
-            # Default day_index to 0
-            day_index = 0
+            task_index, day_index, internal_priority = item[0], item[1], item[2]
+            
             try:
-                day_index = int(item.get("day_index", 0))
+                day_index = int(day_index)
+                task_index = int(task_index)
+                internal_priority = int(internal_priority)
             except (ValueError, TypeError):
-                day_index = 0
-            
-            # Basic range clamp
+                continue
+
             day_index = max(0, min(day_index, days_available - 1))
             
-            # Clamp based on specific exam deadline
             current_exam_id = None
             if task_index == -1:
-                current_exam_id = item.get("exam_id") or fallback_exam_id
-            elif isinstance(task_index, int) and 0 <= task_index < len(approved_tasks):
+                # Padding handling (if any returned in this format)
+                continue 
+            elif 0 <= task_index < len(approved_tasks):
                 current_exam_id = approved_tasks[task_index].get("exam_id")
             
             if current_exam_id in exam_deadlines:
-                # Study must end AT LEAST 1 day before the exam
                 day_index = min(day_index, exam_deadlines[current_exam_id] - 1)
                 day_index = max(0, day_index)
 
-            internal_priority = max(1, min(100, int(item.get("internal_priority", 50))))
-
-            if task_index == -1 or task_index is None:
-                # Padding task or hallucinated index
-                if task_index == -1:
-                    exam_id = item.get("exam_id") or fallback_exam_id
-                    if not item.get("title"):
-                        continue
-                    padding_task = {
-                        "exam_id": exam_id,
-                        "title": item["title"],
-                        "topic": "Padding",
-                        "estimated_hours": max(0.5, min(3.0, float(item.get("estimated_hours", 1.0)))),
-                        "focus_score": 3,
-                        "reasoning": "Padding task to fill daily study quota.",
-                        "dependency_id": None,
-                        "sort_order": 9999,
-                        "day_index": day_index,
-                        "internal_priority": internal_priority,
-                        "is_padding": True,
-                    }
-                    result.append(padding_task)
-                continue
-
-            try:
-                task_index = int(task_index)
-            except (ValueError, TypeError):
-                continue
+            internal_priority = max(1, min(100, internal_priority))
 
             if task_index < 0 or task_index >= len(approved_tasks):
                 continue
 
             if task_index in seen_task_indices:
-                continue  # skip duplicate assignments
+                continue
             seen_task_indices.add(task_index)
 
             task = dict(approved_tasks[task_index])
@@ -691,7 +607,6 @@ RETURN ONLY A VALID JSON ARRAY:
             task["is_padding"] = False
             result.append(task)
 
-        # Any tasks not assigned by the Strategist get appended with day_index=0 and low priority
         for idx, task in enumerate(approved_tasks):
             if idx not in seen_task_indices:
                 fallback_task = dict(task)
@@ -700,17 +615,16 @@ RETURN ONLY A VALID JSON ARRAY:
                 fallback_task["is_padding"] = False
                 result.append(fallback_task)
 
-        print(
-            f"DEBUG ExamBrain.call_strategist: produced {len(result)} scheduled tasks "
-            f"(including {sum(1 for t in result if t.get('is_padding'))} padding tasks)"
-        )
+        print(f"DEBUG ExamBrain.call_strategist: produced {len(result)} scheduled tasks")
         return result
 
     def _generate_basic_calendar(self, exam_contexts: list[dict]) -> list[dict]:
         """Generate a day-by-day calendar from exam dates (no AI needed)."""
         tasks = []
-        now = datetime.now()
-        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        now = datetime.now(timezone.utc)
+        tz_offset = self.user.get("timezone_offset", 0) or 0
+        local_now = now - timedelta(minutes=tz_offset)
+        today = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
 
         sorted_exams = sorted(exam_contexts, key=lambda ec: ec["exam_date"])
         exam_date_map = {}

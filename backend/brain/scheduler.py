@@ -155,13 +155,11 @@ def generate_multi_exam_schedule(
             current_time = window.start_local
 
             if is_day_before_exam:
-                day_dt = datetime.strptime(day_str, "%Y-%m-%d")
                 if sleep_h < wake_h_default:
-                    sleep_dt = (day_dt + timedelta(days=1)).replace(hour=sleep_h, minute=sleep_m)
+                    sleep_dt = (day_local + timedelta(days=1)).replace(hour=sleep_h, minute=sleep_m)
                 else:
-                    sleep_dt = day_dt.replace(hour=sleep_h, minute=sleep_m)
+                    sleep_dt = day_local.replace(hour=sleep_h, minute=sleep_m)
 
-                sleep_dt = sleep_dt.replace(tzinfo=timezone.utc)
                 cutoff_dt = sleep_dt - timedelta(hours=5)
                 
                 if window.start_local >= cutoff_dt:
@@ -355,11 +353,10 @@ def generate_multi_exam_schedule(
                 day_date=day_str, block_type="study"
             ))
 
-        day_dt = datetime.strptime(day_str, "%Y-%m-%d")
         if sleep_h < wake_h_default:
-            h_end_local = (day_dt + timedelta(days=1)).replace(hour=sleep_h, minute=sleep_m)
+            h_end_local = (day_local + timedelta(days=1)).replace(hour=sleep_h, minute=sleep_m)
         else:
-            h_end_local = day_dt.replace(hour=sleep_h, minute=sleep_m)
+            h_end_local = day_local.replace(hour=sleep_h, minute=sleep_m)
         h_start_local = h_end_local - timedelta(hours=1)
         # Guard against hobby overlapping with last study/padding block
         if last_block_end and h_start_local < last_block_end:

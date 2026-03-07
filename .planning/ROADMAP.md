@@ -22,6 +22,7 @@
 - [x] **Phase 14: Mobile-First UX** - Bottom tab navigation, touch drag with haptic feedback (completed 2026-02-23)
 - [x] **Phase 15: Progress & Deferral** - Interactive progress tracking and task deferral (completed 2026-02-25)
 - [x] **Phase 16: PWA Push Notifications, iOS Onboarding, and Smart Triggers** - VAPID push and 2-minute study reminders (completed 2026-02-25)
+- [ ] **Phase 20: LLM Optimization & Evaluation Dashboard** - Isolated Streamlit-based evaluation arena for model comparison and side-by-side verification.
 
 ---
 
@@ -60,8 +61,9 @@
 | 17. Split-Brain Core Scheduler | 4/4 | Complete | 2026-03-01 |
 | 19. Gamification (XP, Streaks, Morning Prompt) | 5/5 | Complete   | 2026-03-03 |
 | 19.1. Fix Gamification Bugs (XP, Badges, Celebration) | 4/4 | Complete | 2026-03-03 |
+| 20. LLM Optimization & Evaluation Dashboard | 3/3 | Complete | 2026-03-06 |
 
-**Overall:** 100% complete (13/13 phases)
+**Overall:** 14/14 phases complete
 
 ### Phase 17: Split-Brain Core Scheduler
 
@@ -111,3 +113,13 @@ Plans:
 - [x] 19.1-02-PLAN.md — Fix badge grid rendering: align frontend badge keys with backend (completed 2026-03-03)
 - [x] 19.1-03-PLAN.md — Implement first-time achievement badge unlocks (backend) (completed 2026-03-03)
 - [x] 19.1-04-PLAN.md — Add celebration screen for daily completion (frontend) (completed 2026-03-03)
+
+### Phase 20: LLM Optimization & Evaluation Dashboard
+**Goal:** Establish an isolated testing environment to evaluate and migrate from the current model to a faster, more cost-effective LLM. Focuses on side-by-side visual comparison, testing the two-step agent chain (Strategist -> Scheduler), and enabling a zero-friction model swap in production.
+**Depends on:** Phase 17
+**Status:** In Progress
+
+Plans:
+- [x] 20-01-PLAN.md — Evaluation Infrastructure & Dashboard (completed 2026-03-06)
+- [x] 20-02-PLAN.md — Interactive Playground & Batch Testing (completed 2026-03-06)
+- [x] 20-03-PLAN.md — Automated Judge & Feedback Loop (completed 2026-03-06)
