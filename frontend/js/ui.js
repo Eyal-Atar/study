@@ -98,16 +98,16 @@ export class LoadingAnimator {
         this.interval = null;
         this.currentStep = 0;
         this.steps = [
-            { p: 15, t: "Consulting the study brain..." },
-            { p: 35, t: "Analyzing syllabus materials..." },
-            { p: 55, t: "Balancing your workload..." },
-            { p: 75, t: "Recalculating study blocks..." },
-            { p: 92, t: "Finalizing your roadmap..." }
+            { p: 25, t: "Extracting syllabus constraints..." },
+            { p: 50, t: "Mapping past exams to timeline..." },
+            { p: 75, t: "Calculating optimal time blocks..." },
+            { p: 92, t: "Finalizing your roadmap." }
         ];
     }
 
     start() {
         this.reset();
+        // Cycle through all steps in ~5 seconds total
         this.interval = setInterval(() => {
             if (this.currentStep < this.steps.length) {
                 const step = this.steps[this.currentStep];
@@ -117,7 +117,7 @@ export class LoadingAnimator {
                 // Stay at 92% until finished
                 clearInterval(this.interval);
             }
-        }, 3500); // Change step every 3.5 seconds for long AI generation
+        }, 1200); 
 
         // Set initial step
         const step = this.steps[0];
@@ -148,7 +148,11 @@ export class LoadingAnimator {
     }
 }
 
+let _profileTabsInitialized = false;
 export function initProfileTabs() {
+    if (_profileTabsInitialized) return;
+    _profileTabsInitialized = true;
+
     const tabBtns = document.querySelectorAll('.profile-tab-btn');
     const tabPanes = document.querySelectorAll('.profile-tab-pane');
 
@@ -157,11 +161,11 @@ export function initProfileTabs() {
             e.preventDefault();
             // Reset all buttons
             tabBtns.forEach(b => {
-                b.classList.remove('bg-dark-700', 'text-white', 'shadow-sm');
+                b.classList.remove('bg-dark-700', 'text-white', 'shadow-sm', 'rounded-lg');
                 b.classList.add('text-white/50');
             });
             // Set active button
-            btn.classList.add('bg-dark-700', 'text-white', 'shadow-sm');
+            btn.classList.add('bg-dark-700', 'text-white', 'shadow-sm', 'rounded-lg');
             btn.classList.remove('text-white/50');
 
             // Hide all panes
@@ -172,9 +176,15 @@ export function initProfileTabs() {
             const targetPane = document.getElementById(targetId);
             if (targetPane) targetPane.classList.remove('hidden');
 
+            // Hide Save button on tabs where it's not needed
+            const saveWrapper = document.getElementById('save-settings-wrapper');
+            if (saveWrapper) {
+                saveWrapper.classList.toggle('hidden', targetId === 'tab-account' || targetId === 'tab-achievements');
+            }
+
             // Load gamification data when Achievements tab is opened
             if (targetId === 'tab-achievements') {
-                import('./profile.js?v=AUTO').then(m => m.initGamification()).catch(() => {});
+                import('./profile.js?v=59').then(m => m.initGamification()).catch(() => {});
             }
         });
     });
@@ -184,17 +194,20 @@ export function showTaskEditModal(block, onSave, onDelete) {
     const modal = document.getElementById('modal-edit-task');
     if (!modal) return;
 
-    document.getElementById('edit-task-title').value = block.task_title || '';
+    const titleEl = document.getElementById('edit-task-title');
+    if (titleEl) titleEl.value = block.task_title || '';
 
     // Use robust local-time parser (handles both ISO "T" and SQLite " " separators; no "Z" suffix)
     const parseLocal = (s) => new Date(s ? s.replace(' ', 'T').replace('Z', '') : '');
     const start = parseLocal(block.start_time);
     const end = parseLocal(block.end_time);
     const startStr = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
-    document.getElementById('edit-task-start').value = startStr;
+    const startEl = document.getElementById('edit-task-start');
+    if (startEl) startEl.value = startStr;
 
     const durationMin = Math.round(Math.abs(end - start) / 60000);
-    document.getElementById('edit-task-duration').value = durationMin;
+    const durationEl = document.getElementById('edit-task-duration');
+    if (durationEl) durationEl.value = durationMin;
     
     const deferBtn = document.getElementById('btn-defer-task-modal');
     if (deferBtn) {
@@ -231,7 +244,11 @@ export function showTaskEditModal(block, onSave, onDelete) {
     };
 }
 
+let _mobileTabBarInitialized = false;
 export function initMobileTabBar() {
+    if (_mobileTabBarInitialized) return;
+    _mobileTabBarInitialized = true;
+
     const tabBar = document.getElementById('mobile-tab-bar');
     if (!tabBar) return;
 
@@ -276,13 +293,16 @@ export function initMobileTabBar() {
             const isActive = btn.dataset.tab === tab;
             btn.classList.toggle('text-accent-400', isActive);
             btn.classList.toggle('text-white/40', !isActive);
+            // Update ARIA for accessibility
+            if (btn.hasAttribute('aria-selected')) {
+                btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            }
         });
 
         // Special handling for Profile tab: ensure sub-tabs are initialized and fields populated
         if (tab === 'profile') {
             if (typeof window._populateSettingsFields === 'function') window._populateSettingsFields();
-            if (typeof window._refreshNotifDebug === 'function') window._refreshNotifDebug();
-            import('./profile.js?v=AUTO').then(m => m.initGamification()).catch(() => {});
+            import('./profile.js?v=59').then(m => m.initGamification()).catch(() => {});
         }
     }
 
@@ -372,40 +392,3 @@ export function showIosOnboarding() {
 }
 window.showIosOnboarding = showIosOnboarding;
 
-/**
- * Opens and populates the AI Debug Console with data from the store.
- */
-import { getLatestAiDebug, getCurrentTasks, getCurrentSchedule } from './store.js?v=AUTO';
-
-export function showAiDebug() {
-    const debug = getLatestAiDebug();
-    const tasks = getCurrentTasks() || [];
-    const schedule = getCurrentSchedule() || [];
-
-    const promptEl = document.getElementById('debug-prompt');
-    const responseEl = document.getElementById('debug-response');
-    const statsEl = document.getElementById('debug-roadmap-stats');
-
-    if (promptEl) promptEl.textContent = debug.prompt || 'No recent prompt captured.';
-    if (responseEl) responseEl.textContent = debug.response || 'No recent response captured.';
-    
-    if (statsEl) {
-        statsEl.innerHTML = `
-            <div class="bg-dark-900/40 p-3 rounded-xl border border-white/5">
-                <div class="text-[10px] text-white/30 uppercase font-bold mb-1">AI Tasks</div>
-                <div class="text-xl font-bold text-white">${tasks.length}</div>
-            </div>
-            <div class="bg-dark-900/40 p-3 rounded-xl border border-white/5">
-                <div class="text-[10px] text-white/30 uppercase font-bold mb-1">Time Blocks</div>
-                <div class="text-xl font-bold text-white">${schedule.length}</div>
-            </div>
-            <div class="bg-dark-900/40 p-3 rounded-xl border border-white/5">
-                <div class="text-[10px] text-white/30 uppercase font-bold mb-1">Split Parts</div>
-                <div class="text-xl font-bold text-white">${schedule.filter(b => b.is_split).length}</div>
-            </div>
-        `;
-    }
-
-    showModal('modal-ai-debug', true);
-}
-window.showAiDebug = showAiDebug;

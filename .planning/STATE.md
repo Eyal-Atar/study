@@ -7,10 +7,10 @@ See: .planning/PROJECT.md
 ## Position
 
 **Milestone:** v1.0 milestone
-**Current phase:** Phase 20 — LLM Optimization & Evaluation Dashboard
-**Current plan:** 03 of 03 complete
-**Status:** Complete — Isolated Streamlit-based evaluation arena for model comparison and side-by-side verification.
-**Last session:** 2026-03-03T11:20:00Z
+**Current phase:** Phase 21 — User Onboarding & Exam Generation Loop
+**Current plan:** 00 of 03 complete
+**Status:** Not started — Minimalist multi-step onboarding, material-based milestones, and unified generation flow.
+**Last session:** 2026-03-14T17:00:00Z
 
 ## Session Log
 
@@ -29,6 +29,8 @@ See: .planning/PROJECT.md
 - 2026-03-06: Phase 20 Plan 02 complete — Interactive Playground & Batch Testing.
 - 2026-03-06: Phase 20 Plan 03 complete — Automated Judge & Feedback Loop. Phase 20 COMPLETE.
 - 2026-03-06: Fixed morning routine "push to today" and deletion persistence. Refactored internal_regenerate_schedule for better transaction management.
+- 2026-03-07: Phase 21 added — User Onboarding & Exam Generation Loop.
+- 2026-03-14: FIXED iOS bottom tab bar safe-area gap — tab bar now flex child with 100dvh dashboard, body no longer position:fixed. Debug session closed.
 
 ## Decisions
 

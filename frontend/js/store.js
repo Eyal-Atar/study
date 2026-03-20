@@ -11,27 +11,35 @@ const store = {
     brainChatHistory: [],
     regenTriggered: false,
     regenTriggerLabel: '',
-    latestAiDebug: { prompt: '', response: '' }
 };
 
 export const getAPI = () => store.API;
 
-export const getLatestAiDebug = () => store.latestAiDebug;
-export const setLatestAiDebug = (debug) => { store.latestAiDebug = debug; };
-
 // Token management removed - using HttpOnly cookies instead
 
 export const getCurrentUser = () => store.currentUser;
-export const setCurrentUser = (user) => { store.currentUser = user; };
+export const setCurrentUser = (user) => { 
+    store.currentUser = user; 
+    window.dispatchEvent(new CustomEvent('sf:user-changed', { detail: user }));
+};
 
 export const getCurrentExams = () => store.currentExams;
-export const setCurrentExams = (exams) => { store.currentExams = exams; };
+export const setCurrentExams = (exams) => { 
+    store.currentExams = exams; 
+    window.dispatchEvent(new CustomEvent('sf:exams-changed', { detail: exams }));
+};
 
 export const getCurrentTasks = () => store.currentTasks;
-export const setCurrentTasks = (tasks) => { store.currentTasks = tasks; };
+export const setCurrentTasks = (tasks) => { 
+    store.currentTasks = tasks; 
+    window.dispatchEvent(new CustomEvent('sf:tasks-changed', { detail: tasks }));
+};
 
 export const getCurrentSchedule = () => store.currentSchedule;
-export const setCurrentSchedule = (schedule) => { store.currentSchedule = schedule; };
+export const setCurrentSchedule = (schedule) => { 
+    store.currentSchedule = schedule; 
+    window.dispatchEvent(new CustomEvent('sf:schedule-changed', { detail: schedule }));
+};
 
 export const getPendingExamId = () => store.pendingExamId;
 export const setPendingExamId = (id) => { store.pendingExamId = id; };
@@ -64,6 +72,18 @@ export function authFetch(url, opts = {}) {
     // Include credentials to send cookies with requests
     opts.credentials = 'include';
     opts.headers = { ...(opts.headers || {}) };
+
+    // CSRF Protection: Read csrf_token from cookie and send as header
+    const cookies = document.cookie.split(';').reduce((acc, c) => {
+        const [k, ...rest] = c.trim().split('=');
+        acc[k] = decodeURIComponent(rest.join('='));
+        return acc;
+    }, {});
+    
+    if (cookies['csrf_token']) {
+        opts.headers['X-CSRF-Token'] = cookies['csrf_token'];
+    }
+
     return fetch(url, opts);
 }
 

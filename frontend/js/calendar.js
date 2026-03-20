@@ -1,6 +1,6 @@
-import { getCurrentExams, getCurrentTasks, setCurrentTasks, getAPI, authFetch, getCurrentSchedule, setCurrentSchedule, getCurrentUser, getTodayStr } from './store.js?v=AUTO';
-import { examColorClass, showTaskEditModal, showConfirmModal, examHex } from './ui.js?v=AUTO';
-import { initInteractions } from './interactions.js?v=AUTO';
+import { getCurrentExams, getCurrentTasks, setCurrentTasks, getAPI, authFetch, getCurrentSchedule, setCurrentSchedule, getCurrentUser, getTodayStr } from './store.js?v=59';
+import { examColorClass, showTaskEditModal, showConfirmModal, examHex } from './ui.js?v=59';
+import { initInteractions } from './interactions.js?v=59';
 
 let currentDayIndex = 0;
 let dayKeys = [];
@@ -10,7 +10,7 @@ let _timeIndicatorInterval = null;
 export function renderExamLegend() {
     const el = document.getElementById('exam-legend');
     if (!el) return;
-    const currentExams = getCurrentExams();
+    const currentExams = getCurrentExams() || [];
     if (currentExams.length === 0) {
         el.innerHTML = '<p class="text-white/30 text-sm">Add exams to see legend</p>';
         return;
@@ -31,10 +31,17 @@ let _touchStartX = 0;
 let _touchStartY = 0;
 
 function getGridParams() {
-    return {
-        startHour: 0,
-        hourHeight: window.innerWidth < 768 ? 70 : 160
-    };
+    const w = window.innerWidth;
+    let hourHeight;
+    if (w < 768) {
+        // Landscape on mobile: use shorter hours to fit more content
+        hourHeight = (window.innerHeight < 500) ? 50 : 70;
+    } else if (w < 1024) {
+        hourHeight = 110; // Tablet — smooth transition
+    } else {
+        hourHeight = 160;
+    }
+    return { startHour: 0, hourHeight };
 }
 
 /**
@@ -172,7 +179,7 @@ function renderDayPicker(container, tasks, blocksByDay) {
 
     const navHtml = `
         <div class="flex items-center justify-between mb-3 md:mb-6 bg-dark-800/40 p-2 md:p-3 rounded-2xl border border-white/5">
-            <button id="btn-prev-day" class="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl bg-dark-700 hover:bg-accent-500/20 text-white/60 hover:text-accent-400 transition-all ${currentDayIndex === 0 ? 'opacity-20 cursor-not-allowed' : ''}" ${currentDayIndex === 0 ? 'disabled' : ''}>
+            <button id="btn-prev-day" aria-label="Previous day" class="w-11 h-11 md:w-10 md:h-10 flex items-center justify-center rounded-xl bg-dark-700 hover:bg-accent-500/20 text-white/60 hover:text-accent-400 transition-all ${currentDayIndex === 0 ? 'opacity-20 cursor-not-allowed' : ''}" ${currentDayIndex === 0 ? 'disabled' : ''}>
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </button>
             <div class="text-center">
@@ -182,7 +189,7 @@ function renderDayPicker(container, tasks, blocksByDay) {
                 </div>
                 <div class="text-[11px] text-white/30 uppercase tracking-widest">${monthName} ${dayNum}</div>
             </div>
-            <button id="btn-next-day" class="w-10 h-10 flex items-center justify-center rounded-xl bg-dark-700 hover:bg-accent-500/20 text-white/60 hover:text-accent-400 transition-all ${currentDayIndex === dayKeys.length - 1 ? 'opacity-20 cursor-not-allowed' : ''}" ${currentDayIndex === dayKeys.length - 1 ? 'disabled' : ''}>
+            <button id="btn-next-day" aria-label="Next day" class="w-11 h-11 md:w-10 md:h-10 flex items-center justify-center rounded-xl bg-dark-700 hover:bg-accent-500/20 text-white/60 hover:text-accent-400 transition-all ${currentDayIndex === dayKeys.length - 1 ? 'opacity-20 cursor-not-allowed' : ''}" ${currentDayIndex === dayKeys.length - 1 ? 'disabled' : ''}>
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </button>
         </div>
@@ -203,7 +210,7 @@ function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = fal
             .filter(b => b.block_type !== 'break')
             .sort((a,b) => a.start_time.localeCompare(b.start_time));
             
-        const currentExams = getCurrentExams();
+        const currentExams = getCurrentExams() || [];
         const examIdx = {};
         currentExams.forEach((e, i) => { examIdx[e.id] = i; });
 
@@ -261,7 +268,7 @@ function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = fal
                 borderColor = eIdx !== -1 ? examHex(eIdx) : '#6B47F5';
             }
 
-            const timeRangeStr = visualHeight >= 50 ? `${startTimeStr} – ${endTimeStr}` : startTimeStr;
+            const timeRangeStr = `${startTimeStr} – ${endTimeStr}`;
 
             let displayTitle = (block.part_number && block.total_parts && block.total_parts > 1)
                 ? `${block.task_title} (Part ${block.part_number}/${block.total_parts})`
@@ -284,9 +291,9 @@ function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = fal
                     <div class="swipe-content h-full" style="padding: ${visualHeight < 36 ? '2px 6px' : '6px 8px'};">
                         <div class="flex items-start gap-1.5 h-full">
                             <button data-task-id="${block.task_id}" data-block-id="${block.id}"
-                                    class="task-checkbox flex-shrink-0 w-5 h-5 mt-0.5 rounded-md border-2 flex items-center justify-center transition-all ${isDone ? 'checked border-mint-500' : 'border-white/20 hover:border-accent-400'}"
-                                    style="${isDone ? 'background-color:#10B981;border-color:#10B981;' : ''}">
-                                ${isDone ? '<svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+                                    class="task-checkbox flex-shrink-0 mt-0.5 flex items-center justify-center transition-all"
+                                    style="width:16px;min-width:16px;height:16px;min-height:16px;border-radius:50%;border:2px solid ${isDone ? '#10B981' : 'rgba(255,255,255,0.25)'};background:${isDone ? '#10B981' : 'transparent'};box-sizing:border-box;">
+                                ${isDone ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>' : ''}
                             </button>
 
                             <div class="flex-1 min-w-0 flex flex-col justify-start h-full overflow-hidden">
@@ -364,7 +371,7 @@ async function refreshScheduleOnly(container) {
     const safeContainer = container || document.getElementById('roadmap-container');
     const API = getAPI();
     try {
-        const res = await authFetch(`${API}/schedule`);
+        const res = await authFetch(`${API}/brain/schedule`);
         if (!res.ok) return;
         const newSchedule = await res.json();
         setCurrentSchedule(newSchedule);
@@ -526,7 +533,7 @@ async function handleSaveBlock(blockId, updates, container) {
                 const pad = n => String(n).padStart(2,'0');
                 const sh = pad(startDate.getHours()), sm = pad(startDate.getMinutes());
                 const eh = pad(endDate.getHours()), em = pad(endDate.getMinutes());
-                timeEl.textContent = newVisualHeight >= 50 ? `${sh}:${sm} – ${eh}:${em}` : `${sh}:${sm}`;
+                timeEl.textContent = `${sh}:${sm} – ${eh}:${em}`;
             }
             blockEl.classList.add('block-repositioning');
             blockEl.style.top = `${newVisualTop}px`;
@@ -628,6 +635,9 @@ function setupGridListeners(container) {
         }
 
         const prevBtn = e.target.closest('#btn-prev-day');
+        const nextBtn = e.target.closest('#btn-next-day');
+        console.log(`[NAV] click: prevBtn=${!!prevBtn}, nextBtn=${!!nextBtn}, currentDayIndex=${currentDayIndex}, dayKeys.length=${dayKeys.length}, target=${e.target.tagName}`);
+
         if (prevBtn && currentDayIndex > 0) {
             currentDayIndex--;
             localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]);
@@ -635,7 +645,6 @@ function setupGridListeners(container) {
             return;
         }
 
-        const nextBtn = e.target.closest('#btn-next-day');
         if (nextBtn && currentDayIndex < dayKeys.length - 1) {
             currentDayIndex++;
             localStorage.setItem('sf_selected_day', dayKeys[currentDayIndex]);
@@ -724,7 +733,7 @@ export function renderFocus(tasks) {
     if (!displayTasks.length) {
         html = `<p class="text-white/30 text-sm">No tasks for ${_focusMode === 'today' ? 'today' : 'now'}</p>`;
     } else {
-        const currentExams = getCurrentExams();
+        const currentExams = getCurrentExams() || [];
         const examIdx = {};
         currentExams.forEach((e, i) => { examIdx[e.id] = i; });
         let lastDate = null;

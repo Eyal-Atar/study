@@ -2,8 +2,29 @@
 
 import hashlib
 import secrets
-from fastapi import HTTPException, Request
+import hmac
+from fastapi import HTTPException, Request, Response
 from server.database import get_db
+from server.config import SESSION_SECRET_KEY
+
+def get_csrf_token(request: Request) -> str:
+    """Return the CSRF token from cookies, or generate a new one if missing."""
+    token = request.cookies.get("csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+    return token
+
+def verify_csrf_token(request: Request):
+    """Dependency: Verify X-CSRF-Token header against csrf_token cookie."""
+    # Skip for safe methods
+    if request.method in ("GET", "HEAD", "OPTIONS", "TRACE"):
+        return
+        
+    cookie_token = request.cookies.get("csrf_token")
+    header_token = request.headers.get("X-CSRF-Token")
+    
+    if not cookie_token or not header_token or not hmac.compare_digest(cookie_token, header_token):
+        raise HTTPException(status_code=403, detail="CSRF token validation failed")
 
 
 def hash_password(password: str) -> str:
@@ -31,10 +52,12 @@ def get_current_user(request: Request):
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     db = get_db()
-    user = db.execute(
-        "SELECT * FROM users WHERE auth_token = ?", (session_token,)
-    ).fetchone()
-    db.close()
+    try:
+        user = db.execute(
+            "SELECT * FROM users WHERE auth_token = ?", (session_token,)
+        ).fetchone()
+    finally:
+        db.close()
 
     if not user:
         raise HTTPException(status_code=401, detail="Invalid or expired token")

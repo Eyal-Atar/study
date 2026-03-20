@@ -3,10 +3,15 @@
  * Handles Apple-style Drag & Drop, Resizing, and Mobile Touch interactions.
  */
 
-import { authFetch, getAPI } from './store.js?v=AUTO';
+import { authFetch, getAPI } from './store.js?v=59';
 
 // HOUR_HEIGHT must match calendar.js render scale (responsive)
-function getHourHeight() { return window.innerWidth < 768 ? 70 : 160; }
+function getHourHeight() {
+    const w = window.innerWidth;
+    if (w < 768) return (window.innerHeight < 500) ? 50 : 70;
+    if (w < 1024) return 110;
+    return 160;
+}
 const SNAP_MINUTES = 1;
 function getSnapPixels() { return (SNAP_MINUTES / 60) * getHourHeight(); }
 
@@ -22,7 +27,7 @@ function getSnapPixels() { return (SNAP_MINUTES / 60) * getHourHeight(); }
 // browser only has to wait for JS on moves that may become a drag, not every
 // scroll on the page.
 
-const LONG_PRESS_MS = 600;
+const LONG_PRESS_MS = 400;
 const DRAG_TOLERANCE_PX = 8; // px of movement allowed before drag is cancelled
 let touchDragState = null; // { el, blockId, container, startX, startY, currentY, timer, edgeRAF, dragActive, offsetY, lastScrollY }
 
@@ -99,37 +104,29 @@ function onTouchStart(e) {
 
 function activateTouchDrag() {
     if (!touchDragState) return;
-    const { el } = touchDragState;
+    const { el, container } = touchDragState;
     touchDragState.dragActive = true;
 
     if (navigator.vibrate) navigator.vibrate(40);
 
-    // Clear any stale transform (e.g. from a prior swipe gesture).
     el.style.transform = '';
     el.setAttribute('data-y', '0');
 
-    // Recalculate offsetY using the block's CURRENT viewport position.
-    // During the 600ms long-press window the container may have scrolled, so
-    // the touchstart offsetY is stale.
     const blockRect = el.getBoundingClientRect();
     touchDragState.offsetY = touchDragState.currentY - blockRect.top;
 
-    // Remove any in-progress repositioning animation.
     el.classList.remove('block-repositioning');
 
-    // Stop iOS momentum scroll and lock body scroll.
-    const container = touchDragState.container;
-    container.scrollTop = container.scrollTop; // stops -webkit-overflow-scrolling momentum
+    // Robust scroll locking for iOS/Android
     document.body.style.overflow = 'hidden';
+    container.style.overflowY = 'hidden'; // Prevents momentum scroll
     container.style.touchAction = 'none';
 
-    // Switch from long-press animation to active drag visual.
     el.classList.remove('long-pressing');
     el.style.transition = 'none';
     el.classList.add('dragging');
     el.style.opacity = '0.92';
 
-    // Position block immediately under the finger.
     positionDragBlock();
 
     touchDragState.edgeRAF = requestAnimationFrame(edgeScroll);
@@ -181,8 +178,8 @@ function positionDragBlock() {
 function edgeScroll() {
     if (!touchDragState?.dragActive) return;
     const { container } = touchDragState;
-    const MARGIN_TOP = 160;  // px from top edge that triggers scroll-up
-    const MARGIN_BOT = 120;  // px from bottom edge that triggers scroll-down
+    const MARGIN_TOP = 100;  // px from top edge that triggers scroll-up
+    const MARGIN_BOT = 80;   // px from bottom edge that triggers scroll-down
     const SPEED = 10;  // px per frame
 
     const y = touchDragState.currentY;
@@ -452,6 +449,11 @@ export function initInteractions() {
 }
 
 function resolveCollisions(blocks, movedBlockId) {
+    const container = document.querySelector('.grid-day-container');
+    const startHour = parseInt(container?.dataset.startHour || 0);
+    const gridEndPixel = (24 - startHour) * getHourHeight();
+    const GAP = 8;
+
     blocks.sort((a, b) => {
         if (a.top !== b.top) return a.top - b.top;
         if (a.id === movedBlockId) return -1;
@@ -459,8 +461,7 @@ function resolveCollisions(blocks, movedBlockId) {
         return 0;
     });
 
-    const GAP = 8;
-
+    // Initial pass: ensure no overlaps by pushing downward
     for (let i = 0; i < blocks.length; i++) {
         if (i === 0) continue;
         const prev = blocks[i - 1];
@@ -469,6 +470,27 @@ function resolveCollisions(blocks, movedBlockId) {
             curr.top = prev.top + prev.height + GAP;
         }
     }
+
+    // Secondary pass: if the last block pushed beyond the grid boundary, push everything back up
+    const last = blocks[blocks.length - 1];
+    if (last && (last.top + last.height) > gridEndPixel) {
+        let shift = (last.top + last.height) - gridEndPixel;
+        // Push up while maintaining GAPs
+        for (let i = blocks.length - 1; i >= 0; i--) {
+            blocks[i].top = Math.max(0, blocks[i].top - shift);
+            // After shifting current block up, check if it now overlaps with the one ABOVE it
+            if (i > 0) {
+                const prev = blocks[i - 1];
+                const curr = blocks[i];
+                if (prev.top + prev.height + GAP > curr.top) {
+                    shift = (prev.top + prev.height + GAP) - curr.top;
+                } else {
+                    shift = 0; // No more shifting needed for blocks above
+                }
+            }
+        }
+    }
+
     return blocks;
 }
 
@@ -486,69 +508,73 @@ function updateLiveTimeLabel(target, currentTop) {
     timeLabel.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+let saveQueue = Promise.resolve();
+
 async function saveSequence(blocks, container) {
-    const API = getAPI();
-    const dayDate = container.getAttribute('data-day-date');
-    const startHour = parseInt(container.getAttribute('data-start-hour') || 0);
-    
-    const updates = blocks.filter(b => b.blockId).map(b => {
-        const hh = getHourHeight();
-        const startMin = Math.round((b.top / hh) * 60) + (startHour * 60);
-        const durationMin = Math.round((b.height / hh) * 60);
+    // Add this save operation to the queue to ensure sequential processing
+    saveQueue = saveQueue.then(async () => {
+        const API = getAPI();
+        const dayDate = container.getAttribute('data-day-date');
+        const startHour = parseInt(container.getAttribute('data-start-hour') || 0);
         
-        const startH = Math.floor(startMin / 60);
-        const startM = startMin % 60;
-        
-        const localStartDate = new Date(dayDate + 'T' + String(startH).padStart(2, '0') + ':' + String(startM).padStart(2, '0') + ':00');
-        const localEndDate = new Date(localStartDate.getTime() + durationMin * 60000);
-        
-        const toLocalISO = (date) => new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().slice(0, 19);
+        const updates = blocks.filter(b => b.blockId).map(b => {
+            const hh = getHourHeight();
+            const startMin = Math.round((b.top / hh) * 60) + (startHour * 60);
+            const durationMin = Math.round((b.height / hh) * 60);
+            
+            const startH = Math.floor(startMin / 60);
+            const startM = startMin % 60;
+            
+            const localStartDate = new Date(dayDate + 'T' + String(startH).padStart(2, '0') + ':' + String(startM).padStart(2, '0') + ':00');
+            const localEndDate = new Date(localStartDate.getTime() + durationMin * 60000);
+            
+            const toLocalISO = (date) => new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().slice(0, 19);
 
-        return {
-            blockId: b.blockId,
-            start_time: toLocalISO(localStartDate),
-            end_time: toLocalISO(localEndDate),
-            is_delayed: b.isDelayed
-        };
-    });
-
-    if (updates.length === 0) return;
-
-    try {
-        const responses = await Promise.all(updates.map(u =>
-            authFetch(`${API}/tasks/block/${u.blockId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    start_time: u.start_time,
-                    end_time: u.end_time,
-                    is_delayed: u.is_delayed
-                })
-            })
-        ));
-
-        let anyFailed = false;
-        responses.forEach((res, i) => {
-            const u = updates[i];
-            if (!res.ok) {
-                console.error(`[saveSequence] PATCH block ${u.blockId} failed: HTTP ${res.status}`);
-                anyFailed = true;
-            } else {
-                console.log(`[saveSequence] PATCH block ${u.blockId} OK (${res.status})`);
-            }
+            return {
+                blockId: b.blockId,
+                start_time: toLocalISO(localStartDate),
+                end_time: toLocalISO(localEndDate),
+                is_delayed: b.isDelayed
+            };
         });
 
-        if (anyFailed) {
-            // Revert: re-fetch schedule from server to restore correct positions
-            console.warn('[saveSequence] Some blocks failed to save — reverting to server state');
+        if (updates.length === 0) return;
+
+        try {
+            const responses = await Promise.all(updates.map(u =>
+                authFetch(`${API}/tasks/block/${u.blockId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        start_time: u.start_time,
+                        end_time: u.end_time,
+                        is_delayed: u.is_delayed
+                    })
+                })
+            ));
+
+            let anyFailed = false;
+            responses.forEach((res, i) => {
+                const u = updates[i];
+                if (!res.ok) {
+                    console.error(`[saveSequence] PATCH block ${u.blockId} failed: HTTP ${res.status}`);
+                    anyFailed = true;
+                }
+            });
+
+            if (anyFailed) {
+                console.warn('[saveSequence] Some blocks failed to save — reverting to server state');
+                window.dispatchEvent(new CustomEvent('sf:blocks-save-failed'));
+            } else {
+                window.dispatchEvent(new CustomEvent('sf:blocks-saved', {
+                    detail: { dayDate, updates }
+                }));
+            }
+        } catch (e) {
+            console.error("Failed to save sequence:", e);
             window.dispatchEvent(new CustomEvent('sf:blocks-save-failed'));
-        } else {
-            window.dispatchEvent(new CustomEvent('sf:blocks-saved', {
-                detail: { dayDate, updates }
-            }));
         }
-    } catch (e) {
-        console.error("Failed to save sequence:", e);
-        window.dispatchEvent(new CustomEvent('sf:blocks-save-failed'));
-    }
+    });
+    
+    return saveQueue;
 }

@@ -2,18 +2,18 @@
  * Handles: App Shell caching, offline fallback, push notifications
  */
 
-const CACHE_NAME = 'studyflow-shell-v46';
+const CACHE_NAME = 'studyflow-shell-v62';
 
 const APP_SHELL = [
-  '/css/styles.css?v=AUTO',
-  '/js/app.js?v=AUTO',
-  '/js/auth.js?v=AUTO',
-  '/js/brain.js?v=AUTO',
-  '/js/calendar.js?v=AUTO',
-  '/js/interactions.js?v=AUTO',
-  '/js/store.js?v=AUTO',
-  '/js/tasks.js?v=AUTO',
-  '/js/ui.js?v=AUTO',
+  '/css/styles.css?v=62',
+  '/js/app.js?v=62',
+  '/js/auth.js?v=62',
+  '/js/brain.js?v=62',
+  '/js/calendar.js?v=62',
+  '/js/interactions.js?v=62',
+  '/js/store.js?v=62',
+  '/js/tasks.js?v=62',
+  '/js/ui.js?v=62',
   '/manifest.json'
 ];
 
@@ -84,21 +84,16 @@ self.addEventListener('fetch', event => {
   }
 
   // API calls: network-first, cache fallback, then offline response
-  // NOTE: brain_router has no prefix — routes are /schedule, /auditor-draft, etc.
-  //       The old /brain prefix matched nothing. Enumerate actual route prefixes instead.
   if (
     url.pathname.startsWith('/auth') ||
     url.pathname.startsWith('/tasks') ||
     url.pathname.startsWith('/exams') ||
     url.pathname.startsWith('/users') ||
-    url.pathname.startsWith('/schedule') ||
-    url.pathname.startsWith('/auditor-draft') ||
-    url.pathname.startsWith('/approve-and-schedule') ||
-    url.pathname.startsWith('/regenerate') ||
-    url.pathname.startsWith('/generate-roadmap') ||
-    url.pathname.startsWith('/brain-chat') ||
+    url.pathname.startsWith('/brain') ||
     url.pathname.startsWith('/push') ||
-    url.pathname.startsWith('/notifications')
+    url.pathname.startsWith('/notifications') ||
+    url.pathname.startsWith('/gamification') ||
+    url.pathname.startsWith('/debug')
   ) {
     event.respondWith(
       fetch(request).catch(() => {

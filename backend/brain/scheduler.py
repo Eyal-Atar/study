@@ -129,7 +129,10 @@ def generate_multi_exam_schedule(
         last_task_was_simulation = False
         last_block_end = None
 
-        current_day_date = datetime.strptime(day_str, "%Y-%m-%d").date()
+        # Reconstruct day_local for this scheduling day (the loop variable from
+        # the all_windows construction above is stale by now).
+        day_local = today_local + timedelta(days=(datetime.strptime(day_str, "%Y-%m-%d").date() - today_local.date()).days)
+        current_day_date = day_local.date()
 
         if current_day_date in exam_dates_only:
             continue
@@ -195,15 +198,36 @@ def generate_multi_exam_schedule(
 
                 candidates = [t for t in (overdue_tasks + assigned_to_today) if t["id"] not in skipped_this_day]
 
+                # If no overdue/today tasks, pull forward future tasks whose exam
+                # hasn't happened yet.  This fills empty gap days (e.g. between
+                # two exams) instead of leaving them blank.
+                if not candidates:
+                    future_tasks = [
+                        t for t in tasks
+                        if t.get("day_date") and t.get("day_date") > day_str
+                        and remaining_task_hours.get(t["id"], 0) > 0.01
+                        and _is_task_valid(t)
+                        and t["id"] not in skipped_this_day
+                    ]
+                    # Sort by day_date (earliest first) so closer deadlines fill first
+                    future_tasks.sort(key=lambda t: t.get("day_date", ""))
+                    candidates = future_tasks
+
                 if not candidates:
                     window_remaining_min = 0
                     continue
 
+                def _safe_focus(t):
+                    try:
+                        return int(t.get("focus_score", 5))
+                    except (ValueError, TypeError):
+                        return 5
+
                 if window_is_peak:
-                    high_focus = [t for t in candidates if int(t.get("focus_score", 5)) >= 8]
+                    high_focus = [t for t in candidates if _safe_focus(t) >= 8]
                     task = high_focus[0] if high_focus else candidates[0]
                 else:
-                    low_focus = [t for t in candidates if int(t.get("focus_score", 5)) < 8]
+                    low_focus = [t for t in candidates if _safe_focus(t) < 8]
                     task = low_focus[0] if low_focus else candidates[0]
 
                 tid = task["id"]
@@ -333,15 +357,15 @@ def generate_multi_exam_schedule(
                     last_block_end = pad_end
                     pad_start = pad_end + timedelta(minutes=TASK_BUFFER_MIN)
 
+        # End of day sequence: Motivation -> Hobby
+        mot_start = None
+        mot_end = None
         if is_day_before_exam:
-            # Use last_block_end if available, otherwise current_time or cutoff fallback
-            if last_block_end:
-                mot_start = last_block_end + timedelta(minutes=TASK_BUFFER_MIN)
-            else:
-                mot_start = current_time
+            # Use last_block_end if available, otherwise current_time or today_start_buffer
+            mot_start = (last_block_end + timedelta(minutes=TASK_BUFFER_MIN)) if last_block_end else current_time
             
             # Final safety check against cutoff
-            if mot_start > cutoff_dt - timedelta(minutes=30):
+            if cutoff_dt and mot_start > cutoff_dt - timedelta(minutes=30):
                 mot_start = cutoff_dt - timedelta(minutes=30)
             
             mot_end = mot_start + timedelta(minutes=30)
@@ -353,15 +377,20 @@ def generate_multi_exam_schedule(
                 day_date=day_str, block_type="study"
             ))
 
+        # Hobby placement: 1 hour before sleep, but MUST be after Motivation or last study block
         if sleep_h < wake_h_default:
             h_end_local = (day_local + timedelta(days=1)).replace(hour=sleep_h, minute=sleep_m)
         else:
             h_end_local = day_local.replace(hour=sleep_h, minute=sleep_m)
+        
         h_start_local = h_end_local - timedelta(hours=1)
-        # Guard against hobby overlapping with last study/padding block
-        if last_block_end and h_start_local < last_block_end:
-            h_start_local = last_block_end + timedelta(minutes=TASK_BUFFER_MIN)
-            h_end_local = max(h_end_local, h_start_local + timedelta(minutes=30))
+        
+        # Guard against hobby overlapping with Motivation or last study block
+        limit_start = mot_end if mot_end else last_block_end
+        if limit_start and h_start_local < limit_start + timedelta(minutes=TASK_BUFFER_MIN):
+            h_start_local = limit_start + timedelta(minutes=TASK_BUFFER_MIN)
+            h_end_local = h_start_local + timedelta(hours=1)
+
         schedule.append(ScheduleBlock(
             task_id=None, exam_id=None, exam_name="Relax",
             task_title=hobby_name, subject="Hobby",
@@ -370,6 +399,15 @@ def generate_multi_exam_schedule(
             day_date=day_str, block_type="hobby"
         ))
 
+    # Resolve split tasks (ensure parts are correctly labeled and avoid duplication)
+    final_schedule = []
+    
+    # First, add all blocks that were NOT split
+    for block in schedule:
+        if block.task_id not in task_splits:
+            final_schedule.append(block)
+            
+    # Then, add all parts of split tasks
     for tid, blocks in task_splits.items():
         total_parts = len(blocks)
         for i, block in enumerate(blocks):
@@ -377,10 +415,10 @@ def generate_multi_exam_schedule(
                 block.is_split = 1
                 block.part_number = i + 1
                 block.total_parts = total_parts
-            schedule.append(block)
+            final_schedule.append(block)
 
-    schedule.sort(key=lambda b: (b.day_date, b.start_time))
-    return schedule
+    final_schedule.sort(key=lambda b: (b.day_date, b.start_time))
+    return final_schedule
 
 def _get_windows_for_day(user: dict, day_local: datetime, min_block_min: int = 45) -> list[WiredWindow]:
     try:
@@ -391,13 +429,69 @@ def _get_windows_for_day(user: dict, day_local: datetime, min_block_min: int = 4
         sleep_h, sleep_m = map(int, user.get("sleep_time", "23:00").split(":"))
     except (ValueError, TypeError):
         sleep_h, sleep_m = 23, 0
-    start_time = day_local.replace(hour=wake_h, minute=wake_m) + timedelta(hours=1)
+        
+    start_time_natural = day_local.replace(hour=wake_h, minute=wake_m) + timedelta(hours=1)
     if sleep_h < wake_h:
-        end_time = (day_local + timedelta(days=1)).replace(hour=sleep_h, minute=sleep_m)
+        end_time_natural = (day_local + timedelta(days=1)).replace(hour=sleep_h, minute=sleep_m)
     else:
-        end_time = day_local.replace(hour=sleep_h, minute=sleep_m)
-    if start_time >= end_time: return []
-    windows = [(start_time, end_time)]
+        end_time_natural = day_local.replace(hour=sleep_h, minute=sleep_m)
+    
+    if start_time_natural >= end_time_natural: return []
+
+    # Intersection with study_hours_preference
+    try:
+        pref_str = user.get("study_hours_preference", '["morning", "afternoon"]')
+        preferences = [p.lower() for p in json.loads(pref_str)]
+    except:
+        preferences = ["morning", "afternoon"]
+    
+    if not preferences:
+        preferences = ["morning", "afternoon", "night"]
+
+    PREF_DEFINITIONS = {
+        "morning": (8, 14),
+        "afternoon": (14, 20),
+        "night": (20, 2), # wraps to next day
+    }
+
+    preference_windows = []
+    for pref in preferences:
+        if pref not in PREF_DEFINITIONS: continue
+        ph_start, ph_end = PREF_DEFINITIONS[pref]
+        
+        p_start = day_local.replace(hour=ph_start, minute=0)
+        if ph_end < ph_start:
+            p_end = (day_local + timedelta(days=1)).replace(hour=ph_end, minute=0)
+        else:
+            p_end = day_local.replace(hour=ph_end, minute=0)
+            
+        # Intersect [p_start, p_end] with [start_time_natural, end_time_natural]
+        intersect_start = max(p_start, start_time_natural)
+        intersect_end = min(p_end, end_time_natural)
+        
+        if intersect_start < intersect_end:
+            preference_windows.append((intersect_start, intersect_end))
+
+    if not preference_windows:
+        # Fallback if preferences don't overlap with natural day at all
+        windows = [(start_time_natural, end_time_natural)]
+    else:
+        # Merge overlapping preference windows and sort them
+        preference_windows.sort()
+        merged = []
+        if preference_windows:
+            curr_s, curr_e = preference_windows[0]
+            for i in range(1, len(preference_windows)):
+                next_s, next_e = preference_windows[i]
+                if next_s <= curr_e:
+                    curr_e = max(curr_e, next_e)
+                else:
+                    merged.append((curr_s, curr_e))
+                    curr_s, curr_e = next_s, next_e
+            merged.append((curr_s, curr_e))
+        windows = merged
+
+    # Subtract fixed breaks
     try:
         fixed_breaks = json.loads(user.get("fixed_breaks", "[]"))
     except:
@@ -408,16 +502,18 @@ def _get_windows_for_day(user: dict, day_local: datetime, min_block_min: int = 4
             try:
                 b_start = day_local.replace(hour=int(brk["start"].split(":")[0]), minute=int(brk["start"].split(":")[1]))
                 b_end = day_local.replace(hour=int(brk["end"].split(":")[0]), minute=int(brk["end"].split(":")[1]))
-                # Handle breaks crossing midnight (e.g. 23:00-01:00)
                 if b_end <= b_start:
                     b_end = b_end + timedelta(days=1)
                 windows = _subtract_range(windows, b_start, b_end)
             except: continue
+    
+    # Subtract hobby (last 1 hour before sleep)
     hobby_name = user.get("hobby_name")
     if hobby_name:
-        h_end = end_time
+        h_end = end_time_natural
         h_start = h_end - timedelta(hours=1)
         windows = _subtract_range(windows, h_start, h_end)
+        
     res = [WiredWindow(s, e) for s, e in windows if (e - s).total_seconds() >= min_block_min * 60]
     return res
 

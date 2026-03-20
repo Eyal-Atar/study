@@ -4,10 +4,11 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from server.database import get_db
-from auth.utils import get_current_user
+from auth.utils import get_current_user, verify_csrf_token
 from tasks.schemas import TaskResponse, BlockUpdate
+from gamification.utils import revoke_user_xp, xp_for_block
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_csrf_token)])
 
 
 @router.get("/tasks", response_model=List[TaskResponse])
@@ -56,9 +57,9 @@ def update_block(block_id: int, body: BlockUpdate, current_user: dict = Depends(
     if body.is_delayed is not None:
         updates.append("is_delayed = ?")
         params.append(1 if body.is_delayed else 0)
-    if body.completed is not None:
-        updates.append("completed = ?")
-        params.append(1 if body.completed else 0)
+    # NOTE: completed is intentionally NOT handled here.
+    # Use the dedicated /done and /undone endpoints which properly sync
+    # task status and trigger XP award/revoke.
 
     # Mark as manually edited if the user changed time or title
     if body.start_time is not None or body.end_time is not None or body.task_title is not None:
@@ -99,32 +100,47 @@ def update_block(block_id: int, body: BlockUpdate, current_user: dict = Depends(
 @router.delete("/tasks/block/{block_id}")
 def delete_block(block_id: int, current_user: dict = Depends(get_current_user)):
     """Delete an individual schedule block and handle task status."""
+    user_id = current_user["id"]
+    tz_offset = current_user.get("timezone_offset", 0) or 0
     db = get_db()
-    
+
     # 1. Fetch block to know what we are deleting
     block = db.execute("SELECT * FROM schedule_blocks WHERE id = ? AND user_id = ?",
-                       (block_id, current_user["id"])).fetchone()
+                       (block_id, user_id)).fetchone()
     if not block:
         db.close()
         raise HTTPException(status_code=404, detail="Block not found")
 
-    # 2. Delete the block
-    db.execute("DELETE FROM schedule_blocks WHERE id = ? AND user_id = ?", 
-               (block_id, current_user["id"]))
-    
-    # 3. If it was a 'study' block, delete the associated task and ALL its other blocks
+    # 2. Revoke XP for any awarded blocks before deletion
+    blocks_to_check = [block]
     if block["block_type"] == "study" and block["task_id"]:
-        # Delete the task itself
+        # Also check sibling blocks (split parts) that will be deleted
+        siblings = db.execute(
+            "SELECT * FROM schedule_blocks WHERE task_id = ? AND user_id = ? AND id != ?",
+            (block["task_id"], user_id, block_id)
+        ).fetchall()
+        blocks_to_check.extend(siblings)
+
+    for b in blocks_to_check:
+        if b["xp_awarded"]:
+            xp_to_revoke = xp_for_block(db, dict(b), user_id)
+            revoke_user_xp(db, user_id, xp_to_revoke, tz_offset)
+
+    # 3. Delete the block
+    db.execute("DELETE FROM schedule_blocks WHERE id = ? AND user_id = ?",
+               (block_id, user_id))
+
+    # 4. If it was a 'study' block, delete the associated task and ALL its other blocks
+    if block["block_type"] == "study" and block["task_id"]:
         db.execute(
             "DELETE FROM tasks WHERE id = ? AND user_id = ?",
-            (block["task_id"], current_user["id"])
+            (block["task_id"], user_id)
         )
-        # Delete any other blocks for this task (like split parts)
         db.execute(
             "DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ?",
-            (block["task_id"], current_user["id"])
+            (block["task_id"], user_id)
         )
-        
+
     db.commit()
     db.close()
     return {"message": "Task and all associated blocks deleted successfully"}
@@ -133,16 +149,20 @@ def delete_block(block_id: int, current_user: dict = Depends(get_current_user)):
 @router.patch("/tasks/block/{block_id}/done")
 def mark_block_done(block_id: int, current_user: dict = Depends(get_current_user)):
     db = get_db()
+    row = db.execute(
+        "SELECT id, task_id FROM schedule_blocks WHERE id = ? AND user_id = ?",
+        (block_id, current_user["id"])
+    ).fetchone()
+    if not row:
+        db.close()
+        raise HTTPException(status_code=404, detail="Block not found")
+
     db.execute(
         "UPDATE schedule_blocks SET completed = 1 WHERE id = ? AND user_id = ?",
         (block_id, current_user["id"])
     )
     # Sync task status: when all blocks for this task are done, mark task done (exam progress bars)
-    row = db.execute(
-        "SELECT task_id FROM schedule_blocks WHERE id = ? AND user_id = ?",
-        (block_id, current_user["id"])
-    ).fetchone()
-    if row and row["task_id"]:
+    if row["task_id"]:
         agg = db.execute(
             "SELECT COUNT(*) AS cnt, SUM(completed) AS sum_done FROM schedule_blocks WHERE task_id = ? AND user_id = ?",
             (row["task_id"], current_user["id"])
@@ -160,16 +180,20 @@ def mark_block_done(block_id: int, current_user: dict = Depends(get_current_user
 @router.patch("/tasks/block/{block_id}/undone")
 def mark_block_undone(block_id: int, current_user: dict = Depends(get_current_user)):
     db = get_db()
+    row = db.execute(
+        "SELECT id, task_id FROM schedule_blocks WHERE id = ? AND user_id = ?",
+        (block_id, current_user["id"])
+    ).fetchone()
+    if not row:
+        db.close()
+        raise HTTPException(status_code=404, detail="Block not found")
+
     db.execute(
         "UPDATE schedule_blocks SET completed = 0 WHERE id = ? AND user_id = ?",
         (block_id, current_user["id"])
     )
     # Sync task status: any block undone => task no longer fully done (exam progress bars)
-    row = db.execute(
-        "SELECT task_id FROM schedule_blocks WHERE id = ? AND user_id = ?",
-        (block_id, current_user["id"])
-    ).fetchone()
-    if row and row["task_id"]:
+    if row["task_id"]:
         db.execute(
             "UPDATE tasks SET status = 'pending' WHERE id = ? AND user_id = ?",
             (row["task_id"], current_user["id"])

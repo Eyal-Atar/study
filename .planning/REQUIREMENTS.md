@@ -64,6 +64,14 @@ Requirements for feature-complete v1 public launch.
 - [x] **GAM-03**: Morning review modal for rescheduling unfinished tasks from yesterday.
 - [x] **GAM-04**: Achievements tab in profile with earned badges (Knowledge Seeker, Iron Will, etc.).
 
+### Onboarding & Generation Loop
+
+- [ ] **ONB-01**: Progressive disclosure UI (one screen, one focus) for new users.
+- [ ] **ONB-02**: Local Storage persistence for onboarding drafts.
+- [ ] **ONB-03**: Material-based task logic (Simulations/Reviews) based on uploaded files.
+- [ ] **ONB-04**: Real-time AI progress transition screen with dynamic microcopy.
+- [ ] **ONB-05**: Removal of legacy "Regenerate" mechanism in favor of a unified flow.
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
@@ -133,3 +141,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-03 | 11/16 | Complete |
 | GAM-01-04 | 19 | Complete |
 | EVAL-01-04 | 20 | Complete |
+| ONB-01-05 | 21 | Not Started |

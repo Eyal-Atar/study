@@ -121,72 +121,43 @@
                 <h2 class="text-lg font-bold mb-6 flex items-center gap-2">
                     <span class="text-gold-400">🏆</span> Milestones & Badges
                 </h2>
-                <div class="space-y-6">
-                    <div>
-                        <label class="block text-xs font-bold text-white/30 uppercase tracking-widest mb-3">Streak Badges</label>
-                        <div class="grid grid-cols-3 gap-2">
-                            <button onclick="trigger('new-badge', { badge: 'iron_will_7' }, 'Badge Awarded!')" 
-                                    class="btn-trigger bg-white/5 p-3 rounded-xl hover:bg-white/10 border border-white/5 text-center">
-                                <div class="text-xl mb-1">🔥🔥</div>
-                                <div class="text-[9px] font-bold uppercase">7 Days</div>
-                            </button>
-                            <button onclick="trigger('new-badge', { badge: 'iron_will_10' }, 'Badge Awarded!')" 
-                                    class="btn-trigger bg-white/5 p-3 rounded-xl hover:bg-white/10 border border-white/5 text-center">
-                                <div class="text-xl mb-1">⚡</div>
-                                <div class="text-[9px] font-bold uppercase">10 Days</div>
-                            </button>
-                            <button onclick="trigger('new-badge', { badge: 'iron_will_14' }, 'Badge Awarded!')" 
-                                    class="btn-trigger bg-white/5 p-3 rounded-xl hover:bg-white/10 border border-white/5 text-center">
-                                <div class="text-xl mb-1">🏆</div>
-                                <div class="text-[9px] font-bold uppercase">14 Days</div>
-                            </button>
-                            <button onclick="trigger('new-badge', { badge: 'iron_will_30' }, 'Badge Awarded!')" 
-                                    class="btn-trigger bg-white/5 p-3 rounded-xl hover:bg-white/10 border border-white/5 text-center">
-                                <div class="text-xl mb-1">💎</div>
-                                <div class="text-[9px] font-bold uppercase">30 Days</div>
-                            </button>
-                            <button onclick="trigger('new-badge', { badge: 'iron_will_100' }, 'Badge Awarded!')" 
-                                    class="btn-trigger bg-white/5 p-3 rounded-xl hover:bg-white/10 border border-white/5 text-center">
-                                <div class="text-xl mb-1">👑</div>
-                                <div class="text-[9px] font-bold uppercase">100 Days</div>
-                            </button>
-                        </div>
-                    </div>
+                ... (keep the badge buttons ...)
+            </section>
 
-                    <div>
-                        <label class="block text-xs font-bold text-white/30 uppercase tracking-widest mb-3">Task Badges</label>
-                        <div class="grid grid-cols-3 gap-2">
-                            <button onclick="trigger('new-badge', { badge: 'task_master_10' }, 'Badge Awarded!')" 
-                                    class="btn-trigger bg-white/5 p-3 rounded-xl hover:bg-white/10 border border-white/5 text-center">
-                                <div class="text-xl mb-1">📖</div>
-                                <div class="text-[9px] font-bold uppercase text-white/50">10 Tasks</div>
-                            </button>
-                            <button onclick="trigger('new-badge', { badge: 'task_master_20' }, 'Badge Awarded!')" 
-                                    class="btn-trigger bg-white/5 p-3 rounded-xl hover:bg-white/10 border border-white/5 text-center">
-                                <div class="text-xl mb-1">📚</div>
-                                <div class="text-[9px] font-bold uppercase text-white/50">20 Tasks</div>
-                            </button>
-                            <button onclick="trigger('new-badge', { badge: 'task_master_50' }, 'Badge Awarded!')" 
-                                    class="btn-trigger bg-white/5 p-3 rounded-xl hover:bg-white/10 border border-white/5 text-center">
-                                <div class="text-xl mb-1">📜</div>
-                                <div class="text-[9px] font-bold uppercase text-white/50">50 Tasks</div>
-                            </button>
-                            <button onclick="trigger('new-badge', { badge: 'task_master_100' }, 'Badge Awarded!')" 
-                                    class="btn-trigger bg-white/5 p-3 rounded-xl hover:bg-white/10 border border-white/5 text-center">
-                                <div class="text-xl mb-1">🏅</div>
-                                <div class="text-[9px] font-bold uppercase text-white/50">100 Tasks</div>
-                            </button>
+            <!-- Onboarding Test Section -->
+            <section class="card rounded-3xl p-8 md:col-span-2" id="onboarding-section">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-lg font-bold flex items-center gap-2">
+                        <span class="text-accent-400">🚀</span> Onboarding & Generation Test
+                    </h2>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <span class="text-xs text-white/40">Enabled</span>
+                        <div class="relative">
+                            <input type="checkbox" id="toggle-onboarding" checked class="sr-only peer">
+                            <div class="w-9 h-5 bg-white/10 peer-checked:bg-accent-500 rounded-full transition-colors"></div>
+                            <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
                         </div>
-                    </div>
-
-                    <div class="pt-4 border-t border-white/5 space-y-3">
-                        <button onclick="awardXP()" class="w-full py-3 rounded-xl border border-mint-500/30 text-mint-400 text-xs font-bold hover:bg-mint-500/10 transition-colors btn-trigger">
-                            Award 500 XP (Server + Sync)
+                    </label>
+                </div>
+                <div id="onboarding-content" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <p class="text-xs text-white/40 leading-relaxed">
+                            This test will fetch pre-uploaded "test files" (Syllabus + Past Exam) from the server and simulate a full onboarding submission. It transactionally updates your profile, creates 2 exams, extracts PDF text, and triggers the Auditor.
+                        </p>
+                        <button onclick="runOnboardingTest()" id="btn-onboard" class="w-full py-4 rounded-2xl bg-accent-500 hover:bg-accent-600 font-bold transition-all shadow-lg shadow-accent-500/20 btn-trigger flex items-center justify-center gap-2">
+                            <span>Run Full Onboarding Test</span>
+                            <div id="onboard-spinner" class="hidden w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
                         </button>
-                        <button onclick="resetProgress()" class="w-full py-3 rounded-xl bg-coral-500/10 border border-coral-500/20 text-coral-400 text-xs font-bold hover:bg-coral-500/20 transition-colors btn-trigger">
-                            Reset All Progress (XP/Streak/Badges)
+                        <button onclick="resetOnboarding()" class="w-full py-3 rounded-2xl bg-coral-500/10 hover:bg-coral-500/20 border border-coral-500/20 text-coral-400 font-bold text-sm transition-all btn-trigger">
+                            Reset Onboarding State
                         </button>
                     </div>
+                    <div id="onboard-result" class="rounded-2xl bg-black/20 border border-white/5 p-4 overflow-y-auto max-h-[200px] text-[10px] font-mono text-white/60">
+                        Waiting for trigger...
+                    </div>
+                </div>
+                <div id="onboarding-disabled-msg" class="hidden text-center py-8 text-white/20 text-sm">
+                    Onboarding test is disabled. Toggle the switch above to enable.
                 </div>
             </section>
         </div>
@@ -198,7 +169,7 @@
 
     <!-- Scripts -->
     <script type="module">
-        import { getAPI, authFetch } from '/js/store.js?v=AUTO';
+        import { getAPI, authFetch } from '/js/store.js?v=61';
 
         window.trigger = async (action, data, title) => {
             const api = getAPI();
@@ -279,6 +250,128 @@
                 alert('All progress has been reset.');
             } catch (err) {
                 alert('Failed to reset progress');
+            }
+        };
+
+        // Onboarding toggle
+        const onbToggle = document.getElementById('toggle-onboarding');
+        const onbContent = document.getElementById('onboarding-content');
+        const onbDisabled = document.getElementById('onboarding-disabled-msg');
+        const savedOnb = localStorage.getItem('sf_debug_onboarding_enabled');
+        if (savedOnb === 'false') {
+            onbToggle.checked = false;
+            onbContent.classList.add('hidden');
+            onbDisabled.classList.remove('hidden');
+        }
+        onbToggle.addEventListener('change', () => {
+            const enabled = onbToggle.checked;
+            localStorage.setItem('sf_debug_onboarding_enabled', enabled);
+            onbContent.classList.toggle('hidden', !enabled);
+            onbDisabled.classList.toggle('hidden', enabled);
+        });
+
+        window.resetOnboarding = async () => {
+            if (!confirm('This will delete ALL exams, tasks, and schedule blocks. Continue?')) return;
+            const api = getAPI();
+            try {
+                const res = await authFetch(`${api}/debug/reset-onboarding`, { method: 'POST' });
+                if (!res.ok) throw new Error('Reset failed');
+                showStatus('Onboarding state reset', 'mint');
+                alert('All exams, tasks, and schedule blocks deleted. Onboarding flag reset.');
+            } catch (err) {
+                alert('Failed to reset: ' + err.message);
+            }
+        };
+
+        window.runOnboardingTest = async () => {
+            const btn = document.getElementById('btn-onboard');
+            const spinner = document.getElementById('onboard-spinner');
+            const resultBox = document.getElementById('onboard-result');
+            const api = getAPI();
+
+            btn.disabled = true;
+            spinner.classList.remove('hidden');
+            resultBox.innerHTML = 'Fetching test files...';
+
+            try {
+                // 1. Fetch test files as blobs
+                const file1Res = await fetch('/static/test_assets/test_past_exam.pdf');
+                const file2Res = await fetch('/static/test_assets/test_syllabus.pdf');
+                
+                if (!file1Res.ok || !file2Res.ok) throw new Error('Failed to fetch test assets. Ensure /static/test_assets exists.');
+
+                const blob1 = await file1Res.blob();
+                const blob2 = await file2Res.blob();
+
+                resultBox.innerHTML += '\nFiles ready. Preparing payload...';
+
+                // 2. Prepare Onboard Data
+                const onboard_data = {
+                    name: "Debug Test User",
+                    wake_up_time: "07:00",
+                    sleep_time: "23:00",
+                    study_method: "Pomodoro",
+                    session_minutes: 50,
+                    break_minutes: 10,
+                    hobby_name: "Gaming",
+                    neto_study_hours: 6.5,
+                    study_hours_preference: JSON.stringify(["morning", "afternoon"]),
+                    buffer_days: 1,
+                    timezone_offset: new Date().getTimezoneOffset(),
+                    exams: [
+                        {
+                            name: "Calculus 1",
+                            subject: "Mathematics",
+                            exam_date: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0], // +14 days
+                            special_needs: "Focus on integrals",
+                            file_indices: [0, 1],
+                            file_types: ["past_exam", "syllabus"]
+                        },
+                        {
+                            name: "Physics 101",
+                            subject: "Science",
+                            exam_date: new Date(Date.now() + 21 * 86400000).toISOString().split('T')[0], // +21 days
+                            file_indices: [],
+                            file_types: []
+                        }
+                    ]
+                };
+
+                // 3. Build FormData
+                const formData = new FormData();
+                formData.append('onboard_data', JSON.stringify(onboard_data));
+                formData.append('files', blob1, 'Calculus_Exam_2024.pdf');
+                formData.append('files', blob2, 'Calculus_Syllabus.pdf');
+
+                resultBox.innerHTML += '\nSending to /onboard... (Expect 5-10s)';
+
+                const res = await authFetch(`${api}/brain/onboard`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || res.statusText);
+                }
+
+                const data = await res.json();
+                resultBox.innerHTML += '\n\n✅ SUCCESS!';
+                resultBox.innerHTML += `\nMessage: ${data.message}`;
+                resultBox.innerHTML += `\nTasks Generated: ${data.tasks?.length || 0}`;
+                resultBox.innerHTML += `\nGaps Found: ${data.gaps?.length || 0}`;
+                resultBox.innerHTML += `\n\nRedirecting to Dashboard in 2s...`;
+                
+                showStatus('Onboarding Success', 'mint');
+                setTimeout(() => location.href = '/dashboard', 2000);
+
+            } catch (err) {
+                console.error(err);
+                resultBox.innerHTML += `\n\n❌ ERROR: ${err.message}`;
+                showStatus('Onboarding Failed', 'coral');
+            } finally {
+                btn.disabled = false;
+                spinner.classList.add('hidden');
             }
         };
 

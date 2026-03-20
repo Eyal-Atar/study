@@ -9,14 +9,15 @@ window.onerror = function(msg, url, line, col, error) {
     }
 };
 
-import { getCurrentUser, setCurrentUser, getAPI, authFetch } from './store.js?v=AUTO';
-import { initAuth, handleLogout } from './auth.js?v=AUTO';
-import { initTasks, loadExams, checkAuditorDraftOnInit } from './tasks.js?v=AUTO';
-import { initRegenerate } from './brain.js?v=AUTO';
-import { initInteractions } from './interactions.js?v=AUTO';
-import { showScreen, initMobileTabBar, showIosOnboarding, initProfileTabs } from './ui.js?v=AUTO';
-import { initPush } from './notifications.js?v=AUTO';
-import { registerLoginCheckFlow } from './profile.js?v=AUTO';
+import { getCurrentUser, setCurrentUser, getAPI, authFetch } from './store.js?v=59';
+import { initAuth, handleLogout } from './auth.js?v=59';
+import { initTasks, loadExams, checkAuditorDraftOnInit } from './tasks.js?v=59';
+import { initRegenerate } from './brain.js?v=59';
+import { initInteractions } from './interactions.js?v=59';
+import { showScreen, initMobileTabBar, showIosOnboarding, initProfileTabs } from './ui.js?v=59';
+import { initPush } from './notifications.js?v=59';
+import { registerLoginCheckFlow } from './profile.js?v=59';
+import { initOnboarding } from './onboarding.js?v=59';
 
 // Initialize the application
 let _dashboardInitialized = false;
@@ -59,6 +60,7 @@ async function initApp() {
             
             // Check onboarding status
             if (user.onboarding_completed === 0 || user.onboarding_completed === null) {
+                initOnboarding();
                 showScreen('screen-onboarding');
             } else if (path === '/onboarding') {
                 // Already completed onboarding but landed on /onboarding
@@ -95,6 +97,67 @@ async function initApp() {
     };
     // Give it a tiny extra buffer for smooth transition
     setTimeout(hideSplash, 300);
+
+    // Android back button: close modals or go back in tab history
+    window.addEventListener('popstate', () => {
+        // Try to close any open modal first
+        const openModal = document.querySelector('.modal-bg.active');
+        if (openModal) {
+            import('./ui.js?v=59').then(m => m.showModal(openModal.id, false));
+            history.pushState(null, '');
+            return;
+        }
+        // If on a non-default tab, switch back to roadmap
+        const activeTab = document.querySelector('.mobile-tab-btn.text-accent-400');
+        if (activeTab && activeTab.dataset.tab !== 'roadmap') {
+            const roadmapBtn = document.querySelector('.mobile-tab-btn[data-tab="roadmap"]');
+            if (roadmapBtn) roadmapBtn.click();
+            history.pushState(null, '');
+        }
+    });
+    // Push initial state so popstate can fire
+    history.pushState(null, '');
+
+    // DEBUG: Viewport diagnostics — tap title bar 3x to show
+    let _diagTaps = 0, _diagTimer = null;
+    document.getElementById('mobile-tab-title')?.addEventListener('click', () => {
+        _diagTaps++;
+        clearTimeout(_diagTimer);
+        _diagTimer = setTimeout(() => _diagTaps = 0, 800);
+        if (_diagTaps >= 3) {
+            _diagTaps = 0;
+            const db = document.getElementById('screen-dashboard');
+            const tb = document.getElementById('mobile-tab-bar');
+            const cs = getComputedStyle(db);
+            const sai = getComputedStyle(document.documentElement);
+            const tbCs = getComputedStyle(tb);
+            const bodyCs = getComputedStyle(document.body);
+            const bodyAfter = getComputedStyle(document.body, '::after');
+            alert([
+                `=== v61 diag ===`,
+                `innerH: ${window.innerHeight}`,
+                `screen: ${screen.height}`,
+                `visualVP: ${window.visualViewport ? window.visualViewport.height : 'N/A'}`,
+                `--- dashboard ---`,
+                `db.offsetH: ${db.offsetHeight}`,
+                `db pos: ${cs.position}`,
+                `db bottom: ${cs.bottom}`,
+                `--- tab bar ---`,
+                `tb.offsetH: ${tb.offsetHeight}`,
+                `tb pos: ${tbCs.position}`,
+                `tb.getBCR.bottom: ${Math.round(tb.getBoundingClientRect().bottom)}`,
+                `tb paddingBottom: ${tbCs.paddingBottom}`,
+                `tb bg: ${tbCs.backgroundColor}`,
+                `--- body ---`,
+                `body pos: ${bodyCs.position}`,
+                `body h: ${bodyCs.height}`,
+                `body::after h: ${bodyAfter.height}`,
+                `--- html ---`,
+                `html bg: ${getComputedStyle(document.documentElement).backgroundColor}`,
+                `standalone: ${window.navigator.standalone}`,
+            ].join('\n'));
+        }
+    });
 
     // Handle SCROLL_TO_BLOCK event (from notifications)
     window.addEventListener('SCROLL_TO_BLOCK', (e) => {
@@ -264,20 +327,4 @@ function updateOnlineStatus() {
 window.addEventListener('online', updateOnlineStatus);
 window.addEventListener('offline', updateOnlineStatus);
 updateOnlineStatus(); // run on load
-
-// AI Debug Trigger: Triple-tap the brain icon to open the console
-let _debugClickCount = 0;
-let _debugLastClick = 0;
-window._handleAiDebugTrigger = function() {
-    const now = Date.now();
-    if (now - _debugLastClick > 500) _debugClickCount = 0;
-    _debugClickCount++;
-    _debugLastClick = now;
-    if (_debugClickCount === 3) {
-        if (typeof window.showAiDebug === 'function') {
-            window.showAiDebug();
-        }
-        _debugClickCount = 0;
-    }
-};
 // Build hash refresh: Thu Feb 26 16:26:30 IST 2026

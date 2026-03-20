@@ -1,7 +1,7 @@
 /* frontend/js/auth.js */
-import { getAPI, setCurrentUser, authFetch, resetStore, getCurrentUser } from './store.js?v=AUTO';
-import { showRegenBar } from './brain.js?v=AUTO';
-import { showScreen, shakeEl, showError, hideError, spawnConfetti } from './ui.js?v=AUTO';
+import { getAPI, setCurrentUser, authFetch, resetStore, getCurrentUser } from './store.js?v=59';
+import { showRegenBar } from './brain.js?v=59';
+import { showScreen, shakeEl, showError, hideError, spawnConfetti } from './ui.js?v=59';
 
 // ─── Push Notification Helpers ───────────────────────────────────────────────
 
@@ -260,6 +260,16 @@ export function initAuth(callbacks = {}) {
     window._populateSettingsFields = () => {
         const user = getCurrentUser();
         if (!user) return;
+        // Profile header card
+        const profileAvatar = document.getElementById('profile-avatar');
+        const profileName = document.getElementById('profile-display-name');
+        const profileEmail = document.getElementById('profile-display-email');
+        if (profileAvatar) profileAvatar.textContent = (user.name || '?').charAt(0).toUpperCase();
+        if (profileName) profileName.textContent = user.name || 'Student';
+        if (profileEmail) profileEmail.textContent = user.email || '';
+
+        const emailDisplay = document.getElementById('settings-email-display');
+        if (emailDisplay) emailDisplay.textContent = user.email || '';
         if (document.getElementById('settings-name')) document.getElementById('settings-name').value = user.name || '';
         if (document.getElementById('settings-hobby')) document.getElementById('settings-hobby').value = user.hobby_name || '';
         if (document.getElementById('settings-wake')) document.getElementById('settings-wake').value = user.wake_up_time || '08:00';
@@ -295,9 +305,12 @@ export function initAuth(callbacks = {}) {
 export function regNext(step) {
     if (step === 2) {
         hideError('reg-error-1');
-        const name = document.getElementById('reg-name').value.trim();
-        const email = document.getElementById('reg-email').value.trim();
-        const password = document.getElementById('reg-password').value;
+        const nameEl = document.getElementById('reg-name');
+        const emailEl = document.getElementById('reg-email');
+        const passEl = document.getElementById('reg-password');
+        const name = nameEl ? nameEl.value.trim() : '';
+        const email = emailEl ? emailEl.value.trim() : '';
+        const password = passEl ? passEl.value : '';
         if (!name) { shakeEl('reg-name'); return; }
         if (!email || !email.includes('@')) { shakeEl('reg-email'); showError('reg-error-1', 'Valid email required'); return; }
         if (password.length < 6) { shakeEl('reg-password'); showError('reg-error-1', 'Password must be at least 6 characters'); return; }
@@ -342,9 +355,10 @@ export async function handleLogin() {
             credentials: 'include', // Include cookies
             body: JSON.stringify({ email, password }),
         });
-        const data = await res.json();
+        let data;
+        try { data = await res.json(); } catch { data = {}; }
         if (!res.ok) {
-            showError('login-error', data.detail || 'Login failed');
+            showError('login-error', data.detail || (res.status >= 500 ? 'Server error — please try again later' : 'Login failed'));
             return;
         }
         // Token is now in HttpOnly cookie, not in response
@@ -352,6 +366,7 @@ export async function handleLogin() {
         
         // If onboarding not completed, show onboarding wizard
         if (data.user.onboarding_completed === 0 || data.user.onboarding_completed === null) {
+            initOnboarding();
             showScreen('screen-onboarding');
         } else {
             // Show the dashboard screen FIRST to ensure UI transitions even if init fails
@@ -370,25 +385,30 @@ export async function handleLogin() {
         }
     } catch (e) {
         console.error('Login error:', e);
-        showError('login-error', 'Cannot connect to server');
+        showError('login-error', 'No internet connection — check your network and try again');
     } finally {
-        btn.disabled = false; btn.textContent = 'Log In';
+        if (btn) { btn.disabled = false; btn.textContent = 'Log In'; }
     }
 }
 
 export async function handleRegister() {
     const API = getAPI();
     hideError('reg-error-3');
-    const name = document.getElementById('reg-name').value.trim();
-    const email = document.getElementById('reg-email').value.trim();
-    const password = document.getElementById('reg-password').value;
+    const nameEl = document.getElementById('reg-name');
+    const emailEl = document.getElementById('reg-email');
+    const passEl = document.getElementById('reg-password');
+    const name = nameEl ? nameEl.value.trim() : '';
+    const email = emailEl ? emailEl.value.trim() : '';
+    const password = passEl ? passEl.value : '';
     const methodEl = document.querySelector('input[name="reg-method"]:checked');
     const method = methodEl ? methodEl.value : 'pomodoro';
-    const wake = document.getElementById('reg-wake').value;
-    const sleep = document.getElementById('reg-sleep').value;
+    const wakeEl = document.getElementById('reg-wake');
+    const sleepEl = document.getElementById('reg-sleep');
+    const wake = wakeEl ? wakeEl.value : '08:00';
+    const sleep = sleepEl ? sleepEl.value : '23:00';
 
     const btn = document.getElementById('btn-register');
-    btn.disabled = true; btn.textContent = 'Creating...';
+    if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
     try {
         const res = await fetch(`${API}/auth/register`, {
             method: 'POST',
@@ -404,29 +424,31 @@ export async function handleRegister() {
                 timezone_offset: new Date().getTimezoneOffset(),
             }),
         });
-        const data = await res.json();
+        let data;
+        try { data = await res.json(); } catch { data = {}; }
         if (!res.ok) {
-            showError('reg-error-3', data.detail || 'Registration failed');
+            showError('reg-error-3', data.detail || (res.status >= 500 ? 'Server error — please try again later' : 'Registration failed'));
             return;
         }
         // Token is now in HttpOnly cookie, not in response
         setCurrentUser(data.user);
         if (data.user.onboarding_completed === 0 || data.user.onboarding_completed === null) {
+            initOnboarding();
             showScreen('screen-onboarding');
         } else {
             onAuthSuccess();
             showScreen('screen-dashboard');
         }
     } catch (e) {
-        showError('reg-error-3', 'Cannot connect to server');
+        showError('reg-error-3', 'No internet connection — check your network and try again');
     } finally {
-        btn.disabled = false; btn.textContent = 'Create Account';
+        if (btn) { btn.disabled = false; btn.textContent = 'Create Account'; }
     }
 }
 
 export async function handleLogout() {
     const API = getAPI();
-    try { await authFetch(`${API}/auth/logout`, { method: 'POST' }); } catch (e) {}
+    try { await authFetch(`${API}/auth/logout`, { method: 'POST' }); } catch (e) { console.warn('Logout request failed:', e); }
     
     resetStore();
     showScreen('screen-welcome');
@@ -466,7 +488,7 @@ export async function handleOnboardingSubmit() {
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            alert(err.detail || 'Failed to save profile');
+            alert(err.detail || (res.status >= 500 ? 'Server error — please try again later' : 'Failed to save profile'));
             return;
         }
         const user = await res.json();
@@ -485,7 +507,7 @@ export async function handleOnboardingSubmit() {
             success.classList.add('fade-in');
         }
     } catch (e) {
-        alert('Network error');
+        alert('No internet connection — check your network and try again');
     } finally {
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Finish'; }
     }
@@ -494,7 +516,7 @@ export async function handleOnboardingSubmit() {
 export async function handleSaveSettings() {
     const API = getAPI();
     const btn = document.getElementById('btn-save-settings');
-    btn.disabled = true; btn.textContent = 'Saving...';
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
 
     // Capture old hours before save to detect a change
     const oldUser = getCurrentUser();
@@ -511,18 +533,18 @@ export async function handleSaveSettings() {
         timezone_offset: new Date().getTimezoneOffset(),
         notif_timing: document.getElementById('settings-notif-timing')?.value || 'at_start',
         notif_per_task: document.getElementById('settings-notif-per-task')?.checked ? 1 : 0,
+        notif_daily_summary: document.getElementById('settings-notif-daily-summary')?.checked ? 1 : 0,
     };
 
     try {
-        const res = await fetch(`${API}/users/me`, {
+        const res = await authFetch(`${API}/users/me`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
             body: JSON.stringify(payload)
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            alert(err.detail || 'Failed to update settings');
+            alert(err.detail || (res.status >= 500 ? 'Server error — please try again later' : 'Failed to update settings'));
             return;
         }
         const user = await res.json();
@@ -532,13 +554,31 @@ export async function handleSaveSettings() {
         const greetingEl = document.getElementById('user-greeting');
         if (greetingEl) greetingEl.textContent = `Hey, ${user.name}`;
 
+        // Update profile header card
+        const profileAvatar = document.getElementById('profile-avatar');
+        const profileName = document.getElementById('profile-display-name');
+        if (profileAvatar) profileAvatar.textContent = (user.name || '?').charAt(0).toUpperCase();
+        if (profileName) profileName.textContent = user.name || 'Student';
+
         // Show regen bar if study hours changed
         if (newHours !== oldHours) {
             showRegenBar('Study hours changed — update the schedule if needed.');
         }
+
+        // Visual save confirmation
+        if (btn) {
+            btn.textContent = 'Saved!';
+            btn.classList.remove('bg-accent-500', 'hover:bg-accent-600');
+            btn.classList.add('bg-mint-500');
+            setTimeout(() => {
+                btn.classList.remove('bg-mint-500');
+                btn.classList.add('bg-accent-500', 'hover:bg-accent-600');
+                btn.textContent = 'Save Changes';
+            }, 1500);
+        }
     } catch (e) {
-        alert('Network error');
+        alert('No internet connection — check your network and try again');
     } finally {
-        btn.disabled = false; btn.textContent = 'Save Changes';
+        if (btn) btn.disabled = false;
     }
 }

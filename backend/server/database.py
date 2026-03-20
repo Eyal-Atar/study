@@ -39,6 +39,8 @@ def init_db():
             hobby_name TEXT,
             neto_study_hours REAL DEFAULT 4.0,
             peak_productivity TEXT DEFAULT 'Morning',
+            study_hours_preference TEXT DEFAULT '["morning", "afternoon"]',
+            buffer_days INTEGER DEFAULT 1,
             onboarding_completed INTEGER DEFAULT 0,
             fixed_breaks TEXT DEFAULT '[]',
             created_at TEXT DEFAULT (datetime('now'))
@@ -178,6 +180,10 @@ def init_db():
         conn.execute("ALTER TABLE users ADD COLUMN neto_study_hours REAL DEFAULT 4.0")
     if "peak_productivity" not in columns:
         conn.execute("ALTER TABLE users ADD COLUMN peak_productivity TEXT DEFAULT 'Morning'")
+    if "study_hours_preference" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN study_hours_preference TEXT DEFAULT '[\"morning\", \"afternoon\"]'")
+    if "buffer_days" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN buffer_days INTEGER DEFAULT 1")
     if "onboarding_completed" not in columns:
         conn.execute("ALTER TABLE users ADD COLUMN onboarding_completed INTEGER DEFAULT 0")
     if "timezone_offset" not in columns:

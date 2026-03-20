@@ -2,14 +2,184 @@
 
 import json
 import os
+import shutil
+import asyncio
+import fitz  # PyMuPDF
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends, HTTPException
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File, Form
 from server.database import get_db
-from auth.utils import get_current_user
+from server.config import UPLOAD_DIR
+from auth.utils import get_current_user, verify_csrf_token
 from brain.schemas import BrainMessage, RegenerateDeltaRequest
+from users.schemas import UserOnboardRequest, OnboardExam
 from notifications.utils import send_to_user
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_csrf_token)])
+
+
+@router.post("/onboard")
+async def onboard_user(
+    onboard_data: str = Form(...),
+    files: List[UploadFile] = File(None),
+    current_user: dict = Depends(get_current_user)
+):
+    """Unified onboarding: update profile, create exams, upload files, and run Auditor."""
+    from brain.exam_brain import ExamBrain
+    import traceback
+
+    user_id = current_user["id"]
+    db = get_db()
+    
+    try:
+        # 1. Parse data
+        try:
+            data = UserOnboardRequest.model_validate_json(onboard_data)
+        except Exception as e:
+            print(f"DEBUG: onboard_data parsing failed: {e}")
+            raise HTTPException(status_code=422, detail=f"Invalid onboarding data: {str(e)}")
+
+        # 2. Update user profile
+        db.execute(
+            """UPDATE users SET 
+               name = COALESCE(?, name), wake_up_time = ?, sleep_time = ?, study_method = ?,
+               session_minutes = ?, break_minutes = ?, hobby_name = ?,
+               neto_study_hours = ?, study_hours_preference = ?, buffer_days = ?,
+               timezone_offset = ?, onboarding_completed = 1
+               WHERE id = ?""",
+            (
+                data.name,
+                data.wake_up_time,
+                data.sleep_time,
+                data.study_method,
+                data.session_minutes,
+                data.break_minutes,
+                data.hobby_name,
+                data.neto_study_hours,
+                data.study_hours_preference,
+                data.buffer_days,
+                data.timezone_offset,
+                user_id
+            )
+        )
+
+        # 3. Fresh start: Clear existing exams/tasks for this user
+        db.execute("DELETE FROM schedule_blocks WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM tasks WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM exams WHERE user_id = ?", (user_id,))
+
+        # 4. Create exams and link files
+        created_exams = []
+        files = files or []
+        
+        buffer_days = data.buffer_days or 0
+        for exam_data in data.exams:
+            # Validate exam date is far enough in the future for buffer
+            try:
+                exam_dt = datetime.strptime(exam_data.exam_date, "%Y-%m-%d").date()
+                today = datetime.now(timezone.utc).date()
+                if exam_dt < today:
+                    print(f"WARNING: exam '{exam_data.name}' date {exam_data.exam_date} is in the past, adjusting to tomorrow")
+                    exam_data.exam_date = (today + timedelta(days=1)).strftime("%Y-%m-%d")
+            except (ValueError, TypeError):
+                pass  # Let it through, scheduler will handle gracefully
+
+            cursor = db.execute(
+                """INSERT INTO exams (user_id, name, subject, exam_date, special_needs)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (user_id, exam_data.name, exam_data.subject, exam_data.exam_date, exam_data.special_needs)
+            )
+            exam_id = cursor.lastrowid
+            
+            # Handle files for this exam
+            for i, file_idx in enumerate(exam_data.file_indices):
+                if file_idx < 0 or file_idx >= len(files):
+                    print(f"WARNING: file_idx {file_idx} out of range (0-{len(files)-1}) for exam '{exam_data.name}', skipping")
+                    continue
+                
+                upload_file = files[file_idx]
+                # Validate file type
+                allowed_extensions = ('.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp')
+                if upload_file.filename and not upload_file.filename.lower().endswith(allowed_extensions):
+                    print(f"WARNING: Unsupported file type '{upload_file.filename}' for exam '{exam_data.name}', skipping")
+                    continue
+                file_type = exam_data.file_types[i] if i < len(exam_data.file_types) else 'other'
+
+                # Save file
+                user_dir = os.path.join(UPLOAD_DIR, f"user_{user_id}")
+                os.makedirs(user_dir, exist_ok=True)
+                # Use a safe filename or prefix with exam_id to avoid collisions
+                safe_filename = f"exam_{exam_id}_{upload_file.filename}"
+                file_path = os.path.join(user_dir, safe_filename)
+                
+                with open(file_path, "wb") as buffer:
+                    shutil.copyfileobj(upload_file.file, buffer)
+
+                # Extract text
+                extracted_text = ""
+                if upload_file.filename.lower().endswith(".pdf"):
+                    extracted_text = ExamBrain.extract_pdf_text(file_path)
+
+                try:
+                    db.execute(
+                        """INSERT INTO exam_files (exam_id, filename, file_path, file_type, file_size, extracted_text)
+                           VALUES (?, ?, ?, ?, ?, ?)""",
+                        (exam_id, upload_file.filename, file_path, file_type, os.path.getsize(file_path), extracted_text)
+                    )
+                except Exception:
+                    # Clean up orphaned file if DB insert fails
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                    raise
+
+            # Fetch the newly created exam
+            new_exam = db.execute("SELECT * FROM exams WHERE id = ?", (exam_id,)).fetchone()
+            created_exams.append(dict(new_exam))
+
+        db.commit()
+        
+        # 5. Trigger Initial Roadmap Generation (Auditor)
+        updated_user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        
+        # Prepare exam list with files for ExamBrain
+        exam_list_for_brain = []
+        for exam in created_exams:
+            files_rows = db.execute("SELECT * FROM exam_files WHERE exam_id = ?", (exam["id"],)).fetchall()
+            exam_list_for_brain.append({**exam, "files": [dict(f) for f in files_rows]})
+            
+        brain = ExamBrain(dict(updated_user), exam_list_for_brain)
+        auditor_result = await brain.call_split_brain()
+        
+        # Persist Auditor draft
+        draft_json = json.dumps({
+            "tasks": auditor_result["tasks"],
+            "gaps": auditor_result["gaps"],
+            "topic_map": auditor_result["topic_map"],
+        })
+        exam_ids = [e["id"] for e in created_exams]
+        if exam_ids:
+            placeholders = ",".join("?" * len(exam_ids))
+            db.execute(
+                f"UPDATE exams SET auditor_draft = ? WHERE id IN ({placeholders})",
+                [draft_json] + exam_ids,
+            )
+            db.commit()
+
+        print(f"DEBUG: onboard_user success for user {user_id}")
+        return {
+            "message": "Onboarding complete! Roadmap generated.",
+            "tasks": auditor_result["tasks"],
+            "gaps": auditor_result["gaps"],
+            "topic_map": auditor_result["topic_map"],
+        }
+
+    except Exception as e:
+        if db: db.rollback()
+        print(f"ERROR in onboard_user for user {user_id}:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if db: db.close()
 
 
 def rollover_tasks(db, user_id, tz_offset):
@@ -410,9 +580,11 @@ def internal_regenerate_schedule(user_id: int, current_user: dict, db) -> dict:
     
     _scheduler_log = io.StringIO()
     _old_stdout = sys.stdout
-    _stdout_lock = getattr(sys, '_stdout_lock', threading.Lock())
-    sys._stdout_lock = _stdout_lock
-    
+    _stdout_lock = getattr(sys, '_stdout_lock', None)
+    if _stdout_lock is None:
+        _stdout_lock = threading.Lock()
+        sys._stdout_lock = _stdout_lock
+
     with _stdout_lock:
         sys.stdout = _scheduler_log
         try:
@@ -423,12 +595,13 @@ def internal_regenerate_schedule(user_id: int, current_user: dict, db) -> dict:
     _scheduler_output = _scheduler_log.getvalue()
 
     if new_schedule is None:
+        print(f"WARNING: Scheduler returned None for user {user_id}. Returning existing schedule. Log: {_scheduler_output[:500]}")
         schedule_rows = db.execute(
             "SELECT * FROM schedule_blocks WHERE user_id = ? ORDER BY day_date, start_time",
             (user_id,)
         ).fetchall()
         db.commit()  # Persist caller changes even if scheduler fails
-        return {"tasks": all_tasks, "schedule": [dict(s) for s in schedule_rows], "_scheduler_log": _scheduler_output}
+        return {"tasks": all_tasks, "schedule": [dict(s) for s in schedule_rows], "_scheduler_log": _scheduler_output, "_scheduler_warning": "Scheduler returned empty result; showing previous schedule."}
 
     # Replace schedule blocks in DB, preserving manually-edited blocks
     try:
@@ -980,7 +1153,6 @@ Return format:
 
     # Notify user that roadmap is ready
     send_to_user(db, user_id, "הלוז עודכן! 🪄", "התוכנית שלך עודכנה על ידי המוח.", url="/")
-
     db.close()
 
     return {

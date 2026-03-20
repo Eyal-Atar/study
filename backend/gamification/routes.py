@@ -4,23 +4,25 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from server.database import get_db
-from auth.utils import get_current_user
+from auth.utils import get_current_user, verify_csrf_token
 from gamification.utils import (
     calculate_xp,
     update_user_xp,
     update_streak,
     check_and_award_badges,
     _today_in_tz,
+    block_duration_hours,
+    xp_for_block,
 )
 from brain.routes import internal_regenerate_schedule
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_csrf_token)])
 
 
 # ─── Request/Response schemas ─────────────────────────────────────────────────
 
 class AwardXpRequest(BaseModel):
-    task_id: int
+    task_id: int | None = None
     block_id: int
 
 
@@ -32,6 +34,7 @@ class RescheduleRequest(BaseModel):
 class BatchRescheduleRequest(BaseModel):
     task_ids: list[int]
     action: str  # "reschedule" | "delete"
+    delete_ids: list[int] | None = None  # optional: ids to delete in the same call
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -46,6 +49,7 @@ def _get_morning_tasks(db, user_id: int, tz_offset: int) -> list:
              AND t.status NOT IN ('done', 'deferred')
              AND t.day_date IS NOT NULL
              AND t.day_date < ?
+             AND (t.is_padding = 0 OR t.is_padding IS NULL)
            ORDER BY t.day_date, t.priority DESC
            LIMIT 20""",
         (user_id, today),
@@ -89,11 +93,12 @@ def login_check(current_user: dict = Depends(get_current_user)):
             return {"first_login_today": False}
 
         morning_tasks = _get_morning_tasks(db, user_id, tz_offset)
-        yesterday = (datetime.now(timezone.utc) - timedelta(minutes=tz_offset) - timedelta(days=1)).strftime("%Y-%m-%d")
+        today = _today_in_tz(tz_offset)
+        yesterday = (datetime.strptime(today, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
         y_stats = db.execute(
-            """SELECT COUNT(*) as count, SUM(xp_awarded) as awarded 
-               FROM schedule_blocks 
-               WHERE user_id = ? AND day_date = ? AND block_type = 'study' AND completed = 1""",
+            """SELECT COUNT(DISTINCT task_id) as count
+               FROM schedule_blocks
+               WHERE user_id = ? AND day_date = ? AND block_type = 'study' AND completed = 1 AND task_id IS NOT NULL""",
             (user_id, yesterday)
         ).fetchone()
         
@@ -104,6 +109,8 @@ def login_check(current_user: dict = Depends(get_current_user)):
 
         xp_row = _get_xp_row(db, user_id)
         badges_newly_earned = check_and_award_badges(db, user_id, xp_row, streak_result)
+
+        db.commit()
 
         return {
             "first_login_today": True,
@@ -130,7 +137,8 @@ def award_xp(body: AwardXpRequest, current_user: dict = Depends(get_current_user
     db = get_db()
     try:
         block = db.execute(
-            """SELECT sb.id, sb.task_id, sb.completed, sb.xp_awarded
+            """SELECT sb.id, sb.task_id, sb.completed, sb.xp_awarded,
+                      sb.start_time, sb.end_time
                FROM schedule_blocks sb
                WHERE sb.id = ? AND sb.user_id = ?""",
             (body.block_id, user_id),
@@ -152,27 +160,17 @@ def award_xp(body: AwardXpRequest, current_user: dict = Depends(get_current_user
                 "badges_earned": [],
             }
 
-        task = db.execute(
-            "SELECT id, focus_score, estimated_hours FROM tasks WHERE id = ? AND user_id = ?",
-            (body.task_id, user_id),
-        ).fetchone()
+        xp_earned = xp_for_block(db, block, user_id)
 
-        if not task:
-            raise HTTPException(status_code=404, detail="Task not found")
-
-        focus_score = task["focus_score"] if task["focus_score"] is not None else 5
-        estimated_hours = task["estimated_hours"] if task["estimated_hours"] is not None else 1.0
-        xp_earned = calculate_xp(focus_score, estimated_hours)
-
+        # Single commit: mark awarded + update XP totals + badges
         db.execute(
             "UPDATE schedule_blocks SET xp_awarded = 1 WHERE id = ? AND user_id = ?",
             (body.block_id, user_id),
         )
-        db.commit()
-
         xp_result = update_user_xp(db, user_id, xp_earned, tz_offset)
         streak_row = _get_streak_row(db, user_id)
         badges_earned = check_and_award_badges(db, user_id, xp_result, streak_row)
+        db.commit()
 
         return {
             "xp_earned": xp_earned,
@@ -197,7 +195,8 @@ def revoke_xp(body: AwardXpRequest, current_user: dict = Depends(get_current_use
     db = get_db()
     try:
         block = db.execute(
-            """SELECT sb.id, sb.task_id, sb.xp_awarded
+            """SELECT sb.id, sb.task_id, sb.xp_awarded,
+                      sb.start_time, sb.end_time
                FROM schedule_blocks sb
                WHERE sb.id = ? AND sb.user_id = ?""",
             (body.block_id, user_id),
@@ -206,26 +205,16 @@ def revoke_xp(body: AwardXpRequest, current_user: dict = Depends(get_current_use
         if not block or not block["xp_awarded"]:
             return {"xp_revoked": 0}
 
-        task = db.execute(
-            "SELECT id, focus_score, estimated_hours FROM tasks WHERE id = ? AND user_id = ?",
-            (block["task_id"], user_id),
-        ).fetchone()
+        xp_to_revoke = xp_for_block(db, block, user_id)
 
-        if not task:
-            raise HTTPException(status_code=404, detail="Task not found")
-
-        focus_score = task["focus_score"] if task["focus_score"] is not None else 5
-        estimated_hours = task["estimated_hours"] if task["estimated_hours"] is not None else 1.0
-        xp_to_revoke = calculate_xp(focus_score, estimated_hours)
-
+        # Single commit: clear awarded flag + subtract XP
         db.execute(
             "UPDATE schedule_blocks SET xp_awarded = 0 WHERE id = ? AND user_id = ?",
             (body.block_id, user_id),
         )
-        db.commit()
-
         from gamification.utils import revoke_user_xp
         xp_result = revoke_user_xp(db, user_id, xp_to_revoke, tz_offset)
+        db.commit()
 
         return {
             "xp_revoked": xp_to_revoke,
@@ -260,27 +249,35 @@ def reschedule_task(task_id: int, body: RescheduleRequest, current_user: dict = 
             raise HTTPException(status_code=404, detail="Task not found")
 
         today = _today_in_tz(tz_offset)
-        target_day = today
-        if body.force_tomorrow:
-            target_day = (datetime.now(timezone.utc) - timedelta(minutes=tz_offset) + timedelta(days=1)).strftime("%Y-%m-%d")
 
         if action == "reschedule":
+            # Smart reschedule: set day_date to today so the scheduler can
+            # place the task in the earliest available slot (today if there's
+            # capacity, otherwise it naturally overflows as an overdue task).
+            # internal_regenerate_schedule syncs day_date back to the actual
+            # scheduled date, so the DB stays consistent.
             db.execute(
                 "UPDATE tasks SET day_date = ?, is_delayed = 1, status = 'pending' WHERE id = ? AND user_id = ?",
-                (target_day, task_id, user_id),
+                (today, task_id, user_id),
             )
             db.execute(
-                "DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ?",
+                "DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ? AND completed = 0",
                 (task_id, user_id)
             )
-            
+
             try:
                 regen_result = internal_regenerate_schedule(user_id, current_user, db)
+                # Read back actual day_date assigned by the scheduler
+                actual = db.execute(
+                    "SELECT day_date FROM tasks WHERE id = ? AND user_id = ?",
+                    (task_id, user_id)
+                ).fetchone()
+                actual_date = actual["day_date"] if actual else target_day
                 return {
-                    "status": "ok", 
-                    "message": f"Task rescheduled to {target_day} and schedule balanced", 
-                    "task_id": task_id, 
-                    "new_date": target_day,
+                    "status": "ok",
+                    "message": f"Task rescheduled to {actual_date} and schedule balanced",
+                    "task_id": task_id,
+                    "new_date": actual_date,
                     "schedule": regen_result.get("schedule")
                 }
             except Exception as e:
@@ -300,43 +297,70 @@ def reschedule_task(task_id: int, body: RescheduleRequest, current_user: dict = 
 
 @router.post("/batch-reschedule")
 def batch_reschedule(body: BatchRescheduleRequest, current_user: dict = Depends(get_current_user)):
-    """Handle multiple task actions from the morning review at once."""
+    """Handle multiple task actions from the morning review at once.
+
+    Supports two modes:
+    1. Legacy: task_ids + action ("reschedule" or "delete") — applies same action to all.
+    2. Combined: task_ids with action="reschedule" + delete_ids — reschedules task_ids
+       and deletes delete_ids in a single transaction (avoids race conditions).
+    """
     user_id = current_user["id"]
     tz_offset = current_user.get("timezone_offset", 0) or 0
     db = get_db()
-    
+
     results = []
     today = _today_in_tz(tz_offset)
-    
+
     try:
         needs_regen = False
-        for task_id in body.task_ids:
+
+        # 1. Process deletions first (from delete_ids or legacy delete action)
+        ids_to_delete = body.delete_ids or (body.task_ids if body.action == "delete" else [])
+        for task_id in ids_to_delete:
+            task = db.execute(
+                "SELECT id, title FROM tasks WHERE id = ? AND user_id = ?",
+                (task_id, user_id)
+            ).fetchone()
+            if not task: continue
+            db.execute("DELETE FROM tasks WHERE id = ? AND user_id = ?", (task_id, user_id))
+            db.execute("DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ?", (task_id, user_id))
+            results.append({"id": task_id, "title": task["title"], "status": "deleted"})
+
+        # 2. Process reschedules (only when action is "reschedule")
+        #    Set day_date to today so the scheduler places tasks in the
+        #    earliest available slot. The scheduler's overdue logic will
+        #    naturally cascade tasks to future days if today is full.
+        #    internal_regenerate_schedule syncs day_date back to actual placement.
+        ids_to_reschedule = body.task_ids if body.action == "reschedule" else []
+        for task_id in ids_to_reschedule:
             task = db.execute(
                 "SELECT id, title, estimated_hours, exam_id FROM tasks WHERE id = ? AND user_id = ?",
                 (task_id, user_id)
             ).fetchone()
-            
             if not task: continue
-            
-            if body.action == "delete":
-                db.execute("DELETE FROM tasks WHERE id = ? AND user_id = ?", (task_id, user_id))
-                db.execute("DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ?", (task_id, user_id))
-                results.append({"id": task_id, "title": task["title"], "status": "deleted"})
-            
-            elif body.action == "reschedule":
-                db.execute(
-                    "UPDATE tasks SET day_date = ?, is_delayed = 1, status = 'pending' WHERE id = ? AND user_id = ?",
-                    (today, task_id, user_id)
-                )
-                db.execute("DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ?", (task_id, user_id))
-                results.append({"id": task_id, "title": task["title"], "status": "moved", "new_date": today})
-                needs_regen = True
-        
+            db.execute(
+                "UPDATE tasks SET day_date = ?, is_delayed = 1, status = 'pending' WHERE id = ? AND user_id = ?",
+                (today, task_id, user_id)
+            )
+            db.execute("DELETE FROM schedule_blocks WHERE task_id = ? AND user_id = ? AND completed = 0", (task_id, user_id))
+            results.append({"id": task_id, "title": task["title"], "status": "moved", "new_date": today})
+            needs_regen = True
+
+        # 3. Regen schedule (commits internally) then read back actual day_dates
         if needs_regen:
             internal_regenerate_schedule(user_id, current_user, db)
-        
-        # Always commit any pending changes (e.g., deletions or non-regen moves)
-        db.commit()
+            # Update results with actual day_dates assigned by the scheduler
+            for r in results:
+                if r["status"] == "moved":
+                    actual = db.execute(
+                        "SELECT day_date FROM tasks WHERE id = ? AND user_id = ?",
+                        (r["id"], user_id)
+                    ).fetchone()
+                    if actual:
+                        r["new_date"] = actual["day_date"]
+        else:
+            # No regen needed — commit deletions directly
+            db.commit()
 
         return {"results": results}
     except Exception as e:

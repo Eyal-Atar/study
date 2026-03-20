@@ -2,6 +2,7 @@
 
 import math
 from datetime import datetime, timezone, timedelta
+from typing import Any
 
 
 def _today_in_tz(tz_offset: int) -> str:
@@ -75,7 +76,6 @@ def update_user_xp(db, user_id: int, xp_earned: int, tz_offset: int = 0) -> dict
            WHERE user_id = ?""",
         (new_total_xp, new_level, new_highest_level, new_daily_xp, today, tasks_completed, user_id),
     )
-    db.commit()
 
     return {
         "total_xp": new_total_xp,
@@ -120,7 +120,6 @@ def revoke_user_xp(db, user_id: int, xp_to_remove: int, tz_offset: int = 0) -> d
            WHERE user_id = ?""",
         (new_total_xp, new_level, new_daily_xp, today, new_tasks_completed, user_id),
     )
-    db.commit()
 
     return {
         "total_xp": new_total_xp,
@@ -209,7 +208,6 @@ def update_streak(db, user_id: int, tz_offset: int = 0) -> dict:
            WHERE user_id = ?""",
         (current_streak, longest_streak, today, new_streak_broken_flag, user_id),
     )
-    db.commit()
 
     return {
         "current_streak": current_streak,
@@ -235,7 +233,7 @@ _BADGE_CRITERIA = [
     ("knowledge_seeker_20",  lambda xp, s: xp["current_level"] >= 20),
     ("knowledge_seeker_25",  lambda xp, s: xp["current_level"] >= 25),
     ("knowledge_seeker_50",  lambda xp, s: xp["current_level"] >= 50),
-    ("knowledge_seeker_100", lambda xp, s: xp["current_level"] >= 100),
+    ("knowledge_seeker_100", lambda xp, s: xp["current_level"] >= 50),
     # XP milestones
     ("xp_1000",  lambda xp, s: xp["total_xp"] >= 1000),
     ("xp_5000",  lambda xp, s: xp["total_xp"] >= 5000),
@@ -289,7 +287,35 @@ def check_and_award_badges(db, user_id: int, user_xp_row: dict, streak_row: dict
             # Never let a badge check crash the caller
             pass
 
-    if newly_earned:
-        db.commit()
-
     return newly_earned
+
+
+def block_duration_hours(block_row: Any) -> float:
+    """Compute a schedule block's duration in hours from its start/end times."""
+    try:
+        s = block_row["start_time"].replace("Z", "+00:00").replace(" ", "T")
+        e = block_row["end_time"].replace("Z", "+00:00").replace(" ", "T")
+        start_dt = datetime.fromisoformat(s)
+        end_dt = datetime.fromisoformat(e)
+        hours = (end_dt - start_dt).total_seconds() / 3600
+        return max(hours, 0.25)  # floor at 15 min
+    except Exception:
+        return 1.0
+
+
+def xp_for_block(db, block_row: Any, user_id: int) -> int:
+    """Calculate XP for a single block, using block duration (not full task hours).
+    Falls back to defaults for standalone blocks (no task_id).
+    """
+    task_id = block_row["task_id"]
+    focus_score = 5  # default
+    if task_id:
+        task = db.execute(
+            "SELECT focus_score FROM tasks WHERE id = ? AND user_id = ?",
+            (task_id, user_id),
+        ).fetchone()
+        if task and task["focus_score"] is not None:
+            focus_score = task["focus_score"]
+
+    hours = block_duration_hours(block_row)
+    return calculate_xp(focus_score, hours)

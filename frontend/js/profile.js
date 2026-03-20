@@ -1,7 +1,7 @@
 /* StudyFlow — Gamification Frontend Module (ES6 Module) */
 
-import { getAPI, authFetch, getCurrentUser } from './store.js?v=AUTO';
-import { spawnConfetti } from './ui.js?v=AUTO';
+import { getAPI, authFetch, getCurrentUser } from './store.js?v=59';
+import { spawnConfetti } from './ui.js?v=59';
 
 // ─── SVG circle constants ─────────────────────────────────────────────────────
 // r=38, circumference = 2 * PI * 38 ≈ 238.76
@@ -120,6 +120,10 @@ function updateXPCircles(xpData) {
     }
     const overallLabel = document.getElementById('xp-overall-label');
     if (overallLabel) overallLabel.textContent = `Lvl ${xpData.current_level || 1}`;
+
+    // Update profile header level badge
+    const levelBadge = document.getElementById('profile-level-badge');
+    if (levelBadge) levelBadge.textContent = `Lvl ${xpData.current_level || 1}`;
 }
 
 // ─── Badge Grid Rendering ─────────────────────────────────────────────────────
@@ -312,42 +316,40 @@ export function showMorningPrompt(tasks) {
     const btnDeleteAll = modal.querySelector('#btn-morning-delete-all');
     const btnCloseSummary = modal.querySelector('#btn-morning-close-summary');
 
+    // Dismiss without action (e.g. backdrop click or close button) — still refresh calendar
+    const btnDismiss = modal.querySelector('#btn-morning-dismiss');
+    if (btnDismiss) {
+        btnDismiss.onclick = () => {
+            modal.classList.remove('active');
+            window.dispatchEvent(new CustomEvent('calendar-needs-refresh'));
+        };
+    }
+
     btnPush.onclick = async () => {
         const allCheckboxes = Array.from(modal.querySelectorAll('input[name="morning-task"]'));
         const selectedIds = allCheckboxes.filter(i => i.checked).map(i => parseInt(i.value));
         const unselectedIds = allCheckboxes.filter(i => !i.checked).map(i => parseInt(i.value));
-        
+
         if (selectedIds.length === 0 && unselectedIds.length === 0) return;
 
         try {
             btnPush.disabled = true;
             btnPush.textContent = 'Processing...';
 
-            // 1. Reschedule selected
-            let moveResults = [];
-            if (selectedIds.length > 0) {
-                const resMove = await authFetch(`${API}/gamification/batch-reschedule`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ task_ids: selectedIds, action: 'reschedule' }),
-                });
-                const dataMove = await resMove.json();
-                if (resMove.ok && dataMove.results) moveResults = dataMove.results;
+            // Single atomic call: reschedule selected + delete unselected
+            const res = await authFetch(`${API}/gamification/batch-reschedule`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    task_ids: selectedIds,
+                    action: 'reschedule',
+                    delete_ids: unselectedIds.length > 0 ? unselectedIds : undefined,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok && data.results) {
+                _showMorningSummary(data.results);
             }
-
-            // 2. Delete unselected (No decide later = handle everything)
-            let deleteResults = [];
-            if (unselectedIds.length > 0) {
-                const resDel = await authFetch(`${API}/gamification/batch-reschedule`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ task_ids: unselectedIds, action: 'delete' }),
-                });
-                const dataDel = await resDel.json();
-                if (resDel.ok && dataDel.results) deleteResults = dataDel.results;
-            }
-
-            _showMorningSummary([...moveResults, ...deleteResults]);
         } catch (e) {
             console.error('Push failed:', e);
             btnPush.disabled = false;
@@ -510,6 +512,14 @@ export function registerLoginCheckFlow() {
                 setTimeout(() => {
                     showMorningPrompt(data.morning_tasks);
                 }, morningDelay);
+            }
+
+            // Show badges earned at login (e.g. first_login, streak milestones)
+            if (data.badges_newly_earned && data.badges_newly_earned.length > 0) {
+                const badgeDelay = morningDelay + (data.morning_tasks?.length > 0 ? 4000 : 0);
+                setTimeout(() => {
+                    appendNewBadges(data.badges_newly_earned);
+                }, badgeDelay);
             }
         })
         .catch(e => {

@@ -22,7 +22,8 @@
 - [x] **Phase 14: Mobile-First UX** - Bottom tab navigation, touch drag with haptic feedback (completed 2026-02-23)
 - [x] **Phase 15: Progress & Deferral** - Interactive progress tracking and task deferral (completed 2026-02-25)
 - [x] **Phase 16: PWA Push Notifications, iOS Onboarding, and Smart Triggers** - VAPID push and 2-minute study reminders (completed 2026-02-25)
-- [ ] **Phase 20: LLM Optimization & Evaluation Dashboard** - Isolated Streamlit-based evaluation arena for model comparison and side-by-side verification.
+- [x] **Phase 20: LLM Optimization & Evaluation Dashboard** - Isolated Streamlit-based evaluation arena for model comparison and side-by-side verification (completed 2026-03-06)
+- [ ] **Phase 21: User Onboarding & Exam Generation Loop** - Minimalist multi-step onboarding, material-based milestones, and unified generation flow.
 
 ---
 
@@ -39,6 +40,17 @@
 ### Phase 16: PWA Push Notifications, iOS Onboarding, and Smart Triggers
 **Goal:** Establish a robust communication bridge between server and device with native-feeling push notifications and iOS onboarding.
 **Status:** Complete (2026-02-25)
+
+### Phase 20: LLM Optimization & Evaluation Dashboard
+**Goal:** Establish an isolated testing environment to evaluate and migrate from the current model to a faster, more cost-effective LLM. Focuses on side-by-side visual comparison, testing the two-step agent chain (Strategist -> Scheduler), and enabling a zero-friction model swap in production.
+**Depends on:** Phase 17
+**Status:** Complete (2026-03-06)
+
+### Phase 21: User Onboarding & Exam Generation Loop
+**Goal:** Create a clean, focused entry point for new users that captures study preferences and exam materials, translating them into a personalized study plan while removing legacy "Regenerate" mechanisms in favor of a robust unified flow.
+**Depends on:** Phase 17
+**Requirements:** [ONB-01, ONB-02, ONB-03, ONB-04, ONB-05]
+**Status:** Not started
 
 ---
 
@@ -62,8 +74,9 @@
 | 19. Gamification (XP, Streaks, Morning Prompt) | 5/5 | Complete   | 2026-03-03 |
 | 19.1. Fix Gamification Bugs (XP, Badges, Celebration) | 4/4 | Complete | 2026-03-03 |
 | 20. LLM Optimization & Evaluation Dashboard | 3/3 | Complete | 2026-03-06 |
+| 21. User Onboarding & Exam Generation Loop | 0/3 | Not started | - |
 
-**Overall:** 14/14 phases complete
+**Overall:** 14/17 phases complete
 
 ### Phase 17: Split-Brain Core Scheduler
 

@@ -238,3 +238,32 @@ def backdate_tasks(current_user: dict = Depends(get_current_user)):
         return {"status": "ok", "from": today, "to": yesterday}
     finally:
         db.close()
+
+@router.post("/reset-onboarding")
+def reset_onboarding(current_user: dict = Depends(get_current_user)):
+    """Delete all exams, tasks, and schedule blocks. Reset onboarding flag."""
+    user_id = current_user["id"]
+    db = get_db()
+    try:
+        db.execute("DELETE FROM schedule_blocks WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM tasks WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM exam_files WHERE exam_id IN (SELECT id FROM exams WHERE user_id = ?)", (user_id,))
+        db.execute("DELETE FROM exams WHERE user_id = ?", (user_id,))
+        db.execute("UPDATE users SET onboarding_completed = 0 WHERE id = ?", (user_id,))
+        db.commit()
+        return {"status": "ok", "message": "Onboarding state reset. All exams, tasks, and blocks deleted."}
+    finally:
+        db.close()
+
+
+@router.post("/restore-onboarding")
+def restore_onboarding(current_user: dict = Depends(get_current_user)):
+    """Re-set onboarding_completed = 1 so the user returns to the dashboard."""
+    user_id = current_user["id"]
+    db = get_db()
+    try:
+        db.execute("UPDATE users SET onboarding_completed = 1 WHERE id = ?", (user_id,))
+        db.commit()
+        return {"status": "ok", "message": "Onboarding flag restored. Dashboard will load on next visit."}
+    finally:
+        db.close()

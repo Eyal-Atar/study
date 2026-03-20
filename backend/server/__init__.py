@@ -7,7 +7,7 @@ import os
 import hashlib
 import re
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Response, HTTPException
+from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -73,6 +73,24 @@ app.add_middleware(
     allow_credentials=bool(_cors_origins),  # credentials only with explicit origins
 )
 
+from auth.utils import get_csrf_token
+from server.config import IS_PRODUCTION
+
+@app.middleware("http")
+async def add_csrf_cookie(request: Request, call_next):
+    """Ensure every response has a CSRF token cookie."""
+    token = get_csrf_token(request)
+    response = await call_next(request)
+    response.set_cookie(
+        "csrf_token",
+        token,
+        httponly=False,  # Frontend must read this to send header
+        secure=IS_PRODUCTION,
+        samesite="Lax",
+        max_age=3600 * 24 * 7 # 1 week
+    )
+    return response
+
 # Session middleware for OAuth and cookie-based auth
 app.add_middleware(
     SessionMiddleware,
@@ -91,10 +109,11 @@ app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(users_router, tags=["users"])
 app.include_router(exams_router, tags=["exams"])
 app.include_router(tasks_router, tags=["tasks"])
-app.include_router(brain_router, tags=["brain"])
+app.include_router(brain_router, prefix="/brain", tags=["brain"])
 app.include_router(notifications_router, tags=["notifications"])
 app.include_router(gamification_router, prefix="/gamification", tags=["gamification"])
-app.include_router(debug_router, prefix="/debug", tags=["debug"])
+if not IS_PRODUCTION:
+    app.include_router(debug_router, prefix="/debug", tags=["debug"])
 
 
 # ─── PWA files ───────────────────────────────────────────────
@@ -180,6 +199,8 @@ def serve_frontend_dashboard():
 
 @app.get("/debug-panel")
 def serve_debug_panel():
+    if IS_PRODUCTION:
+        raise HTTPException(status_code=404, detail="Not found")
     return _serve_processed_asset(os.path.join(PROJECT_DIR, "debug_control.html"), "text/html")
 
 

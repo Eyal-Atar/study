@@ -1,0 +1,112 @@
+# Project State: StudyFlow
+
+**Last Updated:** 2026-02-21
+**Status:** Phase 8 complete - All 3 plans executed
+
+---
+
+## Project Reference
+
+**Core Value:**
+Students open the app every day and know exactly what to study, when, and for how long — with zero manual planning.
+
+**Current Focus:**
+Preparing for v1 public launch by adding Google OAuth, hourly scheduling, task management, notifications, internationalization, and production deployment to existing brownfield codebase.
+
+---
+
+## Current Position
+
+**Phase:** 9 - Interactive Task Management
+**Plan:** Not Started
+**Status:** Ready for research and planning
+**Progress:** `[####------] 44%` (4/9 phases complete)
+
+---
+
+## Performance Metrics
+
+**Phases:**
+- Completed: 4/9
+- In Progress: 0
+- Blocked: 0
+- Not Started: 5
+
+**Plans:**
+- Total Executed: 13
+- Success Rate: 100%
+- Average Completion: 3.3m
+
+**Velocity:**
+- Plans per day: 4
+- Estimated completion: Phase 8 complete, ready for Phase 9
+
+---
+
+## Accumulated Context
+
+### Key Decisions
+
+| Date | Decision | Rationale | Impact |
+|------|----------|-----------|--------|
+| 2026-02-18 | Start with Phase 5 (Frontend Modularization) before OAuth | Refactoring 4000+ line app.js prevents feature collision when adding OAuth, scheduling, notifications | Foundational - unblocks all feature phases |
+| 2026-02-18 | Migrate from localStorage to HttpOnly cookies in Phase 6 | Prevents XSS token theft vulnerability | Security - required for production launch |
+| 2026-02-18 | Use Event Calendar (vkurko) instead of FullCalendar | Free, open-source, supports hourly slots without $500/year licensing | Cost - zero licensing fees |
+| 2026-02-18 | Deploy to Render with PostgreSQL (not SQLite) | SQLite write concurrency fails in multi-instance production | Scalability - prevents database locked errors |
+| 2026-02-18 | Use ES6 modules for frontend refactor (05-01) | Standard pattern, no build step needed, native browser support | Maintainability - clear module boundaries |
+| 2026-02-18 | Use custom events for cross-module communication (05-02) | Prevents circular dependencies between calendar.js and tasks.js | Architecture - maintains loose coupling |
+| 2026-02-18 | Bind all event handlers via addEventListener instead of inline (05-03) | Separates concerns, enables proper module encapsulation | Maintainability - zero inline JavaScript in HTML |
+| 2026-02-19 | Completed Google OAuth implementation | Provides secure authentication and account linking | Security - production ready auth |
+| 2026-02-20 | Implemented multi-step onboarding wizard | Improves user data collection for personalized scheduling | UX - better first-time experience |
+| 2026-02-20 | Added dedicated Settings UI | Allows users to manage preferences post-onboarding | UX - persistent customization |
+| 2026-02-21 | Completed Phase 8 (Hourly Scheduling) | Tasks now have precise time slots with timezone support | Core - unblocks manual task adjustments |
+
+### Active TODOs
+
+- [x] Create detailed plan for Phase 5 (Frontend Modularization)
+- [x] Decide whether to use ES6 modules or module pattern for frontend refactor
+- [x] Update app.js to import and use the new modules (05-03)
+- [x] Complete Phase 6 (Google OAuth implementation)
+- [x] Implement Phase 7: User Profiles & Hobbies (Onboarding + Settings)
+- [x] Complete Phase 8 (Hourly Scheduling)
+- [ ] Begin Research for Phase 9: Interactive Task Management
+- [ ] Validate PostgreSQL vs SQLite + WAL decision for Phase 13 deployment
+
+### Blockers
+
+None currently. Phase 8 successfully completed, proceeding to Phase 9.
+
+### Research Notes
+
+**Phase 5 (Frontend Modularization):**
+- Standard ES6 module patterns, no deep research needed
+- Extract: auth.js, calendar.js, tasks.js, notifications.js, ui.js
+- Keep CDN-based Tailwind, no build step
+
+**Phase 6 (Google OAuth):**
+- Use Authlib 1.6.8 (official, automatic state validation)
+- HttpOnly cookies with Secure + SameSite=Strict flags
+- Register all redirect URIs (dev/staging/prod) in Google Cloud Console
+
+**Phase 8 (Hourly Scheduling):**
+- COMPLETED: Exclusive zone algorithm redesign (mock test → hobby → review → practice)
+- COMPLETED: Event Calendar integration patterns
+- COMPLETED: Timezone handling: Store UTC ISO 8601, display in local timezone
+
+**Phase 9 (Interactive Task Management):**
+- NEEDS RESEARCH: Overlap prevention logic, calendar drag-and-drop support, modal editing implementation
+
+**Phase 10 (Regenerate Roadmap):**
+- NEEDS RESEARCH: Scheduler test cases (no slots, tight deadlines, midnight crossover)
+- Fallback strategies for impossible schedules
+
+**Phase 13 (Deployment):**
+- NEEDS RESEARCH: Render configuration, PostgreSQL migration, environment variables
+
+---
+
+## Session Continuity
+
+- Phase 8 is fully complete.
+- Tasks have hourly slots and appear in the calendar.
+- Current focus is Phase 9 (Interactive Task Management).

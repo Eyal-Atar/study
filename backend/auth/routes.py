@@ -22,7 +22,11 @@ def register(body: RegisterRequest, response: Response):
         raise HTTPException(status_code=400, detail="Name is required")
 
     db = get_db()
-    existing = db.execute("SELECT id FROM users WHERE email = ?", (body.email.lower().strip(),)).fetchone()
+    try:
+        existing = db.execute("SELECT id FROM users WHERE email = ?", (body.email.lower().strip(),)).fetchone()
+    except Exception:
+        db.close()
+        raise HTTPException(status_code=500, detail="Database is being set up — please restart the server")
     if existing:
         db.close()
         raise HTTPException(status_code=409, detail="Email already registered")
@@ -68,9 +72,13 @@ def register(body: RegisterRequest, response: Response):
 @router.post("/login", response_model=AuthResponse)
 def login(body: LoginRequest, response: Response):
     db = get_db()
-    row = db.execute(
-        "SELECT * FROM users WHERE email = ?", (body.email.lower().strip(),)
-    ).fetchone()
+    try:
+        row = db.execute(
+            "SELECT * FROM users WHERE email = ?", (body.email.lower().strip(),)
+        ).fetchone()
+    except Exception:
+        db.close()
+        raise HTTPException(status_code=500, detail="Database is being set up — please restart the server")
 
     if not row or not verify_password(body.password, row["password_hash"]):
         db.close()

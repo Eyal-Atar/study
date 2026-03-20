@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>StudyFlow — Your Exam Survival Brain</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -23,10 +23,10 @@
             }
         }
     </script>
-    <link rel="stylesheet" href="/css/styles.css?v=AUTO">
+    <link rel="stylesheet" href="/css/styles.css?v=70">
     <link rel="apple-touch-icon" href="/static/icon-192.png">
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#6366f1">
+    <meta name="theme-color" content="#0B0F1A">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="StudyFlow">
@@ -39,20 +39,12 @@
         };
         console.log('Index.html: Error tracker active');
     </script>
-    <style>
-        .padding-task-item {
-            border-style: dashed !important;
-            border-color: rgba(255, 255, 255, 0.2) !important;
-            background: rgba(255, 255, 255, 0.03) !important;
-        }
-        .padding-badge {
-            background: rgba(255, 255, 255, 0.1) !important;
-            color: rgba(255, 255, 255, 0.5) !important;
-            border: 1px dashed rgba(255, 255, 255, 0.2);
-        }
-    </style>
+    <!-- padding-task-item and padding-badge styles moved to styles.css -->
 </head>
 <body class="font-sans text-white min-h-screen overflow-x-hidden">
+    <!-- Screen reader live region for dynamic status announcements -->
+    <div id="sr-status" aria-live="polite" aria-atomic="true" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;"></div>
+
     <!-- Splash Screen (Prevents Flashing) -->
     <div id="splash-screen" class="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#0B0F1A] transition-opacity duration-500">
         <div class="relative mb-6">
@@ -77,7 +69,7 @@
             <span style="font-weight:bold; color:white;">DEBUG</span>
             <div style="display:flex; gap:5px;">
                 <button onclick="alert('JS is working!')" style="background:#6B47F5; color:white; border:none; padding:5px 10px; border-radius:5px; font-size:10px; font-weight:bold; cursor:pointer;">TEST ALERT</button>
-                <button onclick="window._hardReset()" style="background:#F43F5E; color:white; border:none; padding:5px 10px; border-radius:5px; font-size:10px; font-weight:bold; cursor:pointer;">FORCE RESET</button>
+                <button onclick="if(typeof window._hardReset==='function'){window._hardReset()}else{location.reload()}" style="background:#F43F5E; color:white; border:none; padding:5px 10px; border-radius:5px; font-size:10px; font-weight:bold; cursor:pointer;">FORCE RESET</button>
             </div>
         </div>
         <div id="sf-log-content"></div>
@@ -123,11 +115,11 @@
                     <div class="space-y-4">
                         <div>
                             <label class="text-sm text-white/50 mb-1 block">Email</label>
-                            <input id="login-email" type="email" placeholder="you@example.com" class="input-field">
+                            <input id="login-email" type="email" placeholder="you@example.com" class="input-field" autocomplete="email">
                         </div>
                         <div>
                             <label class="text-sm text-white/50 mb-1 block">Password</label>
-                            <input id="login-password" type="password" placeholder="Your password" class="input-field">
+                            <input id="login-password" type="password" placeholder="Your password" class="input-field" autocomplete="current-password">
                         </div>
                         <div id="login-error" class="error-text"></div>
                         <button id="btn-login" class="w-full bg-accent-500 hover:bg-accent-600 font-semibold py-3 rounded-xl transition-all">Log In</button>
@@ -175,15 +167,15 @@
                         <div class="space-y-4">
                             <div>
                                 <label class="text-sm text-white/50 mb-1 block">Name</label>
-                                <input id="reg-name" type="text" placeholder="e.g. Eyal" class="input-field">
+                                <input id="reg-name" type="text" placeholder="e.g. Eyal" class="input-field" autocomplete="name">
                             </div>
                             <div>
                                 <label class="text-sm text-white/50 mb-1 block">Email</label>
-                                <input id="reg-email" type="email" placeholder="you@example.com" class="input-field">
+                                <input id="reg-email" type="email" placeholder="you@example.com" class="input-field" autocomplete="email">
                             </div>
                             <div>
                                 <label class="text-sm text-white/50 mb-1 block">Password</label>
-                                <input id="reg-password" type="password" placeholder="At least 6 characters" class="input-field">
+                                <input id="reg-password" type="password" placeholder="At least 6 characters" class="input-field" autocomplete="new-password">
                             </div>
                             <div id="reg-error-1" class="error-text"></div>
                             <button id="btn-reg-next-2" class="w-full bg-accent-500 hover:bg-accent-600 font-semibold py-3 rounded-xl transition-all">Continue</button>
@@ -243,71 +235,109 @@
     <div id="screen-onboarding" class="screen">
         <div class="relative z-10 flex flex-col items-center justify-center min-h-screen px-4">
             <div class="w-full max-w-xl">
+                <!-- Exit test mode: restore onboarding flag and go back to dashboard -->
+                <button id="onb-exit-test" class="hidden mb-3 w-full py-2 rounded-xl bg-coral-500/10 hover:bg-coral-500/20 border border-coral-500/20 text-coral-400 text-xs font-semibold transition-all">
+                    Exit Test Mode — Return to Dashboard
+                </button>
                 <div class="bg-dark-700/60 backdrop-blur-sm rounded-3xl p-6 border border-white/5">
                     <div class="flex items-center justify-between mb-4">
                         <div class="flex items-center gap-3">
                             <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center">🧠</div>
                             <div class="font-bold">Complete your profile</div>
                         </div>
-                        <div class="text-sm text-white/40">Step <span id="onb-step-num">1</span>/3</div>
+                        <div class="text-sm text-white/40">Step <span id="onb-step-num">0</span>/3</div>
                     </div>
 
-                    <!-- Step 1: Hobby -->
-                    <div id="onb-step-1" class="onb-step">
-                        <h3 class="text-xl font-bold mb-2">What's your main hobby?</h3>
-                        <p class="text-white/40 mb-4">Pick one that we can schedule around.</p>
-                        <div class="flex gap-2 flex-wrap mb-4">
-                            <button type="button" data-hobby="Gym" class="onb-hobby-tag px-4 py-2 rounded-xl bg-dark-900/50">🏋️‍♂️ Gym</button>
-                            <button type="button" data-hobby="Gaming" class="onb-hobby-tag px-4 py-2 rounded-xl bg-dark-900/50">🎮 Gaming</button>
-                            <button type="button" data-hobby="Reading" class="onb-hobby-tag px-4 py-2 rounded-xl bg-dark-900/50">📚 Reading</button>
-                            <button type="button" data-hobby="Other" class="onb-hobby-tag px-4 py-2 rounded-xl bg-dark-900/50">✍️ Other</button>
+                    <!-- Step 0: Profiling -->
+                    <div id="onb-step-0" class="onb-step">
+                        <h3 class="text-xl font-bold mb-2">When do you study?</h3>
+                        <p class="text-white/40 mb-4">Select all windows that work for you.</p>
+                        <div class="chip-group mb-6">
+                            <button type="button" class="chip chip-study-hour" data-value="Morning">Morning (08-14)</button>
+                            <button type="button" class="chip chip-study-hour" data-value="Afternoon">Afternoon (14-20)</button>
+                            <button type="button" class="chip chip-study-hour" data-value="Night">Night (20-02)</button>
                         </div>
-                        <input id="onb-hobby-other" type="text" placeholder="If other, tell us" class="input-field" style="display:none">
+
+                        <h3 class="text-xl font-bold mb-2">Buffer Days</h3>
+                        <p class="text-white/40 mb-4">How many full days off do you want before the exam?</p>
+                        <div class="chip-group mb-6">
+                            <button type="button" class="chip chip-buffer-day" data-value="0">0 Days</button>
+                            <button type="button" class="chip chip-buffer-day" data-value="1">1 Day</button>
+                            <button type="button" class="chip chip-buffer-day" data-value="2">2 Days</button>
+                        </div>
+
+                        <div class="mt-4 flex justify-end">
+                            <button id="onb-next-0" class="bg-accent-500 hover:bg-accent-600 px-8 py-3 rounded-xl font-bold transition-all">Next</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 1: Exam Input -->
+                    <div id="onb-step-1" class="onb-step" style="display:none">
+                        <h3 class="text-xl font-bold mb-2">Add an Exam</h3>
+                        <p class="text-white/40 mb-4">Tell us what you're studying for.</p>
+                        
+                        <div class="space-y-4 mb-6">
+                            <div>
+                                <label class="text-sm text-white/40 mb-1 block">Course Name</label>
+                                <input id="onb-exam-name" type="text" placeholder="e.g., Intro to Psychology" class="input-field">
+                            </div>
+                            <div>
+                                <label class="text-sm text-white/40 mb-1 block">Exam Date</label>
+                                <input id="onb-exam-date" type="date" class="input-field">
+                            </div>
+                            <div>
+                                <label class="text-sm text-white/40 mb-1 block">Difficulty (1-5)</label>
+                                <div class="flex gap-2">
+                                    <button type="button" class="onb-diff-btn flex-1 py-2 rounded-xl bg-dark-900/50 border border-white/5 transition-all" data-value="1">1</button>
+                                    <button type="button" class="onb-diff-btn flex-1 py-2 rounded-xl bg-dark-900/50 border border-white/5 transition-all" data-value="2">2</button>
+                                    <button type="button" class="onb-diff-btn flex-1 py-2 rounded-xl bg-dark-900/50 border border-white/5 transition-all active bg-accent-500/20 border-accent-500/50" data-value="3">3</button>
+                                    <button type="button" class="onb-diff-btn flex-1 py-2 rounded-xl bg-dark-900/50 border border-white/5 transition-all" data-value="4">4</button>
+                                    <button type="button" class="onb-diff-btn flex-1 py-2 rounded-xl bg-dark-900/50 border border-white/5 transition-all" data-value="5">5</button>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="mt-4 flex justify-between">
-                            <button id="onb-back-1" class="text-white/40 text-sm" disabled>Back</button>
-                            <button id="onb-next-1" class="bg-accent-500 px-4 py-2 rounded-lg">Next</button>
+                            <button id="onb-back-1" class="text-white/40 text-sm">Back</button>
+                            <button id="onb-next-1" class="bg-accent-500 hover:bg-accent-600 px-8 py-3 rounded-xl font-bold transition-all">Next</button>
                         </div>
                     </div>
 
-                    <!-- Step 2: Neto hours & wake/sleep -->
+                    <!-- Step 2: Material Upload -->
                     <div id="onb-step-2" class="onb-step" style="display:none">
-                        <h3 class="text-xl font-bold mb-2">Daily routine & study load</h3>
-                        <p class="text-white/40 mb-4">When are you awake, and how many hours can you study per day?</p>
-                        <div class="grid grid-cols-2 gap-3 mb-4">
-                            <div>
-                                <label class="text-sm text-white/40 mb-1 block">Wake up</label>
-                                <input id="onb-wake" type="time" value="08:00" class="input-field">
-                            </div>
-                            <div>
-                                <label class="text-sm text-white/40 mb-1 block">Sleep</label>
-                                <input id="onb-sleep" type="time" value="23:00" class="input-field">
-                            </div>
+                        <h3 class="text-xl font-bold mb-2">Study Materials</h3>
+                        <p class="text-white/40 mb-4">Upload 1-3 files for <span id="onb-current-exam-name" class="text-white font-semibold">this exam</span>.</p>
+                        
+                        <!-- Upload Area -->
+                        <div id="onb-upload-area" class="border-2 border-dashed border-white/10 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer hover:border-accent-500/50 hover:bg-accent-500/5 transition-all mb-4">
+                            <div class="w-12 h-12 rounded-full bg-accent-500/20 flex items-center justify-center text-xl mb-3">📁</div>
+                            <p class="text-sm font-medium">Click or drag to upload</p>
+                            <p class="text-xs text-white/30 mt-1">PDFs or Images (Max 3)</p>
+                            <input type="file" id="onb-file-input" class="hidden" multiple accept="application/pdf,image/*">
                         </div>
-                        <div class="mb-4">
-                            <label class="text-sm text-white/40 mb-1 block">Neto study hours per day: <span id="onb-hours-label">4.0</span></label>
-                            <input id="onb-hours" type="range" min="0" max="12" step="0.5" value="4" class="w-full">
+                        <!-- Auto-fill test files button -->
+                        <button id="onb-auto-fill" type="button" class="w-full mb-4 py-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 text-sky-400 text-xs font-semibold transition-all flex items-center justify-center gap-2">
+                            <span>Use Test Files (Past Exam + Syllabus)</span>
+                            <div id="onb-auto-fill-spinner" class="hidden w-3 h-3 border-2 border-sky-400/20 border-t-sky-400 rounded-full animate-spin"></div>
+                        </button>
+
+                        <!-- File List -->
+                        <div id="onb-file-list" class="space-y-2 mb-6">
+                            <!-- Files will be injected here -->
                         </div>
-                        <div class="mt-4 flex justify-between">
-                            <button id="onb-back-2" class="text-white/40 text-sm">Back</button>
-                            <button id="onb-next-2" class="bg-accent-500 px-4 py-2 rounded-lg">Next</button>
+
+                        <div id="onb-step-2-nav" class="mt-4 flex flex-col gap-3">
+                            <div class="flex justify-between items-center">
+                                <button id="onb-back-2" class="text-white/40 text-sm">Back</button>
+                                <button id="onb-add-another" class="text-accent-400 font-semibold text-sm hover:text-accent-300 transition-colors">+ Add Another Exam</button>
+                            </div>
+                            <button id="onb-submit-all" class="w-full bg-gradient-to-r from-accent-500 to-mint-500 py-3 rounded-xl font-bold shadow-lg shadow-accent-500/20 disabled:opacity-50 disabled:grayscale transition-all" disabled>
+                                Create My Study Plan
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Step 3: Peak productivity -->
-                    <div id="onb-step-3" class="onb-step" style="display:none">
-                        <h3 class="text-xl font-bold mb-2">When are you most productive?</h3>
-                        <p class="text-white/40 mb-4">We'll prioritize study blocks during this time.</p>
-                        <div class="flex gap-2 flex-wrap mb-4">
-                            <button type="button" data-peak="Morning" class="onb-peak-tag px-4 py-2 rounded-xl bg-dark-900/50">🌅 Morning</button>
-                            <button type="button" data-peak="Afternoon" class="onb-peak-tag px-4 py-2 rounded-xl bg-dark-900/50">🌤 Afternoon</button>
-                            <button type="button" data-peak="Evening" class="onb-peak-tag px-4 py-2 rounded-xl bg-dark-900/50">🌇 Evening</button>
-                            <button type="button" data-peak="Night" class="onb-peak-tag px-4 py-2 rounded-xl bg-dark-900/50">🌙 Night</button>
-                        </div>
-                        <div class="mt-4 flex justify-between">
-                            <button id="onb-back-3" class="text-white/40 text-sm">Back</button>
-                            <button id="onb-submit" class="bg-gradient-to-r from-accent-500 to-mint-500 px-4 py-2 rounded-lg">Finish</button>
-                        </div>
-                    </div>
+                    <!-- Step 3 (Removed) -->
 
                     <!-- Success / Feedback -->
                     <div id="onb-success" style="display:none" class="text-center py-8">
@@ -327,12 +357,12 @@
         <!-- Mobile App Bar (inside dashboard — hidden on other screens automatically) -->
         <div id="mobile-app-bar" class="md:hidden flex items-center justify-between px-4 py-3 bg-dark-900/95 backdrop-blur-sm border-b border-white/5">
             <div class="flex items-center gap-2">
-                <div onclick="window._handleAiDebugTrigger()" class="w-8 h-8 rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-sm cursor-pointer">🧠</div>
+                <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-sm">🧠</div>
                 <span id="mobile-tab-title" class="font-bold text-sm">Roadmap</span>
             </div>
             <div class="flex items-center gap-2">
                 <button id="btn-show-settings-mobile" class="hidden"></button>
-                <button id="mobile-user-avatar" class="w-8 h-8 rounded-full bg-accent-500/20 border border-accent-500/30 flex items-center justify-center text-xs font-bold transition-opacity active:opacity-60"></button>
+                <button id="mobile-user-avatar" aria-label="Open profile" class="w-8 h-8 rounded-full bg-accent-500/20 border border-accent-500/30 flex items-center justify-center text-xs font-bold transition-opacity active:opacity-60"></button>
             </div>
         </div>
 
@@ -341,7 +371,7 @@
             <!-- Desktop Top Bar (hidden on mobile) -->
             <div class="hidden md:flex items-center justify-between mb-6 fade-in">
                 <div class="flex items-center gap-3">
-                    <div onclick="window._handleAiDebugTrigger()" class="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-base cursor-pointer">🧠</div>
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-base">🧠</div>
                     <span class="text-lg font-bold">StudyFlow</span>
                 </div>
                 <div class="flex items-center gap-2">
@@ -426,14 +456,24 @@
             </div>
 
             <!-- ═══ MOBILE PROFILE PANEL (Achievements + XP + Settings) ═══ -->
-            <div id="mobile-profile-panel" class="hidden overflow-y-auto px-4 py-4">
-                <div class="max-w-2xl mx-auto space-y-6">
-                    <div class="flex items-center justify-between mb-2">
-                        <h2 class="text-xl font-bold">Profile & Achievements</h2>
+            <div id="mobile-profile-panel" class="hidden overflow-y-auto px-4 py-3">
+                <div class="space-y-4">
+
+                    <!-- Profile Header Card -->
+                    <div class="flex items-center gap-3 bg-dark-700/60 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
+                        <div id="profile-avatar" class="w-12 h-12 rounded-full bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-lg font-bold shrink-0 text-white">?</div>
+                        <div class="flex-1 min-w-0">
+                            <h2 id="profile-display-name" class="text-base font-bold text-white truncate">Student</h2>
+                            <p id="profile-display-email" class="text-xs text-white/40 truncate">&nbsp;</p>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <p id="profile-level-badge" class="text-sm font-bold text-accent-400">Lvl 1</p>
+                            <p class="text-[10px] text-white/30 uppercase tracking-wider">Level</p>
+                        </div>
                     </div>
-                    
+
                     <!-- Tab Navigation -->
-                    <div class="flex bg-dark-900/60 p-1 rounded-xl mb-5 border border-white/5">
+                    <div class="flex bg-dark-900/60 p-1 rounded-xl border border-white/5">
                         <button class="profile-tab-btn flex-1 py-2 text-sm font-medium transition-all bg-dark-700 text-white shadow-sm rounded-lg" data-target="tab-achievements">XP</button>
                         <button class="profile-tab-btn flex-1 py-2 text-sm font-medium transition-all text-white/50 hover:text-white" data-target="tab-routine">Routine</button>
                         <button class="profile-tab-btn flex-1 py-2 text-sm font-medium transition-all text-white/50 hover:text-white" data-target="tab-alerts">Alerts</button>
@@ -441,146 +481,167 @@
                     </div>
 
                     <!-- Tab: Achievements -->
-                    <div id="tab-achievements" class="profile-tab-pane space-y-6 pb-4">
-                        <!-- Streak display -->
-                        <div class="text-center py-4 bg-white/5 rounded-3xl border border-white/5">
-                            <p class="text-xs text-white/40 uppercase tracking-widest mb-1 font-medium">Current Streak</p>
-                            <p id="achievement-streak" class="text-5xl font-black text-white">0</p>
-                            <p class="text-sm text-white/40 mt-1">days</p>
-                        </div>
-
-                        <!-- XP Progress Circles -->
-                        <div class="flex justify-center gap-8">
-                            <!-- Daily XP circle -->
-                            <div class="flex flex-col items-center gap-2">
-                                <div class="relative w-24 h-24">
-                                    <svg class="w-24 h-24 -rotate-90" viewBox="0 0 88 88">
-                                        <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
-                                        <circle id="xp-circle-daily" cx="44" cy="44" r="38" fill="none"
-                                            stroke="#6B47F5" stroke-width="8"
-                                            stroke-linecap="round"
-                                            stroke-dasharray="238.76"
-                                            stroke-dashoffset="238.76"
-                                            style="transition: stroke-dashoffset 0.6s ease;"/>
-                                    </svg>
-                                    <div class="absolute inset-0 flex items-center justify-center rotate-90">
-                                        <span id="xp-daily-label" class="text-sm font-bold text-white">0 XP</span>
-                                    </div>
-                                </div>
-                                <p class="text-xs font-semibold text-white/60">Daily</p>
+                    <div id="tab-achievements" class="profile-tab-pane space-y-3 pb-4">
+                        <!-- Streak + XP row -->
+                        <div class="grid grid-cols-3 gap-2">
+                            <!-- Streak -->
+                            <div class="text-center py-4 bg-white/[0.04] rounded-2xl border border-white/5">
+                                <p id="achievement-streak" class="text-3xl font-black text-white leading-none">0</p>
+                                <p class="text-[10px] text-white/40 uppercase tracking-widest mt-1.5 font-medium">Streak</p>
                             </div>
-
-                            <!-- Overall XP circle -->
-                            <div class="flex flex-col items-center gap-2">
-                                <div class="relative w-24 h-24">
-                                    <svg class="w-24 h-24 -rotate-90" viewBox="0 0 88 88">
-                                        <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
-                                        <circle id="xp-circle-overall" cx="44" cy="44" r="38" fill="none"
-                                            stroke="#10B981" stroke-width="8"
+                            <!-- Daily XP circle -->
+                            <div class="flex flex-col items-center justify-center py-3 bg-white/[0.04] rounded-2xl border border-white/5">
+                                <div class="relative w-[68px] h-[68px]">
+                                    <svg class="w-[68px] h-[68px] -rotate-90" viewBox="0 0 88 88">
+                                        <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="7"/>
+                                        <circle id="xp-circle-daily" cx="44" cy="44" r="38" fill="none"
+                                            stroke="#6B47F5" stroke-width="7"
                                             stroke-linecap="round"
                                             stroke-dasharray="238.76"
                                             stroke-dashoffset="238.76"
                                             style="transition: stroke-dashoffset 0.6s ease;"/>
                                     </svg>
                                     <div class="absolute inset-0 flex items-center justify-center rotate-90">
-                                        <span id="xp-overall-label" class="text-sm font-bold text-white">Lvl 1</span>
+                                        <span id="xp-daily-label" class="text-xs font-bold text-white">0 XP</span>
                                     </div>
                                 </div>
-                                <p class="text-xs font-semibold text-white/60">Overall</p>
+                                <p class="text-[10px] text-white/40 uppercase tracking-widest mt-1 font-medium">Daily</p>
+                            </div>
+                            <!-- Overall XP circle -->
+                            <div class="flex flex-col items-center justify-center py-3 bg-white/[0.04] rounded-2xl border border-white/5">
+                                <div class="relative w-[68px] h-[68px]">
+                                    <svg class="w-[68px] h-[68px] -rotate-90" viewBox="0 0 88 88">
+                                        <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="7"/>
+                                        <circle id="xp-circle-overall" cx="44" cy="44" r="38" fill="none"
+                                            stroke="#10B981" stroke-width="7"
+                                            stroke-linecap="round"
+                                            stroke-dasharray="238.76"
+                                            stroke-dashoffset="238.76"
+                                            style="transition: stroke-dashoffset 0.6s ease;"/>
+                                    </svg>
+                                    <div class="absolute inset-0 flex items-center justify-center rotate-90">
+                                        <span id="xp-overall-label" class="text-xs font-bold text-white">Lvl 1</span>
+                                    </div>
+                                </div>
+                                <p class="text-[10px] text-white/40 uppercase tracking-widest mt-1 font-medium">Level</p>
                             </div>
                         </div>
 
                         <!-- Badge grid (newest first) -->
-                        <div>
-                            <p class="text-xs text-white/40 uppercase tracking-widest mb-3 font-medium">Earned Badges</p>
-                            <div id="achievement-badges" class="grid grid-cols-1 gap-2">
+                        <div class="bg-white/[0.03] rounded-2xl p-3 border border-white/5">
+                            <p class="text-[10px] text-white/40 uppercase tracking-widest mb-2.5 font-medium px-1">Earned Badges</p>
+                            <div id="achievement-badges" class="grid grid-cols-1 gap-1.5">
                                 <p class="text-white/30 text-sm text-center py-4">No badges yet. Complete tasks to earn them!</p>
                             </div>
                         </div>
                     </div>
 
                     <!-- Tab: Routine -->
-                    <div id="tab-routine" class="profile-tab-pane hidden space-y-5">
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="text-xs text-white/40 mb-1.5 block uppercase tracking-wide font-medium">Wake up</label>
-                                <input id="settings-wake" type="time" class="w-full bg-dark-900/40 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-accent-500/50 transition-colors">
+                    <div id="tab-routine" class="profile-tab-pane hidden space-y-3">
+                        <div class="bg-white/[0.03] rounded-2xl p-4 border border-white/5 space-y-4">
+                            <p class="text-[10px] text-white/40 uppercase tracking-widest font-medium">Schedule</p>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="min-w-0">
+                                    <label class="text-xs text-white/50 mb-1.5 block font-medium">Wake up</label>
+                                    <input id="settings-wake" type="time" class="w-full bg-dark-900/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-accent-500/50 transition-colors" style="position:relative;z-index:1;">
+                                </div>
+                                <div class="min-w-0">
+                                    <label class="text-xs text-white/50 mb-1.5 block font-medium">Sleep</label>
+                                    <input id="settings-sleep" type="time" class="w-full bg-dark-900/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-accent-500/50 transition-colors" style="position:relative;z-index:1;">
+                                </div>
                             </div>
                             <div>
-                                <label class="text-xs text-white/40 mb-1.5 block uppercase tracking-wide font-medium">Sleep</label>
-                                <input id="settings-sleep" type="time" class="w-full bg-dark-900/40 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-accent-500/50 transition-colors">
+                                <label class="text-xs text-white/50 mb-1.5 block font-medium">Neto study hours per day: <span id="settings-hours-label" class="text-accent-400 font-bold">4.0</span></label>
+                                <input id="settings-hours" type="range" min="0" max="12" step="0.5" class="w-full accent-accent-500">
                             </div>
                         </div>
-                        <div>
-                            <label class="text-xs text-white/40 mb-1.5 block uppercase tracking-wide font-medium">Neto study hours per day: <span id="settings-hours-label" class="text-accent-400">4.0</span></label>
-                            <input id="settings-hours" type="range" min="0" max="12" step="0.5" class="w-full accent-accent-500">
-                        </div>
-                        <div>
-                            <label class="text-xs text-white/40 mb-1.5 block uppercase tracking-wide font-medium">Peak Productivity</label>
-                            <select id="settings-peak" class="w-full bg-dark-900/40 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-accent-500/50 transition-colors appearance-none">
-                                <option value="Morning">🌅 Morning</option>
-                                <option value="Afternoon">🌤 Afternoon</option>
-                                <option value="Evening">🌇 Evening</option>
-                                <option value="Night">🌙 Night</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-xs text-white/40 mb-1.5 block uppercase tracking-wide font-medium">Main Hobby</label>
-                            <input id="settings-hobby" type="text" placeholder="e.g. Gym, Gaming..." class="w-full bg-dark-900/40 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-accent-500/50 transition-colors">
+                        <div class="bg-white/[0.03] rounded-2xl p-4 border border-white/5 space-y-4">
+                            <p class="text-[10px] text-white/40 uppercase tracking-widest font-medium">Preferences</p>
+                            <div>
+                                <label class="text-xs text-white/50 mb-1.5 block font-medium">Peak Productivity</label>
+                                <div class="relative">
+                                    <select id="settings-peak" class="w-full bg-dark-900/50 border border-white/10 rounded-xl p-3 pr-10 text-white outline-none focus:border-accent-500/50 transition-colors appearance-none">
+                                        <option value="Morning">🌅 Morning</option>
+                                        <option value="Afternoon">🌤 Afternoon</option>
+                                        <option value="Evening">🌇 Evening</option>
+                                        <option value="Night">🌙 Night</option>
+                                    </select>
+                                    <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/30 text-xs">▼</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-xs text-white/50 mb-1.5 block font-medium">Main Hobby</label>
+                                <input id="settings-hobby" type="text" placeholder="e.g. Gym, Gaming..." class="w-full bg-dark-900/50 border border-white/10 rounded-xl p-3 text-white placeholder-white/20 outline-none focus:border-accent-500/50 transition-colors">
+                            </div>
                         </div>
                     </div>
 
                     <!-- Tab: Alerts -->
-                    <div id="tab-alerts" class="profile-tab-pane hidden space-y-5">
-                        <div class="bg-white/5 rounded-2xl p-4 border border-white/5">
-                            <label class="text-sm font-semibold mb-3 block">Notification Status</label>
-                            <div class="space-y-4">
-                                <p id="notif-status" class="text-xs text-white/40 flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full bg-gold-500"></span> Status: checking...
+                    <div id="tab-alerts" class="profile-tab-pane hidden space-y-3">
+                        <div class="bg-white/[0.03] rounded-2xl p-4 border border-white/5 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <p class="text-[10px] text-white/40 uppercase tracking-widest font-medium">Push Notifications</p>
+                                <p id="notif-status" class="text-[10px] text-white/40 flex items-center gap-1.5">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-gold-500"></span> checking...
                                 </p>
-                                <div class="flex gap-2">
-                                    <button id="enable-notif-btn" onclick="requestNotificationPermission()" 
-                                        class="flex-1 bg-accent-500 hover:bg-accent-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-accent-500/20 transition-all text-xs">
-                                        Enable Notifications
-                                    </button>
-                                    <button id="test-notif-btn" onclick="testNotification()" 
-                                        class="px-4 bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition-all text-xs">
-                                        Test
-                                    </button>
-                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button id="enable-notif-btn" onclick="requestNotificationPermission()"
+                                    class="flex-1 bg-accent-500 hover:bg-accent-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-accent-500/20 transition-all text-xs">
+                                    Enable Notifications
+                                </button>
+                                <button id="test-notif-btn" onclick="testNotification()"
+                                    class="px-4 bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition-all text-xs">
+                                    Test
+                                </button>
                             </div>
                         </div>
 
-                        <div class="space-y-4">
+                        <div class="bg-white/[0.03] rounded-2xl p-4 border border-white/5 space-y-4">
+                            <p class="text-[10px] text-white/40 uppercase tracking-widest font-medium">Timing</p>
                             <div>
-                                <label class="text-xs text-white/40 mb-1.5 block uppercase tracking-wide font-medium">Notify me</label>
-                                <select id="settings-notif-timing" class="w-full bg-dark-900/40 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-accent-500/50 transition-colors appearance-none">
-                                    <option value="at_start">At start time</option>
-                                    <option value="15_before">15 mins before</option>
-                                    <option value="30_before">30 mins before</option>
-                                </select>
+                                <label class="text-xs text-white/50 mb-1.5 block font-medium">Notify me</label>
+                                <div class="relative">
+                                    <select id="settings-notif-timing" class="w-full bg-dark-900/50 border border-white/10 rounded-xl p-3 pr-10 text-white outline-none focus:border-accent-500/50 transition-colors appearance-none">
+                                        <option value="at_start">At start time</option>
+                                        <option value="15_before">15 mins before</option>
+                                        <option value="30_before">30 mins before</option>
+                                    </select>
+                                    <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/30 text-xs">▼</span>
+                                </div>
                             </div>
-                            <div class="flex items-center justify-between p-3 bg-dark-900/20 rounded-xl border border-white/5">
+                            <div class="flex items-center justify-between p-3 bg-dark-900/30 rounded-xl border border-white/5">
                                 <span class="text-sm text-white/70">Notify for every task</span>
                                 <input id="settings-notif-per-task" type="checkbox" class="w-5 h-5 accent-accent-500 rounded-lg" checked>
+                            </div>
+                            <div class="flex items-center justify-between p-3 bg-dark-900/30 rounded-xl border border-white/5">
+                                <span class="text-sm text-white/70">Daily summary</span>
+                                <input id="settings-notif-daily-summary" type="checkbox" class="w-5 h-5 accent-accent-500 rounded-lg">
                             </div>
                         </div>
                     </div>
 
                     <!-- Tab: Account -->
-                    <div id="tab-account" class="profile-tab-pane hidden space-y-6">
-                        <div>
-                            <label class="text-xs text-white/40 mb-1.5 block uppercase tracking-wide font-medium">Name</label>
-                            <input id="settings-name" type="text" class="w-full bg-dark-900/40 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-accent-500/50 transition-colors">
+                    <div id="tab-account" class="profile-tab-pane hidden space-y-3">
+                        <div class="bg-white/[0.03] rounded-2xl p-4 border border-white/5 space-y-4">
+                            <p class="text-[10px] text-white/40 uppercase tracking-widest font-medium">Account Info</p>
+                            <div>
+                                <label class="text-xs text-white/50 mb-1.5 block font-medium">Email</label>
+                                <p id="settings-email-display" class="text-sm text-white/60 bg-dark-900/50 border border-white/10 rounded-xl p-3"></p>
+                            </div>
+                            <div>
+                                <label class="text-xs text-white/50 mb-1.5 block font-medium">Name</label>
+                                <input id="settings-name" type="text" class="w-full bg-dark-900/50 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-accent-500/50 transition-colors">
+                            </div>
                         </div>
 
-                        <div class="pt-4">
+                        <div class="bg-white/[0.03] rounded-2xl p-4 border border-white/5">
                             <button id="btn-logout-drawer" class="w-full py-3.5 rounded-xl text-coral-400 border border-coral-500/30 hover:bg-coral-500/10 text-sm font-semibold transition-all">Sign Out</button>
                         </div>
                     </div>
 
-                    <div class="pt-6 border-t border-white/5">
-                        <button id="btn-save-settings" class="w-full bg-accent-500 hover:bg-accent-600 font-bold py-4 rounded-xl shadow-lg shadow-accent-500/25 transition-all">Save Changes</button>
+                    <div id="save-settings-wrapper" class="pb-2 hidden">
+                        <button id="btn-save-settings" class="w-full bg-accent-500 hover:bg-accent-600 font-bold py-3.5 rounded-2xl shadow-lg shadow-accent-500/25 transition-all text-sm">Save Changes</button>
                     </div>
                 </div>
             </div>
@@ -702,22 +763,22 @@
             </div><!-- /#mobile-roadmap-content -->
         </div>
         <!-- Mobile Bottom Tab Bar -->
-        <div id="mobile-tab-bar" class="md:hidden flex bg-dark-900/95 backdrop-blur-sm border-t border-white/5" style="padding-bottom: env(safe-area-inset-bottom);">
-            <button data-tab="roadmap" class="mobile-tab-btn flex-1 flex flex-col items-center justify-center py-3 gap-0.5 text-accent-400 transition-colors">
-                <span class="text-lg leading-none">📅</span>
-                <span class="text-xs font-medium">Roadmap</span>
+        <div id="mobile-tab-bar" role="tablist" aria-label="Main navigation" class="md:hidden flex border-t border-white/5">
+            <button data-tab="roadmap" role="tab" aria-label="Roadmap" aria-selected="true" class="mobile-tab-btn flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-accent-400 transition-colors">
+                <span class="text-base leading-none" aria-hidden="true">📅</span>
+                <span class="text-[10px] font-medium">Roadmap</span>
             </button>
-            <button data-tab="focus" class="mobile-tab-btn flex-1 flex flex-col items-center justify-center py-3 gap-0.5 text-white/40 transition-colors">
-                <span class="text-lg leading-none">⚡</span>
-                <span class="text-xs font-medium">Focus</span>
+            <button data-tab="focus" role="tab" aria-label="Focus" aria-selected="false" class="mobile-tab-btn flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-white/40 transition-colors">
+                <span class="text-base leading-none" aria-hidden="true">⚡</span>
+                <span class="text-[10px] font-medium">Focus</span>
             </button>
-            <button data-tab="exams" class="mobile-tab-btn flex-1 flex flex-col items-center justify-center py-3 gap-0.5 text-white/40 transition-colors">
-                <span class="text-lg leading-none">📚</span>
-                <span class="text-xs font-medium">Exams</span>
+            <button data-tab="exams" role="tab" aria-label="Exams" aria-selected="false" class="mobile-tab-btn flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-white/40 transition-colors">
+                <span class="text-base leading-none" aria-hidden="true">📚</span>
+                <span class="text-[10px] font-medium">Exams</span>
             </button>
-            <button data-tab="profile" class="mobile-tab-btn flex-1 flex flex-col items-center justify-center py-3 gap-0.5 text-white/40 transition-colors">
-                <span class="text-lg leading-none">👤</span>
-                <span class="text-xs font-medium">Profile</span>
+            <button data-tab="profile" role="tab" aria-label="Profile" aria-selected="false" class="mobile-tab-btn flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-white/40 transition-colors">
+                <span class="text-base leading-none" aria-hidden="true">👤</span>
+                <span class="text-[10px] font-medium">Profile</span>
             </button>
         </div>
     </div>
@@ -1020,6 +1081,9 @@
                         Push to next days
                     </button>
                 </div>
+                <button id="btn-morning-dismiss" class="w-full mt-3 py-2 text-white/30 text-xs font-medium hover:text-white/50 transition-all">
+                    Decide later
+                </button>
             </div>
         </div>
     </div>
@@ -1034,7 +1098,7 @@
             <div class="p-5">
                 <div class="flex items-center justify-between mb-5">
                     <h2 class="text-lg font-bold">Edit Block</h2>
-                    <button id="btn-close-edit-modal" class="text-white/40 active:text-white w-9 h-9 flex items-center justify-center rounded-full bg-white/5 transition-colors text-base">✕</button>
+                    <button id="btn-close-edit-modal" aria-label="Close" class="text-white/40 active:text-white w-9 h-9 flex items-center justify-center rounded-full bg-white/5 transition-colors text-base">✕</button>
                 </div>
                 <div class="space-y-3">
                     <div>
@@ -1053,8 +1117,8 @@
             </div>
             <div class="px-5 pb-6 pt-2 flex flex-wrap gap-3">
                 <button id="btn-defer-task-modal" type="button" class="hidden px-4 py-3.5 rounded-2xl bg-white/5 text-white/70 hover:text-accent-400 active:bg-white/10 transition-all font-medium text-sm border border-white/10">דחייה למחר</button>
-                <button id="btn-delete-task-modal" class="px-4 py-3.5 rounded-2xl bg-red-500/10 text-red-400 active:bg-red-500/20 transition-all font-medium text-sm">Delete</button>
-                <button id="btn-save-task-edit" class="flex-1 min-w-0 bg-accent-500 active:opacity-80 font-semibold py-3.5 rounded-2xl transition-all">Save Changes</button>
+                <button id="btn-delete-task-modal" aria-label="Delete block" class="px-4 py-3.5 rounded-2xl bg-red-500/10 text-red-400 active:bg-red-500/20 transition-all font-medium text-sm">Delete</button>
+                <button id="btn-save-task-edit" aria-label="Save changes" class="flex-1 min-w-0 bg-accent-500 active:opacity-80 font-semibold py-3.5 rounded-2xl transition-all">Save Changes</button>
             </div>
         </div>
     </div>
@@ -1085,32 +1149,6 @@
       </div>
     </div>
 
-    <!-- AI DEBUG CONSOLE MODAL -->
-    <div id="modal-ai-debug" class="modal-bg">
-        <div class="w-full max-w-4xl mx-4 bg-dark-800 rounded-3xl border border-white/10 shadow-2xl flex flex-col" style="max-height: 90vh;">
-            <div class="p-6 border-b border-white/5 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-accent-500/20 flex items-center justify-center text-sm">🤖</div>
-                    <h2 class="text-xl font-bold text-white">AI Debug Console</h2>
-                </div>
-                <button onclick="showModal('modal-ai-debug', false)" class="text-white/40 hover:text-white text-xl">✕</button>
-            </div>
-            <div class="flex-1 overflow-y-auto p-6 space-y-6">
-                <div>
-                    <h3 class="text-xs font-bold text-accent-400 uppercase tracking-widest mb-3">Outgoing Prompt</h3>
-                    <pre id="debug-prompt" class="bg-dark-900/60 rounded-xl p-4 text-[11px] text-white/70 font-mono whitespace-pre-wrap border border-white/5"></pre>
-                </div>
-                <div>
-                    <h3 class="text-xs font-bold text-mint-400 uppercase tracking-widest mb-3">Raw AI Response</h3>
-                    <pre id="debug-response" class="bg-dark-900/60 rounded-xl p-4 text-[11px] text-white/70 font-mono whitespace-pre-wrap border border-white/5"></pre>
-                </div>
-                <div>
-                    <h3 class="text-xs font-bold text-gold-400 uppercase tracking-widest mb-3">Implemented Roadmap</h3>
-                    <div id="debug-roadmap-stats" class="grid grid-cols-3 gap-3"></div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
 
@@ -1343,6 +1381,6 @@
         })(window);
     </script>
 
-    <script type="module" src="/js/app.js?v=AUTO"></script>
+    <script type="module" src="/js/app.js?v=62"></script>
 </body>
 </html>

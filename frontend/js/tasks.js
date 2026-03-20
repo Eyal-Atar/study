@@ -1,8 +1,8 @@
-import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, setCurrentTasks, getCurrentSchedule, setCurrentSchedule, getPendingExamId, setPendingExamId, getPendingFiles, setPendingFiles, setLatestAiDebug, getCurrentUser, getTodayStr } from './store.js?v=AUTO';
-import { shakeEl, spawnConfetti, examColorClass, showModal, showConfirmModal, showScreen, LoadingAnimator } from './ui.js?v=AUTO';
-import { renderCalendar, renderFocus, renderExamLegend } from './calendar.js?v=AUTO';
-import { showRegenBar, hideRegenBar } from './brain.js?v=AUTO';
-import { updateXPDisplay, appendNewBadges, showDailyCelebration } from './profile.js?v=AUTO';
+import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, setCurrentTasks, getCurrentSchedule, setCurrentSchedule, getPendingExamId, setPendingExamId, getPendingFiles, setPendingFiles, getCurrentUser, getTodayStr } from './store.js?v=59';
+import { shakeEl, spawnConfetti, examColorClass, showModal, showConfirmModal, showScreen, LoadingAnimator } from './ui.js?v=59';
+import { renderCalendar, renderFocus, renderExamLegend } from './calendar.js?v=59';
+import { showRegenBar, hideRegenBar } from './brain.js?v=59';
+import { updateXPDisplay, appendNewBadges, showDailyCelebration } from './profile.js?v=59';
 
 // Notification permission prompt tracking
 const NOTIF_PROMPT_KEY = 'sf_notif_prompt_shown';
@@ -17,12 +17,11 @@ function markNotifPromptShown() {
     localStorage.setItem(NOTIF_PROMPT_KEY, '1');
 }
 
-// Use a proxy for _auditorDraft to trace where it is cleared or modified
+// Auditor draft state (stored on window for cross-module access)
 let _internalAuditorDraft = null;
 Object.defineProperty(window, '_auditorDraft', {
     get() { return _internalAuditorDraft; },
     set(val) {
-        console.log(`[STATE] _auditorDraft changed from`, _internalAuditorDraft, `to`, val, new Error().stack);
         _internalAuditorDraft = val;
     },
     configurable: true
@@ -46,7 +45,7 @@ export async function refreshScheduleAndFocus() {
         showModal('loading-overlay', true);
         animator.start();
 
-        const tres = await authFetch(`${API}/regenerate-schedule`, { method: 'POST' });
+        const tres = await authFetch(`${API}/brain/regenerate-schedule`, { method: 'POST' });
         if (!tres.ok) {
             animator.stop();
             showModal('loading-overlay', false);
@@ -85,7 +84,7 @@ function syncAfterToggle(taskId, isBlockToggle) {
         const taskBlocks = schedule.filter(b => b.task_id === taskId);
         if (taskBlocks.length) {
             const doneCount = taskBlocks.filter(b => b.completed === 1).length;
-            const task = getCurrentTasks().find(t => t.id === taskId);
+            const task = (getCurrentTasks() || []).find(t => t.id === taskId);
             if (task) task.status = doneCount === taskBlocks.length ? 'done' : 'pending';
         }
     }
@@ -129,7 +128,7 @@ export async function loadExams(onLogout, forceRegen = false) {
         
         // Fetch existing tasks and schedule from server
         const tasksRes = await authFetch(`${API}/tasks`);
-        const scheduleRes = await authFetch(`${API}/schedule`);
+        const scheduleRes = await authFetch(`${API}/brain/schedule`);
 
         let tasks = [];
         let schedule = [];
@@ -154,7 +153,7 @@ export async function loadExams(onLogout, forceRegen = false) {
         const tasksGenuinelyEmpty = tasksFetchOk && scheduleFetchOk && tasks.length === 0 && exams.length > 0;
         if (forceRegen || tasksGenuinelyEmpty) {
             console.log('loadExams: Triggering regenerate-schedule (forceRegen=' + forceRegen + ', genuinelyEmpty=' + tasksGenuinelyEmpty + ')...');
-            const tres = await authFetch(`${API}/regenerate-schedule`, { method: 'POST' });
+            const tres = await authFetch(`${API}/brain/regenerate-schedule`, { method: 'POST' });
             if (tres.ok) {
                 const data = await tres.json();
                 setCurrentTasks(data.tasks);
@@ -260,6 +259,7 @@ function renderExamCardsDrawer(exams) {
                 <div class="text-xs text-white/40">${exam.subject} · ${daysLabel} · ${progress}%</div>
             </div>
             <button data-exam-id="${exam.id}" class="btn-edit-exam-drawer text-xs text-white/30 hover:text-accent-400 transition-colors px-1.5 py-1 flex-shrink-0">Edit</button>
+            <button data-exam-id="${exam.id}" class="btn-delete-exam-drawer text-xs text-white/30 hover:text-coral-400 transition-colors px-1.5 py-1 flex-shrink-0">Delete</button>
         </div>`;
     }).join('');
     container.querySelectorAll('.btn-edit-exam-drawer').forEach(btn => {
@@ -267,6 +267,12 @@ function renderExamCardsDrawer(exams) {
             e.stopPropagation();
             const exam = getCurrentExams().find(ex => ex.id === parseInt(btn.dataset.examId));
             if (exam) openEditExamModal(exam);
+        };
+    });
+    container.querySelectorAll('.btn-delete-exam-drawer').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            deleteExam(btn.dataset.examId);
         };
     });
 }
@@ -513,47 +519,62 @@ export async function toggleDone(taskId, btn, blockId = null) {
             }
         }
 
-        // Gamification: award XP when a block is marked done (fire-and-forget, non-blocking)
-        if (patchRes.ok && !isDone && isBlockToggle && blockId) {
-            authFetch(`${API}/gamification/award-xp`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ task_id: taskId, block_id: blockId })
-            })
-                .then(r => r.json())
-                .then(xpResult => {
-                    if (xpResult && xpResult.xp_earned > 0) {
-                        spawnConfetti(btn); // only confetti if actually earned
-                        updateXPDisplay(xpResult);   // animate circles live
+        // Gamification: award/revoke XP
+        // Collect block IDs to process: single block from Roadmap, or all task blocks from Focus
+        const xpBlockIds = [];
+        if (isBlockToggle && blockId) {
+            xpBlockIds.push(blockId);
+        } else if (!isBlockToggle && taskId) {
+            // Focus panel: find all blocks for this task
+            const schedule = getCurrentSchedule() || [];
+            schedule.filter(b => b.task_id === taskId).forEach(b => xpBlockIds.push(b.id));
+        }
+
+        if (patchRes.ok && !isDone && xpBlockIds.length > 0) {
+            // Award XP for each block
+            Promise.all(xpBlockIds.map(bid =>
+                authFetch(`${API}/gamification/award-xp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task_id: taskId, block_id: bid })
+                }).then(r => r.json())
+            ))
+                .then(results => {
+                    // Use the last result for display (cumulative state)
+                    const last = results[results.length - 1];
+                    const totalEarned = results.reduce((sum, r) => sum + (r?.xp_earned || 0), 0);
+                    if (totalEarned > 0) {
+                        spawnConfetti(btn);
+                        if (last) updateXPDisplay(last);
                     }
-                    if (xpResult && xpResult.badges_earned && xpResult.badges_earned.length > 0) {
-                        appendNewBadges(xpResult.badges_earned);
-                    }
+                    const allBadges = results.flatMap(r => r?.badges_earned || []);
+                    if (allBadges.length > 0) appendNewBadges(allBadges);
+                    // Check celebration after XP confirmed by server
+                    checkAndShowDailyCelebration();
                 })
                 .catch(e => {
                     console.warn('XP award failed:', e);
                 });
-
-            // Check if all of today's study blocks are completed to show celebration screen
-            checkAndShowDailyCelebration();
         }
 
-        // Gamification: revoke XP when a block is marked undone
-        if (patchRes.ok && isDone && isBlockToggle && blockId) {
-            authFetch(`${API}/gamification/revoke-xp`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ task_id: taskId, block_id: blockId })
-            })
-                .then(r => r.json())
-                .then(xpResult => {
-                    if (xpResult && xpResult.xp_revoked > 0) {
-                        // Update circles to reflect lost XP
+        if (patchRes.ok && isDone && xpBlockIds.length > 0) {
+            // Revoke XP for each block
+            Promise.all(xpBlockIds.map(bid =>
+                authFetch(`${API}/gamification/revoke-xp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task_id: taskId, block_id: bid })
+                }).then(r => r.json())
+            ))
+                .then(results => {
+                    const last = results[results.length - 1];
+                    const totalRevoked = results.reduce((sum, r) => sum + (r?.xp_revoked || 0), 0);
+                    if (totalRevoked > 0 && last) {
                         updateXPDisplay({
-                            xp_earned: 0, // no confetti for revocation
-                            new_total: xpResult.new_total,
-                            new_level: xpResult.new_level,
-                            daily_xp: xpResult.daily_xp
+                            xp_earned: 0,
+                            new_total: last.new_total,
+                            new_level: last.new_level,
+                            daily_xp: last.daily_xp
                         });
                     }
                 })
@@ -592,8 +613,13 @@ export async function deferBlockToTomorrow(blockId) {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.detail || err.error || `Defer failed: ${res.status}`);
         }
-        const tres = await authFetch(`${API}/regenerate-schedule`, { method: 'POST' });
-        if (!tres.ok) return;
+        const tres = await authFetch(`${API}/brain/regenerate-schedule`, { method: 'POST' });
+        if (!tres.ok) {
+            // Defer succeeded but regen failed — force a full refresh to sync state
+            console.warn('Defer succeeded but schedule regen failed, refreshing...');
+            window.dispatchEvent(new CustomEvent('calendar-needs-refresh'));
+            return;
+        }
         const data = await tres.json();
         setCurrentTasks(data.tasks || []);
         setCurrentSchedule(data.schedule || []);
@@ -621,7 +647,7 @@ export async function generateRoadmap() {
 
     const API = getAPI();
     try {
-        const res = await authFetch(`${API}/generate-roadmap`, { method: 'POST' });
+        const res = await authFetch(`${API}/brain/generate-roadmap`, { method: 'POST' });
         const data = await res.json();
         if (!res.ok) {
             animator.stop();
@@ -1000,7 +1026,7 @@ export async function approveSchedule() {
 
     const API = getAPI();
     try {
-        const res = await authFetch(`${API}/approve-and-schedule`, {
+        const res = await authFetch(`${API}/brain/approve-and-schedule`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ approved_tasks: approvedTasks })
@@ -1061,7 +1087,7 @@ export async function checkAuditorDraftOnInit() {
 
     const API = getAPI();
     try {
-        const res = await authFetch(`${API}/auditor-draft`);
+        const res = await authFetch(`${API}/brain/auditor-draft`);
         if (!res.ok) return; // 404 = no draft, that's fine
         const draft = await res.json();
         if (!draft || !draft.tasks || draft.tasks.length === 0) return;
@@ -1088,6 +1114,7 @@ function _showResumeBanner() {
     const banner = document.createElement('div');
     banner.id = 'auditor-resume-banner';
     banner.className = 'fixed top-0 left-0 right-0 z-50 bg-accent-500/95 text-white flex items-center justify-between px-4 py-3 text-sm font-medium shadow-lg';
+    banner.style.paddingTop = 'calc(env(safe-area-inset-top, 0px) + 12px)';
     banner.innerHTML = `
         <span>AI analysis ready — continue reviewing your study plan?</span>
         <div class="flex gap-2 ml-3">
@@ -1108,7 +1135,7 @@ function _showResumeBanner() {
         // Clear draft from DB so the banner doesn't reappear on reload
         try {
             const API = getAPI();
-            await authFetch(`${API}/auditor-draft`, { method: 'DELETE' });
+            await authFetch(`${API}/brain/auditor-draft`, { method: 'DELETE' });
         } catch (_) { /* non-fatal */ }
     });
 }

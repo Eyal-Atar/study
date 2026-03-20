@@ -1,5 +1,5 @@
 /* StudyFlow — Notifications & Push Module */
-import { getAPI, authFetch } from './store.js?v=AUTO';
+import { getAPI, authFetch } from './store.js?v=59';
 
 /**
  * Initialize Push Notifications for the current user.
@@ -234,16 +234,33 @@ export function showToast(title, body, blockId = null) {
     // Style matches typical StudyFlow UI
     toast.className = 'fixed top-6 right-6 z-[100] w-full max-w-xs bg-dark-700/90 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-2xl animate-slide-in cursor-pointer';
 
-    toast.innerHTML = `
-        <div class="flex items-start gap-3">
-            <div class="w-10 h-10 rounded-xl bg-accent-500/20 flex items-center justify-center text-xl shrink-0">🧠</div>
-            <div class="flex-1 overflow-hidden">
-                <div class="font-bold text-sm truncate text-white">${title}</div>
-                <div class="text-white/50 text-xs line-clamp-2">${body}</div>
-            </div>
-            <button class="text-white/20 hover:text-white p-1" onclick="this.closest('#sf-toast').remove()">✕</button>
-        </div>
-    `;
+    const row = document.createElement('div');
+    row.className = 'flex items-start gap-3';
+
+    const icon = document.createElement('div');
+    icon.className = 'w-10 h-10 rounded-xl bg-accent-500/20 flex items-center justify-center text-xl shrink-0';
+    icon.textContent = '🧠';
+
+    const content = document.createElement('div');
+    content.className = 'flex-1 overflow-hidden';
+    const titleEl = document.createElement('div');
+    titleEl.className = 'font-bold text-sm truncate text-white';
+    titleEl.textContent = title;
+    const bodyEl = document.createElement('div');
+    bodyEl.className = 'text-white/50 text-xs line-clamp-2';
+    bodyEl.textContent = body;
+    content.appendChild(titleEl);
+    content.appendChild(bodyEl);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'text-white/20 hover:text-white p-1';
+    closeBtn.textContent = '✕';
+    closeBtn.onclick = () => toast.remove();
+
+    row.appendChild(icon);
+    row.appendChild(content);
+    row.appendChild(closeBtn);
+    toast.appendChild(row);
 
     toast.onclick = (e) => {
         if (e.target.closest('button')) return;
@@ -307,19 +324,19 @@ if ('serviceWorker' in navigator) {
 
                 // Use dynamic imports to avoid circular dependencies and lazy-load gamification UI
                 if (action === 'streak-splash') {
-                    const { showStreakSplash } = await import('./profile.js?v=AUTO');
+                    const { showStreakSplash } = await import('./profile.js?v=59');
                     showStreakSplash(payload?.streak || 7, payload?.isMilestone || false);
                 } else if (action === 'celebration') {
-                    const { showDailyCelebration } = await import('./profile.js?v=AUTO');
+                    const { showDailyCelebration } = await import('./profile.js?v=59');
                     showDailyCelebration();
                 } else if (action === 'new-badge') {
-                    const { appendNewBadges } = await import('./profile.js?v=AUTO');
+                    const { appendNewBadges } = await import('./profile.js?v=59');
                     appendNewBadges([payload?.badge || 'iron_will_7']);
                 } else if (action === 'morning-prompt') {
-                    const { showMorningPrompt } = await import('./profile.js?v=AUTO');
+                    const { showMorningPrompt } = await import('./profile.js?v=59');
                     showMorningPrompt(payload?.tasks || []);
                 } else if (action === 'award-xp') {
-                    const { updateXPDisplay } = await import('./profile.js?v=AUTO');
+                    const { updateXPDisplay } = await import('./profile.js?v=59');
                     const earned = payload?.xp_earned || 50;
                     updateXPDisplay({
                         xp_earned: earned,

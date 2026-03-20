@@ -1,32 +1,55 @@
 """ExamBrain — AI core that builds day-by-day study calendars."""
 from __future__ import annotations
-
 import asyncio
 import json
 import os
+import random
+import time
 from datetime import datetime, timedelta, timezone
 import litellm
 import fitz  # PyMuPDF
 
-EXCLUSIVE_ZONE_DAYS = 4
-CHAR_LIMIT = 600_000  # ~150K tokens, safe margin under Sonnet's 200K token context
+async def retry_acompletion(model, messages, **kwargs):
+    """Wrapper for litellm.acompletion with exponential backoff retry logic."""
+    max_retries = 3
+    base_delay = 2 # seconds
 
+    for attempt in range(max_retries):
+        try:
+            return await litellm.acompletion(model=model, messages=messages, **kwargs)
+        except Exception as e:
+            # Handle rate limits (429) or overloaded servers (503/529)
+            error_str = str(e).lower()
+            is_retryable = any(msg in error_str for msg in ["429", "rate limit", "overloaded", "503", "529", "timeout"])
 
-def extract_text_from_pdf(file_path: str, max_pages: int = None) -> str:
-    try:
-        doc = fitz.open(file_path)
-        text = ""
-        for i, page in enumerate(doc):
-            if max_pages is not None and i >= max_pages:
-                break
-            text += page.get_text() + "\n"
-        doc.close()
-        return text.strip()
-    except Exception:
-        return ""
+            if attempt < max_retries - 1 and is_retryable:
+                # Calculate delay with jitter: base_delay * 2^attempt + jitter
+                delay = (base_delay * (2 ** attempt)) + (random.uniform(0, 1))
+                print(f"DEBUG: AI Call failed (attempt {attempt+1}/{max_retries}). Retrying in {delay:.2f}s... Error: {e}")
+                await asyncio.sleep(delay)
+            else:
+                print(f"ERROR: AI Call failed after {attempt+1} attempts: {e}")
+                raise e
 
+CHAR_LIMIT = 700_000
 
 class ExamBrain:
+    @staticmethod
+    def extract_pdf_text(file_path: str, max_pages: int | None = None) -> str:
+        """Extract text from a PDF file using PyMuPDF (fitz)."""
+        try:
+            doc = fitz.open(file_path)
+            text = ""
+            for i, page in enumerate(doc):
+                if max_pages is not None and i >= max_pages:
+                    break
+                text += page.get_text() + "\n"
+            doc.close()
+            return text.strip()
+        except Exception as e:
+            print(f"WARNING: PDF extraction failed for {file_path}: {e}")
+            return ""
+
     def __init__(self, user: dict, exams: list[dict]):
         self.user = user
         self.exams = exams
@@ -259,26 +282,28 @@ EXAM MATERIAL:
 
 TASK:
 1. Map ALL syllabus topics for this exam.
-2. AGGRESSIVE DECOMPOSITION & BUDGET ENFORCEMENT (CRITICAL):
-   - You MUST generate enough tasks so that the sum of their `estimated_hours` equals exactly {exam_hours} hours!
+2. MATERIAL-BASED ANCHORING (CRITICAL):
+   - "Review" Task: If a 'syllabus' or 'summary' file exists, you MUST create exactly one task: "סקירה ראשונית: [Filename/Topic]" (estimated 1.5h, topic="review").
+   - "Simulation" Tasks: 
+     - If 'past_exam' or 'sample_exam' files exist, for EACH file create: "סימולציה מלאה: [Filename]" (estimated 3.0h, topic="simulation") AND "תחקור סימולציה: [Filename]" (estimated 1.5h, topic="review", depends on its simulation).
+     - NUDGE: If NO 'past_exam' or 'sample_exam' files exist, you MUST still create at least two generic tasks: "סימולציה מלאה (חיפוש ופתרון מבחן לדוגמה)" (3.0h, topic="simulation") and "תחקור סימולציה" (1.5h, topic="review").
+3. AGGRESSIVE DECOMPOSITION & BUDGET ENFORCEMENT (CRITICAL):
+   - You MUST generate enough tasks so that the sum of their `estimated_hours` equals exactly {exam_hours} hours (including simulations/reviews)!
    - Break every topic into AT LEAST 3-5 specific sub-tasks.
-   - If you finish mapping the core syllabus topics and haven't reached {exam_hours} hours, you MUST generate additional deep-practice tasks to fill the remaining budget. Use highly specific titles like: "פתרון מבחן משנים קודמות", "תרגול שאלות קצה בנושא X", or "חזרה אקטיבית על סיכומים של Y". Do not use generic names.
-3. SAMPLE EXAMS & PAST EXAMS: If a file is labeled as 'sample_exam' OR 'past_exam', you MUST create two specific tasks for it:
-   - "סימולציה מלאה: [File Name] (תנאי אמת, בלי טלפון, עם סטופר)" (estimated 2.5-3h)
-   - "תחקור מלא וכתיבת דגשים: [File Name]" (estimated 1.5-2h, dependency on the simulation)
+   - If you haven't reached {exam_hours} hours, generate additional deep-practice tasks. Use highly specific titles.
 4. REALISTIC TIME ESTIMATION (CRITICAL): 
-   - A single question or a small set of exercises should NEVER take 3 hours. 
-   - Cap any task that is just "solving question X" or "reviewing problem Y" at 1.0 - 1.5 hours. 
-   - Only comprehensive study sessions or full simulations should exceed 2 hours.
-5. Actionable Titles: Use the following style for ALL tasks:
+   - A single question should NEVER take 3 hours. 
+   - Cap generic study tasks at 1.0 - 1.5 hours. 
+   - Only full simulations should be 3.0 hours.
+5. Actionable Titles: Use the style:
    - "מעבר על מצגת: [Topic Name]"
-   - "בנייה ידנית: [Core Concept]. תרגול [Operations]"
    - "פתרון שאלות: [Topic]. [Specific Challenges]"
 6. Each task must have:
-   - focus_score (1-10): concentration level required
-   - reasoning: 1-sentence explanation
-   - dependency_id: 0-based index into THIS exam's task array, or null
-   - estimated_hours (0.5 to 3.5 hours)
+   - topic: set to "simulation" for simulations, "review" for reviews/audits, or the actual subject topic for study tasks.
+   - focus_score (1-10): concentration level required.
+   - reasoning: 1-sentence explanation.
+   - dependency_id: 0-based index into THIS exam's task array, or null.
+   - estimated_hours (0.5 to 3.5 hours).
 7. Match the language of the exam name (Hebrew exams -> Hebrew titles).
 
 RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
@@ -321,7 +346,7 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
         # Force Density Instruction added to User Message
         user_message = f"Generate the Knowledge Audit for Exam {exam['id']} ({exam['name']}). \n\nCRITICAL: You must generate a HIGH-DENSITY list of tasks. For this amount of syllabus material, I expect at least 40-60 granular sub-tasks to be generated to fill the {exam_hours} hour budget."
 
-        response = await litellm.acompletion(
+        response = await retry_acompletion(
             model=self.model,
             messages=[{"role": "user", "content": prompt + "\n\n" + user_message}],
             max_tokens=8192,
@@ -445,6 +470,7 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
         """Build the system prompt for the Strategist (API Call 2)."""
         neto_h = float(self.user.get("neto_study_hours", 4.0))
         peak = self.user.get("peak_productivity", "Morning")
+        buffer_days = int(self.user.get("buffer_days", 1))
         
         # Minimized task list for the prompt
         minimized_tasks = []
@@ -454,20 +480,14 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
                 "h": t.get("estimated_hours"),
                 "f": t.get("focus_score"),
                 "e": t.get("exam_id"),
-                "d": t.get("dependency_id")
+                "d": t.get("dependency_id"),
+                "t": t.get("topic") # Include topic for anchoring
             })
         task_list_json = json.dumps(minimized_tasks, ensure_ascii=False)
         
         local_time_str = self.user.get("current_local_time", "Not provided")
         sleep_time = self.user.get("sleep_time", "23:00")
         
-        try:
-            now_dt = datetime.strptime(local_time_str, "%H:%M")
-            buffer_dt = now_dt + timedelta(hours=2)
-            buffer_time_str = buffer_dt.strftime("%H:%M")
-        except:
-            buffer_time_str = "in 2 hours"
-
         exams_info = []
         tz_offset = self.user.get("timezone_offset", 0) or 0
         _local_now = datetime.now(timezone.utc) - timedelta(minutes=tz_offset)
@@ -490,22 +510,25 @@ STUDENT PROFILE:
 - Current Local Time: {local_time_str}
 - Daily net study quota: {neto_h} hours
 - Peak productivity window: {peak}
+- Buffer days: {buffer_days} (Student wants {buffer_days} full days off BEFORE the exam date)
 - Days available: {days_available} (day_index 0 is TODAY)
 - Sleep time: {sleep_time}
 
-EXAM DEADLINES:
+EXAM DEADLINES (day_index):
 {exams_info_str}
 
-TASKS TO SCHEDULE (i=index, h=hours, f=focus, e=exam_id, d=dependency):
+TASKS TO SCHEDULE (i=index, h=hours, f=focus, e=exam_id, d=dependency, t=topic):
 {task_list_json}
 
-RULES:
-1. TIME AWARENESS: It is {local_time_str}. Start TODAY (day_index 0) around {buffer_time_str}.
-2. Fill the daily {neto_h}h quota. day_index 0 = today.
-3. DEADLINES: Study for an exam MUST end at least 1 day BEFORE its deadline.
-4. Focus score >= 8 should be placed in peak windows.
-5. Respect dependencies: a task must be on the same or later day as its dependency.
-6. COMPACT OUTPUT: Return a JSON object with a "schedule" key containing a list of [task_index, day_index, internal_priority].
+STRATEGIC RULES (CRITICAL):
+1. ANCHORING:
+   - Topic "simulation": MUST be placed as late as possible, closest to the exam date (but before the buffer days).
+   - Topic "review": MUST be placed as early as possible (the first day study begins for that exam).
+2. BUFFER DAYS: For an exam at day_index X, NO tasks for that exam should be scheduled on day_indices [X-{buffer_days} to X-1]. All study for that exam must end by X-{buffer_days+1}.
+3. SINGLE FOCUS: Try to group tasks for the same exam on the same day(s) to minimize context switching.
+4. FILL QUOTA: Distribute tasks so they fill the daily {neto_h}h quota.
+5. FOCUS SCORE: focus_score >= 8 should be placed in peak windows (high priority for early slots in the day).
+6. DEPENDENCIES: Respect dependencies strictly.
 
 RETURN FORMAT:
 {{
@@ -536,7 +559,7 @@ RETURN FORMAT:
         prompt = self._build_strategist_prompt(approved_tasks, days_available)
         print(f"DEBUG ExamBrain.call_strategist: calling {self.model} with {len(approved_tasks)} tasks")
 
-        response = await litellm.acompletion(
+        response = await retry_acompletion(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=8192,

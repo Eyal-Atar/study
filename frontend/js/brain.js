@@ -1,7 +1,7 @@
-import { getAPI, authFetch, setRegenTriggered, setCurrentTasks, setCurrentSchedule } from './store.js?v=AUTO';
-import { renderCalendar, renderFocus } from './calendar.js?v=AUTO';
-import { updateStats } from './tasks.js?v=AUTO';
-import { LoadingAnimator } from './ui.js?v=AUTO';
+import { getAPI, authFetch, setRegenTriggered, setCurrentTasks, setCurrentSchedule } from './store.js?v=59';
+import { renderCalendar, renderFocus } from './calendar.js?v=59';
+import { updateStats } from './tasks.js?v=59';
+import { LoadingAnimator } from './ui.js?v=59';
 
 /**
  * Show or hide the regeneration command bar.
@@ -51,7 +51,7 @@ export async function sendRegenRequest() {
     if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
 
     try {
-        const res = await authFetch(`${API}/regenerate-delta`, {
+        const res = await authFetch(`${API}/brain/regenerate-delta`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ reason }),

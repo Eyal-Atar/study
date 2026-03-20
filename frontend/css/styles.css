@@ -1,5 +1,6 @@
 /* StudyFlow — Core Styles */
 
+html { background: #0B0F1A; }
 body { background: #0B0F1A; }
 
 /* ── iOS/Mobile: Hide scrollbars globally ── */
@@ -42,8 +43,8 @@ body { background: #0B0F1A; }
 @keyframes confettiFall { 0%{opacity:1;transform:translateY(0) rotate(0deg)} 100%{opacity:0;transform:translateY(400px) rotate(720deg)} }
 
 /* Screen management */
-.screen { 
-    display: none; 
+.screen {
+    display: none;
     position: fixed;
     inset: 0;
     background: #0B0F1A;
@@ -56,125 +57,183 @@ body { background: #0B0F1A; }
 
 /* 1. The 100dvh Viewport Fix */
 @media (max-width: 768px) {
-    html, body {
+    html {
         margin: 0;
         padding: 0;
         overflow: hidden !important;
-        position: fixed;
-        width: 100%;
+        /* Do NOT use position:fixed on html — it prevents iOS from extending
+           the html background into the safe area region (home indicator).
+           overflow:hidden alone prevents scrolling. */
         height: 100%;
         -webkit-user-select: none;
         user-select: none;
-        touch-action: none; /* Prevent browser pull-to-refresh and other gestures at root */
+    }
+    body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden !important;
+        /* Avoid position:fixed — on iOS it can prevent the body from
+           extending into the safe-area region below the home indicator. */
+        height: 100%;
+        width: 100%;
+        -webkit-user-select: none;
+        user-select: none;
+        touch-action: none;
     }
 
+    /* ID selectors beat Tailwind single-class utilities — no !important needed */
     #screen-dashboard.active {
-        display: flex !important;
-        flex-direction: column !important;
-        height: 100dvh !important;
-        width: 100vw !important;
-        overflow: hidden !important;
-        position: relative;
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        /* Use 100dvh so the dashboard stretches to the actual screen
+           bottom (past the safe-area) on iOS with viewport-fit=cover. */
+        height: 100dvh;
+        overflow: hidden;
     }
 
     /* 2. Flexbox Distribution */
     #mobile-app-bar {
-        position: relative !important; /* Move from fixed to flex child */
-        height: 56px;
+        position: relative; /* Move from fixed to flex child */
+        height: auto;
+        padding-top: env(safe-area-inset-top);
         flex-shrink: 0;
         z-index: 40;
     }
 
+    /* Tab bar: flex child at bottom of #screen-dashboard column layout.
+       padding-bottom covers the home-indicator safe area. */
     #mobile-tab-bar {
-        position: relative !important; /* Move from fixed to flex child */
-        height: 64px;
+        position: relative;
         flex-shrink: 0;
-        z-index: 40;
+        z-index: 50;
+        background: #0B0F1A;
+        padding-top: 4px;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
     }
 
-    /* The main content area between bars */
+    /* Tab bar buttons — bigger icons and labels */
+    #mobile-tab-bar .mobile-tab-btn {
+        padding-top: 8px;
+        padding-bottom: 8px;
+        gap: 2px;
+    }
+
+    #mobile-tab-bar .mobile-tab-btn span:first-child {
+        font-size: 22px;
+        line-height: 1;
+    }
+
+    #mobile-tab-bar .mobile-tab-btn span:last-child {
+        font-size: 11px;
+    }
+
+    /* The main content area between bars — ID parent beats Tailwind classes */
     #screen-dashboard > .relative.z-10 {
-        flex: 1 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        overflow: hidden !important;
-        padding: 0 !important; /* Clear all default container padding */
-        margin: 0 !important;
-        max-width: none !important;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 0; /* Clear all default container padding */
+        margin: 0;
+        max-width: none;
     }
 
-    /* Roadmap content needs to be scrollable */
+    /* Roadmap content needs to be scrollable — ID selector beats Tailwind .hidden */
     #mobile-roadmap-content {
-        flex: 1 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        overflow: hidden !important;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
     }
 
-    /* Tab panel visibility: .hidden must win over display:flex !important */
+    /* Tab panel visibility: ID+class beats the active panel ID-only rules below */
     #mobile-roadmap-content.hidden,
     #mobile-focus-panel.hidden,
-    #mobile-exams-panel.hidden {
-        display: none !important;
+    #mobile-exams-panel.hidden,
+    #mobile-profile-panel.hidden {
+        display: none;
     }
 
-    /* Active focus/exams panels need flex layout too */
+    /* Active panels: :not(.hidden) gives equal specificity to .hidden rule above,
+       but these appear later in source order so they lose to .hidden — which is correct
+       because .hidden rules appear first. When JS removes .hidden, these rules apply. */
     #mobile-focus-panel:not(.hidden) {
-        flex: 1 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        overflow-y: auto !important;
-        -webkit-overflow-scrolling: touch !important;
-        padding: 16px !important;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 16px;
+        padding-bottom: 16px;
     }
 
     #mobile-exams-panel:not(.hidden) {
-        flex: 1 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        overflow-y: auto !important;
-        -webkit-overflow-scrolling: touch !important;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 8px;
     }
 
-    /* 3. Visual Declutter */
+    #mobile-profile-panel:not(.hidden) {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 8px;
+    }
+
+    /* 3. Visual Declutter — !important kept: must override any Tailwind display utility */
     .mobile-hide { display: none !important; }
 
-    /* Fix calendar scroll: chain flex heights from roadmap content → grid */
+    /* Fix calendar scroll: chain flex heights from roadmap content → grid.
+       ID parent in selectors provides enough specificity to beat Tailwind grid/gap utilities. */
     #mobile-roadmap-content > .grid {
-        flex: 1 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        min-height: 0 !important;
-        gap: 0 !important;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        gap: 0;
     }
     #mobile-roadmap-content > .grid > div:first-child {
-        flex: 1 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        min-height: 0 !important;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
     }
     #mobile-roadmap-content > .grid > div:first-child > div {
-        flex: 1 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        min-height: 0 !important;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
     }
     #roadmap-container {
-        flex: 1 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        min-height: 0 !important;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
     }
 
-    /* Calendar Grid Container — smooth native scroll, no iOS bounce */
+    /* Calendar Grid Container — smooth native scroll, no iOS bounce.
+       These are mobile-specific overrides inside @media, so they only apply on small screens.
+       !important kept on key scroll properties to guarantee they override any JS inline styles. */
     .grid-day-container {
-        flex: 1 !important;
-        height: auto !important;
-        min-height: 0 !important;
-        overflow-y: auto !important;
-        -webkit-overflow-scrolling: touch !important;
-        touch-action: pan-y !important;
-        overscroll-behavior-y: none !important;
+        flex: 1;
+        height: auto;
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        position: relative;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+        overscroll-behavior-y: none;
         /* NOTE: will-change:transform and transform:translate3d() are intentionally
            removed here. Promoting the scroll container to its own GPU compositing
            layer causes child blocks (which are absolutely positioned) to be clipped
@@ -182,19 +241,20 @@ body { background: #0B0F1A; }
            be "swallowed" before they reach the visible edge. Native scrolling
            without GPU promotion eliminates this clipping artifact.
            -webkit-overflow-scrolling:touch is sufficient for smooth iOS scrolling. */
-        border: none !important;
-        background: transparent !important;
+        border: none;
+        background: transparent;
     }
 
     /* Kill backdrop-filter on blocks — major perf win on iOS */
     .schedule-block {
-        backdrop-filter: none !important;
-        -webkit-backdrop-filter: none !important;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
     }
 
-    /* Tab bar safe-area already applied inline; height accounts for it */
-    #mobile-tab-bar {
-        height: auto !important;
+    /* Reduce backdrop-filter on modal backdrops for mobile perf */
+    .modal-bg {
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
     }
 }
 
@@ -211,7 +271,7 @@ body { background: #0B0F1A; }
     inset: 0;
     background: rgba(0,0,0,.6);
     backdrop-filter: blur(4px);
-    z-index: 100;
+    z-index: 200;
 }
 .modal-bg.active {
     display: flex;
@@ -288,6 +348,40 @@ body { background: #0B0F1A; }
 .error-text.visible { display:block; }
 
 /* Onboarding Wizard Components */
+.chip-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.chip {
+    padding: 10px 16px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+}
+
+.chip:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.chip.active {
+    background: rgba(107, 71, 245, 0.2);
+    border-color: #6B47F5;
+    color: white;
+    box-shadow: 0 0 15px rgba(107, 71, 245, 0.2);
+}
+
 .onb-hobby-tag, .onb-peak-tag {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -299,9 +393,10 @@ body { background: #0B0F1A; }
     transform: translateY(-1px);
 }
 
+/* Double-class selector beats single Tailwind utility for active state */
 .onb-hobby-tag.bg-accent-500\/30, .onb-peak-tag.bg-accent-500\/30 {
-    background-color: rgba(107, 71, 245, 0.2) !important;
-    border-color: #6B47F5 !important;
+    background-color: rgba(107, 71, 245, 0.2);
+    border-color: #6B47F5;
     color: white;
     box-shadow: 0 0 15px rgba(107, 71, 245, 0.15);
 }
@@ -393,7 +488,7 @@ input[type="range"]:active::-webkit-slider-thumb {
     right: 6px;
     width: 100%;
     text-align: right;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 400;
     color: rgba(255,255,255,0.28);
     font-variant-numeric: tabular-nums;
@@ -458,25 +553,6 @@ input[type="range"]:active::-webkit-slider-thumb {
     display: none;
 }
 
-/* Done State */
-.is-completed {
-    opacity: 0.5 !important;
-    background: rgba(16, 185, 129, 0.1) !important;
-    border-left-color: #10B981 !important;
-    pointer-events: none;
-}
-
-.is-completed .task-title {
-    text-decoration: line-through;
-    color: rgba(255,255,255,0.4);
-}
-
-.is-completed .task-checkbox {
-    background-color: #10B981 !important;
-    border-color: #10B981 !important;
-    pointer-events: auto; /* Allow unchecking */
-}
-
 /* Success "Pop" Animation */
 @keyframes success-pop {
     0% { transform: scale(1); }
@@ -487,43 +563,43 @@ input[type="range"]:active::-webkit-slider-thumb {
     animation: success-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.block-study { 
-    background: rgba(107, 71, 245, 0.2); 
-    border-left: 4px solid #6B47F5; 
+.block-study {
+    background: rgba(107, 71, 245, 0.2);
+    border-left: 4px solid #6B47F5;
 }
 
-.block-break {
-    background: rgba(255, 255, 255, 0.03) !important;
-    border-left: 3px solid rgba(255, 255, 255, 0.2) !important;
+.schedule-block.block-break {
+    background: rgba(255, 255, 255, 0.03);
+    border-left: 3px solid rgba(255, 255, 255, 0.2);
     opacity: 0.6;
     z-index: 5;
-    cursor: default !important;
+    cursor: default;
     pointer-events: none;
 }
 
-.block-hobby {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(56, 189, 248, 0.2)) !important;
-    border-left: 4px solid #8B5CF6 !important;
+.schedule-block.block-hobby {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(56, 189, 248, 0.2));
+    border-left: 4px solid #8B5CF6;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     box-shadow: inset 0 0 20px rgba(139, 92, 246, 0.1);
 }
 
-.block-hobby .task-title-text {
-    color: #C4B5FD !important;
+.schedule-block.block-hobby .task-title-text {
+    color: #C4B5FD;
     font-style: italic;
-    font-weight: 700 !important;
+    font-weight: 700;
 }
 
-.block-hobby .block-time-label {
-    color: rgba(196, 181, 253, 0.7) !important;
+.schedule-block.block-hobby .block-time-label {
+    color: rgba(196, 181, 253, 0.7);
 }
 
 .hobby-badge {
     display: inline-block;
     background: rgba(139, 92, 246, 0.3);
     color: #C4B5FD;
-    font-size: 8px;
+    font-size: 9px;
     font-weight: 800;
     padding: 1px 5px;
     border-radius: 4px;
@@ -534,13 +610,13 @@ input[type="range"]:active::-webkit-slider-thumb {
     border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
-.block-hobby.is-completed {
-    background: rgba(139, 92, 246, 0.05) !important;
+.schedule-block.block-hobby.is-completed {
+    background: rgba(139, 92, 246, 0.05);
     opacity: 0.5;
     filter: grayscale(0.5);
 }
 
-/* Checkbox State — !important ensures these win over Tailwind utility classes */
+/* Checkbox State — double-class selectors beat single Tailwind utility classes */
 
 /* Pass pointer events through SVG children to the button.
    This ensures interact.js's ignoreFrom: '.task-checkbox' always fires on the
@@ -559,16 +635,16 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 .task-checkbox.checked {
-    background-color: #10B981 !important;
-    border-color: #10B981 !important;
+    background-color: #10B981;
+    border-color: #10B981;
     animation: check-bounce 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Also catch the is-completed parent context to guarantee green checkbox */
-.is-completed .task-checkbox,
+.schedule-block.is-completed .task-checkbox,
 .schedule-block[data-is-done="true"] .task-checkbox {
-    background-color: #10B981 !important;
-    border-color: #10B981 !important;
+    background-color: #10B981;
+    border-color: #10B981;
 }
 
 @keyframes check-bounce {
@@ -585,22 +661,22 @@ input[type="range"]:active::-webkit-slider-thumb {
     }
 }
 
-.block-delayed {
-    border-left: 4px dashed #fb7185 !important;
+.schedule-block.block-delayed {
+    border-left: 4px dashed #fb7185;
     background: repeating-linear-gradient(
         45deg,
         rgba(251, 113, 133, 0.05),
         rgba(251, 113, 133, 0.05) 10px,
         rgba(251, 113, 133, 0.1) 10px,
         rgba(251, 113, 133, 0.1) 20px
-    ) !important;
+    );
 }
 
 .delayed-badge {
     background: #fb7185;
     color: white;
-    font-size: 8px;
-    padding: 1px 4px;
+    font-size: 10px;
+    padding: 2px 5px;
     border-radius: 4px;
     font-weight: bold;
     text-transform: uppercase;
@@ -633,9 +709,9 @@ input[type="range"]:active::-webkit-slider-thumb {
 /* Current Time Indicator — Apple Calendar style: red line + filled circle on left */
 .current-time-line {
     position: absolute;
-    left: 0 !important;
+    left: 0;
     right: 0;
-    width: 100% !important;
+    width: 100%;
     height: 2px;
     background: #FF3B30;
     z-index: 8;
@@ -662,7 +738,7 @@ input[type="range"]:active::-webkit-slider-thumb {
     transform: translateY(-50%);
     background: #FF3B30;
     color: white;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
     padding: 2px 4px;
     border-radius: 4px;
@@ -688,15 +764,15 @@ button, a, select, input[type="checkbox"], input[type="radio"], label {
     .modal-sheet.closing {
         align-items: flex-end;
     }
-    /* Shared sheet geometry */
+    /* Shared sheet geometry — .modal-sheet.active > div beats Tailwind single-class */
     .modal-sheet.active > div,
     .modal-sheet.closing > div {
-        border-radius: 24px 24px 0 0 !important;
-        margin: 0 !important;
-        max-width: 100% !important;
+        border-radius: 24px 24px 0 0;
+        margin: 0;
+        max-width: 100%;
         width: 100%;
         max-height: 90vh;
-        overflow-y: auto !important;
+        overflow-y: auto;
     }
     /* Open: slide up */
     .modal-sheet.active > div {
@@ -714,7 +790,7 @@ button, a, select, input[type="checkbox"], input[type="radio"], label {
  * It is removed ~350ms later (after the animation completes) so that drag activation
  * never finds an active top transition. */
 .block-repositioning {
-    transition: top 0.35s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+    transition: top 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 /* Drag state — zero animations, no transform, no transition.
@@ -749,7 +825,8 @@ button, a, select, input[type="checkbox"], input[type="radio"], label {
 /* Tab panel fade transition */
 #mobile-roadmap-content,
 #mobile-focus-panel,
-#mobile-exams-panel {
+#mobile-exams-panel,
+#mobile-profile-panel {
     transition: opacity 0.2s ease-in-out;
 }
 
@@ -820,9 +897,9 @@ button, a, select, input[type="checkbox"], input[type="radio"], label {
 }
 
 /* ── Padding Task Blocks (Phase 17 Plan 04) ── */
-.block-padding {
-    border-left-style: double !important;
-    border-left-width: 4px !important;
+.schedule-block.block-padding {
+    border-left-style: double;
+    border-left-width: 4px;
     opacity: 0.82;
     filter: saturate(0.7);
 }
@@ -831,7 +908,7 @@ button, a, select, input[type="checkbox"], input[type="radio"], label {
     display: inline-block;
     background: rgba(245, 158, 11, 0.25);
     color: #F59E0B;
-    font-size: 8px;
+    font-size: 9px;
     font-weight: 700;
     padding: 1px 4px;
     border-radius: 4px;
@@ -958,7 +1035,8 @@ button, a, select, input[type="checkbox"], input[type="radio"], label {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 12px;
+    padding: 10px 14px;
+    min-height: 44px;
     border-radius: 10px;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1117,5 +1195,59 @@ button, a, select, input[type="checkbox"], input[type="radio"], label {
     0% { background-color: rgba(56, 189, 248, 0.4); border-color: rgba(56, 189, 248, 0.8); transform: scale(1.05); }
     30% { background-color: rgba(56, 189, 248, 0.2); border-color: rgba(56, 189, 248, 0.4); transform: scale(1.02); }
     100% { background-color: rgba(15, 23, 42, 0.4); border-color: rgba(255, 255, 255, 0.05); transform: scale(1); }
+}
+
+/* === Mobile Responsiveness Improvements === */
+
+/* Small screens (iPhone SE, small phones) */
+@media (max-width: 375px) {
+    .chip {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+    .chip-group {
+        gap: 6px;
+    }
+    #mobile-app-bar {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+    .wizard-course-tab {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+}
+
+/* Landscape orientation adjustments */
+@media (max-height: 500px) and (orientation: landscape) {
+    .modal-sheet.active > div,
+    .modal-sheet.closing > div {
+        max-height: 95vh;
+    }
+}
+
+/* Offline banner safe-area */
+#offline-banner {
+    padding-top: env(safe-area-inset-top);
+}
+
+/* Hide number input spinners on mobile for cleaner look */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* Fix iOS time inputs overflowing their grid cell */
+input[type="time"] {
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
