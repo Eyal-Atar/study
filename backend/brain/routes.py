@@ -36,8 +36,7 @@ async def onboard_user(
         try:
             data = UserOnboardRequest.model_validate_json(onboard_data)
         except Exception as e:
-            print(f"DEBUG: onboard_data parsing failed: {e}")
-            raise HTTPException(status_code=422, detail=f"Invalid onboarding data: {str(e)}")
+            raise HTTPException(status_code=422, detail="Some of the information provided is invalid. Please check your details and try again.")
 
         # 2. Update user profile
         db.execute(
@@ -79,7 +78,6 @@ async def onboard_user(
                 exam_dt = datetime.strptime(exam_data.exam_date, "%Y-%m-%d").date()
                 today = datetime.now(timezone.utc).date()
                 if exam_dt < today:
-                    print(f"WARNING: exam '{exam_data.name}' date {exam_data.exam_date} is in the past, adjusting to tomorrow")
                     exam_data.exam_date = (today + timedelta(days=1)).strftime("%Y-%m-%d")
             except (ValueError, TypeError):
                 pass  # Let it through, scheduler will handle gracefully
@@ -94,14 +92,12 @@ async def onboard_user(
             # Handle files for this exam
             for i, file_idx in enumerate(exam_data.file_indices):
                 if file_idx < 0 or file_idx >= len(files):
-                    print(f"WARNING: file_idx {file_idx} out of range (0-{len(files)-1}) for exam '{exam_data.name}', skipping")
                     continue
                 
                 upload_file = files[file_idx]
                 # Validate file type
                 allowed_extensions = ('.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp')
                 if upload_file.filename and not upload_file.filename.lower().endswith(allowed_extensions):
-                    print(f"WARNING: Unsupported file type '{upload_file.filename}' for exam '{exam_data.name}', skipping")
                     continue
                 file_type = exam_data.file_types[i] if i < len(exam_data.file_types) else 'other'
 
@@ -165,7 +161,6 @@ async def onboard_user(
             )
             db.commit()
 
-        print(f"DEBUG: onboard_user success for user {user_id}")
         return {
             "message": "Onboarding complete! Roadmap generated.",
             "tasks": auditor_result["tasks"],
@@ -175,9 +170,7 @@ async def onboard_user(
 
     except Exception as e:
         if db: db.rollback()
-        print(f"ERROR in onboard_user for user {user_id}:")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Something went wrong while setting up your study plan. Please try again.")
     finally:
         if db: db.close()
 
@@ -205,7 +198,6 @@ async def generate_roadmap(current_user: dict = Depends(get_current_user)):
 
     user_id = current_user["id"]
     db = get_db()
-    print(f"DEBUG: generate-roadmap called for user {user_id}")
 
     try:
         exams = db.execute(
@@ -214,7 +206,7 @@ async def generate_roadmap(current_user: dict = Depends(get_current_user)):
         ).fetchall()
         if not exams:
             db.close()
-            raise HTTPException(status_code=400, detail="No upcoming exams found. Add exams first!")
+            raise HTTPException(status_code=400, detail="No upcoming exams found. Please add your exams first.")
 
         exam_list = []
         # Batch fetch all exam files to avoid N+1 query
@@ -249,7 +241,6 @@ async def generate_roadmap(current_user: dict = Depends(get_current_user)):
         db.commit()
         db.close()
 
-        print(f"DEBUG: generate-roadmap success for user {user_id}")
         return {
             "message": f"Auditor complete — {len(auditor_result['tasks'])} tasks, {len(auditor_result['gaps'])} gaps detected",
             "tasks": auditor_result["tasks"],
@@ -258,9 +249,7 @@ async def generate_roadmap(current_user: dict = Depends(get_current_user)):
         }
     except Exception as e:
         if db: db.close()
-        print(f"ERROR in generate-roadmap for user {user_id}:")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to generate your study plan. Please try again.")
 
 
 @router.get("/auditor-draft")
@@ -285,12 +274,12 @@ def get_auditor_draft(current_user: dict = Depends(get_current_user)):
     db.close()
 
     if not row or not row["auditor_draft"]:
-        raise HTTPException(status_code=404, detail="No Auditor draft found. Run generate-roadmap first.")
+        raise HTTPException(status_code=404, detail="No study plan draft found. Please generate a new plan.")
 
     try:
         draft = json.loads(row["auditor_draft"])
     except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail="Auditor draft is corrupted — please re-run generate-roadmap.")
+        raise HTTPException(status_code=500, detail="Your study plan draft could not be loaded. Please generate a new one.")
 
     return draft
 
@@ -318,10 +307,9 @@ async def approve_and_schedule(body: dict, current_user: dict = Depends(get_curr
 
     user_id = current_user["id"]
     approved_tasks = body.get("approved_tasks", [])
-    print(f"DEBUG: approve_and_schedule called for user {user_id} with {len(approved_tasks)} tasks")
 
     if not approved_tasks:
-        raise HTTPException(status_code=400, detail="approved_tasks must be a non-empty list")
+        raise HTTPException(status_code=400, detail="Please select at least one task to schedule.")
 
     db = get_db()
 
@@ -332,7 +320,7 @@ async def approve_and_schedule(body: dict, current_user: dict = Depends(get_curr
     ).fetchall()
     if not exams:
         db.close()
-        raise HTTPException(status_code=400, detail="No upcoming exams found.")
+        raise HTTPException(status_code=400, detail="No upcoming exams found. Please add your exams first.")
 
     exam_list = [dict(e) for e in exams]
     exam_ids = [e["id"] for e in exams]
@@ -343,8 +331,7 @@ async def approve_and_schedule(body: dict, current_user: dict = Depends(get_curr
         scheduled_tasks = await brain.call_strategist(approved_tasks)
     except Exception as exc:
         db.close()
-        print(f"ERROR: Strategist call failed: {exc}")
-        raise HTTPException(status_code=500, detail=f"Strategist call failed: {str(exc)}")
+        raise HTTPException(status_code=500, detail="Failed to build your schedule. Please try again.")
 
     # 2. Convert day_index → actual date string (day_index 0 = today)
     now_utc = datetime.now(timezone.utc)
@@ -362,8 +349,7 @@ async def approve_and_schedule(body: dict, current_user: dict = Depends(get_curr
         scheduled_tasks.sort(key=lambda t: (t.get("day_date", ""), -t.get("internal_priority", 50)))
     except Exception as exc:
         db.close()
-        print(f"ERROR: Task scheduling/sorting failed: {exc}")
-        raise HTTPException(status_code=500, detail=f"Task processing failed: {str(exc)}")
+        raise HTTPException(status_code=500, detail="Failed to process your tasks. Please try again.")
 
     # 3. DB Transaction for atomicity
     try:
@@ -511,9 +497,7 @@ async def approve_and_schedule(body: dict, current_user: dict = Depends(get_curr
     except Exception as exc:
         db.execute("ROLLBACK")
         db.close()
-        print(f"ERROR: approve_and_schedule failed: {exc}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Scheduling process failed: {str(exc)}")
+        raise HTTPException(status_code=500, detail="Something went wrong while creating your schedule. Please try again.")
 
     db.close()
 
@@ -541,11 +525,8 @@ def internal_regenerate_schedule(user_id: int, current_user: dict, db) -> dict:
     """
     from server.config import DB_PATH
     from brain.scheduler import generate_multi_exam_schedule
-    import traceback
     import io, sys, threading
-    from collections import Counter
 
-    print(f"DEBUG: internal_regenerate_schedule for user {user_id}")
 
     tasks_rows = db.execute(
         """SELECT t.*, e.name as exam_name FROM tasks t
@@ -556,9 +537,6 @@ def internal_regenerate_schedule(user_id: int, current_user: dict, db) -> dict:
     ).fetchall()
     all_tasks = [dict(t) for t in tasks_rows]
 
-    # DEBUG: Log task distribution by day_date
-    day_counts = Counter(t.get("day_date") for t in all_tasks)
-    print(f"DEBUG REGEN: total={len(all_tasks)} tasks by day: {dict(sorted(day_counts.items()))}")
 
     if not all_tasks:
         schedule_rows = db.execute(
@@ -595,13 +573,12 @@ def internal_regenerate_schedule(user_id: int, current_user: dict, db) -> dict:
     _scheduler_output = _scheduler_log.getvalue()
 
     if new_schedule is None:
-        print(f"WARNING: Scheduler returned None for user {user_id}. Returning existing schedule. Log: {_scheduler_output[:500]}")
         schedule_rows = db.execute(
             "SELECT * FROM schedule_blocks WHERE user_id = ? ORDER BY day_date, start_time",
             (user_id,)
         ).fetchall()
-        db.commit()  # Persist caller changes even if scheduler fails
-        return {"tasks": all_tasks, "schedule": [dict(s) for s in schedule_rows], "_scheduler_log": _scheduler_output, "_scheduler_warning": "Scheduler returned empty result; showing previous schedule."}
+        db.commit()
+        return {"tasks": all_tasks, "schedule": [dict(s) for s in schedule_rows]}
 
     # Replace schedule blocks in DB, preserving manually-edited blocks
     try:
@@ -699,11 +676,6 @@ def internal_regenerate_schedule(user_id: int, current_user: dict, db) -> dict:
     return {
         "tasks": all_tasks,
         "schedule": schedule_dicts,
-        "_debug": {
-            "total_tasks": len(all_tasks),
-            "study_blocks_by_day": study_blocks_by_day,
-            "scheduler_log": _scheduler_output,
-        },
     }
 
 
@@ -749,7 +721,7 @@ async def regenerate_delta(body: RegenerateDeltaRequest, current_user: dict = De
 
     if not blocks:
         db.close()
-        raise HTTPException(status_code=400, detail="No upcoming schedule blocks found. Generate a roadmap first.")
+        raise HTTPException(status_code=400, detail="No upcoming schedule found. Please generate a study plan first.")
 
     # 2. Build compressed pipe-delimited snapshot
     # Format: [BlockID]|[Type]|[Status]|[Day][StartTime]-[EndTime]
@@ -832,7 +804,7 @@ Output the delta using the format above. Remember: only output blocks that ACTUA
         response_text = response.choices[0].message.content.strip()
     except Exception as e:
         db.close()
-        raise HTTPException(status_code=500, detail=f"AI call failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to optimize your schedule. Please try again.")
 
     # 5. Parse delta response
     lines = response_text.strip().split("\n")
@@ -1034,7 +1006,7 @@ Return format:
         response_text = response.choices[0].message.content.strip()
     except Exception as e:
         db.close()
-        raise HTTPException(status_code=500, detail=f"AI call failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to process your request. Please try again.")
     if response_text.startswith("```"):
         response_text = response_text.split("\n", 1)[1]
         response_text = response_text.rsplit("```", 1)[0]
@@ -1043,7 +1015,7 @@ Return format:
         result = json.loads(response_text)
     except json.JSONDecodeError as exc:
         db.close()
-        raise HTTPException(status_code=422, detail=f"AI returned invalid JSON: {str(exc)}")
+        raise HTTPException(status_code=422, detail="Could not process the AI response. Please try again.")
     brain_reply = result.get("brain_reply", "Calendar updated.")
     new_tasks = result.get("tasks", [])
 
@@ -1149,7 +1121,7 @@ Return format:
     except Exception as exc:
         db.execute("ROLLBACK")
         db.close()
-        raise HTTPException(status_code=500, detail=f"Brain chat scheduling failed: {str(exc)}")
+        raise HTTPException(status_code=500, detail="Failed to update your schedule. Please try again.")
 
     # Notify user that roadmap is ready
     send_to_user(db, user_id, "הלוז עודכן! 🪄", "התוכנית שלך עודכנה על ידי המוח.", url="/")

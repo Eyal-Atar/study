@@ -9,7 +9,6 @@ def send_to_user(db, user_id, title, body, url=None, block_id=None, extra_data=N
     """
     Send a push notification to all registered devices for a given user.
     """
-    print(f"DEBUG send_to_user: user_id={user_id}, title={title}", flush=True)
     cursor = db.execute(
         "SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?",
         (user_id,)
@@ -17,11 +16,8 @@ def send_to_user(db, user_id, title, body, url=None, block_id=None, extra_data=N
     subscriptions = cursor.fetchall()
 
     if not subscriptions:
-        print(f"DEBUG send_to_user: No subscriptions for user {user_id}", flush=True)
-        logger.info(f"No push subscriptions found for user {user_id}")
         return
 
-    print(f"DEBUG send_to_user: Found {len(subscriptions)} subscriptions", flush=True)
     payload_data = {
         "url": url,
         "blockId": block_id
@@ -60,12 +56,10 @@ def send_to_user(db, user_id, title, body, url=None, block_id=None, extra_data=N
                 vapid_private_key=VAPID_PRIVATE_KEY,
                 vapid_claims=dict(VAPID_CLAIMS)
             )
-            print(f"DEBUG PUSH: Success for {sub['endpoint']}", flush=True)
             logger.info(f"Successfully sent push to {sub['endpoint']}")
         except WebPushException as ex:
             status_code = getattr(ex.response, 'status_code', 'Unknown')
             resp_body = getattr(ex.response, 'text', 'No body')
-            print(f"DEBUG PUSH: Failed. Status: {status_code}, Body: {resp_body}", flush=True)
             logger.error(f"Failed to send push Status: {status_code}, Body: {resp_body}")
             
             # Remove subscriptions that are permanently invalid:

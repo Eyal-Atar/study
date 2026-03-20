@@ -24,7 +24,7 @@ def verify_csrf_token(request: Request):
     header_token = request.headers.get("X-CSRF-Token")
     
     if not cookie_token or not header_token or not hmac.compare_digest(cookie_token, header_token):
-        raise HTTPException(status_code=403, detail="CSRF token validation failed")
+        raise HTTPException(status_code=403, detail="Your session may have expired. Please refresh the page and try again.")
 
 
 def hash_password(password: str) -> str:
@@ -49,7 +49,7 @@ def get_current_user(request: Request):
     """FastAPI dependency: extract and validate auth token from cookie."""
     session_token = request.cookies.get("session_token")
     if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise HTTPException(status_code=401, detail="Please log in to continue.")
 
     db = get_db()
     try:
@@ -60,5 +60,5 @@ def get_current_user(request: Request):
         db.close()
 
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        raise HTTPException(status_code=401, detail="Your session has expired. Please log in again.")
     return dict(user)

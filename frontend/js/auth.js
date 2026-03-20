@@ -18,15 +18,11 @@ function _urlBase64ToUint8Array(base64String) {
 async function subscribeToPush() {
     // Guard: only proceed if permission is already granted.
     // This prevents accidental permission prompts outside a user gesture.
-    if (!('Notification' in window) || Notification.permission !== 'granted') {
-        console.log('[Push] Skipping subscription — permission not granted');
-        return;
-    }
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
     try {
         const API = getAPI();
-        // Get VAPID public key
         const keyRes = await authFetch(`${API}/push/vapid-public-key`);
-        if (!keyRes.ok) { console.warn('[Push] VAPID key not available'); return; }
+        if (!keyRes.ok) return;
         const { key } = await keyRes.json();
 
         // Subscribe via Service Worker (permission already granted by caller)
@@ -42,10 +38,7 @@ async function subscribeToPush() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ subscription: subscription.toJSON() })
         });
-        console.log('[Push] Subscribed successfully');
-    } catch (e) {
-        console.warn('[Push] Subscription failed:', e);
-    }
+    } catch (_) {}
 }
 
 // Push subscription is handled by notifications.js — removed duplicate listener here.
@@ -61,30 +54,18 @@ let onboardingState = {
 };
 
 export function initAuth(callbacks = {}) {
-    console.log('initAuth: initialization started');
     if (callbacks.onSuccess) onAuthSuccess = callbacks.onSuccess;
 
     // Welcome screen buttons
     const btnShowRegister = document.getElementById('btn-show-register');
-    if (btnShowRegister) {
-        console.log('initAuth: btn-show-register found');
-        btnShowRegister.onclick = () => showScreen('screen-register');
-    }
+    if (btnShowRegister) btnShowRegister.onclick = () => showScreen('screen-register');
 
     const btnShowLogin = document.getElementById('btn-show-login');
-    if (btnShowLogin) {
-        console.log('initAuth: btn-show-login found');
-        btnShowLogin.onclick = () => showScreen('screen-login');
-    }
+    if (btnShowLogin) btnShowLogin.onclick = () => showScreen('screen-login');
 
     // Login screen
     const btnLogin = document.getElementById('btn-login');
-    if (btnLogin) {
-        console.log('initAuth: btn-login found, attaching handleLogin');
-        btnLogin.onclick = handleLogin;
-    } else {
-        console.error('initAuth: btn-login NOT found');
-    }
+    if (btnLogin) btnLogin.onclick = handleLogin;
 
     const loginEmail = document.getElementById('login-email');
     if (loginEmail) {
@@ -326,28 +307,24 @@ export function regNext(step) {
 }
 
 export async function handleLogin() {
-    console.log('handleLogin: function triggered');
     const API = getAPI();
     hideError('login-error');
-    
+
     const emailEl = document.getElementById('login-email');
     const passEl = document.getElementById('login-password');
     const btn = document.getElementById('btn-login');
 
-    console.log('handleLogin: elements found:', { emailEl: !!emailEl, passEl: !!passEl, btn: !!btn });
-
     const email = emailEl ? emailEl.value.trim() : '';
     const password = passEl ? passEl.value : '';
-    
-    if (!email) { console.log('handleLogin: email missing'); shakeEl('login-email'); return; }
-    if (!password) { console.log('handleLogin: password missing'); shakeEl('login-password'); return; }
+
+    if (!email) { shakeEl('login-email'); return; }
+    if (!password) { shakeEl('login-password'); return; }
 
     if (btn) {
-        btn.disabled = true; 
+        btn.disabled = true;
         btn.textContent = 'Logging in...';
     }
-    
-    console.log('handleLogin: sending request to', `${API}/auth/login`);
+
     try {
         const res = await fetch(`${API}/auth/login`, {
             method: 'POST',
@@ -372,19 +349,11 @@ export async function handleLogin() {
             // Show the dashboard screen FIRST to ensure UI transitions even if init fails
             showScreen('screen-dashboard');
             
-            // Allow a small delay for cookie to be fully processed by the browser
-            // before the next authFetch (in initDashboard/loadExams)
             setTimeout(() => {
-                try {
-                    console.log('Login successful, initializing dashboard...');
-                    onAuthSuccess();
-                } catch (err) {
-                    console.error('onAuthSuccess failed:', err);
-                }
+                try { onAuthSuccess(); } catch (_) {}
             }, 50);
         }
     } catch (e) {
-        console.error('Login error:', e);
         showError('login-error', 'No internet connection — check your network and try again');
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = 'Log In'; }

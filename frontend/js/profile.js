@@ -276,7 +276,6 @@ export function showStreakSplash(streak, isMilestone) {
 // ─── showMorningPrompt ────────────────────────────────────────────────────────
 
 export function showMorningPrompt(tasks) {
-    console.log('[DEBUG] showMorningPrompt called with tasks:', tasks);
     const modal = document.getElementById('modal-morning-prompt');
     if (!modal) return;
 

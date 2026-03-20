@@ -99,44 +99,8 @@ export function initOnboarding() {
     // Wire up Material Upload (Step 2)
     setupMaterialUpload();
 
-    // Wire up "Exit Test Mode" button — shown only if user was previously onboarded
-    setupExitTestMode();
-
     // Set to current step
     setStep(draft.step);
-}
-
-function setupExitTestMode() {
-    const btn = document.getElementById('onb-exit-test');
-    if (!btn) return;
-
-    // Check if this is a test-mode re-entry (user had data before reset)
-    // Show the button so they can bail out and restore dashboard
-    const API = getAPI();
-    authFetch(`${API}/exams`).then(res => {
-        if (res.ok) return res.json();
-        return [];
-    }).then(exams => {
-        // Show exit button always — user can restore onboarding flag
-        btn.classList.remove('hidden');
-    }).catch(() => {
-        btn.classList.remove('hidden');
-    });
-
-    btn.onclick = async () => {
-        btn.disabled = true;
-        btn.textContent = 'Restoring...';
-        try {
-            const res = await authFetch(`${API}/debug/restore-onboarding`, { method: 'POST' });
-            if (!res.ok) throw new Error('Restore failed');
-            clearDraft();
-            window.location.href = '/';
-        } catch (err) {
-            alert('Failed to restore: ' + err.message);
-            btn.disabled = false;
-            btn.textContent = 'Exit Test Mode — Return to Dashboard';
-        }
-    };
 }
 
 function setupProfilingChips(draft) {

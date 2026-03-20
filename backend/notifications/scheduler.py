@@ -98,7 +98,6 @@ async def _check_and_send_notifications():
     For each user, find study blocks starting within their configured notification window,
     generate a motivational message, and send a push to all their registered devices.
     """
-    print(f"DEBUG: _check_and_send_notifications called at {datetime.now()}", flush=True)
     now_utc = datetime.now(timezone.utc)
     # Truncate to the minute so the window is always [HH:MM:00, HH:MM+1:00).
     # Without this, a block at 14:30:00 is missed if the scheduler fires at 14:30:15.
@@ -122,7 +121,6 @@ async def _check_and_send_notifications():
             window_start_utc = now_minute_utc + timedelta(minutes=offset_min)
             window_end_utc = window_start_utc + timedelta(minutes=1)
 
-            print(f"DEBUG: Checking User {user['id']}. Window (UTC): {window_start_utc.isoformat()} to {window_end_utc.isoformat()}", flush=True)
 
             # User's local "today" and "tomorrow" for the day_date filter.
             # tz_offset follows JS getTimezoneOffset() convention: offset = UTC - local,
@@ -131,7 +129,6 @@ async def _check_and_send_notifications():
             user_today = now_local.strftime("%Y-%m-%d")
             user_tomorrow = (now_local + timedelta(days=1)).strftime("%Y-%m-%d")
             
-            print(f"DEBUG: User local today: {user_today}, tomorrow: {user_tomorrow}", flush=True)
 
             blocks = db.execute(
                 """SELECT id, task_title, exam_name, start_time FROM schedule_blocks
@@ -141,14 +138,11 @@ async def _check_and_send_notifications():
                 (user["id"], user_today, user_tomorrow)
             ).fetchall()
 
-            if blocks:
-                print(f"DEBUG: Found {len(blocks)} candidate blocks for User {user['id']}", flush=True)
             
             for block in blocks:
                 block = dict(block)
                 start_utc = _parse_block_start(block["start_time"], tz_offset)
                 if start_utc is None:
-                    print(f"DEBUG: Failed to parse start_time {block['start_time']} for block {block['id']}", flush=True)
                     continue
                 
                 # CATCH-UP LOGIC:
@@ -162,7 +156,6 @@ async def _check_and_send_notifications():
                 # Limit catch-up to 5 minutes after the task starts to avoid spamming old tasks
                 is_too_old = start_utc < (now_utc - timedelta(minutes=5))
                 
-                print(f"DEBUG: Block {block['id']} ({block['task_title']}). Start UTC: {start_utc.isoformat()}, Trigger UTC: {trigger_time_utc.isoformat()}, Now UTC: {now_utc.isoformat()}, is_time: {is_time_to_notify}, is_old: {is_too_old}", flush=True)
 
                 if is_time_to_notify and not is_too_old:
                     task_title = block["task_title"] or "Study session"
@@ -175,7 +168,6 @@ async def _check_and_send_notifications():
                     body = await _generate_message(subject, task_title, mins_rem if mins_rem > 0 else 0)
                     title = "הלוז מתחיל 📚" if mins_rem <= 0 else "StudyFlow 📚"
                     
-                    print(f"DEBUG: Triggering push for user {user['id']} for block {block['id']}", flush=True)
                     # Send to all devices for this user
                     try:
                         send_to_user(
@@ -202,7 +194,6 @@ async def _check_and_send_notifications():
 
 def start_scheduler() -> AsyncIOScheduler:
     """Create, configure, and start the APScheduler background scheduler."""
-    print("DEBUG: Calling start_scheduler()", flush=True)
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         _check_and_send_notifications,
@@ -212,6 +203,5 @@ def start_scheduler() -> AsyncIOScheduler:
         replace_existing=True
     )
     scheduler.start()
-    print("DEBUG: Scheduler started successfully", flush=True)
     logger.info("[Scheduler] Push notification scheduler started")
     return scheduler

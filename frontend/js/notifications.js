@@ -15,45 +15,28 @@ import { getAPI, authFetch } from './store.js?v=59';
  *    the scheduler unable to find any user and notifications never fire.
  */
 export async function initPush() {
-    console.log('[PUSH] initPush: checking support...');
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        console.warn('[PUSH] Push notifications not supported');
-        return;
-    }
-
-    if (!('Notification' in window) || Notification.permission !== 'granted') {
-        console.log('[PUSH] initPush: permission NOT granted (state: ' + (window.Notification ? Notification.permission : 'N/A') + '), skipping auto-refresh');
-        return;
-    }
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
     try {
         const registration = await navigator.serviceWorker.ready;
-        console.log('[PUSH] ServiceWorker ready, scope:', registration.scope);
         const existing = await registration.pushManager.getSubscription();
 
         if (!existing) {
-            console.log('[PUSH] initPush: no existing subscription, creating one...');
             await subscribeToPush();
             return;
         }
 
-        console.log('[PUSH] initPush: existing subscription found:', existing.endpoint);
         const keyMatch = await checkVapidKeyMatch(existing);
         if (!keyMatch) {
-            console.log('[PUSH] initPush: VAPID key mismatch, re-subscribing...');
-            try {
-                await existing.unsubscribe();
-            } catch (unsubErr) {
-                console.warn('[PUSH] Failed to unsubscribe old subscription:', unsubErr);
-            }
+            try { await existing.unsubscribe(); } catch (_) {}
             await subscribeToPush();
             return;
         }
 
-        console.log('[PUSH] initPush: VAPID key matches, syncing to backend...');
         await saveSubscription(existing);
     } catch (err) {
-        console.error('[PUSH] initPush failed:', err);
+        console.error('Push init failed:', err);
     }
 }
 
@@ -65,61 +48,34 @@ export async function initPush() {
 async function checkVapidKeyMatch(subscription) {
     try {
         const response = await authFetch(`${getAPI()}/push/vapid-public-key`);
-        if (!response.ok) {
-            console.warn('checkVapidKeyMatch: Failed to fetch VAPID key from server. Defaulting to re-subscribe.');
-            return false;
-        }
+        if (!response.ok) return false;
         const { key: serverKeyBase64 } = await response.json();
 
-        // 1. Check against localStorage first. This is our primary source of truth
-        // for what key we actually used during our last successful subscribeToPush()
-        // call, especially on browsers where subscription.options is null.
         const storedKey = localStorage.getItem('sf-push-vapid-key');
-        if (storedKey && storedKey !== serverKeyBase64) {
-            console.log('checkVapidKeyMatch: VAPID key mismatch (stored in localStorage)');
-            return false;
-        }
+        if (storedKey && storedKey !== serverKeyBase64) return false;
 
-        // 2. Double check the subscription object itself if applicationServerKey is available.
         const subKey = subscription.options && subscription.options.applicationServerKey;
         if (subKey) {
             const serverKeyArray = urlBase64ToUint8Array(serverKeyBase64);
             const subKeyArray = new Uint8Array(subKey);
-            
+
             let match = true;
             if (serverKeyArray.length !== subKeyArray.length) {
                 match = false;
             } else {
                 for (let i = 0; i < serverKeyArray.length; i++) {
-                    if (serverKeyArray[i] !== subKeyArray[i]) {
-                        match = false;
-                        break;
-                    }
+                    if (serverKeyArray[i] !== subKeyArray[i]) { match = false; break; }
                 }
             }
 
-            if (!match) {
-                console.log('checkVapidKeyMatch: VAPID key mismatch (subscription.options)');
-                return false;
-            }
-
-            // If we have a subKey and it matches, ensure localStorage is populated
-            // for future checks even if it was previously empty.
-            if (!storedKey) {
-                localStorage.setItem('sf-push-vapid-key', serverKeyBase64);
-            }
+            if (!match) return false;
+            if (!storedKey) localStorage.setItem('sf-push-vapid-key', serverKeyBase64);
         } else if (!storedKey) {
-            // No stored key AND no accessible subKey in subscription options.
-            // We have a subscription but no way to verify its key. To be safe,
-            // we force a re-subscribe once to establish a known state.
-            console.log('checkVapidKeyMatch: No VAPID key found in subscription or localStorage. Forcing re-subscribe to establish baseline.');
             return false;
         }
 
         return true;
     } catch (err) {
-        console.error('checkVapidKeyMatch failed:', err);
-        // Force re-subscribe on error to ensure we eventually reach a valid state.
         return false;
     }
 }
@@ -131,64 +87,35 @@ async function checkVapidKeyMatch(subscription) {
  * iOS 16.4+ requires permission to be granted first, and will silently fail otherwise.
  */
 export async function subscribeToPush() {
-    console.log('subscribeToPush: started');
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        alert('Push notifications are not supported on this browser.');
-        return;
-    }
-
-    // Step 1: Ensure Notification permission is granted (iOS requires this before push subscribe)
-    if (!('Notification' in window)) {
-        console.warn('subscribeToPush: Notification API unavailable (not standalone PWA?)');
-        return;
-    }
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (!('Notification' in window)) return;
 
     if (Notification.permission !== 'granted') {
-        console.log('subscribeToPush: requesting Notification permission...');
         const permission = await Notification.requestPermission();
-        console.log('subscribeToPush: permission result:', permission);
-        if (permission !== 'granted') {
-            console.warn('subscribeToPush: permission not granted, aborting push subscription');
-            return;
-        }
+        if (permission !== 'granted') return;
     }
 
     try {
-        console.log('subscribeToPush: waiting for SW ready...');
         const registration = await navigator.serviceWorker.ready;
-        console.log('subscribeToPush: SW ready, scope:', registration.scope);
 
-        // Unsubscribe any existing subscription first.
-        // This forces a fresh subscription with the current VAPID key.
-        // Without this, a stale subscription (created with an old key) causes
-        // Apple/Google to return 401/403 "BadJwtToken" on every push attempt.
         const existing = await registration.pushManager.getSubscription();
-        if (existing) {
-            console.log('subscribeToPush: unsubscribing stale subscription before re-subscribing...');
-            await existing.unsubscribe();
-        }
+        if (existing) await existing.unsubscribe();
 
-        // Step 2: Get public VAPID key from backend
-        console.log('subscribeToPush: fetching VAPID key...');
         const response = await authFetch(`${getAPI()}/push/vapid-public-key`);
-        if (!response.ok) throw new Error('Failed to fetch VAPID key: ' + response.status);
+        if (!response.ok) throw new Error('Could not set up notifications');
         const { key } = await response.json();
-        console.log('subscribeToPush: VAPID key received');
 
-        // Step 3: Subscribe with VAPID
-        console.log('subscribeToPush: calling PushManager.subscribe...');
         const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(key)
         });
 
-        console.log('subscribeToPush: subscribed successfully:', subscription.endpoint);
         localStorage.setItem('sf-push-vapid-key', key);
         await saveSubscription(subscription);
 
         return subscription;
     } catch (err) {
-        console.error('subscribeToPush: failed:', err);
+        console.error('Push subscription failed:', err);
         throw err;
     }
 }
@@ -212,8 +139,7 @@ async function saveSubscription(subscription) {
             })
         });
 
-        if (!response.ok) throw new Error('Failed to save subscription: ' + response.status);
-        console.log('Push subscription saved/synced to backend');
+        if (!response.ok) throw new Error('Failed to save subscription');
     } catch (err) {
         console.error('Error saving push subscription:', err);
     }
@@ -223,7 +149,6 @@ async function saveSubscription(subscription) {
  * Show an in-app toast notification.
  */
 export function showToast(title, body, blockId = null) {
-    console.log('showToast:', title, body, blockId);
 
     // Remove existing toast if any
     const existing = document.getElementById('sf-toast');
@@ -311,44 +236,9 @@ if ('serviceWorker' in navigator) {
         if (!event.data) return;
 
         if (event.data.type === 'PUSH_RECEIVED') {
-            // Show toast only for real study notifications (no debug_action)
-            if (!event.data.debug_action) {
-                showToast(event.data.title, event.data.body, event.data.blockId);
-            }
-
-            // Handle Debug Triggers (for Control Panel)
-            if (event.data.debug_action) {
-                const action = event.data.debug_action;
-                const payload = event.data.debug_payload;
-                console.log('[DEBUG] Triggering action:', action, payload);
-
-                // Use dynamic imports to avoid circular dependencies and lazy-load gamification UI
-                if (action === 'streak-splash') {
-                    const { showStreakSplash } = await import('./profile.js?v=59');
-                    showStreakSplash(payload?.streak || 7, payload?.isMilestone || false);
-                } else if (action === 'celebration') {
-                    const { showDailyCelebration } = await import('./profile.js?v=59');
-                    showDailyCelebration();
-                } else if (action === 'new-badge') {
-                    const { appendNewBadges } = await import('./profile.js?v=59');
-                    appendNewBadges([payload?.badge || 'iron_will_7']);
-                } else if (action === 'morning-prompt') {
-                    const { showMorningPrompt } = await import('./profile.js?v=59');
-                    showMorningPrompt(payload?.tasks || []);
-                } else if (action === 'award-xp') {
-                    const { updateXPDisplay } = await import('./profile.js?v=59');
-                    const earned = payload?.xp_earned || 50;
-                    updateXPDisplay({
-                        xp_earned: earned,
-                        new_total: payload?.total || 1250,
-                        new_level: payload?.level || 2,
-                        daily_xp: payload?.daily || 150
-                    });
-                    showToast('XP Awarded! 🎯', `You just earned ${earned} bonus XP!`);
-                }
-            }
+            showToast(event.data.title, event.data.body, event.data.blockId);
         }
-        
+
         if (event.data.type === 'SCROLL_TO_BLOCK') {
             window.dispatchEvent(new CustomEvent('SCROLL_TO_BLOCK', { detail: { blockId: event.data.blockId } }));
         }

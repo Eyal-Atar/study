@@ -25,10 +25,8 @@ async def retry_acompletion(model, messages, **kwargs):
             if attempt < max_retries - 1 and is_retryable:
                 # Calculate delay with jitter: base_delay * 2^attempt + jitter
                 delay = (base_delay * (2 ** attempt)) + (random.uniform(0, 1))
-                print(f"DEBUG: AI Call failed (attempt {attempt+1}/{max_retries}). Retrying in {delay:.2f}s... Error: {e}")
                 await asyncio.sleep(delay)
             else:
-                print(f"ERROR: AI Call failed after {attempt+1} attempts: {e}")
                 raise e
 
 CHAR_LIMIT = 700_000
@@ -47,7 +45,6 @@ class ExamBrain:
             doc.close()
             return text.strip()
         except Exception as e:
-            print(f"WARNING: PDF extraction failed for {file_path}: {e}")
             return ""
 
     def __init__(self, user: dict, exams: list[dict]):
@@ -115,7 +112,6 @@ class ExamBrain:
         finally:
             db.close()
 
-        print(f"DEBUG ExamBrain: assembled context — {total_chars} chars across {len(parts)} exam(s)")
         return "\n\n".join(parts)
 
     def _calculate_total_hours(self) -> float:
@@ -134,7 +130,6 @@ class ExamBrain:
                 days_until = max(1, (exam_date.date() - today.date()).days)
                 total += days_until * neto_h
             except Exception as e:
-                print(f"ExamBrain._calculate_total_hours: skipping exam {exam['id']}: {e}")
                 total += 10.0  # safe fallback
 
         return round(total, 2)
@@ -338,11 +333,6 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
         exam_hours = self._calculate_exam_hours(exam)
         prompt = self._build_auditor_prompt_single(exam_context, exam_hours, exam)
 
-        print(
-            f"DEBUG ExamBrain._call_auditor_for_exam: exam {exam['id']} ({exam['name']}) — "
-            f"{exam_hours}h budget, prompt {len(prompt)} chars"
-        )
-
         # Force Density Instruction added to User Message
         user_message = f"Generate the Knowledge Audit for Exam {exam['id']} ({exam['name']}). \n\nCRITICAL: You must generate a HIGH-DENSITY list of tasks. For this amount of syllabus material, I expect at least 40-60 granular sub-tasks to be generated to fill the {exam_hours} hour budget."
 
@@ -354,10 +344,6 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
             response_format={"type": "json_object"}
         )
         raw_response = response.choices[0].message.content.strip()
-        print(
-            f"DEBUG ExamBrain._call_auditor_for_exam: exam {exam['id']} — "
-            f"raw response {len(raw_response)} chars"
-        )
 
         # Robust JSON parsing
         response_text = raw_response
@@ -372,7 +358,6 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
         try:
             result = json.loads(response_text)
         except json.JSONDecodeError as exc:
-            print(f"ExamBrain._call_auditor_for_exam: JSON parse failed for exam {exam['id']} — {exc}")
             return {"tasks": [], "gaps": [], "topic_map": {}}
 
         raw_tasks = result.get("tasks", [])
@@ -405,10 +390,6 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
                 "sort_order": task.get("sort_order", idx),
             })
 
-        print(
-            f"DEBUG ExamBrain._call_auditor_for_exam: exam {exam['id']} — "
-            f"{len(validated_tasks)} tasks validated"
-        )
         return {
             "tasks": validated_tasks,
             "gaps": result.get("gaps", []),
@@ -422,7 +403,6 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
         re-indexes task_index and dependency_id globally, then returns the
         combined Auditor output for frontend review.
         """
-        print(f"DEBUG ExamBrain.call_split_brain: launching {len(self.exams)} parallel Auditor calls")
         exam_results = await asyncio.gather(*[
             self._call_auditor_for_exam(exam) for exam in self.exams
         ], return_exceptions=True)
@@ -434,7 +414,6 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
         offset = 0
         for i, result in enumerate(exam_results):
             if isinstance(result, Exception):
-                print(f"WARNING ExamBrain.call_split_brain: exam {self.exams[i]['id']} failed: {result}")
                 continue
             exam_tasks = result["tasks"]
             for idx, task in enumerate(exam_tasks):
@@ -449,11 +428,6 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
         # Final global re-index (clean up index after list.index() above)
         for i, task in enumerate(all_tasks):
             task["task_index"] = i
-
-        print(
-            f"DEBUG ExamBrain.call_split_brain: merged {len(all_tasks)} tasks, "
-            f"{len(all_gaps)} gaps across {len(self.exams)} exams"
-        )
 
         return {
             "tasks": all_tasks,
@@ -557,8 +531,6 @@ RETURN FORMAT:
         self.user["current_local_time"] = local_now.strftime("%H:%M")
 
         prompt = self._build_strategist_prompt(approved_tasks, days_available)
-        print(f"DEBUG ExamBrain.call_strategist: calling {self.model} with {len(approved_tasks)} tasks")
-
         response = await retry_acompletion(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
@@ -567,14 +539,12 @@ RETURN FORMAT:
             response_format={"type": "json_object"}
         )
         raw_response = response.choices[0].message.content.strip()
-        print(f"DEBUG ExamBrain.call_strategist: raw response length {len(raw_response)} chars")
 
         try:
             data = json.loads(raw_response)
             assignments = data.get("schedule", [])
         except json.JSONDecodeError as exc:
-            print(f"ExamBrain.call_strategist: JSON parse failed — {exc}\nRaw: {raw_response[:500]}")
-            raise RuntimeError("AI returned invalid JSON during strategy planning. Please try again.")
+            raise RuntimeError("Failed to process the study plan. Please try again.")
 
         result = []
         seen_task_indices = set()
@@ -638,7 +608,6 @@ RETURN FORMAT:
                 fallback_task["is_padding"] = False
                 result.append(fallback_task)
 
-        print(f"DEBUG ExamBrain.call_strategist: produced {len(result)} scheduled tasks")
         return result
 
     def _generate_basic_calendar(self, exam_contexts: list[dict]) -> list[dict]:

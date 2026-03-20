@@ -26,10 +26,10 @@ def register(body: RegisterRequest, response: Response):
         existing = db.execute("SELECT id FROM users WHERE email = ?", (body.email.lower().strip(),)).fetchone()
     except Exception:
         db.close()
-        raise HTTPException(status_code=500, detail="Database is being set up — please restart the server")
+        raise HTTPException(status_code=500, detail="We're having a temporary issue. Please try again in a moment.")
     if existing:
         db.close()
-        raise HTTPException(status_code=409, detail="Email already registered")
+        raise HTTPException(status_code=409, detail="This email is already registered. Try logging in instead.")
 
     token = generate_token()
     try:
@@ -78,11 +78,11 @@ def login(body: LoginRequest, response: Response):
         ).fetchone()
     except Exception:
         db.close()
-        raise HTTPException(status_code=500, detail="Database is being set up — please restart the server")
+        raise HTTPException(status_code=500, detail="We're having a temporary issue. Please try again in a moment.")
 
     if not row or not verify_password(body.password, row["password_hash"]):
         db.close()
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(status_code=401, detail="Incorrect email or password. Please try again.")
 
     # Check if account is Google-linked
     if row["google_linked"]:

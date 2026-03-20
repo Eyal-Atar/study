@@ -46,18 +46,13 @@ from brain.routes import router as brain_router
 from notifications.routes import router as notifications_router
 from notifications.scheduler import start_scheduler
 from gamification.routes import router as gamification_router
-from debug.routes import router as debug_router
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print("DEBUG: Application lifespan startup triggered", flush=True)
     init_db()
-    print("DEBUG: Database initialized, starting scheduler", flush=True)
     scheduler = start_scheduler()
     yield
     # Shutdown
-    print("DEBUG: Application lifespan shutdown triggered", flush=True)
     if scheduler and scheduler.running:
         scheduler.shutdown()
 
@@ -112,8 +107,6 @@ app.include_router(tasks_router, tags=["tasks"])
 app.include_router(brain_router, prefix="/brain", tags=["brain"])
 app.include_router(notifications_router, tags=["notifications"])
 app.include_router(gamification_router, prefix="/gamification", tags=["gamification"])
-if not IS_PRODUCTION:
-    app.include_router(debug_router, prefix="/debug", tags=["debug"])
 
 
 # ─── PWA files ───────────────────────────────────────────────
@@ -195,13 +188,6 @@ def serve_frontend_onboarding():
 @app.get("/dashboard")
 def serve_frontend_dashboard():
     return _serve_processed_asset(os.path.join(PROJECT_DIR, "index.html"), "text/html")
-
-
-@app.get("/debug-panel")
-def serve_debug_panel():
-    if IS_PRODUCTION:
-        raise HTTPException(status_code=404, detail="Not found")
-    return _serve_processed_asset(os.path.join(PROJECT_DIR, "debug_control.html"), "text/html")
 
 
 @app.get("/health")

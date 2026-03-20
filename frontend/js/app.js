@@ -1,12 +1,8 @@
 /* StudyFlow — Main Application Entry Point (ES6 Module) */
 
-// Global error catcher for debugging blind
+// Global error handler
 window.onerror = function(msg, url, line, col, error) {
-    console.error('GLOBAL ERROR:', msg, 'at', url, ':', line, ':', col, error);
-    // Only alert for non-extension errors if possible
-    if (url.includes('/js/')) {
-        alert('Critical error in ' + url.split('/').pop() + ': ' + msg);
-    }
+    console.error(msg, url, line, col, error);
 };
 
 import { getCurrentUser, setCurrentUser, getAPI, authFetch } from './store.js?v=59';
@@ -23,22 +19,15 @@ import { initOnboarding } from './onboarding.js?v=59';
 let _dashboardInitialized = false;
 
 async function initApp() {
-    console.log('initApp: starting...');
-    // Set up authentication callbacks
     initAuth({
-        onSuccess: () => {
-            console.log('initApp: auth onSuccess triggered');
-            initDashboard();
-        }
+        onSuccess: () => initDashboard()
     });
 
-    // Initialize feature modules
-    console.log('initApp: initializing features...');
-    try { initTasks(); } catch (e) { console.error('initTasks failed:', e); }
-    try { initRegenerate(); } catch (e) { console.error('initRegenerate failed:', e); }
-    try { initInteractions(); } catch (e) { console.error('initInteractions failed:', e); }
-    try { initMobileTabBar(); } catch (e) { console.error('initMobileTabBar failed:', e); }
-    try { initProfileTabs(); } catch (e) { console.error('initProfileTabs failed:', e); }
+    try { initTasks(); } catch (_) {}
+    try { initRegenerate(); } catch (_) {}
+    try { initInteractions(); } catch (_) {}
+    try { initMobileTabBar(); } catch (_) {}
+    try { initProfileTabs(); } catch (_) {}
     // NOTE: initPush() is NOT called here. It must run AFTER authentication is confirmed
     // so that authFetch('/push/subscribe') has a valid session cookie. See initDashboard().
 
@@ -71,7 +60,6 @@ async function initApp() {
                 showScreen('screen-dashboard');
             }
         } catch (e) {
-            console.error('Auth check failed:', e);
             showScreen('screen-welcome');
         }
     };
@@ -118,53 +106,11 @@ async function initApp() {
     // Push initial state so popstate can fire
     history.pushState(null, '');
 
-    // DEBUG: Viewport diagnostics — tap title bar 3x to show
-    let _diagTaps = 0, _diagTimer = null;
-    document.getElementById('mobile-tab-title')?.addEventListener('click', () => {
-        _diagTaps++;
-        clearTimeout(_diagTimer);
-        _diagTimer = setTimeout(() => _diagTaps = 0, 800);
-        if (_diagTaps >= 3) {
-            _diagTaps = 0;
-            const db = document.getElementById('screen-dashboard');
-            const tb = document.getElementById('mobile-tab-bar');
-            const cs = getComputedStyle(db);
-            const sai = getComputedStyle(document.documentElement);
-            const tbCs = getComputedStyle(tb);
-            const bodyCs = getComputedStyle(document.body);
-            const bodyAfter = getComputedStyle(document.body, '::after');
-            alert([
-                `=== v61 diag ===`,
-                `innerH: ${window.innerHeight}`,
-                `screen: ${screen.height}`,
-                `visualVP: ${window.visualViewport ? window.visualViewport.height : 'N/A'}`,
-                `--- dashboard ---`,
-                `db.offsetH: ${db.offsetHeight}`,
-                `db pos: ${cs.position}`,
-                `db bottom: ${cs.bottom}`,
-                `--- tab bar ---`,
-                `tb.offsetH: ${tb.offsetHeight}`,
-                `tb pos: ${tbCs.position}`,
-                `tb.getBCR.bottom: ${Math.round(tb.getBoundingClientRect().bottom)}`,
-                `tb paddingBottom: ${tbCs.paddingBottom}`,
-                `tb bg: ${tbCs.backgroundColor}`,
-                `--- body ---`,
-                `body pos: ${bodyCs.position}`,
-                `body h: ${bodyCs.height}`,
-                `body::after h: ${bodyAfter.height}`,
-                `--- html ---`,
-                `html bg: ${getComputedStyle(document.documentElement).backgroundColor}`,
-                `standalone: ${window.navigator.standalone}`,
-            ].join('\n'));
-        }
-    });
-
     // Handle SCROLL_TO_BLOCK event (from notifications)
     window.addEventListener('SCROLL_TO_BLOCK', (e) => {
         const blockId = e.detail ? e.detail.blockId : e.blockId;
         if (!blockId) return;
         
-        console.log('App: SCROLL_TO_BLOCK triggered for', blockId);
         
         // Ensure we are on dashboard
         showScreen('screen-dashboard');
@@ -194,7 +140,6 @@ async function initApp() {
     const urlParams = new URLSearchParams(window.location.search);
     const scrollToId = urlParams.get('scrollTo');
     if (scrollToId) {
-        console.log('App: deep-link detected in URL, scrolling to', scrollToId);
         // We wait for initial load to finish then trigger the event
         setTimeout(() => {
             window.dispatchEvent(new CustomEvent('SCROLL_TO_BLOCK', { detail: { blockId: scrollToId } }));
@@ -213,10 +158,7 @@ function initDashboard() {
     _dashboardInitialized = true;
 
     const user = getCurrentUser();
-    if (!user) {
-        console.warn('initDashboard: No user found');
-        return;
-    }
+    if (!user) return;
 
     const greetingEl = document.getElementById('user-greeting');
     const avatarEl = document.getElementById('user-avatar');
@@ -235,11 +177,7 @@ function initDashboard() {
     loadExams(handleLogout);
 
     // Gamification: splash screen and morning prompt on first login of day
-    try {
-        registerLoginCheckFlow();
-    } catch (e) {
-        console.error('registerLoginCheckFlow failed:', e);
-    }
+    try { registerLoginCheckFlow(); } catch (_) {}
 
     // Check for stored Auditor draft and offer to resume the review
     checkAuditorDraftOnInit().catch(() => {});
@@ -251,7 +189,7 @@ function initDashboard() {
     // This ensures authFetch('/push/subscribe') has a valid session cookie.
     // Calling initPush() before auth completes causes a 401 and leaves
     // push_subscriptions empty, so the scheduler never fires notifications.
-    try { initPush(); } catch (e) { console.error('initPush failed:', e); }
+    try { initPush(); } catch (_) {}
 
     // PWA notification prompt: show on first login when running as an installed
     // PWA (standalone mode) and permission hasn't been asked yet.
@@ -280,14 +218,10 @@ function initDashboard() {
 // Start the application when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        initApp().catch(err => {
-            console.error('CRITICAL: app.js initApp failed during DOMContentLoaded:', err);
-        });
+        initApp().catch(() => {});
     });
 } else {
-    initApp().catch(err => {
-        console.error('CRITICAL: app.js initApp failed immediately:', err);
-    });
+    initApp().catch(() => {});
 }
 
 // PWA: Register Service Worker
@@ -300,16 +234,11 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (_swRefreshing) return;
         _swRefreshing = true;
-        console.log('[SW] New service worker took control — reloading for fresh code');
         window.location.reload();
     });
 
     const registerSW = () => {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(reg => {
-            console.log('[SW] Registered, scope:', reg.scope);
-        }).catch(err => {
-            console.warn('[SW] Registration failed:', err);
-        });
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
     };
 
     if (document.readyState === 'complete') {

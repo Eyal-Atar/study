@@ -30,9 +30,8 @@ async def process_syllabus_background(exam_id: int, content: bytes):
         )
         db.commit()
         db.close()
-        print(f"SUCCESS: Processed syllabus for exam {exam_id}")
-    except Exception as e:
-        print(f"ERROR processing syllabus for exam {exam_id}: {e}")
+    except Exception:
+        pass
 
 
 @router.post("/exams", response_model=ExamResponse)
@@ -185,8 +184,8 @@ async def upload_exam_file(
         try:
             loop = asyncio.get_event_loop()
             extracted_text = await loop.run_in_executor(None, _extract_pdf_text, content)
-        except Exception as e:
-            print(f"WARNING: Text extraction failed for {safe_name}: {e}")
+        except Exception:
+            extracted_text = ""
 
     file_size = len(content)
     try:
