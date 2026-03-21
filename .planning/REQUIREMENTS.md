@@ -68,9 +68,9 @@ Requirements for feature-complete v1 public launch.
 
 - [x] **ONB-01**: Progressive disclosure UI (one screen, one focus) for new users.
 - [x] **ONB-02**: Local Storage persistence for onboarding drafts.
-- [ ] **ONB-03**: Material-based task logic (Simulations/Reviews) based on uploaded files.
-- [ ] **ONB-04**: Real-time AI progress transition screen with dynamic microcopy.
-- [ ] **ONB-05**: Removal of legacy "Regenerate" mechanism in favor of a unified flow.
+- [x] **ONB-03**: Material-based task logic (Simulations/Reviews) based on uploaded files.
+- [x] **ONB-04**: Real-time AI progress transition screen with dynamic microcopy.
+- [x] **ONB-05**: Removal of legacy "Regenerate" mechanism in favor of a unified flow.
 
 ## v2 Requirements
 

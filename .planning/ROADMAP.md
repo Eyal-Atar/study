@@ -134,7 +134,7 @@ Plans:
 **Goal:** Improve the onboarding wizard with an Icebreaker pre-step, unified exam card (merging exam details + file upload into one screen), exam loop management with adaptive buttons, personalized dynamic loading overlay, and technical cleanup (remove test artifacts, clean global variables).
 **Depends on:** Phase 21
 **Requirements:** [ONB-01, ONB-02, ONB-03, ONB-04, ONB-05]
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 24-01-PLAN.md — Icebreaker pre-step, Learning Profile microcopy, CSS animations, technical cleanup
