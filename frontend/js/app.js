@@ -191,18 +191,26 @@ function initDashboard() {
     // push_subscriptions empty, so the scheduler never fires notifications.
     try { initPush(); } catch (_) {}
 
-    // PWA notification prompt: show on first login when running as an installed
-    // PWA (standalone mode) and permission hasn't been asked yet.
-    // This handles the case where a user adds the app to their home screen and
-    // logs in — there's no task-completion event to trigger the prompt, so we
-    // show it proactively a moment after the dashboard loads.
+    // Notification prompt: show when permission hasn't been asked yet.
+    // On iOS we require standalone mode (push only works when installed as PWA).
+    // On Android/desktop Chrome, push works in regular browser too — so prompt
+    // all users who haven't been asked, regardless of standalone state.
+    // This also handles the case where a DB reset wiped all push subscriptions:
+    // users who had previously granted permission are handled by initPush() above
+    // (it detects no browser subscription and re-subscribes automatically).
+    // Users who never granted permission are handled here by showing the modal.
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     const isStandalone = window.navigator.standalone === true
         || window.matchMedia('(display-mode: standalone)').matches;
     const hasShownPrompt = localStorage.getItem('sf_notif_prompt_shown') === '1';
+    // On iOS: only prompt if installed as PWA (push won't work otherwise)
+    // On non-iOS: prompt all users who haven't been asked
+    const shouldPrompt = isIos ? isStandalone : true;
     if (
-        isStandalone
+        shouldPrompt
         && !hasShownPrompt
         && 'Notification' in window
+        && 'PushManager' in window
         && Notification.permission === 'default'
     ) {
         setTimeout(() => {
@@ -256,4 +264,4 @@ function updateOnlineStatus() {
 window.addEventListener('online', updateOnlineStatus);
 window.addEventListener('offline', updateOnlineStatus);
 updateOnlineStatus(); // run on load
-// Build hash refresh: Thu Feb 26 16:26:30 IST 2026
+// Build hash refresh: Sat Mar 21 11:30:00 IST 2026

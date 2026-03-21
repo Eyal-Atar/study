@@ -4,7 +4,6 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from server.database import get_db
 from auth.utils import get_current_user
 from server.config import VAPID_PUBLIC_KEY
-import json
 
 router = APIRouter()
 
@@ -17,11 +16,31 @@ def get_vapid_key():
     return {"key": VAPID_PUBLIC_KEY}
 
 
+@router.get("/push/subscription-status")
+def subscription_status(current_user: dict = Depends(get_current_user)):
+    """Return whether the current user has at least one active push subscription in the DB."""
+    db = get_db()
+    try:
+        row = db.execute(
+            "SELECT COUNT(*) FROM push_subscriptions WHERE user_id = ?",
+            (current_user["id"],)
+        ).fetchone()
+        count = row[0] if row else 0
+    finally:
+        db.close()
+    return {"has_subscription": count > 0, "count": count}
+
+
 @router.post("/push/subscribe")
 def subscribe(body: dict, current_user: dict = Depends(get_current_user)):
     """Store the PushSubscription JSON for this user in push_subscriptions table."""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Subscription attempt for user {current_user['id']}")
+
     subscription = body.get("subscription")
     if not subscription:
+        logger.error("No subscription in body")
         raise HTTPException(status_code=400, detail="subscription required")
     
     # Extract data from standard PushSubscription object

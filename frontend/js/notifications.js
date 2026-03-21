@@ -23,6 +23,7 @@ export async function initPush() {
         const existing = await registration.pushManager.getSubscription();
 
         if (!existing) {
+            // No browser subscription at all — create one fresh
             await subscribeToPush();
             return;
         }
@@ -32,6 +33,23 @@ export async function initPush() {
             try { await existing.unsubscribe(); } catch (_) {}
             await subscribeToPush();
             return;
+        }
+
+        // Browser subscription exists and VAPID key matches.
+        // Also verify the backend still has our subscription (guards against DB resets).
+        // If the backend lost it, re-save immediately without prompting the user.
+        try {
+            const statusRes = await authFetch(`${getAPI()}/push/subscription-status`);
+            if (statusRes.ok) {
+                const { has_subscription } = await statusRes.json();
+                if (!has_subscription) {
+                    // Backend lost our subscription — silently re-save it
+                    await saveSubscription(existing);
+                    return;
+                }
+            }
+        } catch (_) {
+            // If the status check fails, fall through to normal saveSubscription
         }
 
         await saveSubscription(existing);
