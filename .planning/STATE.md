@@ -8,8 +8,8 @@ See: .planning/PROJECT.md
 
 **Milestone:** v1.0 milestone
 **Current phase:** 24-22-improving-onboarding
-**Current Plan:** 2/2
-**Status:** Complete
+**Current Plan:** 3/3
+**Status:** Awaiting checkpoint: human-verify (24-03)
 
 ## Session Log
 
@@ -49,4 +49,4 @@ See: .planning/PROJECT.md
 
 ## Stopped At
 
-Completed 24-22-improving-onboarding-02-PLAN.md
+Checkpoint: 24-03 human-verify — awaiting end-to-end onboarding verification by user
