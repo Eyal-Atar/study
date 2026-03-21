@@ -111,6 +111,36 @@ Plans:
 - [x] 19-04-PLAN.md — Frontend integration (startup sequence, task completion XP wiring) (completed 2026-03-03)
 - [x] 19-05-PLAN.md — Phase 19 final verification checkpoint (completed 2026-03-03)
 
+### Phase 22: Interactive & Guided Onboarding
+
+**Goal:** [To be planned]
+**Depends on:** Phase 21
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 22 to break down)
+
+### Phase 23: Interactive & Guided Onboarding
+
+**Goal:** [To be planned]
+**Depends on:** Phase 22
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 23 to break down)
+
+### Phase 24: Improving Onboarding UX
+
+**Goal:** Improve the onboarding wizard with an Icebreaker pre-step, unified exam card (merging exam details + file upload into one screen), exam loop management with adaptive buttons, personalized dynamic loading overlay, and technical cleanup (remove test artifacts, clean global variables).
+**Depends on:** Phase 21
+**Requirements:** [ONB-01, ONB-02, ONB-03, ONB-04, ONB-05]
+**Plans:** 3 plans
+
+Plans:
+- [ ] 24-01-PLAN.md — Icebreaker pre-step, Learning Profile microcopy, CSS animations, technical cleanup
+- [ ] 24-02-PLAN.md — Unified exam card, exam loop management, personalized loading overlay
+- [ ] 24-03-PLAN.md — End-to-end visual verification checkpoint
+
 ---
 
 *Roadmap updated: 2026-03-03*
