@@ -16,6 +16,7 @@ def send_to_user(db, user_id, title, body, url=None, block_id=None, extra_data=N
     subscriptions = cursor.fetchall()
 
     if not subscriptions:
+        logger.warning(f"No push subscriptions found for user {user_id}. Cannot send push.")
         return
 
     payload_data = {
@@ -62,8 +63,15 @@ def send_to_user(db, user_id, title, body, url=None, block_id=None, extra_data=N
             resp_body = getattr(ex.response, 'text', 'No body')
             logger.error(f"Failed to send push Status: {status_code}, Body: {resp_body}")
             
-            # Remove subscriptions that are permanently invalid:
-            if status_code in [400, 403, 404, 410]:
+            # Remove subscriptions that are permanently invalid per the Web Push spec.
+            # 404 = endpoint no longer exists (unregistered).
+            # 410 = endpoint is gone and should not be retried (Gone).
+            # We intentionally DO NOT delete on 400 or 403:
+            #   - 403 (e.g. Apple BadJwtToken) means our server-side JWT was rejected,
+            #     not that the subscription is stale. Deleting on 403 would permanently
+            #     destroy valid subscriptions after a transient signing error.
+            #   - 400 can indicate a bad request payload, not a stale subscription.
+            if status_code in [404, 410]:
                 logger.info(
                     f"Removing stale subscription {sub['id']} "
                     f"(HTTP {ex.response.status_code})"
