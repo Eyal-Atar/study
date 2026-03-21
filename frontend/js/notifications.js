@@ -1,5 +1,5 @@
 /* StudyFlow — Notifications & Push Module */
-import { getAPI, authFetch } from './store.js?v=59';
+import { getAPI, authFetch } from './store.js?v=AUTO';
 
 /**
  * Initialize Push Notifications for the current user.
@@ -254,7 +254,7 @@ if ('serviceWorker' in navigator) {
         if (!event.data) return;
 
         if (event.data.type === 'PUSH_RECEIVED') {
-            showToast(event.data.title, event.data.body, event.data.blockId);
+            // Native banner only — no in-app toast
         }
 
         if (event.data.type === 'SCROLL_TO_BLOCK') {

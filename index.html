@@ -23,7 +23,7 @@
             }
         }
     </script>
-    <link rel="stylesheet" href="/css/styles.css?v=70">
+    <link rel="stylesheet" href="/css/styles.css?v=AUTO">
     <link rel="apple-touch-icon" href="/static/icon-192.png">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0B0F1A">
@@ -215,7 +215,7 @@
 
     <!-- ONBOARDING (multi-step wizard) -->
     <div id="screen-onboarding" class="screen">
-        <div class="relative z-10 flex flex-col items-center justify-center min-h-screen px-4">
+        <div class="relative z-10 flex flex-col items-center justify-center min-h-screen px-4" style="padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);">
             <div class="w-full max-w-xl">
                 <div class="bg-dark-700/60 backdrop-blur-sm rounded-3xl p-6 border border-white/5">
                     <div class="flex items-center justify-between mb-4">
@@ -1317,34 +1317,112 @@
 
             global.testNotification = async function() {
                 log('Testing push notification via backend...');
-                if (!('Notification' in window) || Notification.permission !== 'granted') {
-                    alert('Enable notifications first. Current: ' + (window.Notification ? Notification.permission : 'unsupported'));
-                    return;
-                }
-                try {
-                    // Read CSRF token from cookie
+
+                // Helper: read CSRF token
+                function csrfHeaders() {
                     const cookies = document.cookie.split(';').reduce((acc, c) => {
                         const [k, ...rest] = c.trim().split('=');
                         acc[k] = decodeURIComponent(rest.join('='));
                         return acc;
                     }, {});
-                    const headers = { 'Content-Type': 'application/json' };
-                    if (cookies['csrf_token']) headers['X-CSRF-Token'] = cookies['csrf_token'];
+                    const h = { 'Content-Type': 'application/json' };
+                    if (cookies['csrf_token']) h['X-CSRF-Token'] = cookies['csrf_token'];
+                    return h;
+                }
 
+                // Step 1: Check Notification API
+                if (!('Notification' in window)) {
+                    log('FAIL: Notification API not available');
+                    return;
+                }
+                log('Notification.permission = ' + Notification.permission);
+
+                // Step 2: If permission not granted, request it
+                if (Notification.permission !== 'granted') {
+                    log('Requesting permission...');
+                    const perm = await Notification.requestPermission();
+                    log('Permission result: ' + perm);
+                    if (perm !== 'granted') {
+                        return;
+                    }
+                }
+
+                // Step 3: Check service worker
+                if (!('serviceWorker' in navigator)) {
+                    log('FAIL: No service worker support');
+                    return;
+                }
+                const reg = await navigator.serviceWorker.ready;
+                log('Service worker ready: ' + reg.active.state);
+
+                // Step 4: Check push subscription
+                let sub = await reg.pushManager.getSubscription();
+                log('Existing push subscription: ' + (sub ? 'yes' : 'none'));
+
+                // Step 5: If no subscription, create one
+                if (!sub) {
+                    log('No subscription — creating one now...');
+                    try {
+                        const vapidRes = await fetch('/push/vapid-public-key', { credentials: 'include' });
+                        if (!vapidRes.ok) { log('FAIL: Could not get VAPID key'); return; }
+                        const { key } = await vapidRes.json();
+                        log('Got VAPID key: ' + key.substring(0, 20) + '...');
+
+                        // Convert VAPID key
+                        const padding = '='.repeat((4 - key.length % 4) % 4);
+                        const base64 = (key + padding).replace(/-/g, '+').replace(/_/g, '/');
+                        const rawData = window.atob(base64);
+                        const keyArray = new Uint8Array(rawData.length);
+                        for (let i = 0; i < rawData.length; ++i) keyArray[i] = rawData.charCodeAt(i);
+
+                        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyArray });
+                        log('Push subscription created: ' + sub.endpoint.substring(0, 60) + '...');
+                    } catch (e) {
+                        log('FAIL creating subscription: ' + e.message);
+                        return;
+                    }
+                }
+
+                // Step 6: Save subscription to backend
+                log('Saving subscription to backend...');
+                try {
+                    const saveRes = await fetch('/push/subscribe', {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: csrfHeaders(),
+                        body: JSON.stringify({
+                            subscription: sub.toJSON ? sub.toJSON() : sub,
+                            device_name: /iPhone/i.test(navigator.userAgent) ? 'iPhone' : 'Device'
+                        })
+                    });
+                    if (saveRes.ok) {
+                        log('Subscription saved to backend');
+                    } else {
+                        const err = await saveRes.json().catch(() => ({}));
+                        log('FAIL saving subscription: ' + (err.detail || saveRes.status));
+                        return;
+                    }
+                } catch (e) {
+                    log('FAIL saving subscription: ' + e.message);
+                    return;
+                }
+
+                // Step 7: Send test push
+                log('Sending test push...');
+                try {
                     const res = await fetch('/push/test', {
                         method: 'POST',
                         credentials: 'include',
-                        headers: headers
+                        headers: csrfHeaders()
                     });
-                    if (res.ok) {
-                        log('Test push sent via backend');
+                    const data = await res.json().catch(() => ({}));
+                    if (res.ok && data.status !== 'no_subscription') {
+                        log('Test push sent! You should receive it shortly.');
                     } else {
-                        const err = await res.json().catch(() => ({}));
-                        alert('Push test failed: ' + (err.detail || res.status));
+                        log('Push test response: ' + JSON.stringify(data));
                     }
                 } catch (e) {
                     log('Test push error: ' + e.message);
-                    alert('Network error — check your connection');
                 }
             };
 
@@ -1409,6 +1487,6 @@
         })(window);
     </script>
 
-    <script type="module" src="/js/app.js?v=62"></script>
+    <script type="module" src="/js/app.js?v=AUTO"></script>
 </body>
 </html>
