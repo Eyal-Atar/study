@@ -226,9 +226,23 @@
                         <div class="text-sm text-white/40">Step <span id="onb-step-num">0</span>/3</div>
                     </div>
 
+                    <!-- Icebreaker: Pre-Step (exam count question) -->
+                    <div id="onb-icebreaker" style="display:none">
+                        <h2 class="text-2xl font-bold text-center mb-2">How many exams do you have this semester?</h2>
+                        <p class="text-white/40 text-center mb-8">This helps us build an accurate progress tracker for you.</p>
+                        <div class="grid grid-cols-3 gap-3">
+                            <button type="button" class="onb-exam-count-btn py-4 text-2xl font-bold rounded-2xl bg-dark-900/50 border border-white/10 transition-all hover:border-accent-500/50" data-value="1">1</button>
+                            <button type="button" class="onb-exam-count-btn py-4 text-2xl font-bold rounded-2xl bg-dark-900/50 border border-white/10 transition-all hover:border-accent-500/50" data-value="2">2</button>
+                            <button type="button" class="onb-exam-count-btn py-4 text-2xl font-bold rounded-2xl bg-dark-900/50 border border-white/10 transition-all hover:border-accent-500/50" data-value="3">3</button>
+                            <button type="button" class="onb-exam-count-btn py-4 text-2xl font-bold rounded-2xl bg-dark-900/50 border border-white/10 transition-all hover:border-accent-500/50" data-value="4">4</button>
+                            <button type="button" class="onb-exam-count-btn py-4 text-2xl font-bold rounded-2xl bg-dark-900/50 border border-white/10 transition-all hover:border-accent-500/50" data-value="5">5</button>
+                            <button type="button" class="onb-exam-count-btn py-4 text-2xl font-bold rounded-2xl bg-dark-900/50 border border-white/10 transition-all hover:border-accent-500/50" data-value="6+">6+</button>
+                        </div>
+                    </div>
+
                     <!-- Step 0: Profiling -->
                     <div id="onb-step-0" class="onb-step">
-                        <h3 class="text-xl font-bold mb-2">When do you study?</h3>
+                        <h3 class="text-xl font-bold mb-2">When does your brain work best?</h3>
                         <p class="text-white/40 mb-4">Select all windows that work for you.</p>
                         <div class="chip-group mb-6">
                             <button type="button" class="chip chip-study-hour" data-value="Morning">Morning (08-14)</button>
@@ -236,15 +250,19 @@
                             <button type="button" class="chip chip-study-hour" data-value="Night">Night (20-02)</button>
                         </div>
 
-                        <h3 class="text-xl font-bold mb-2">Daily Study Hours</h3>
-                        <p class="text-white/40 mb-4">How many net hours can you study per day?</p>
-                        <div class="flex items-center gap-4 mb-6">
+                        <h3 class="text-xl font-bold mb-2">How many net hours is realistic for you to study per day?</h3>
+                        <p class="text-white/40 mb-2">Drag to set your daily target.</p>
+                        <div class="flex items-center gap-4 mb-2">
                             <input id="onb-study-hours" type="range" min="1" max="10" step="0.5" value="4" class="flex-1 accent-accent-500">
                             <span id="onb-study-hours-label" class="text-lg font-bold w-12 text-right">4.0</span>
                         </div>
+                        <div class="mb-6">
+                            <span id="onb-hours-value" class="text-accent-400 font-bold text-lg">4</span>
+                            <span class="text-white/40 text-sm ml-1">hours/day</span>
+                        </div>
 
-                        <h3 class="text-xl font-bold mb-2">Buffer Days</h3>
-                        <p class="text-white/40 mb-4">How many full days off do you want before the exam?</p>
+                        <h3 class="text-xl font-bold mb-2">How many full rest days do you want us to account for before each exam?</h3>
+                        <p class="text-white/40 mb-4">We'll keep those days clear in your schedule.</p>
                         <div class="chip-group mb-6">
                             <button type="button" class="chip chip-buffer-day" data-value="0">0 Days</button>
                             <button type="button" class="chip chip-buffer-day" data-value="1">1 Day</button>
@@ -273,11 +291,11 @@
                             <div>
                                 <label class="text-sm text-white/40 mb-1 block">Difficulty (1-5)</label>
                                 <div class="flex gap-2">
-                                    <button type="button" class="onb-diff-btn flex-1 py-2 rounded-xl bg-dark-900/50 border border-white/5 transition-all" data-value="1">1</button>
-                                    <button type="button" class="onb-diff-btn flex-1 py-2 rounded-xl bg-dark-900/50 border border-white/5 transition-all" data-value="2">2</button>
-                                    <button type="button" class="onb-diff-btn flex-1 py-2 rounded-xl bg-dark-900/50 border border-white/5 transition-all active bg-accent-500/20 border-accent-500/50" data-value="3">3</button>
-                                    <button type="button" class="onb-diff-btn flex-1 py-2 rounded-xl bg-dark-900/50 border border-white/5 transition-all" data-value="4">4</button>
-                                    <button type="button" class="onb-diff-btn flex-1 py-2 rounded-xl bg-dark-900/50 border border-white/5 transition-all" data-value="5">5</button>
+                                    <button type="button" class="onb-diff-btn flex-1 py-2 rounded-xl bg-dark-900/50 border border-white/5 transition-all" data-value="1">⚡</button>
+                                    <button type="button" class="onb-diff-btn flex-1 py-2 rounded-xl bg-dark-900/50 border border-white/5 transition-all" data-value="2">⚡⚡</button>
+                                    <button type="button" class="onb-diff-btn flex-1 py-2 rounded-xl bg-dark-900/50 border border-white/5 transition-all active bg-accent-500/20 border-accent-500/50" data-value="3">🔥</button>
+                                    <button type="button" class="onb-diff-btn flex-1 py-2 rounded-xl bg-dark-900/50 border border-white/5 transition-all" data-value="4">🔥🔥</button>
+                                    <button type="button" class="onb-diff-btn flex-1 py-2 rounded-xl bg-dark-900/50 border border-white/5 transition-all" data-value="5">🔥🔥🔥</button>
                                 </div>
                             </div>
                         </div>
@@ -300,12 +318,6 @@
                             <p class="text-xs text-white/30 mt-1">PDFs or Images (Max 3)</p>
                             <input type="file" id="onb-file-input" class="hidden" multiple accept="application/pdf,image/*">
                         </div>
-                        <!-- Auto-fill test files button -->
-                        <button id="onb-auto-fill" type="button" class="w-full mb-4 py-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 text-sky-400 text-xs font-semibold transition-all flex items-center justify-center gap-2">
-                            <span>Use Test Files (Past Exam + Syllabus)</span>
-                            <div id="onb-auto-fill-spinner" class="hidden w-3 h-3 border-2 border-sky-400/20 border-t-sky-400 rounded-full animate-spin"></div>
-                        </button>
-
                         <!-- File List -->
                         <div id="onb-file-list" class="space-y-2 mb-6">
                             <!-- Files will be injected here -->
