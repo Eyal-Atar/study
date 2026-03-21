@@ -21,6 +21,9 @@ const defaultDraft = {
 // For the current unsaved exam, we use index -1
 const examFilesMap = new Map();
 
+// Module-level variable to hold the current exam being added (replaces window._onb_current_exam)
+let _currentExamDraft = null;
+
 /**
  * Saves onboarding progress to localStorage.
  */
@@ -45,6 +48,44 @@ export function loadDraft() {
 export function clearDraft() {
     localStorage.removeItem(ONBOARDING_DRAFT_KEY);
     examFilesMap.clear();
+}
+
+/**
+ * Sets up onclick handlers for the icebreaker exam count buttons.
+ * Safe to call multiple times (idempotent via onclick assignment).
+ */
+function setupIcebreaker() {
+    const btns = document.querySelectorAll('.onb-exam-count-btn');
+    btns.forEach(btn => {
+        btn.onclick = () => {
+            const raw = btn.dataset.value;
+            const count = raw === '6+' ? 6 : parseInt(raw, 10);
+            saveDraft({ examCount: count });
+            showIcebreaker(false);
+            setStep(0);
+        };
+    });
+}
+
+/**
+ * Shows or hides the icebreaker pre-step.
+ * When showing, hides all .onb-step elements and applies fade-in animation.
+ */
+function showIcebreaker(show = true) {
+    const el = document.getElementById('onb-icebreaker');
+    if (!el) return;
+
+    if (show) {
+        // Hide all wizard steps
+        document.querySelectorAll('.onb-step').forEach(s => s.style.display = 'none');
+        el.style.display = 'block';
+        // Force reflow for animation
+        void el.offsetWidth;
+        el.classList.add('fade-in');
+    } else {
+        el.style.display = 'none';
+        el.classList.remove('fade-in');
+    }
 }
 
 /**
@@ -90,6 +131,9 @@ export function setStep(stepNum) {
 export function initOnboarding() {
     const draft = loadDraft();
 
+    // Wire up Icebreaker pre-step buttons
+    setupIcebreaker();
+
     // Wire up profiling chips (Step 0)
     setupProfilingChips(draft);
 
@@ -98,6 +142,12 @@ export function initOnboarding() {
 
     // Wire up Material Upload (Step 2)
     setupMaterialUpload();
+
+    // If examCount not yet set, show the icebreaker pre-step
+    if (!draft.examCount) {
+        showIcebreaker(true);
+        return;
+    }
 
     // Set to current step
     setStep(draft.step);
@@ -132,12 +182,16 @@ function setupProfilingChips(draft) {
     // Neto Study Hours (Slider)
     const hoursSlider = document.getElementById('onb-study-hours');
     const hoursLabel = document.getElementById('onb-study-hours-label');
+    const hoursValue = document.getElementById('onb-hours-value');
     if (hoursSlider) {
         hoursSlider.value = draft.profiling.netoStudyHours || 4.0;
-        if (hoursLabel) hoursLabel.textContent = parseFloat(hoursSlider.value).toFixed(1);
+        const initialVal = parseFloat(hoursSlider.value);
+        if (hoursLabel) hoursLabel.textContent = initialVal.toFixed(1);
+        if (hoursValue) hoursValue.textContent = Math.round(initialVal);
         hoursSlider.oninput = () => {
             const val = parseFloat(hoursSlider.value);
             if (hoursLabel) hoursLabel.textContent = val.toFixed(1);
+            if (hoursValue) hoursValue.textContent = Math.round(val);
             const currentDraft = loadDraft();
             saveDraft({ profiling: { ...currentDraft.profiling, netoStudyHours: val } });
         };
@@ -204,7 +258,7 @@ function setupExamInput() {
             }
             
             // Temporary store for the current exam being added
-            window._onb_current_exam = {
+            _currentExamDraft = {
                 name,
                 date,
                 difficulty: selectedDiff
@@ -225,41 +279,6 @@ function setupMaterialUpload() {
     const addAnotherBtn = document.getElementById('onb-add-another');
     const submitBtn = document.getElementById('onb-submit-all');
     const backBtn = document.getElementById('onb-back-2');
-    const autoFillBtn = document.getElementById('onb-auto-fill');
-
-    // Auto-fill: fetch test assets and inject as uploaded files
-    if (autoFillBtn) {
-        autoFillBtn.onclick = async () => {
-            const spinner = document.getElementById('onb-auto-fill-spinner');
-            autoFillBtn.disabled = true;
-            if (spinner) spinner.classList.remove('hidden');
-            try {
-                const [examRes, syllabusRes] = await Promise.all([
-                    fetch('/static/test_assets/test_past_exam.pdf'),
-                    fetch('/static/test_assets/test_syllabus.pdf')
-                ]);
-                if (!examRes.ok || !syllabusRes.ok) throw new Error('Failed to fetch test assets');
-                const examBlob = await examRes.blob();
-                const syllabusBlob = await syllabusRes.blob();
-                const examFile = new File([examBlob], 'Test_Past_Exam.pdf', { type: 'application/pdf' });
-                const syllabusFile = new File([syllabusBlob], 'Test_Syllabus.pdf', { type: 'application/pdf' });
-
-                // Clear existing files for current exam and inject test files
-                examFilesMap.set(-1, [
-                    { file: examFile, tag: 'past_exam' },
-                    { file: syllabusFile, tag: 'syllabus' }
-                ]);
-                renderFileList();
-                validateMaterialStep();
-            } catch (err) {
-                console.error('Auto-fill failed:', err);
-                alert('Failed to load test files: ' + err.message);
-            } finally {
-                autoFillBtn.disabled = false;
-                if (spinner) spinner.classList.add('hidden');
-            }
-        };
-    }
 
     if (uploadArea && fileInput) {
         uploadArea.onclick = () => fileInput.click();
@@ -388,8 +407,8 @@ function validateMaterialStep() {
 
 function updateMaterialScreen() {
     const nameEl = document.getElementById('onb-current-exam-name');
-    if (nameEl && window._onb_current_exam) {
-        nameEl.textContent = window._onb_current_exam.name;
+    if (nameEl && _currentExamDraft) {
+        nameEl.textContent = _currentExamDraft.name;
     }
     renderFileList();
     validateMaterialStep();
@@ -399,32 +418,32 @@ function updateMaterialScreen() {
  * Saves the current exam (info + files) into the draft state.
  */
 function saveCurrentExam() {
-    const examInfo = window._onb_current_exam;
+    const examInfo = _currentExamDraft;
     const files = examFilesMap.get(-1) || [];
-    
+
     if (!examInfo) return false;
     if (files.length < 1) {
         alert('Please upload at least one material for this exam.');
         return false;
     }
-    
+
     const draft = loadDraft();
     const examIndex = draft.exams.length;
-    
+
     // Store metadata in draft
     const newExam = {
         ...examInfo,
         materials: files.map(f => ({ name: f.file.name, type: f.tag }))
     };
-    
+
     draft.exams.push(newExam);
     saveDraft({ exams: draft.exams });
-    
+
     // Move files from temp (-1) to actual index
     examFilesMap.set(examIndex, [...files]);
     examFilesMap.delete(-1);
-    
-    window._onb_current_exam = null;
+
+    _currentExamDraft = null;
     return true;
 }
 
