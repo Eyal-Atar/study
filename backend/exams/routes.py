@@ -4,6 +4,7 @@ import os
 import shutil
 import json
 import asyncio
+import logging
 import fitz  # PyMuPDF
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from typing import List
@@ -12,6 +13,8 @@ from server.config import UPLOAD_DIR
 from auth.utils import get_current_user
 from exams.schemas import ExamCreate, ExamUpdate, ExamResponse, ExamFileResponse
 from brain.syllabus_parser import extract_syllabus_context_with_ai
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -30,8 +33,8 @@ async def process_syllabus_background(exam_id: int, content: bytes):
         )
         db.commit()
         db.close()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error(f"Syllabus background processing failed for exam {exam_id}: {e}")
 
 
 @router.post("/exams", response_model=ExamResponse)
@@ -96,7 +99,7 @@ def delete_exam(exam_id: int, current_user: dict = Depends(get_current_user)):
     if os.path.exists(exam_dir):
         shutil.rmtree(exam_dir)
 
-    db.execute("DELETE FROM exams WHERE id = ?", (exam_id,))
+    db.execute("DELETE FROM exams WHERE id = ? AND user_id = ?", (exam_id, current_user["id"]))
     db.commit()
     db.close()
     return {"message": "Exam deleted"}
@@ -129,11 +132,11 @@ def update_exam(exam_id: int, body: ExamUpdate, current_user: dict = Depends(get
         values.append(body.special_needs)
 
     if updates:
-        values.append(exam_id)
-        db.execute(f"UPDATE exams SET {', '.join(updates)} WHERE id = ?", values)
+        values.extend([exam_id, current_user["id"]])
+        db.execute(f"UPDATE exams SET {', '.join(updates)} WHERE id = ? AND user_id = ?", values)
         db.commit()
 
-    updated = db.execute("SELECT * FROM exams WHERE id = ?", (exam_id,)).fetchone()
+    updated = db.execute("SELECT * FROM exams WHERE id = ? AND user_id = ?", (exam_id, current_user["id"])).fetchone()
     file_count = db.execute("SELECT COUNT(*) FROM exam_files WHERE exam_id = ?", (exam_id,)).fetchone()[0]
     task_count = db.execute("SELECT COUNT(*) FROM tasks WHERE exam_id = ?", (exam_id,)).fetchone()[0]
     done_count = db.execute("SELECT COUNT(*) FROM tasks WHERE exam_id = ? AND status = 'done'", (exam_id,)).fetchone()[0]

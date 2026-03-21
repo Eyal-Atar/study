@@ -2,7 +2,7 @@
 
 import os
 from fastapi import APIRouter, HTTPException, Depends, Response, Request
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.responses import RedirectResponse
 from server.database import get_db
 from auth.utils import hash_password, verify_password, generate_token, get_current_user
 from auth.schemas import RegisterRequest, LoginRequest, AuthResponse
@@ -14,9 +14,9 @@ router = APIRouter()
 
 @router.post("/register", response_model=AuthResponse)
 def register(body: RegisterRequest, response: Response):
-    if len(body.password) < 6:
+    if len(body.password.strip()) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
-    if not body.email or "@" not in body.email:
+    if not body.email or "@" not in body.email or len(body.email) < 5:
         raise HTTPException(status_code=400, detail="Valid email required")
     if not body.name.strip():
         raise HTTPException(status_code=400, detail="Name is required")
@@ -33,16 +33,19 @@ def register(body: RegisterRequest, response: Response):
 
     token = generate_token()
     try:
-          cursor = db.execute(
-                """INSERT INTO users (name, email, password_hash, auth_token,
-                    wake_up_time, sleep_time, study_method, session_minutes, break_minutes, onboarding_completed, timezone_offset)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (body.name.strip(), body.email.lower().strip(), hash_password(body.password),
-                 token, body.wake_up_time, body.sleep_time, body.study_method,
-                 body.session_minutes, body.break_minutes, 0, body.timezone_offset)
-          )
-          db.commit()
-          user_id = cursor.lastrowid
+        cursor = db.execute(
+            """INSERT INTO users (name, email, password_hash, auth_token,
+                wake_up_time, sleep_time, study_method, session_minutes, break_minutes, onboarding_completed, timezone_offset)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (body.name.strip(), body.email.lower().strip(), hash_password(body.password),
+             token, body.wake_up_time, body.sleep_time, body.study_method,
+             body.session_minutes, body.break_minutes, 0, body.timezone_offset)
+        )
+        db.commit()
+        user_id = cursor.lastrowid
+    except Exception:
+        db.close()
+        raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
     finally:
         db.close()
 
@@ -80,19 +83,25 @@ def login(body: LoginRequest, response: Response):
         db.close()
         raise HTTPException(status_code=500, detail="We're having a temporary issue. Please try again in a moment.")
 
-    if not row or not verify_password(body.password, row["password_hash"]):
+    if not row:
         db.close()
         raise HTTPException(status_code=401, detail="Incorrect email or password. Please try again.")
 
-    # Check if account is Google-linked
-    if row["google_linked"]:
+    # Check Google-linked BEFORE password so Google-only users get the right message
+    if row["google_linked"] == 1 and not row["password_hash"]:
         db.close()
         raise HTTPException(status_code=403, detail="This account uses Google Sign-In. Please use the 'Sign in with Google' button.")
 
+    if not verify_password(body.password, row["password_hash"]):
+        db.close()
+        raise HTTPException(status_code=401, detail="Incorrect email or password. Please try again.")
+
     token = generate_token()
-    db.execute("UPDATE users SET auth_token = ? WHERE id = ?", (token, row["id"]))
-    db.commit()
-    db.close()
+    try:
+        db.execute("UPDATE users SET auth_token = ? WHERE id = ?", (token, row["id"]))
+        db.commit()
+    finally:
+        db.close()
 
     # Set HttpOnly cookie
     is_production = os.environ.get("ENVIRONMENT") == "production"
@@ -186,7 +195,7 @@ async def google_callback(request: Request, response: Response):
                     """INSERT INTO users (name, email, google_id, google_linked, auth_token,
                        wake_up_time, sleep_time, study_method, session_minutes, break_minutes, onboarding_completed)
                        VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)""",
-                    (name, email, google_id, token_value, "08:00", "23:00", "pomodoro", 50, 10, 0)
+                    (name, email, google_id, token_value, "08:00", "23:00", "continuous", 90, 10, 0)
                 )
                 db.commit()
                 user_id = cursor.lastrowid

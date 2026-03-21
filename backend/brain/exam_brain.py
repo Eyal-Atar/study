@@ -187,7 +187,7 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
       "exam_id": <int — must be one of [{exam_ids_str}]>,
       "title": "<string>",
       "topic": "<string>",
-      "estimated_hours": <float 0.5-3.0>,
+      "estimated_hours": <float 0.5-3.5>,
       "focus_score": <int 1-10>,
       "reasoning": "<string — 1 sentence explaining the focus_score>",
       "dependency_id": <null or 0-based index into this tasks array>,
@@ -334,12 +334,13 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
         prompt = self._build_auditor_prompt_single(exam_context, exam_hours, exam)
 
         # Force Density Instruction added to User Message
-        user_message = f"Generate the Knowledge Audit for Exam {exam['id']} ({exam['name']}). \n\nCRITICAL: You must generate a HIGH-DENSITY list of tasks. For this amount of syllabus material, I expect at least 40-60 granular sub-tasks to be generated to fill the {exam_hours} hour budget."
+        min_tasks = min(80, max(10, int(exam_hours / 1.5)))
+        user_message = f"Generate the Knowledge Audit for Exam {exam['id']} ({exam['name']}). \n\nCRITICAL: You must generate a HIGH-DENSITY list of tasks. The budget is {exam_hours} hours — generate at least {min_tasks} granular sub-tasks to fill it completely."
 
         response = await retry_acompletion(
             model=self.model,
             messages=[{"role": "user", "content": prompt + "\n\n" + user_message}],
-            max_tokens=8192,
+            max_tokens=16384,
             temperature=0,
             response_format={"type": "json_object"}
         )
@@ -445,7 +446,8 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
         neto_h = float(self.user.get("neto_study_hours", 4.0))
         peak = self.user.get("peak_productivity", "Morning")
         buffer_days = int(self.user.get("buffer_days", 1))
-        
+        study_pref = self.user.get("study_hours_preference", '["morning", "afternoon"]')
+
         # Minimized task list for the prompt
         minimized_tasks = []
         for t in approved_tasks:
@@ -472,7 +474,7 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
                 exam_date = datetime.fromisoformat(ed_str).replace(tzinfo=None)
                 days_until = (exam_date.date() - today.date()).days
                 exams_info.append(f"- Exam ID {e['id']} ({e['name']}): day_index {days_until}")
-            except:
+            except (ValueError, KeyError):
                 continue
         exams_info_str = "\n".join(exams_info)
 
@@ -482,7 +484,8 @@ You are a Strategic Schedule Architect.
 
 STUDENT PROFILE:
 - Current Local Time: {local_time_str}
-- Daily net study quota: {neto_h} hours
+- Daily net study quota: {neto_h} hours (this is the TOTAL task hours per day, not including breaks)
+- Study windows preference: {study_pref} (the student ONLY studies during these windows)
 - Peak productivity window: {peak}
 - Buffer days: {buffer_days} (Student wants {buffer_days} full days off BEFORE the exam date)
 - Days available: {days_available} (day_index 0 is TODAY)
@@ -500,9 +503,10 @@ STRATEGIC RULES (CRITICAL):
    - Topic "review": MUST be placed as early as possible (the first day study begins for that exam).
 2. BUFFER DAYS: For an exam at day_index X, NO tasks for that exam should be scheduled on day_indices [X-{buffer_days} to X-1]. All study for that exam must end by X-{buffer_days+1}.
 3. SINGLE FOCUS: Try to group tasks for the same exam on the same day(s) to minimize context switching.
-4. FILL QUOTA: Distribute tasks so they fill the daily {neto_h}h quota.
+4. FILL QUOTA: Distribute tasks so the sum of estimated_hours per day equals exactly {neto_h}h. Do NOT exceed {neto_h}h on any day.
 5. FOCUS SCORE: focus_score >= 8 should be placed in peak windows (high priority for early slots in the day).
 6. DEPENDENCIES: Respect dependencies strictly.
+7. STUDY WINDOWS: The student only studies during {study_pref} windows. Schedule accordingly.
 
 RETURN FORMAT:
 {{
@@ -556,7 +560,7 @@ RETURN FORMAT:
                 ed_str = e["exam_date"].replace("Z", "+00:00")
                 exam_date = datetime.fromisoformat(ed_str)
                 exam_deadlines[e["id"]] = (exam_date.date() - local_now.date()).days
-            except:
+            except (ValueError, KeyError):
                 continue
 
         for item in assignments:

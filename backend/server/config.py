@@ -8,6 +8,7 @@ DEPLOYMENT:
 import os
 import secrets
 import base64
+import logging
 from dotenv import load_dotenv
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # backend/
@@ -49,3 +50,6 @@ VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
 VAPID_CLAIMS = {
     "sub": os.environ.get("VAPID_SUB_EMAIL", "mailto:admin@studyflow.local")
 }
+
+if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
+    logging.getLogger(__name__).warning("VAPID keys not configured — push notifications will be disabled")

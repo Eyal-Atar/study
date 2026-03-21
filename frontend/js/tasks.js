@@ -188,7 +188,9 @@ export function renderExamCards() {
 
     let html = '';
     currentExams.forEach((exam, i) => {
-        const days = Math.ceil((new Date(exam.exam_date) - new Date()) / 86400000);
+        const _examDt = new Date(exam.exam_date + 'T00:00:00');
+        const _todayDt = new Date(); _todayDt.setHours(0,0,0,0);
+        const days = Math.round((_examDt - _todayDt) / 86400000);
         const progress = exam.task_count > 0 ? Math.round((exam.done_count / exam.task_count) * 100) : 0;
         html += `
         <div class="fade-in flex-shrink-0 w-56 rounded-2xl ${examColorClass(i,'bg20')} border ${examColorClass(i,'border')} p-4 card-hover">
@@ -249,7 +251,9 @@ function renderExamCardsDrawer(exams) {
         return;
     }
     container.innerHTML = exams.map((exam, i) => {
-        const days = Math.ceil((new Date(exam.exam_date) - new Date()) / 86400000);
+        const _examDt = new Date(exam.exam_date + 'T00:00:00');
+        const _todayDt = new Date(); _todayDt.setHours(0,0,0,0);
+        const days = Math.round((_examDt - _todayDt) / 86400000);
         const progress = exam.task_count > 0 ? Math.round((exam.done_count / exam.task_count) * 100) : 0;
         const daysLabel = days > 0 ? `${days}d left` : days === 0 ? 'TODAY!' : 'Passed';
         return `<div class="flex items-center gap-3 p-2.5 rounded-xl ${examColorClass(i,'bg20')} border ${examColorClass(i,'border')}">
@@ -1320,7 +1324,7 @@ export function renderUploadedFiles() {
         <div class="flex items-center gap-2 bg-dark-900/40 rounded-lg p-2" data-pending-file-id="${f.id}">
             <span class="text-xs bg-accent-500/20 text-accent-400 px-1.5 py-0.5 rounded">${typeIcons[f.file_type] || 'O'}</span>
             <span class="text-sm flex-1 truncate">${f.filename}</span>
-            <span class="text-xs text-white/30">${(f.file_size / 1024).toFixed(0)}KB</span>
+            <span class="text-xs text-white/30">${f.file_size ? (f.file_size / 1024).toFixed(0) + 'KB' : ''}</span>
             <button class="btn-delete-file text-xs text-white/20 hover:text-coral-400 transition-colors ml-1" data-file-id="${f.id}">✕</button>
         </div>
     `).join('');
@@ -1451,9 +1455,15 @@ export function initTasks() {
     window.removeEventListener('block-defer', _handleBlockDefer);
     window.addEventListener('block-defer', _handleBlockDefer);
 
-    window.addEventListener('open-add-exam', () => openAddExamModal());
-    window.addEventListener('trigger-generate-roadmap', () => generateRoadmap());
+    window.removeEventListener('open-add-exam', _handleOpenAddExam);
+    window.addEventListener('open-add-exam', _handleOpenAddExam);
+
+    window.removeEventListener('trigger-generate-roadmap', _handleGenerateRoadmap);
+    window.addEventListener('trigger-generate-roadmap', _handleGenerateRoadmap);
 }
+
+function _handleOpenAddExam() { openAddExamModal(); }
+function _handleGenerateRoadmap() { generateRoadmap(); }
 
 async function _handleBlockDefer(e) {
     const { blockId } = e.detail || {};

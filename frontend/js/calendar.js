@@ -202,7 +202,8 @@ function renderHourlyGrid(container, tasks, blocksByDay, forceScrollToWake = fal
     try {
         const day = dayKeys[currentDayIndex];
         if (!day) {
-            renderCalendar(tasks, []);
+            // No valid day — show empty state instead of re-calling renderCalendar (avoids infinite recursion)
+            container.innerHTML = '<div class="text-center text-white/40 py-20">No scheduled days yet.</div>';
             return;
         }
 

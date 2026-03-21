@@ -10,7 +10,8 @@ const defaultDraft = {
     step: 0,
     profiling: {
         studyHours: [], // 'Morning', 'Afternoon', 'Night'
-        bufferDays: 1   // Default 1 day
+        bufferDays: 1,  // Default 1 day
+        netoStudyHours: 4.0
     },
     exams: [] // Array of { name, date, difficulty, materials: [{ name, type }] }
 };
@@ -66,11 +67,10 @@ export function setStep(stepNum) {
         void target.offsetWidth;
         target.classList.add('fade-in');
         
-        // Update step counter in UI
+        // Update step counter in UI (steps 0,1,2 → display as 1/3, 2/3, 3/3)
         const counterEl = document.getElementById('onb-step-num');
         if (counterEl) {
-            // We have 3 logical phases: 0 (Profile), 1 (Input), 2 (Materials)
-            counterEl.textContent = stepNum;
+            counterEl.textContent = stepNum + 1;
         }
     }
 
@@ -111,11 +111,12 @@ function setupProfilingChips(draft) {
         if (draft.profiling.studyHours.includes(val)) {
             chip.classList.add('active');
         }
-        
-        chip.addEventListener('click', () => {
+
+        // Use onclick (not addEventListener) to prevent handler accumulation on re-init
+        chip.onclick = () => {
             const currentDraft = loadDraft();
             let studyHours = [...currentDraft.profiling.studyHours];
-            
+
             if (studyHours.includes(val)) {
                 studyHours = studyHours.filter(h => h !== val);
                 chip.classList.remove('active');
@@ -123,11 +124,25 @@ function setupProfilingChips(draft) {
                 studyHours.push(val);
                 chip.classList.add('active');
             }
-            
+
             saveDraft({ profiling: { ...currentDraft.profiling, studyHours } });
-        });
+        };
     });
     
+    // Neto Study Hours (Slider)
+    const hoursSlider = document.getElementById('onb-study-hours');
+    const hoursLabel = document.getElementById('onb-study-hours-label');
+    if (hoursSlider) {
+        hoursSlider.value = draft.profiling.netoStudyHours || 4.0;
+        if (hoursLabel) hoursLabel.textContent = parseFloat(hoursSlider.value).toFixed(1);
+        hoursSlider.oninput = () => {
+            const val = parseFloat(hoursSlider.value);
+            if (hoursLabel) hoursLabel.textContent = val.toFixed(1);
+            const currentDraft = loadDraft();
+            saveDraft({ profiling: { ...currentDraft.profiling, netoStudyHours: val } });
+        };
+    }
+
     // Buffer Days (Single-select)
     const bufferChips = document.querySelectorAll('.chip-buffer-day');
     bufferChips.forEach(chip => {
@@ -136,13 +151,13 @@ function setupProfilingChips(draft) {
             chip.classList.add('active');
         }
         
-        chip.addEventListener('click', () => {
+        chip.onclick = () => {
             bufferChips.forEach(c => c.classList.remove('active'));
             chip.classList.add('active');
-            
+
             const currentDraft = loadDraft();
             saveDraft({ profiling: { ...currentDraft.profiling, bufferDays: val } });
-        });
+        };
     });
     
     // Next button for Step 0
@@ -419,9 +434,10 @@ function saveCurrentExam() {
 async function submitOnboarding() {
     const draft = loadDraft();
     const btn = document.getElementById('onb-submit-all');
+    if (!btn) return;
     const originalText = btn.textContent;
     const API = getAPI();
-    
+
     try {
         btn.disabled = true;
         btn.textContent = 'Generating Roadmap...';
@@ -433,11 +449,11 @@ async function submitOnboarding() {
             // Profile Defaults + Collected Data
             wake_up_time: "07:00",
             sleep_time: "23:00",
-            study_method: "Pomodoro",
-            session_minutes: 50,
+            study_method: "continuous",
+            session_minutes: 90,
             break_minutes: 10,
             hobby_name: "Hobbies",
-            neto_study_hours: 6.0,
+            neto_study_hours: draft.profiling.netoStudyHours || 4.0,
             study_hours_preference: JSON.stringify(draft.profiling.studyHours),
             buffer_days: draft.profiling.bufferDays,
             timezone_offset: new Date().getTimezoneOffset(),
@@ -471,24 +487,10 @@ async function submitOnboarding() {
         });
         
         formData.append('onboard_data', JSON.stringify(onboardRequest));
-        
-        // CSRF Protection
-        const cookies = document.cookie.split(';').reduce((acc, c) => {
-            const [k, v] = c.trim().split('=');
-            acc[k] = v;
-            return acc;
-        }, {});
-        
-        const headers = {};
-        if (cookies['csrf_token']) {
-            headers['X-CSRF-Token'] = cookies['csrf_token'];
-        }
 
-        const response = await fetch(`${API}/brain/onboard`, {
+        const response = await authFetch(`${API}/brain/onboard`, {
             method: 'POST',
             body: formData,
-            headers: headers,
-            credentials: 'include'
         });
         
         if (!response.ok) {
@@ -500,6 +502,15 @@ async function submitOnboarding() {
 
         // Success!
         clearDraft();
+
+        // Update user state so refresh won't loop back to onboarding
+        try {
+            const meRes = await authFetch(`${API}/auth/me`);
+            if (meRes.ok) {
+                const freshUser = await meRes.json();
+                setCurrentUser(freshUser);
+            }
+        } catch (_) {}
 
         // Show the Auditor Review screen with the generated roadmap
         if (data.tasks && data.tasks.length > 0) {

@@ -119,7 +119,7 @@ def generate_multi_exam_schedule(
             dt = datetime.fromisoformat(ed_str).replace(tzinfo=None).date()
             exam_dates_only.add(dt)
             exam_date_lookup[e["id"]] = dt
-        except:
+        except (ValueError, KeyError):
             continue
 
     for day_str, windows in all_windows:
@@ -156,6 +156,9 @@ def generate_multi_exam_schedule(
             window_is_peak = _is_peak_window(window.start_local, peak_productivity)
             window_remaining_min = min(window.capacity_min, day_limit_min - used_on_day_min)
             current_time = window.start_local
+            # Reset simulation flag at window boundary — the natural gap between
+            # windows already provides sufficient break time.
+            last_task_was_simulation = False
 
             if is_day_before_exam:
                 if sleep_h < wake_h_default:
@@ -241,17 +244,36 @@ def generate_multi_exam_schedule(
                         continue
                 else:
                     take_min = min(rem_h * 60, window_remaining_min)
-                
+
                 # Fragmentation logic:
                 # If task is large but window is small, break and leave gap for padding.
                 # If task is small (fragment), schedule it anyway as long as it fits.
                 if take_min < MIN_BLOCK_MIN and (rem_h * 60) > (take_min + 0.01):
                     window_remaining_min = 0 # Exit while loop for this window
                     break
-                
+
                 if take_min < 1.0:
                     skipped_this_day.add(tid)
                     continue
+
+                # If the entire remaining task is tiny (< MIN_BLOCK_MIN) and we already
+                # have a previous split for this task, extend that split instead of
+                # creating a new orphan block.
+                total_remaining_min = rem_h * 60
+                if total_remaining_min < MIN_BLOCK_MIN and tid in task_splits and task_splits[tid]:
+                    prev_block = task_splits[tid][-1]
+                    old_end = datetime.fromisoformat(prev_block.end_time.replace('Z', '+00:00'))
+                    new_end = old_end + timedelta(minutes=total_remaining_min)
+                    prev_block.end_time = new_end.replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+                    remaining_task_hours[tid] = 0
+                    continue
+
+                # Prevent tiny split remainders: if scheduling this chunk would leave
+                # a remainder smaller than MIN_BLOCK_MIN, absorb it into this chunk.
+                # Allow slight window overflow — a longer block beats a 10-min orphan.
+                remainder_min = (rem_h * 60) - take_min
+                if 0.01 < remainder_min < MIN_BLOCK_MIN:
+                    take_min += remainder_min
                 
                 end_time = current_time + timedelta(minutes=take_min)
                 
@@ -442,7 +464,7 @@ def _get_windows_for_day(user: dict, day_local: datetime, min_block_min: int = 4
     try:
         pref_str = user.get("study_hours_preference", '["morning", "afternoon"]')
         preferences = [p.lower() for p in json.loads(pref_str)]
-    except:
+    except (json.JSONDecodeError, TypeError, ValueError):
         preferences = ["morning", "afternoon"]
     
     if not preferences:
@@ -494,7 +516,7 @@ def _get_windows_for_day(user: dict, day_local: datetime, min_block_min: int = 4
     # Subtract fixed breaks
     try:
         fixed_breaks = json.loads(user.get("fixed_breaks", "[]"))
-    except:
+    except (json.JSONDecodeError, TypeError, ValueError):
         fixed_breaks = []
     py_day = day_local.weekday()
     for brk in fixed_breaks:
@@ -505,7 +527,7 @@ def _get_windows_for_day(user: dict, day_local: datetime, min_block_min: int = 4
                 if b_end <= b_start:
                     b_end = b_end + timedelta(days=1)
                 windows = _subtract_range(windows, b_start, b_end)
-            except: continue
+            except (ValueError, KeyError, TypeError): continue
     
     # Subtract hobby (last 1 hour before sleep)
     hobby_name = user.get("hobby_name")

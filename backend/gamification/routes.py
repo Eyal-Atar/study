@@ -272,7 +272,7 @@ def reschedule_task(task_id: int, body: RescheduleRequest, current_user: dict = 
                     "SELECT day_date FROM tasks WHERE id = ? AND user_id = ?",
                     (task_id, user_id)
                 ).fetchone()
-                actual_date = actual["day_date"] if actual else target_day
+                actual_date = actual["day_date"] if actual else today
                 return {
                     "status": "ok",
                     "message": f"Task rescheduled to {actual_date} and schedule balanced",

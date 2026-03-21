@@ -155,7 +155,7 @@ def call_model(model_name, messages, max_tokens=4096, timeout=60, temperature=0)
         
         try:
             cost = litellm.completion_cost(completion_response=response)
-        except:
+        except Exception:
             cost = 0
         
         return {
@@ -202,7 +202,7 @@ def get_scenario_messages(scenario, system_prompt=None, test_mode="Auditor (Task
         try:
             local_time_str = datetime.fromisoformat(current_time_iso.replace('Z', '')).strftime("%H:%M")
             curr_dt = datetime.fromisoformat(current_time_iso.replace('Z', ''))
-        except:
+        except (ValueError, TypeError):
             local_time_str = "10:00"
             curr_dt = datetime.now()
         
@@ -210,7 +210,7 @@ def get_scenario_messages(scenario, system_prompt=None, test_mode="Auditor (Task
         try:
             exam_dt = datetime.fromisoformat(exam_date_iso.replace('Z', ''))
             days_available = max(1, (exam_dt.date() - curr_dt.date()).days)
-        except:
+        except (ValueError, TypeError):
             days_available = 2
         
         exams_info_str = f"- Exam ID {exam_info['id']} ({exam_info['name']}): day_index {days_available}"
@@ -356,7 +356,7 @@ if scenario:
                     parsed_a = json.loads(res_a["content"])
                     with st.expander("View Raw Output"):
                         st.json(parsed_a)
-                except:
+                except (json.JSONDecodeError, ValueError):
                     st.text(res_a["content"])
                 
                 with st.expander("Raw Usage"):
@@ -407,7 +407,7 @@ if scenario:
                     parsed_b = json.loads(res_b["content"])
                     with st.expander("View Raw Output"):
                         st.json(parsed_b)
-                except:
+                except (json.JSONDecodeError, ValueError):
                     st.text(res_b["content"])
                 
                 with st.expander("Raw Usage"):

@@ -35,7 +35,6 @@
         window.onerror = function(msg, url, line, col, error) {
             const errorMsg = 'CRITICAL ERROR: ' + msg + '\nFile: ' + url + '\nLine: ' + line;
             console.error(errorMsg, error);
-            alert(errorMsg);
         };
         console.log('Index.html: Error tracker active');
     </script>
@@ -155,7 +154,6 @@
             <div class="w-full max-w-md">
                 <div class="flex items-center justify-center gap-2 mb-8">
                     <div id="reg-dot-1" class="w-2.5 h-2.5 rounded-full bg-accent-500"></div>
-                    <div id="reg-dot-2" class="w-2.5 h-2.5 rounded-full bg-white/20"></div>
                     <div id="reg-dot-3" class="w-2.5 h-2.5 rounded-full bg-white/20"></div>
                 </div>
 
@@ -189,24 +187,8 @@
                     </div>
                 </div>
 
-                <!-- Step 2: Study Method -->
-                <div id="reg-step-2" class="fade-in" style="display:none">
-                    <div class="bg-dark-700/60 backdrop-blur-sm rounded-3xl p-8 border border-white/5">
-                        <h2 class="text-2xl font-bold mb-2">How do you study best?</h2>
-                        <p class="text-white/40 mb-6">We'll schedule around your style</p>
-                        <div class="space-y-3 mb-6">
-                            <label class="flex items-center gap-4 bg-dark-900/40 rounded-xl p-4 cursor-pointer border border-white/5 hover:border-accent-500/50 transition-colors has-[:checked]:border-accent-500 has-[:checked]:bg-accent-500/10">
-                                <input type="radio" name="reg-method" value="pomodoro" checked class="accent-accent-500 w-4 h-4">
-                                <div><div class="font-semibold">Pomodoro</div><div class="text-sm text-white/40">50 min study + 10 min break</div></div>
-                            </label>
-                            <label class="flex items-center gap-4 bg-dark-900/40 rounded-xl p-4 cursor-pointer border border-white/5 hover:border-accent-500/50 transition-colors has-[:checked]:border-accent-500 has-[:checked]:bg-accent-500/10">
-                                <input type="radio" name="reg-method" value="continuous" class="accent-accent-500 w-4 h-4">
-                                <div><div class="font-semibold">Deep Focus</div><div class="text-sm text-white/40">Long uninterrupted sessions</div></div>
-                            </label>
-                        </div>
-                        <button id="btn-reg-next-3" class="w-full bg-accent-500 hover:bg-accent-600 font-semibold py-3 rounded-xl transition-all">Continue</button>
-                    </div>
-                </div>
+                <!-- Step 2: placeholder (skipped, goes directly to step 3) -->
+                <div id="reg-step-2" style="display:none"></div>
 
                 <!-- Step 3: Schedule -->
                 <div id="reg-step-3" class="fade-in" style="display:none">
@@ -252,6 +234,13 @@
                             <button type="button" class="chip chip-study-hour" data-value="Morning">Morning (08-14)</button>
                             <button type="button" class="chip chip-study-hour" data-value="Afternoon">Afternoon (14-20)</button>
                             <button type="button" class="chip chip-study-hour" data-value="Night">Night (20-02)</button>
+                        </div>
+
+                        <h3 class="text-xl font-bold mb-2">Daily Study Hours</h3>
+                        <p class="text-white/40 mb-4">How many net hours can you study per day?</p>
+                        <div class="flex items-center gap-4 mb-6">
+                            <input id="onb-study-hours" type="range" min="1" max="10" step="0.5" value="4" class="flex-1 accent-accent-500">
+                            <span id="onb-study-hours-label" class="text-lg font-bold w-12 text-right">4.0</span>
                         </div>
 
                         <h3 class="text-xl font-bold mb-2">Buffer Days</h3>
@@ -924,7 +913,7 @@
                             </select>
                             <label class="flex-1 flex items-center justify-center gap-2 bg-dark-900/40 border border-dashed border-white/15 rounded-lg py-2 px-3 cursor-pointer hover:border-accent-500/50 transition-colors">
                                 <span class="text-sm text-white/40" id="file-pick-label">+ Choose PDF files</span>
-                                <input type="file" accept=".pdf" class="hidden" id="exam-file-input" multiple>
+                                <input type="file" accept="application/pdf,image/*" class="hidden" id="exam-file-input" multiple>
                             </label>
                         </div>
                     </div>
@@ -942,7 +931,7 @@
     </div>
 
     <!-- LOADING OVERLAY -->
-    <div id="loading-overlay" class="modal-bg" style="z-index:60">
+    <div id="loading-overlay" class="modal-bg" style="z-index:250">
         <div class="text-center max-w-xs w-full px-6">
             <div class="text-5xl mb-6 animate-bounce">🧠</div>
             <div class="text-xl font-bold mb-1" id="loading-text">Analyzing your exams...</div>
@@ -990,7 +979,8 @@
             <div class="text-5xl mb-3">🔥</div>
             <p id="splash-streak-num" class="text-6xl font-black text-white mb-1">0</p>
             <p class="text-lg font-bold text-accent-400 mb-4">Day Streak!</p>
-            <p id="splash-streak-msg" class="text-sm text-white/60">Every day counts. Keep showing up!</p>
+            <p id="splash-streak-msg" class="text-sm text-white/60 mb-4">Every day counts. Keep showing up!</p>
+            <button onclick="document.getElementById('modal-streak-splash').classList.remove('active')" class="text-white/30 hover:text-white text-sm transition-colors">Dismiss</button>
         </div>
     </div>
 
@@ -1307,13 +1297,37 @@
                 global._updateNotifStatus();
             };
 
-            global.testNotification = function() {
-                log('Testing notification...');
+            global.testNotification = async function() {
+                log('Testing push notification via backend...');
                 if (!('Notification' in window) || Notification.permission !== 'granted') {
                     alert('Enable notifications first. Current: ' + (window.Notification ? Notification.permission : 'unsupported'));
                     return;
                 }
-                new Notification('Test Success', { body: 'Working!', icon: '/static/icon-192.png' });
+                try {
+                    // Read CSRF token from cookie
+                    const cookies = document.cookie.split(';').reduce((acc, c) => {
+                        const [k, ...rest] = c.trim().split('=');
+                        acc[k] = decodeURIComponent(rest.join('='));
+                        return acc;
+                    }, {});
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (cookies['csrf_token']) headers['X-CSRF-Token'] = cookies['csrf_token'];
+
+                    const res = await fetch('/push/test', {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: headers
+                    });
+                    if (res.ok) {
+                        log('Test push sent via backend');
+                    } else {
+                        const err = await res.json().catch(() => ({}));
+                        alert('Push test failed: ' + (err.detail || res.status));
+                    }
+                } catch (e) {
+                    log('Test push error: ' + e.message);
+                    alert('Network error — check your connection');
+                }
             };
 
             global._refreshNotifDebug = async function() {

@@ -60,13 +60,23 @@ app = FastAPI(title="StudyFlow API", version="1.0.0", lifespan=lifespan)
 
 _cors_origins = os.environ.get("CORS_ORIGINS", "").split(",")
 _cors_origins = [o.strip() for o in _cors_origins if o.strip()]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors_origins if _cors_origins else ["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-    allow_credentials=bool(_cors_origins),  # credentials only with explicit origins
-)
+if _cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        allow_credentials=True,
+    )
+else:
+    # Dev mode: allow localhost origins only (not wide-open to all domains)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+        allow_methods=["*"],
+        allow_headers=["*"],
+        allow_credentials=True,
+    )
 
 from auth.utils import get_csrf_token
 from server.config import IS_PRODUCTION
@@ -119,8 +129,14 @@ def serve_manifest():
     )
 
 
-def _serve_processed_asset(file_path: str, media_type: str) -> Response:
+def _serve_processed_asset(file_path: str, media_type: str, base_dir: str = None) -> Response:
     """Read a frontend file and replace all version placeholders with the current build hash."""
+    # Prevent path traversal: resolved path must be within the expected base directory
+    if base_dir:
+        resolved = os.path.realpath(file_path)
+        allowed = os.path.realpath(base_dir)
+        if not resolved.startswith(allowed + os.sep) and resolved != allowed:
+            raise HTTPException(status_code=403, detail="Forbidden")
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Asset not found")
     
@@ -165,13 +181,19 @@ def serve_service_worker():
 @app.get("/js/{path:path}")
 def serve_js(path: str):
     """Serve JS files with build hash replacement."""
-    return _serve_processed_asset(os.path.join(FRONTEND_DIR, "js", path), "application/javascript")
+    return _serve_processed_asset(
+        os.path.join(FRONTEND_DIR, "js", path), "application/javascript",
+        base_dir=os.path.join(FRONTEND_DIR, "js")
+    )
 
 
 @app.get("/css/{path:path}")
 def serve_css(path: str):
     """Serve CSS files with build hash replacement."""
-    return _serve_processed_asset(os.path.join(FRONTEND_DIR, "css", path), "text/css")
+    return _serve_processed_asset(
+        os.path.join(FRONTEND_DIR, "css", path), "text/css",
+        base_dir=os.path.join(FRONTEND_DIR, "css")
+    )
 
 
 # ─── Frontend ────────────────────────────────────────────────

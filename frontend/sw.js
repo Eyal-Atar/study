@@ -205,7 +205,7 @@ self.addEventListener('notificationclick', event => {
       }
       // Otherwise open a new window
       if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl + (blockId ? `?scrollBlock=${blockId}` : ''));
+        return self.clients.openWindow(targetUrl + (blockId ? `?scrollTo=${blockId}` : ''));
       }
     })
   );

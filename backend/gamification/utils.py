@@ -233,7 +233,6 @@ _BADGE_CRITERIA = [
     ("knowledge_seeker_20",  lambda xp, s: xp["current_level"] >= 20),
     ("knowledge_seeker_25",  lambda xp, s: xp["current_level"] >= 25),
     ("knowledge_seeker_50",  lambda xp, s: xp["current_level"] >= 50),
-    ("knowledge_seeker_100", lambda xp, s: xp["current_level"] >= 50),
     # XP milestones
     ("xp_1000",  lambda xp, s: xp["total_xp"] >= 1000),
     ("xp_5000",  lambda xp, s: xp["total_xp"] >= 5000),

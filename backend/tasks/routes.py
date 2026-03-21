@@ -179,24 +179,35 @@ def mark_block_done(block_id: int, current_user: dict = Depends(get_current_user
 
 @router.patch("/tasks/block/{block_id}/undone")
 def mark_block_undone(block_id: int, current_user: dict = Depends(get_current_user)):
+    user_id = current_user["id"]
+    tz_offset = current_user.get("timezone_offset", 0) or 0
     db = get_db()
     row = db.execute(
-        "SELECT id, task_id FROM schedule_blocks WHERE id = ? AND user_id = ?",
-        (block_id, current_user["id"])
+        "SELECT * FROM schedule_blocks WHERE id = ? AND user_id = ?",
+        (block_id, user_id)
     ).fetchone()
     if not row:
         db.close()
         raise HTTPException(status_code=404, detail="Block not found")
 
+    # Revoke XP if it was awarded for this block
+    if row["xp_awarded"]:
+        xp_amount = xp_for_block(db, dict(row), user_id)
+        revoke_user_xp(db, user_id, xp_amount, tz_offset)
+        db.execute(
+            "UPDATE schedule_blocks SET xp_awarded = 0 WHERE id = ? AND user_id = ?",
+            (block_id, user_id)
+        )
+
     db.execute(
         "UPDATE schedule_blocks SET completed = 0 WHERE id = ? AND user_id = ?",
-        (block_id, current_user["id"])
+        (block_id, user_id)
     )
     # Sync task status: any block undone => task no longer fully done (exam progress bars)
     if row["task_id"]:
         db.execute(
             "UPDATE tasks SET status = 'pending' WHERE id = ? AND user_id = ?",
-            (row["task_id"], current_user["id"])
+            (row["task_id"], user_id)
         )
     db.commit()
     db.close()
@@ -222,15 +233,27 @@ def mark_task_done(task_id: int, current_user: dict = Depends(get_current_user))
 
 @router.patch("/tasks/{task_id}/undone")
 def mark_task_undone(task_id: int, current_user: dict = Depends(get_current_user)):
+    user_id = current_user["id"]
+    tz_offset = current_user.get("timezone_offset", 0) or 0
     db = get_db()
+
+    # Revoke XP for all awarded blocks of this task
+    awarded_blocks = db.execute(
+        "SELECT * FROM schedule_blocks WHERE task_id = ? AND user_id = ? AND xp_awarded = 1",
+        (task_id, user_id)
+    ).fetchall()
+    for b in awarded_blocks:
+        xp_amount = xp_for_block(db, dict(b), user_id)
+        revoke_user_xp(db, user_id, xp_amount, tz_offset)
+
     db.execute(
         "UPDATE tasks SET status = 'pending' WHERE id = ? AND user_id = ?",
-        (task_id, current_user["id"])
+        (task_id, user_id)
     )
-    # Sync all blocks for this task so Roadmap (calendar) shows them undone
+    # Sync all blocks: mark undone and clear xp_awarded
     db.execute(
-        "UPDATE schedule_blocks SET completed = 0 WHERE task_id = ? AND user_id = ?",
-        (task_id, current_user["id"])
+        "UPDATE schedule_blocks SET completed = 0, xp_awarded = 0 WHERE task_id = ? AND user_id = ?",
+        (task_id, user_id)
     )
     db.commit()
     db.close()
@@ -321,6 +344,8 @@ def shift_task_time(task_id: int, body: dict, current_user: dict = Depends(get_c
 @router.patch("/tasks/{task_id}/duration")
 def update_task_duration(task_id: int, body: dict, current_user: dict = Depends(get_current_user)):
     hours = body.get("estimated_hours", 1.0)
+    if not isinstance(hours, (int, float)) or hours <= 0 or hours > 24:
+        raise HTTPException(status_code=400, detail="Hours must be between 0 and 24")
     db = get_db()
     
     # Update task estimation

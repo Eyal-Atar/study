@@ -1,6 +1,6 @@
 """Push notification subscription endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from server.database import get_db
 from auth.utils import get_current_user
 from server.config import VAPID_PUBLIC_KEY
@@ -50,7 +50,7 @@ def subscribe(body: dict, current_user: dict = Depends(get_current_user)):
 
 
 @router.delete("/push/subscribe")
-def unsubscribe(body: dict = None, current_user: dict = Depends(get_current_user)):
+def unsubscribe(body: dict = Body(default=None), current_user: dict = Depends(get_current_user)):
     """Clear a specific PushSubscription or all for this user."""
     db = get_db()
     try:

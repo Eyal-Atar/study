@@ -43,7 +43,7 @@ Syllabus text:
 ---"""
 
     message = client.messages.create(
-        model="claude-3-haiku-20240307",
+        model=os.environ.get("SYLLABUS_MODEL", "claude-haiku-4-5-20251001"),
         max_tokens=1000,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -54,5 +54,5 @@ Syllabus text:
     
     try:
         return json.loads(response_text)
-    except:
+    except (json.JSONDecodeError, ValueError):
         return {"topics": [], "intensity": 3, "objectives": ["Failed to parse AI response"]}

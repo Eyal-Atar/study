@@ -1,6 +1,6 @@
 """User schemas."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
 
 
@@ -44,6 +44,34 @@ class UserUpdate(BaseModel):
     notif_timing: Optional[str] = None
     notif_per_task: Optional[int] = None
     notif_daily_summary: Optional[int] = None
+
+    @field_validator("session_minutes")
+    @classmethod
+    def session_minutes_range(cls, v):
+        if v is not None and (v < 10 or v > 480):
+            raise ValueError("session_minutes must be between 10 and 480")
+        return v
+
+    @field_validator("break_minutes")
+    @classmethod
+    def break_minutes_range(cls, v):
+        if v is not None and (v < 0 or v > 120):
+            raise ValueError("break_minutes must be between 0 and 120")
+        return v
+
+    @field_validator("neto_study_hours")
+    @classmethod
+    def neto_hours_range(cls, v):
+        if v is not None and (v < 0.5 or v > 16):
+            raise ValueError("neto_study_hours must be between 0.5 and 16")
+        return v
+
+    @field_validator("buffer_days")
+    @classmethod
+    def buffer_days_range(cls, v):
+        if v is not None and (v < 0 or v > 14):
+            raise ValueError("buffer_days must be between 0 and 14")
+        return v
 
 
 class OnboardExam(BaseModel):

@@ -72,7 +72,7 @@ def _parse_block_start(start_time_str: str, tz_offset_min: int) -> Optional[date
         s = start_time_str.strip()
         if "T" in s:
             # Check for explicit timezone info (Z suffix or +HH:MM / -HH:MM offset)
-            has_tz = s.endswith("Z") or "+" in s[10:] or (s.count("-") > 2)
+            has_tz = s.endswith("Z") or "+" in s[10:] or "-" in s[11:]
             if has_tz:
                 # Tz-aware: parse directly
                 dt = datetime.fromisoformat(s.replace("Z", "+00:00"))

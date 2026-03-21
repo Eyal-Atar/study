@@ -353,7 +353,7 @@ async def approve_and_schedule(body: dict, current_user: dict = Depends(get_curr
 
     # 3. DB Transaction for atomicity
     try:
-        db.execute("BEGIN TRANSACTION")
+        # sqlite3 module manages transactions automatically; explicit BEGIN is unnecessary
 
         # Clear existing tasks and schedule_blocks for this user
         # Delete all blocks and tasks for this user (full regeneration)
@@ -1024,7 +1024,7 @@ Return format:
     valid_exam_ids = set(exam_ids)
 
     try:
-        db.execute("BEGIN TRANSACTION")
+        # sqlite3 module manages transactions automatically; explicit BEGIN is unnecessary
 
         if exam_ids:
             placeholders = ",".join("?" * len(exam_ids))
