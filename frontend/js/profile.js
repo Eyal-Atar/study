@@ -1,7 +1,7 @@
 /* StudyFlow — Gamification Frontend Module (ES6 Module) */
 
-import { getAPI, authFetch, getCurrentUser } from './store.js?v=59';
-import { spawnConfetti } from './ui.js?v=59';
+import { getAPI, authFetch, getCurrentUser } from './store.js?v=AUTO';
+import { spawnConfetti } from './ui.js?v=AUTO';
 
 // ─── SVG circle constants ─────────────────────────────────────────────────────
 // r=38, circumference = 2 * PI * 38 ≈ 238.76

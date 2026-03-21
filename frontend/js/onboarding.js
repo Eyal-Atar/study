@@ -1,7 +1,7 @@
 /* frontend/js/onboarding.js */
-import { getAPI, authFetch, setCurrentUser, setCurrentExams, setCurrentSchedule } from './store.js?v=59';
-import { showScreen, LoadingAnimator } from './ui.js?v=59';
-import { renderAuditorReview } from './tasks.js?v=59';
+import { getAPI, authFetch, setCurrentUser, setCurrentExams, setCurrentSchedule } from './store.js?v=AUTO';
+import { showScreen, LoadingAnimator } from './ui.js?v=AUTO';
+import { renderAuditorReview } from './tasks.js?v=AUTO';
 
 const ONBOARDING_DRAFT_KEY = 'sf_onboarding_draft';
 
@@ -324,7 +324,11 @@ function setupUnifiedExamCard() {
 
     // Back button goes to step 0
     if (backBtn) {
-        backBtn.onclick = () => setStep(0);
+        backBtn.onclick = () => {
+            examFilesMap.delete(-1);
+            renderFileList();
+            setStep(0);
+        };
     }
 
     // Main action button: "Save and continue" or "Done! Build my schedule"
@@ -443,12 +447,13 @@ function clearExamForm() {
 function handleFiles(files) {
     const currentFiles = examFilesMap.get(-1) || [];
 
-    for (const file of files) {
-        if (currentFiles.length >= 3) {
-            alert('Max 3 files per exam.');
-            break;
-        }
+    // Pre-check: Block the entire batch if it exceeds the limit
+    if (currentFiles.length + files.length > 3) {
+        alert('Max 3 files per exam.');
+        return;
+    }
 
+    for (const file of files) {
         // Default tag is "past_exam"
         currentFiles.push({ file, tag: 'past_exam' });
     }

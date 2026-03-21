@@ -1,7 +1,7 @@
-import { getAPI, authFetch, setRegenTriggered, setCurrentTasks, setCurrentSchedule } from './store.js?v=59';
-import { renderCalendar, renderFocus } from './calendar.js?v=59';
-import { updateStats } from './tasks.js?v=59';
-import { LoadingAnimator } from './ui.js?v=59';
+import { getAPI, authFetch, setRegenTriggered, setCurrentTasks, setCurrentSchedule } from './store.js?v=AUTO';
+import { renderCalendar, renderFocus } from './calendar.js?v=AUTO';
+import { updateStats } from './tasks.js?v=AUTO';
+import { LoadingAnimator } from './ui.js?v=AUTO';
 
 /**
  * Show or hide the regeneration command bar.
@@ -70,9 +70,38 @@ export async function sendRegenRequest() {
 
         animator.stop();
 
-        // Hard reload to ensure fresh JS and properly bound event handlers
-        // Data is already saved server-side, so the reload will pick it up.
-        window.location.reload();
+        // Dynamic update instead of hard reload
+        try {
+            const tasksRes = await authFetch(`${API}/tasks`);
+            const scheduleRes = await authFetch(`${API}/brain/schedule`);
+            
+            if (tasksRes.ok && scheduleRes.ok) {
+                const tasks = await tasksRes.json();
+                const schedule = await scheduleRes.json();
+                
+                setCurrentTasks(tasks);
+                setCurrentSchedule(schedule);
+                
+                // Refresh UI components
+                updateStats();
+                renderCalendar(tasks, schedule);
+                renderFocus(tasks);
+                
+                if (result) {
+                    result.textContent = 'Schedule updated successfully!';
+                    result.classList.remove('hidden', 'text-coral-400');
+                    result.classList.add('text-mint-400');
+                    setTimeout(hideRegenBar, 1500);
+                } else {
+                    hideRegenBar();
+                }
+            } else {
+                window.location.reload();
+            }
+        } catch (e) {
+            console.error('Failed to dynamic refresh:', e);
+            window.location.reload();
+        }
 
     } catch (e) {
         animator.stop();

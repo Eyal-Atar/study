@@ -1,8 +1,8 @@
-import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, setCurrentTasks, getCurrentSchedule, setCurrentSchedule, getPendingExamId, setPendingExamId, getPendingFiles, setPendingFiles, getCurrentUser, getTodayStr } from './store.js?v=59';
-import { shakeEl, spawnConfetti, examColorClass, showModal, showConfirmModal, showScreen, LoadingAnimator } from './ui.js?v=59';
-import { renderCalendar, renderFocus, renderExamLegend } from './calendar.js?v=59';
-import { showRegenBar, hideRegenBar } from './brain.js?v=59';
-import { updateXPDisplay, appendNewBadges, showDailyCelebration } from './profile.js?v=59';
+import { getAPI, authFetch, getCurrentExams, setCurrentExams, getCurrentTasks, setCurrentTasks, getCurrentSchedule, setCurrentSchedule, getPendingExamId, setPendingExamId, getPendingFiles, setPendingFiles, getCurrentUser, getTodayStr } from './store.js?v=AUTO';
+import { shakeEl, spawnConfetti, examColorClass, showModal, showConfirmModal, showScreen, LoadingAnimator } from './ui.js?v=AUTO';
+import { renderCalendar, renderFocus, renderExamLegend } from './calendar.js?v=AUTO';
+import { showRegenBar, hideRegenBar } from './brain.js?v=AUTO';
+import { updateXPDisplay, appendNewBadges, showDailyCelebration } from './profile.js?v=AUTO';
 
 // Notification permission prompt tracking
 const NOTIF_PROMPT_KEY = 'sf_notif_prompt_shown';

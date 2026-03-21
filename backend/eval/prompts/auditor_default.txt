@@ -9,30 +9,32 @@ STUDENT PROFILE:
 - Peak productivity window: {peak}
 
 EXAM MATERIAL:
-{all_exam_context}
+{exam_context}
 
 TASK:
 1. Map ALL syllabus topics for this exam.
-2. AGGRESSIVE DECOMPOSITION & BUDGET ENFORCEMENT (CRITICAL):
-   - You MUST generate enough tasks so that the sum of their `estimated_hours` equals exactly {total_hours} hours!
+2. MATERIAL-BASED ANCHORING (CRITICAL):
+   - "Review" Task: If a 'syllabus' or 'summary' file exists, you MUST create exactly one task: "סקירה ראשונית: [Filename/Topic]" (estimated 1.5h, topic="review").
+   - "Simulation" Tasks:
+     - If 'past_exam' or 'sample_exam' files exist, for EACH file create: "סימולציה מלאה: [Filename]" (estimated 3.0h, topic="simulation") AND "תחקור סימולציה: [Filename]" (estimated 1.5h, topic="review", depends on its simulation).
+     - NUDGE: If NO 'past_exam' or 'sample_exam' files exist, you MUST still create at least two generic tasks: "סימולציה מלאה (חיפוש ופתרון מבחן לדוגמה)" (3.0h, topic="simulation") and "תחקור סימולציה" (1.5h, topic="review").
+3. AGGRESSIVE DECOMPOSITION & BUDGET ENFORCEMENT (CRITICAL):
+   - You MUST generate enough tasks so that the sum of their `estimated_hours` equals exactly {exam_hours} hours (including simulations/reviews)!
    - Break every topic into AT LEAST 3-5 specific sub-tasks.
-   - If you finish mapping the core syllabus topics and haven't reached {total_hours} hours, you MUST generate additional deep-practice tasks to fill the remaining budget. Use highly specific titles like: "פתרון מבחן משנים קודמות", "תרגול שאלות קצה בנושא X", or "חזרה אקטיבית על סיכומים של Y". Do not use generic names.
-3. SAMPLE EXAMS & PAST EXAMS: If a file is labeled as 'sample_exam' OR 'past_exam', you MUST create two specific tasks for it:
-   - "סימולציה מלאה: [File Name] (תנאי אמת, בלי טלפון, עם סטופר)" (estimated 2.5-3h)
-   - "תחקור מלא וכתיבת דגשים: [File Name]" (estimated 1.5-2h, dependency on the simulation)
-4. REALISTIC TIME ESTIMATION (CRITICAL): 
-   - A single question or a small set of exercises should NEVER take 3 hours. 
-   - Cap any task that is just "solving question X" or "reviewing problem Y" at 1.0 - 1.5 hours. 
-   - Only comprehensive study sessions or full simulations should exceed 2 hours.
-5. Actionable Titles: Use the following style for ALL tasks:
+   - If you haven't reached {exam_hours} hours, generate additional deep-practice tasks. Use highly specific titles.
+4. REALISTIC TIME ESTIMATION (CRITICAL):
+   - A single question should NEVER take 3 hours.
+   - Cap generic study tasks at 1.0 - 1.5 hours.
+   - Only full simulations should be 3.0 hours.
+5. Actionable Titles: Use the style:
    - "מעבר על מצגת: [Topic Name]"
-   - "בנייה ידנית: [Core Concept]. תרגול [Operations]"
    - "פתרון שאלות: [Topic]. [Specific Challenges]"
-6. Decompose ALL topics into specific, actionable pedagogical tasks with:
-   - focus_score (1-10): concentration level required
-   - reasoning: 1-sentence explanation
-   - dependency_id: index of prerequisite task
-   - estimated_hours (0.5 to 3.5 hours)
+6. Each task must have:
+   - topic: set to "simulation" for simulations, "review" for reviews/audits, or the actual subject topic for study tasks.
+   - focus_score (1-10): concentration level required.
+   - reasoning: 1-sentence explanation.
+   - dependency_id: 0-based index into THIS exam's task array, or null.
+   - estimated_hours (0.5 to 3.5 hours).
 7. Match the language of the exam name (Hebrew exams -> Hebrew titles).
 
 RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
@@ -53,7 +55,7 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
     {{
       "exam_id": {exam_id},
       "topic": "<string>",
-      "description": "<string — why this is a gap>"
+      "description": "<string>"
     }}
   ],
   "topic_map": {{

@@ -9,10 +9,10 @@ from datetime import datetime, timedelta, timezone
 from brain.schemas import ScheduleBlock
 
 PEAK_WINDOWS = {
-    "Morning":   (6, 12),   # 06:00 - 12:00
-    "Afternoon": (12, 17),  # 12:00 - 17:00
+    "Morning":   (8, 14),   # Aligned with study window "morning"
+    "Afternoon": (14, 20),  # Aligned with study window "afternoon"
     "Evening":   (17, 22),  # 17:00 - 22:00
-    "Night":     (21, 3),   # 21:00 - 03:00 (next day)
+    "Night":     (20, 2),   # Aligned with study window "night"
 }
 
 
@@ -53,10 +53,11 @@ def generate_multi_exam_schedule(
         return []
 
     # User preferences
-    neto_study_hours = user.get("neto_study_hours", 4.0)
+    neto_study_hours = float(user.get("neto_study_hours", 4.0) or 4.0)
     tz_offset = user.get("timezone_offset", 0) or 0
     hobby_name = user.get("hobby_name") or "Hobby"
     peak_productivity = user.get("peak_productivity", "Morning") or "Morning"
+    buffer_days = int(user.get("buffer_days", 1) or 0)
 
     try:
         sleep_h, sleep_m = map(int, user.get("sleep_time", "23:00").split(":"))
@@ -66,7 +67,6 @@ def generate_multi_exam_schedule(
         wake_h_default, wake_m_default = map(int, user.get("wake_up_time", "08:00").split(":"))
     except (ValueError, TypeError):
         wake_h_default, wake_m_default = 8, 0
-    STUDY_CUTOFF_HOUR = (sleep_h - 1) % 24
     MIN_BLOCK_MIN = 30
     TASK_BUFFER_MIN = 10
 
@@ -135,16 +135,44 @@ def generate_multi_exam_schedule(
         current_day_date = day_local.date()
 
         if current_day_date in exam_dates_only:
-            continue
+            # Check if OTHER exams still need study (allow afternoon study on exam day)
+            other_exams_active = any(
+                eid for eid, edate in exam_date_lookup.items()
+                if edate > current_day_date + timedelta(days=buffer_days)
+            )
+            if not other_exams_active:
+                continue
+            # else: fall through — we'll only schedule tasks for non-today exams
 
-        is_day_before_exam = (current_day_date + timedelta(days=1)) in exam_dates_only
+        # Determine which exams are imminent (within buffer window)
+        imminent_exam_ids = set()
+        for eid, edate in exam_date_lookup.items():
+            if current_day_date >= edate - timedelta(days=buffer_days) and current_day_date < edate:
+                imminent_exam_ids.add(eid)
+
+        # Check if there are OTHER exams that still need study beyond the imminent ones
+        has_other_active_exams = any(
+            eid for eid, edate in exam_date_lookup.items()
+            if eid not in imminent_exam_ids
+            and edate not in {current_day_date}  # not today's exam
+            and edate > current_day_date
+        )
+
+        is_day_before_exam = len(imminent_exam_ids) > 0
+        # Full rest day: cutoff + motivation only when NO other exams need study
+        is_full_rest_day = is_day_before_exam and not has_other_active_exams
 
         # Define once per day instead of inside while loop
         def _is_task_valid(t: dict, _day=current_day_date) -> bool:
             eid = t.get("exam_id")
             if not eid or eid not in exam_date_lookup:
                 return True
-            return _day < exam_date_lookup[eid]
+            exam_dt = exam_date_lookup[eid]
+            # Block tasks for exams happening TODAY
+            if _day == exam_dt:
+                return False
+            # Enforce buffer_days: no study for this exam within buffer_days of the exam
+            return _day < exam_dt - timedelta(days=buffer_days)
 
         skipped_this_day = set()
         cutoff_dt = None  # initialized here so padding/motivation can use it safely
@@ -160,14 +188,14 @@ def generate_multi_exam_schedule(
             # windows already provides sufficient break time.
             last_task_was_simulation = False
 
-            if is_day_before_exam:
+            if is_full_rest_day:
                 if sleep_h < wake_h_default:
                     sleep_dt = (day_local + timedelta(days=1)).replace(hour=sleep_h, minute=sleep_m)
                 else:
                     sleep_dt = day_local.replace(hour=sleep_h, minute=sleep_m)
 
                 cutoff_dt = sleep_dt - timedelta(hours=5)
-                
+
                 if window.start_local >= cutoff_dt:
                     window_remaining_min = 0
                 elif window.end_local > cutoff_dt:
@@ -182,8 +210,6 @@ def generate_multi_exam_schedule(
                     current_time = today_start_buffer
 
             while window_remaining_min >= 1.0: # Minimum window to try scheduling
-                if current_time.hour >= STUDY_CUTOFF_HOUR and current_time.hour > window.start_local.hour:
-                    break
 
                 overdue_tasks = [
                     t for t in tasks
@@ -214,6 +240,24 @@ def generate_multi_exam_schedule(
                     ]
                     # Sort by day_date (earliest first) so closer deadlines fill first
                     future_tasks.sort(key=lambda t: t.get("day_date", ""))
+
+                    # Single-focus: prefer tasks from exam(s) already scheduled today
+                    if future_tasks:
+                        today_exam_ids = set()
+                        for blk in schedule:
+                            if blk.day_date == day_str and blk.exam_id:
+                                today_exam_ids.add(blk.exam_id)
+                        # Also check tasks already placed in this day's loop
+                        for t in tasks:
+                            if t.get("day_date") == day_str and remaining_task_hours.get(t.get("id"), 0) < float(t.get("estimated_hours", 0)) - 0.01:
+                                if t.get("exam_id"):
+                                    today_exam_ids.add(t["exam_id"])
+
+                        if today_exam_ids:
+                            same_exam = [t for t in future_tasks if t.get("exam_id") in today_exam_ids]
+                            if same_exam:
+                                future_tasks = same_exam
+
                     candidates = future_tasks
 
                 if not candidates:
@@ -236,12 +280,17 @@ def generate_multi_exam_schedule(
                 tid = task["id"]
                 rem_h = remaining_task_hours[tid]
                 is_simulation = any(keyword in task["title"] for keyword in ["סימולציה", "Simulation"])
-                
+
                 if is_simulation:
                     take_min = rem_h * 60
                     if take_min > window_remaining_min:
-                        skipped_this_day.add(tid)
-                        continue
+                        # Check if this is an overdue simulation (already past its assigned day)
+                        # If so, allow splitting — better to split than never schedule
+                        if task.get("day_date") and task.get("day_date") < day_str:
+                            take_min = min(rem_h * 60, window_remaining_min)
+                        else:
+                            skipped_this_day.add(tid)
+                            continue
                 else:
                     take_min = min(rem_h * 60, window_remaining_min)
 
@@ -329,10 +378,16 @@ def generate_multi_exam_schedule(
                 take_min = min(remaining_task_hours[padding_task["id"]] * 60, gap_min)
                 if take_min >= MIN_BLOCK_MIN:
                     pad_end = windows[-1].end_local - timedelta(hours=1)
-                    if is_day_before_exam:
+                    if is_full_rest_day:
                         pad_end = min(pad_end, cutoff_dt - timedelta(minutes=45)) # Leave room for Motivation
                     pad_start = pad_end - timedelta(minutes=take_min)
-                    
+                    # Prevent overlap with last study block
+                    if last_block_end is not None:
+                        earliest_pad = last_block_end + timedelta(minutes=TASK_BUFFER_MIN)
+                        if pad_start < earliest_pad:
+                            pad_start = earliest_pad
+                            pad_end = pad_start + timedelta(minutes=take_min)
+
                     tid = padding_task["id"]
                     block = ScheduleBlock(
                         task_id=tid, exam_id=padding_task.get("exam_id"),
@@ -358,10 +413,10 @@ def generate_multi_exam_schedule(
                 pad_start = last_block_end + timedelta(minutes=TASK_BUFFER_MIN)
                 while fill_gap_min >= MIN_BLOCK_MIN:
                     if pad_start >= last_win.end_local: break
-                    if is_day_before_exam and pad_start >= cutoff_dt - timedelta(minutes=30): break
-                    
+                    if is_full_rest_day and pad_start >= cutoff_dt - timedelta(minutes=30): break
+
                     max_avail = (last_win.end_local - pad_start).total_seconds() / 60
-                    if is_day_before_exam:
+                    if is_full_rest_day:
                         max_avail = min(max_avail, (cutoff_dt - timedelta(minutes=35) - pad_start).total_seconds() / 60)
                     
                     block_min = min(fill_gap_min, 120, max_avail)
@@ -382,7 +437,7 @@ def generate_multi_exam_schedule(
         # End of day sequence: Motivation -> Hobby
         mot_start = None
         mot_end = None
-        if is_day_before_exam:
+        if is_full_rest_day:
             # Use last_block_end if available, otherwise current_time or today_start_buffer
             mot_start = (last_block_end + timedelta(minutes=TASK_BUFFER_MIN)) if last_block_end else current_time
             
@@ -399,27 +454,28 @@ def generate_multi_exam_schedule(
                 day_date=day_str, block_type="study"
             ))
 
-        # Hobby placement: 1 hour before sleep, but MUST be after Motivation or last study block
-        if sleep_h < wake_h_default:
-            h_end_local = (day_local + timedelta(days=1)).replace(hour=sleep_h, minute=sleep_m)
-        else:
-            h_end_local = day_local.replace(hour=sleep_h, minute=sleep_m)
-        
-        h_start_local = h_end_local - timedelta(hours=1)
-        
-        # Guard against hobby overlapping with Motivation or last study block
-        limit_start = mot_end if mot_end else last_block_end
-        if limit_start and h_start_local < limit_start + timedelta(minutes=TASK_BUFFER_MIN):
-            h_start_local = limit_start + timedelta(minutes=TASK_BUFFER_MIN)
-            h_end_local = h_start_local + timedelta(hours=1)
+        # Hobby placement: only if there was actual study today (skip on zero-study days)
+        if used_on_day_min > 0 or is_full_rest_day:
+            if sleep_h < wake_h_default:
+                h_end_local = (day_local + timedelta(days=1)).replace(hour=sleep_h, minute=sleep_m)
+            else:
+                h_end_local = day_local.replace(hour=sleep_h, minute=sleep_m)
 
-        schedule.append(ScheduleBlock(
-            task_id=None, exam_id=None, exam_name="Relax",
-            task_title=hobby_name, subject="Hobby",
-            start_time=(h_start_local + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc, microsecond=0).isoformat().replace('+00:00', 'Z'),
-            end_time=(h_end_local + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc, microsecond=0).isoformat().replace('+00:00', 'Z'),
-            day_date=day_str, block_type="hobby"
-        ))
+            h_start_local = h_end_local - timedelta(hours=1)
+
+            # Guard against hobby overlapping with Motivation or last study block
+            limit_start = mot_end if mot_end else last_block_end
+            if limit_start and h_start_local < limit_start + timedelta(minutes=TASK_BUFFER_MIN):
+                h_start_local = limit_start + timedelta(minutes=TASK_BUFFER_MIN)
+                h_end_local = h_start_local + timedelta(hours=1)
+
+            schedule.append(ScheduleBlock(
+                task_id=None, exam_id=None, exam_name="Relax",
+                task_title=hobby_name, subject="Hobby",
+                start_time=(h_start_local + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc, microsecond=0).isoformat().replace('+00:00', 'Z'),
+                end_time=(h_end_local + timedelta(minutes=tz_offset)).replace(tzinfo=timezone.utc, microsecond=0).isoformat().replace('+00:00', 'Z'),
+                day_date=day_str, block_type="hobby"
+            ))
 
     # Resolve split tasks (ensure parts are correctly labeled and avoid duplication)
     final_schedule = []

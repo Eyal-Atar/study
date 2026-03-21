@@ -2,18 +2,18 @@
  * Handles: App Shell caching, offline fallback, push notifications
  */
 
-const CACHE_NAME = 'studyflow-shell-v62';
+const CACHE_NAME = 'studyflow-shell-vAUTO';
 
 const APP_SHELL = [
-  '/css/styles.css?v=62',
-  '/js/app.js?v=62',
-  '/js/auth.js?v=62',
-  '/js/brain.js?v=62',
-  '/js/calendar.js?v=62',
-  '/js/interactions.js?v=62',
-  '/js/store.js?v=62',
-  '/js/tasks.js?v=62',
-  '/js/ui.js?v=62',
+  '/css/styles.css?v=AUTO',
+  '/js/app.js?v=AUTO',
+  '/js/auth.js?v=AUTO',
+  '/js/brain.js?v=AUTO',
+  '/js/calendar.js?v=AUTO',
+  '/js/interactions.js?v=AUTO',
+  '/js/store.js?v=AUTO',
+  '/js/tasks.js?v=AUTO',
+  '/js/ui.js?v=AUTO',
   '/manifest.json'
 ];
 

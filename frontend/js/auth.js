@@ -1,8 +1,8 @@
 /* frontend/js/auth.js */
-import { getAPI, setCurrentUser, authFetch, resetStore, getCurrentUser } from './store.js?v=59';
-import { showRegenBar } from './brain.js?v=59';
-import { showScreen, shakeEl, showError, hideError } from './ui.js?v=59';
-import { initOnboarding } from './onboarding.js?v=59';
+import { getAPI, setCurrentUser, authFetch, resetStore, getCurrentUser } from './store.js?v=AUTO';
+import { showRegenBar } from './brain.js?v=AUTO';
+import { showScreen, shakeEl, showError, hideError } from './ui.js?v=AUTO';
+import { initOnboarding } from './onboarding.js?v=AUTO';
 
 let onAuthSuccess = () => {};
 

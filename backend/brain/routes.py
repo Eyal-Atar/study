@@ -168,6 +168,9 @@ async def onboard_user(
             "topic_map": auditor_result["topic_map"],
         }
 
+    except HTTPException:
+        if db: db.rollback()
+        raise
     except Exception as e:
         if db: db.rollback()
         raise HTTPException(status_code=500, detail="Something went wrong while setting up your study plan. Please try again.")
@@ -200,12 +203,26 @@ async def generate_roadmap(current_user: dict = Depends(get_current_user)):
     db = get_db()
 
     try:
-        exams = db.execute(
+        exams_raw = db.execute(
             "SELECT * FROM exams WHERE user_id = ? AND status = 'upcoming' ORDER BY exam_date",
             (user_id,)
         ).fetchall()
+
+        # Filter out past exams
+        tz_offset = current_user.get("timezone_offset", 0) or 0
+        local_now = datetime.now(timezone.utc) - timedelta(minutes=tz_offset)
+        today_date = local_now.date()
+        exams = []
+        for e in exams_raw:
+            try:
+                ed_str = e["exam_date"].replace("Z", "+00:00") if "Z" in (e["exam_date"] or "") else e["exam_date"]
+                exam_dt = datetime.fromisoformat(ed_str).date() if "T" in (ed_str or "") else datetime.strptime(ed_str, "%Y-%m-%d").date()
+                if exam_dt >= today_date:
+                    exams.append(e)
+            except (ValueError, TypeError, AttributeError):
+                exams.append(e)  # keep if date can't be parsed
+
         if not exams:
-            db.close()
             raise HTTPException(status_code=400, detail="No upcoming exams found. Please add your exams first.")
 
         exam_list = []
@@ -239,7 +256,6 @@ async def generate_roadmap(current_user: dict = Depends(get_current_user)):
             [draft_json] + exam_ids,
         )
         db.commit()
-        db.close()
 
         return {
             "message": f"Auditor complete — {len(auditor_result['tasks'])} tasks, {len(auditor_result['gaps'])} gaps detected",
@@ -247,9 +263,12 @@ async def generate_roadmap(current_user: dict = Depends(get_current_user)):
             "gaps": auditor_result["gaps"],
             "topic_map": auditor_result["topic_map"],
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        if db: db.close()
         raise HTTPException(status_code=500, detail="Failed to generate your study plan. Please try again.")
+    finally:
+        if db: db.close()
 
 
 @router.get("/auditor-draft")
@@ -313,33 +332,28 @@ async def approve_and_schedule(body: dict, current_user: dict = Depends(get_curr
 
     db = get_db()
 
-    # Load the user's upcoming exams
-    exams = db.execute(
-        "SELECT * FROM exams WHERE user_id = ? AND status = 'upcoming' ORDER BY exam_date",
-        (user_id,)
-    ).fetchall()
-    if not exams:
-        db.close()
-        raise HTTPException(status_code=400, detail="No upcoming exams found. Please add your exams first.")
-
-    exam_list = [dict(e) for e in exams]
-    exam_ids = [e["id"] for e in exams]
-
-    # 1. Run Strategist (API Call 2) — assigns day_index and internal_priority
-    brain = ExamBrain(current_user, exam_list)
     try:
+        # Load the user's upcoming exams
+        exams = db.execute(
+            "SELECT * FROM exams WHERE user_id = ? AND status = 'upcoming' ORDER BY exam_date",
+            (user_id,)
+        ).fetchall()
+        if not exams:
+            raise HTTPException(status_code=400, detail="No upcoming exams found. Please add your exams first.")
+
+        exam_list = [dict(e) for e in exams]
+        exam_ids = [e["id"] for e in exams]
+
+        # 1. Run Strategist (API Call 2) — assigns day_index and internal_priority
+        brain = ExamBrain(current_user, exam_list)
         scheduled_tasks = await brain.call_strategist(approved_tasks)
-    except Exception as exc:
-        db.close()
-        raise HTTPException(status_code=500, detail="Failed to build your schedule. Please try again.")
 
-    # 2. Convert day_index → actual date string (day_index 0 = today)
-    now_utc = datetime.now(timezone.utc)
-    tz_offset = current_user.get("timezone_offset", 0) or 0
-    local_now = now_utc - timedelta(minutes=tz_offset)
-    today_local = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+        # 2. Convert day_index → actual date string (day_index 0 = today)
+        now_utc = datetime.now(timezone.utc)
+        tz_offset = current_user.get("timezone_offset", 0) or 0
+        local_now = now_utc - timedelta(minutes=tz_offset)
+        today_local = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    try:
         for task in scheduled_tasks:
             day_idx = int(task.get("day_index", 0))
             task_date = today_local + timedelta(days=day_idx)
@@ -347,14 +361,8 @@ async def approve_and_schedule(body: dict, current_user: dict = Depends(get_curr
 
         # Sort by internal_priority descending within each day so higher-priority tasks fill first
         scheduled_tasks.sort(key=lambda t: (t.get("day_date", ""), -t.get("internal_priority", 50)))
-    except Exception as exc:
-        db.close()
-        raise HTTPException(status_code=500, detail="Failed to process your tasks. Please try again.")
 
-    # 3. DB Transaction for atomicity
-    try:
-        # sqlite3 module manages transactions automatically; explicit BEGIN is unnecessary
-
+        # 3. DB Transaction for atomicity
         # Clear existing tasks and schedule_blocks for this user
         # Delete all blocks and tasks for this user (full regeneration)
         db.execute("DELETE FROM schedule_blocks WHERE user_id = ?", (user_id,))
@@ -454,31 +462,62 @@ async def approve_and_schedule(body: dict, current_user: dict = Depends(get_curr
                 db.execute("UPDATE tasks SET day_date = ? WHERE id = ?", (block.day_date, db_task_id))
 
         # 7. Sync task dates with actual schedule
-        # First, reset all tasks assigned to Today to Tomorrow if they have no blocks today
-        # This prevents "orphan" tasks in the Focus tab when it's too late to study.
+        # Tasks assigned to today that didn't get blocks are redistributed
+        # across future days to avoid overloading tomorrow.
         today_str = local_now.strftime("%Y-%m-%d")
-        tomorrow_str = (local_now + timedelta(days=1)).strftime("%Y-%m-%d")
-        
+
         # Get IDs of tasks that HAVE blocks scheduled for today
-        scheduled_today_task_ids = [
+        scheduled_today_task_ids = set(
             r["task_id"] for r in db.execute(
                 "SELECT DISTINCT task_id FROM schedule_blocks WHERE user_id = ? AND day_date = ?",
                 (user_id, today_str)
             ).fetchall() if r["task_id"] is not None
-        ]
-        
-        # Update any task assigned to today that isn't in that list
-        if scheduled_today_task_ids:
-            placeholders = ",".join("?" * len(scheduled_today_task_ids))
-            db.execute(
-                f"UPDATE tasks SET day_date = ? WHERE user_id = ? AND day_date = ? AND id NOT IN ({placeholders})",
-                (tomorrow_str, user_id, today_str, *scheduled_today_task_ids)
-            )
-        else:
-            db.execute(
-                "UPDATE tasks SET day_date = ? WHERE user_id = ? AND day_date = ?",
-                (tomorrow_str, user_id, today_str)
-            )
+        )
+
+        # Find orphan tasks (assigned to today but no block)
+        orphan_rows = db.execute(
+            "SELECT id, exam_id, estimated_hours FROM tasks WHERE user_id = ? AND day_date = ?",
+            (user_id, today_str)
+        ).fetchall()
+        orphan_tasks = [dict(r) for r in orphan_rows if r["id"] not in scheduled_today_task_ids]
+
+        if orphan_tasks:
+            # Build per-day capacity: how many hours are already scheduled per day
+            all_block_rows = db.execute(
+                """SELECT day_date, SUM(
+                    (julianday(end_time) - julianday(start_time)) * 24
+                   ) as used_hours
+                   FROM schedule_blocks
+                   WHERE user_id = ? AND block_type = 'study' AND day_date > ?
+                   GROUP BY day_date""",
+                (user_id, today_str)
+            ).fetchall()
+            day_used = {r["day_date"]: float(r["used_hours"] or 0) for r in all_block_rows}
+
+            neto_h = float(current_user.get("neto_study_hours", 4.0))
+
+            # Distribute orphans across next days with available capacity
+            for orphan in orphan_tasks:
+                placed = False
+                for offset in range(1, 60):
+                    target_date = (local_now + timedelta(days=offset)).strftime("%Y-%m-%d")
+                    used = day_used.get(target_date, 0)
+                    task_hours = float(orphan.get("estimated_hours", 1.0))
+                    if used + task_hours <= neto_h + 0.5:  # small tolerance
+                        db.execute(
+                            "UPDATE tasks SET day_date = ? WHERE id = ?",
+                            (target_date, orphan["id"])
+                        )
+                        day_used[target_date] = used + task_hours
+                        placed = True
+                        break
+                if not placed:
+                    # Fallback: put on next day if no capacity found in 60 days
+                    tomorrow_str = (local_now + timedelta(days=1)).strftime("%Y-%m-%d")
+                    db.execute(
+                        "UPDATE tasks SET day_date = ? WHERE id = ?",
+                        (tomorrow_str, orphan["id"])
+                    )
 
         # 8. Reload all saved tasks to ensure up-to-date day_date (synced from blocks) in response
         final_tasks = [
@@ -493,13 +532,15 @@ async def approve_and_schedule(body: dict, current_user: dict = Depends(get_curr
                 exam_ids,
             )
 
-        db.execute("COMMIT")
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as exc:
-        db.execute("ROLLBACK")
-        db.close()
+        db.rollback()
         raise HTTPException(status_code=500, detail="Something went wrong while creating your schedule. Please try again.")
-
-    db.close()
+    finally:
+        db.close()
 
     schedule_dicts = [block.model_dump() for block in schedule]
     return {
@@ -525,7 +566,7 @@ def internal_regenerate_schedule(user_id: int, current_user: dict, db) -> dict:
     """
     from server.config import DB_PATH
     from brain.scheduler import generate_multi_exam_schedule
-    import io, sys, threading
+    import io, sys, threading, traceback
 
 
     tasks_rows = db.execute(
@@ -668,13 +709,19 @@ def internal_regenerate_schedule(user_id: int, current_user: dict, db) -> dict:
     ).fetchall()
     schedule_dicts = [dict(r) for r in final_schedule_rows]
 
-    study_blocks_by_day = {}
-    for b in schedule_dicts:
-        if b.get("block_type") == "study" and b.get("task_id"):
-            study_blocks_by_day[b["day_date"]] = study_blocks_by_day.get(b["day_date"], 0) + 1
+    # Re-fetch tasks with up-to-date day_date (Enforcer may have synced them)
+    updated_tasks = [
+        dict(r) for r in db.execute(
+            """SELECT t.*, e.name as exam_name FROM tasks t
+               LEFT JOIN exams e ON t.exam_id = e.id
+               WHERE t.user_id = ? AND t.status != 'done'
+               ORDER BY t.day_date, t.sort_order""",
+            (user_id,)
+        ).fetchall()
+    ]
 
     return {
-        "tasks": all_tasks,
+        "tasks": updated_tasks,
         "schedule": schedule_dicts,
     }
 
@@ -831,13 +878,43 @@ Output the delta using the format above. Remember: only output blocks that ACTUA
                 })
 
     # 6. Build a day abbreviation -> date mapping for the next 14 days
-    # We need to convert day abbreviations back to actual dates
-    day_to_date = {}
+    # We need to convert day abbreviations back to actual dates.
+    # To handle duplicate weekdays (e.g. two Mondays), map each block_id
+    # to its original day abbreviation and prefer the closest matching date.
+    day_to_dates = {}  # abbr -> list of date strings (ordered by proximity)
     for i in range(15):
         d = local_now + timedelta(days=i)
         abbr = d.strftime("%a")
-        if abbr not in day_to_date:
-            day_to_date[abbr] = d.strftime("%Y-%m-%d")
+        day_to_dates.setdefault(abbr, []).append(d.strftime("%Y-%m-%d"))
+
+    # Build block_id -> original day_abbr mapping to resolve ambiguity
+    block_day_abbr = {}
+    for b in blocks:
+        try:
+            start_dt = datetime.fromisoformat(b["start_time"])
+            block_day_abbr[b["id"]] = start_dt.strftime("%a")
+        except (ValueError, TypeError):
+            pass
+
+    def _resolve_date(block_id: int, target_abbr: str) -> str | None:
+        """Pick the correct date for a day abbreviation, preferring a different
+        week than the block's current position (since AI wants to MOVE it)."""
+        candidates = day_to_dates.get(target_abbr, [])
+        if not candidates:
+            return None
+        if len(candidates) == 1:
+            return candidates[0]
+        # If the block is already on this weekday, prefer the OTHER occurrence
+        orig_abbr = block_day_abbr.get(block_id)
+        if orig_abbr == target_abbr:
+            # Block is being moved to the same weekday — pick the next occurrence
+            orig_row = next((b for b in blocks if b["id"] == block_id), None)
+            if orig_row:
+                orig_date = orig_row.get("day_date", "")
+                for c in candidates:
+                    if c != orig_date:
+                        return c
+        return candidates[0]
 
     # 7. Build a set of valid block IDs (FLX + A only) from our snapshot
     valid_update_ids = {
@@ -848,54 +925,58 @@ Output the delta using the format above. Remember: only output blocks that ACTUA
 
     # 8. Surgically update ONLY allowed blocks
     updated_count = 0
-    for delta in delta_updates:
-        block_id = delta["block_id"]
+    try:
+        for delta in delta_updates:
+            block_id = delta["block_id"]
 
-        # Safety check: skip if not in our valid set
-        if block_id not in valid_update_ids:
-            continue
+            # Safety check: skip if not in our valid set
+            if block_id not in valid_update_ids:
+                continue
 
-        new_date = day_to_date.get(delta["day_abbr"])
-        if not new_date:
-            continue
+            new_date = _resolve_date(block_id, delta["day_abbr"])
+            if not new_date:
+                continue
 
-        new_start_iso = f"{new_date}T{delta['new_start_time']}:00"
-        new_end_iso = f"{new_date}T{delta['new_end_time']}:00"
+            new_start_iso = f"{new_date}T{delta['new_start_time']}:00"
+            new_end_iso = f"{new_date}T{delta['new_end_time']}:00"
 
-        db.execute(
-            """UPDATE schedule_blocks
-               SET start_time = ?, end_time = ?, day_date = ?, push_notified = 0
-               WHERE id = ? AND user_id = ? AND is_manually_edited = 0""",
-            (new_start_iso, new_end_iso, new_date, block_id, user_id)
-        )
-        # Sync the task's day_date too if applicable
-        block_row = db.execute(
-            "SELECT task_id FROM schedule_blocks WHERE id = ? AND user_id = ?",
-            (block_id, user_id)
-        ).fetchone()
-        if block_row and block_row["task_id"]:
             db.execute(
-                "UPDATE tasks SET day_date = ? WHERE id = ? AND user_id = ?",
-                (new_date, block_row["task_id"], user_id)
+                """UPDATE schedule_blocks
+                   SET start_time = ?, end_time = ?, day_date = ?, push_notified = 0
+                   WHERE id = ? AND user_id = ? AND is_manually_edited = 0""",
+                (new_start_iso, new_end_iso, new_date, block_id, user_id)
             )
-        updated_count += 1
+            # Sync the task's day_date too if applicable
+            block_row = db.execute(
+                "SELECT task_id FROM schedule_blocks WHERE id = ? AND user_id = ?",
+                (block_id, user_id)
+            ).fetchone()
+            if block_row and block_row["task_id"]:
+                db.execute(
+                    "UPDATE tasks SET day_date = ? WHERE id = ? AND user_id = ?",
+                    (new_date, block_row["task_id"], user_id)
+                )
+            updated_count += 1
 
-    db.commit()
+        db.commit()
 
-    # 9. Return updated schedule for frontend to re-render
-    schedule_rows = db.execute(
-        "SELECT * FROM schedule_blocks WHERE user_id = ? ORDER BY day_date, start_time",
-        (user_id,)
-    ).fetchall()
-    schedule = [dict(s) for s in schedule_rows]
+        # 9. Return updated schedule for frontend to re-render
+        schedule_rows = db.execute(
+            "SELECT * FROM schedule_blocks WHERE user_id = ? ORDER BY day_date, start_time",
+            (user_id,)
+        ).fetchall()
+        schedule = [dict(s) for s in schedule_rows]
 
-    tasks_rows = db.execute(
-        "SELECT * FROM tasks WHERE user_id = ? AND status != 'done' ORDER BY day_date, sort_order",
-        (user_id,)
-    ).fetchall()
-    tasks = [dict(t) for t in tasks_rows]
-
-    db.close()
+        tasks_rows = db.execute(
+            "SELECT * FROM tasks WHERE user_id = ? AND status != 'done' ORDER BY day_date, sort_order",
+            (user_id,)
+        ).fetchall()
+        tasks = [dict(t) for t in tasks_rows]
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to apply schedule changes. Please try again.")
+    finally:
+        db.close()
 
     return {
         "reasoning": reasoning,
@@ -946,7 +1027,7 @@ async def brain_chat(body: BrainMessage, current_user: dict = Depends(get_curren
 
     tasks_summary = "\n".join([
         f"- [{t['day_date']}] Task #{t['id']} [exam_id={t['exam_id']}] \"{t['title']}\" | "
-        f"{t['estimated_hours']}h | difficulty={t['difficulty']} | status={t['status']}"
+        f"{t['estimated_hours']}h | focus_score={t.get('focus_score', 5)} | status={t['status']}"
         for t in tasks
     ])
 
@@ -972,7 +1053,7 @@ CRITICAL RULES:
 4. LANGUAGE: Match the language of existing tasks (Hebrew/English).
 
 You can:
-- Change estimated_hours, difficulty, day_date for existing tasks
+- Change estimated_hours, focus_score, day_date for existing tasks
 - Add new tasks (with day_date and sort_order)
 - Remove tasks (don't include them)
 - Reorganize the calendar
@@ -982,7 +1063,7 @@ Return ONLY valid JSON. No explanation.
 Rules for JSON:
 - Keep task IDs for existing tasks you want to keep (use "id" field)
 - For NEW tasks, set "id" to null
-- Every task must have: id, exam_id, title, topic, subject, day_date, sort_order, estimated_hours, difficulty
+- Every task must have: id, exam_id, title, topic, subject, day_date, sort_order, estimated_hours, focus_score (1-10)
 - exam_id MUST be one of: {', '.join(str(e['id']) for e in exams)}
 - day_date format: YYYY-MM-DD
 - sort_order: ordering within a day (1, 2, 3...)
@@ -1005,7 +1086,6 @@ Return format:
         )
         response_text = response.choices[0].message.content.strip()
     except Exception as e:
-        db.close()
         raise HTTPException(status_code=500, detail="Failed to process your request. Please try again.")
     if response_text.startswith("```"):
         response_text = response_text.split("\n", 1)[1]
@@ -1014,7 +1094,6 @@ Return format:
     try:
         result = json.loads(response_text)
     except json.JSONDecodeError as exc:
-        db.close()
         raise HTTPException(status_code=422, detail="Could not process the AI response. Please try again.")
     brain_reply = result.get("brain_reply", "Calendar updated.")
     new_tasks = result.get("tasks", [])
@@ -1035,6 +1114,13 @@ Return format:
                     exam_ids
                 ).fetchall()
             ]
+
+            # Safety: abort if AI returned far fewer tasks than existed
+            if old_task_ids and len(new_tasks) < len(old_task_ids) * 0.3:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"AI returned only {len(new_tasks)} tasks (had {len(old_task_ids)}). Please try again."
+                )
             if old_task_ids:
                 task_ph = ",".join("?" * len(old_task_ids))
                 db.execute(f"DELETE FROM schedule_blocks WHERE task_id IN ({task_ph}) AND is_manually_edited = 0", old_task_ids)
@@ -1053,14 +1139,19 @@ Return format:
                     task_exam_id = list(valid_exam_ids)[0]
                 else:
                     continue
+            focus = task.get("focus_score", 5)
+            try:
+                focus = max(1, min(10, int(focus)))
+            except (ValueError, TypeError):
+                focus = 5
             db.execute(
                 """INSERT INTO tasks (user_id, exam_id, title, topic, subject,
-                   deadline, day_date, sort_order, estimated_hours, difficulty, is_padding)
+                   deadline, day_date, sort_order, estimated_hours, focus_score, is_padding)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (user_id, task_exam_id, task["title"], task.get("topic"),
                  task.get("subject"), task.get("day_date"),
                  task.get("day_date"), task.get("sort_order", 0),
-                 task.get("estimated_hours", 2.0), task.get("difficulty", 3),
+                 task.get("estimated_hours", 2.0), focus,
                  1 if task.get("is_padding") else 0)
             )
 
@@ -1117,15 +1208,17 @@ Return format:
         ).fetchall()
         final_tasks = [dict(t) for t in final_tasks_rows]
 
-        db.execute("COMMIT")
+        # Notify user that roadmap is ready (inside transaction so it's only sent on success)
+        send_to_user(db, user_id, "הלוז עודכן! 🪄", "התוכנית שלך עודכנה על ידי המוח.", url="/")
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as exc:
-        db.execute("ROLLBACK")
-        db.close()
+        db.rollback()
         raise HTTPException(status_code=500, detail="Failed to update your schedule. Please try again.")
-
-    # Notify user that roadmap is ready
-    send_to_user(db, user_id, "הלוז עודכן! 🪄", "התוכנית שלך עודכנה על ידי המוח.", url="/")
-    db.close()
+    finally:
+        db.close()
 
     return {
         "brain_reply": brain_reply,

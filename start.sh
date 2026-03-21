@@ -21,6 +21,13 @@ fi
 
 # ─── Start server ────────────────────────────────────────────
 echo ""
+echo "  Checking if port $PORT is available..."
+if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null ; then
+    echo "  ERROR: Port $PORT is already in use."
+    echo "  Find the PID with 'lsof -i :$PORT' and kill it if necessary."
+    exit 1
+fi
+
 echo "  StudyFlow starting on port $PORT..."
 echo ""
 
@@ -28,6 +35,13 @@ cd backend
 python run.py &
 SERVER_PID=$!
 cd ..
+
+# Wait a moment for server to bind
+sleep 1
+if ! lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null ; then
+    echo "  WARNING: Server didn't bind to port $PORT immediately. Waiting..."
+    sleep 2
+fi
 
 # ─── ngrok (optional) ────────────────────────────────────────
 if [ "$USE_NGROK" = true ]; then
@@ -56,7 +70,7 @@ if [ "$USE_NGROK" = true ]; then
   echo ""
 
   # ngrok will take over the terminal and show the URL
-  ngrok http $PORT
+  ngrok http 127.0.0.1:$PORT
 
 else
   echo "  Local:  http://localhost:$PORT"

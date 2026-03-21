@@ -5,15 +5,15 @@ window.onerror = function(msg, url, line, col, error) {
     console.error(msg, url, line, col, error);
 };
 
-import { getCurrentUser, setCurrentUser, getAPI, authFetch } from './store.js?v=59';
-import { initAuth, handleLogout } from './auth.js?v=59';
-import { initTasks, loadExams, checkAuditorDraftOnInit } from './tasks.js?v=59';
-import { initRegenerate } from './brain.js?v=59';
-import { initInteractions } from './interactions.js?v=59';
-import { showScreen, initMobileTabBar, showIosOnboarding, initProfileTabs } from './ui.js?v=59';
-import { initPush } from './notifications.js?v=59';
-import { registerLoginCheckFlow } from './profile.js?v=59';
-import { initOnboarding } from './onboarding.js?v=59';
+import { getCurrentUser, setCurrentUser, getAPI, authFetch } from './store.js?v=AUTO';
+import { initAuth, handleLogout } from './auth.js?v=AUTO';
+import { initTasks, loadExams, checkAuditorDraftOnInit } from './tasks.js?v=AUTO';
+import { initRegenerate } from './brain.js?v=AUTO';
+import { initInteractions } from './interactions.js?v=AUTO';
+import { showScreen, initMobileTabBar, showIosOnboarding, initProfileTabs } from './ui.js?v=AUTO';
+import { initPush } from './notifications.js?v=AUTO';
+import { registerLoginCheckFlow } from './profile.js?v=AUTO';
+import { initOnboarding } from './onboarding.js?v=AUTO';
 
 // Initialize the application
 let _dashboardInitialized = false;
@@ -91,7 +91,7 @@ async function initApp() {
         // Try to close any open modal first
         const openModal = document.querySelector('.modal-bg.active');
         if (openModal) {
-            import('./ui.js?v=59').then(m => m.showModal(openModal.id, false));
+            import('./ui.js?v=AUTO').then(m => m.showModal(openModal.id, false));
             history.pushState(null, '');
             return;
         }

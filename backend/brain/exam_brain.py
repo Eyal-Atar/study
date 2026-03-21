@@ -53,160 +53,6 @@ class ExamBrain:
         self.model = os.environ.get("LLM_MODEL", "openrouter/openai/gpt-4o-mini")
 
     # ------------------------------------------------------------------
-    # Auditor helpers (Plan 02)
-    # ------------------------------------------------------------------
-
-    def _build_all_exam_context(self) -> str:
-        """Concatenate all exams + all their extracted_text into a single string.
-
-        Iterates through self.exams, fetches associated exam_files from the DB,
-        and concatenates their extracted_text with clear headers.
-        Falls back to parsed_context for legacy exams with no uploaded files.
-        Enforces a hard CHAR_LIMIT with truncation.
-        """
-        from server.database import get_db
-
-        db = get_db()
-        parts = []
-        total_chars = 0
-
-        try:
-            for exam in self.exams:
-                exam_header = (
-                    f"\n### EXAM: {exam['name']} ({exam['subject']}) "
-                    f"— Date: {exam['exam_date']} — Exam ID: {exam['id']}\n"
-                )
-
-                files = db.execute(
-                    "SELECT file_type, filename, extracted_text FROM exam_files WHERE exam_id = ?",
-                    (exam["id"],),
-                ).fetchall()
-
-                file_texts = []
-                for f in files:
-                    if f["extracted_text"]:
-                        file_texts.append(
-                            f"[{f['file_type'].upper()}: {f['filename']}]\n{f['extracted_text']}"
-                        )
-
-                # Fallback: use old parsed_context (topics/intensity/objectives)
-                if not file_texts and exam["parsed_context"]:
-                    file_texts.append(
-                        f"[LEGACY CONTEXT]\n{exam['parsed_context']}"
-                    )
-
-                exam_block = exam_header + "\n\n".join(file_texts)
-
-                # Truncate if adding this exam would exceed the character limit
-                if total_chars + len(exam_block) > CHAR_LIMIT:
-                    remaining = CHAR_LIMIT - total_chars
-                    if remaining <= 0:
-                        break
-                    exam_block = exam_block[:remaining] + "\n[TRUNCATED — file too large]"
-
-                parts.append(exam_block)
-                total_chars += len(exam_block)
-
-                if total_chars >= CHAR_LIMIT:
-                    break
-        finally:
-            db.close()
-
-        return "\n\n".join(parts)
-
-    def _calculate_total_hours(self) -> float:
-        """Sum up days_until * neto_study_hours for all exams to get global budget."""
-        from datetime import timezone
-        tz_offset = self.user.get("timezone_offset", 0) or 0
-        local_now = datetime.now(timezone.utc) - timedelta(minutes=tz_offset)
-        today = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
-        neto_h = float(self.user.get("neto_study_hours", 4.0))
-        total = 0.0
-
-        for exam in self.exams:
-            try:
-                ed_str = exam["exam_date"].replace("Z", "+00:00")
-                exam_date = datetime.fromisoformat(ed_str).replace(tzinfo=None)
-                days_until = max(1, (exam_date.date() - today.date()).days)
-                total += days_until * neto_h
-            except Exception as e:
-                total += 10.0  # safe fallback
-
-        return round(total, 2)
-
-    def _build_auditor_prompt(self, all_exam_context: str, total_hours: float) -> str:
-        """Build the system prompt for the Auditor (API Call 1).
-
-        The Auditor identifies syllabus topics, detects gaps, decomposes tasks,
-        assigns focus_score (1-10), reasoning, and dependency_id.
-        Output: JSON with tasks, gaps, and topic_map keys.
-        """
-        exam_ids_str = ", ".join(str(e["id"]) for e in self.exams)
-        peak = self.user.get("peak_productivity", "Morning")
-
-        return f"""RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER.
-
-You are a Zero-Loss Knowledge Auditor for a university student.
-
-STUDENT PROFILE:
-- Total available study hours across all exams: {total_hours}
-- Peak productivity window: {peak}
-- Valid exam_ids: [{exam_ids_str}]
-
-ALL EXAM MATERIALS:
-{all_exam_context}
-
-TASK:
-1. For each exam, map all syllabus topics.
-2. AGGRESSIVE DECOMPOSITION & BUDGET ENFORCEMENT (CRITICAL):
-   - You MUST generate enough tasks so that the sum of their `estimated_hours` equals exactly {total_hours} hours!
-   - Break every topic into AT LEAST 3-5 specific sub-tasks.
-   - If you finish mapping the core syllabus topics and haven't reached {total_hours} hours, you MUST generate additional deep-practice tasks to fill the remaining budget. Use highly specific titles like: "פתרון מבחן משנים קודמות", "תרגול שאלות קצה בנושא X", or "חזרה אקטיבית על סיכומים של Y". Do not use generic names.
-3. SAMPLE EXAMS & PAST EXAMS: If a file is labeled as 'sample_exam' OR 'past_exam', you MUST create two specific tasks for it:
-   - "סימולציה מלאה: [File Name] (תנאי אמת, בלי טלפון, עם סטופר)" (estimated 2.5-3h)
-   - "תחקור מלא וכתיבת דגשים: [File Name]" (estimated 1.5-2h, dependency on the simulation)
-4. REALISTIC TIME ESTIMATION (CRITICAL): 
-   - A single question or a small set of exercises should NEVER take 3 hours. 
-   - Cap any task that is just "solving question X" or "reviewing problem Y" at 1.0 - 1.5 hours. 
-   - Only comprehensive study sessions or full simulations should exceed 2 hours.
-5. Actionable Titles: Use the following style for ALL tasks:
-   - "מעבר על מצגת: [Topic Name]"
-   - "בנייה ידנית: [Core Concept]. תרגול [Operations]"
-   - "פתרון שאלות: [Topic]. [Specific Challenges]"
-6. Decompose ALL topics into specific, actionable pedagogical tasks with:
-   - focus_score (1-10): concentration level required
-   - reasoning: 1-sentence explanation
-   - dependency_id: index of prerequisite task
-   - estimated_hours (0.5 to 3.5 hours)
-7. Match the language of the exam name (Hebrew exams -> Hebrew titles).
-
-RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
-{{
-  "tasks": [
-    {{
-      "exam_id": <int — must be one of [{exam_ids_str}]>,
-      "title": "<string>",
-      "topic": "<string>",
-      "estimated_hours": <float 0.5-3.5>,
-      "focus_score": <int 1-10>,
-      "reasoning": "<string — 1 sentence explaining the focus_score>",
-      "dependency_id": <null or 0-based index into this tasks array>,
-      "sort_order": <int>
-    }}
-  ],
-  "gaps": [
-    {{
-      "exam_id": <int>,
-      "topic": "<string>",
-      "description": "<string — why this is a gap>"
-    }}
-  ],
-  "topic_map": {{
-    "<exam_id as string>": ["topic1", "topic2"]
-  }}
-}}"""
-
-    # ------------------------------------------------------------------
     # Per-exam Auditor helpers (parallel architecture)
     # ------------------------------------------------------------------
 
@@ -243,17 +89,47 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
             db.close()
 
     def _calculate_exam_hours(self, exam: dict) -> float:
-        """Calculate the study hours budget for a single exam."""
+        """Calculate the study hours budget for a single exam.
+
+        Divides daily capacity among concurrent exams so that the total
+        tasks generated across all exams never exceed what the Enforcer
+        can actually schedule.
+        """
         from datetime import timezone
         tz_offset = self.user.get("timezone_offset", 0) or 0
         local_now = datetime.now(timezone.utc) - timedelta(minutes=tz_offset)
         today = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
         neto_h = float(self.user.get("neto_study_hours", 4.0))
+        buffer_days = int(self.user.get("buffer_days", 1) or 0)
         try:
             ed_str = exam["exam_date"].replace("Z", "+00:00")
             exam_date = datetime.fromisoformat(ed_str).replace(tzinfo=None)
             days_until = max(1, (exam_date.date() - today.date()).days)
-            return round(days_until * neto_h, 2)
+            study_days = max(1, days_until - buffer_days)
+
+            # Count how many exams have overlapping study windows with this exam.
+            # This exam's study window: [today, exam_date - buffer_days)
+            # Other exam's study window: [today, other_date - buffer_days)
+            # They overlap if both start before the other ends.
+            this_study_end = (exam_date - timedelta(days=buffer_days)).date()
+            concurrent = 0
+            for other in self.exams:
+                try:
+                    other_str = other["exam_date"].replace("Z", "+00:00")
+                    other_date = datetime.fromisoformat(other_str).replace(tzinfo=None)
+                    other_days = max(0, (other_date.date() - today.date()).days)
+                    if other_days <= 0:
+                        continue  # past exam, skip
+                    other_study_end = (other_date - timedelta(days=buffer_days)).date()
+                    # Overlap: both study windows start at today, so they overlap
+                    # if today < min(this_study_end, other_study_end)
+                    if today.date() < other_study_end and today.date() < this_study_end:
+                        concurrent += 1
+                except Exception:
+                    concurrent += 1
+            concurrent = max(1, concurrent)
+
+            return round(study_days * neto_h / concurrent, 2)
         except Exception:
             return 10.0
 
@@ -445,7 +321,7 @@ RETURN ONLY VALID JSON — NO TEXT BEFORE OR AFTER:
         """Build the system prompt for the Strategist (API Call 2)."""
         neto_h = float(self.user.get("neto_study_hours", 4.0))
         peak = self.user.get("peak_productivity", "Morning")
-        buffer_days = int(self.user.get("buffer_days", 1))
+        buffer_days = int(self.user.get("buffer_days", 1) or 0)
         study_pref = self.user.get("study_hours_preference", '["morning", "afternoon"]')
 
         # Minimized task list for the prompt
@@ -499,8 +375,8 @@ TASKS TO SCHEDULE (i=index, h=hours, f=focus, e=exam_id, d=dependency, t=topic):
 
 STRATEGIC RULES (CRITICAL):
 1. ANCHORING:
-   - Topic "simulation": MUST be placed as late as possible, closest to the exam date (but before the buffer days).
-   - Topic "review": MUST be placed as early as possible (the first day study begins for that exam).
+   - Topics containing "simulation" or "סימולציה": MUST be placed as late as possible, closest to the exam date (but before the buffer days).
+   - Topics containing "review" or "סקירה": MUST be placed as early as possible (the first day study begins for that exam).
 2. BUFFER DAYS: For an exam at day_index X, NO tasks for that exam should be scheduled on day_indices [X-{buffer_days} to X-1]. All study for that exam must end by X-{buffer_days+1}.
 3. SINGLE FOCUS: Try to group tasks for the same exam on the same day(s) to minimize context switching.
 4. FILL QUOTA: Distribute tasks so the sum of estimated_hours per day equals exactly {neto_h}h. Do NOT exceed {neto_h}h on any day.
@@ -586,7 +462,8 @@ RETURN FORMAT:
                 current_exam_id = approved_tasks[task_index].get("exam_id")
             
             if current_exam_id in exam_deadlines:
-                day_index = min(day_index, exam_deadlines[current_exam_id] - 1)
+                buffer = int(self.user.get("buffer_days", 1) or 0)
+                day_index = min(day_index, exam_deadlines[current_exam_id] - buffer - 1)
                 day_index = max(0, day_index)
 
             internal_priority = max(1, min(100, internal_priority))
@@ -604,95 +481,18 @@ RETURN FORMAT:
             task["is_padding"] = False
             result.append(task)
 
-        for idx, task in enumerate(approved_tasks):
-            if idx not in seen_task_indices:
-                fallback_task = dict(task)
-                fallback_task["day_index"] = 0
-                fallback_task["internal_priority"] = 10
-                fallback_task["is_padding"] = False
-                result.append(fallback_task)
+        # Distribute unscheduled tasks evenly across available days per exam
+        unscheduled = [(idx, task) for idx, task in enumerate(approved_tasks) if idx not in seen_task_indices]
+        buffer = int(self.user.get("buffer_days", 1) or 0)
+        for i, (idx, task) in enumerate(unscheduled):
+            fallback_task = dict(task)
+            exam_id = task.get("exam_id")
+            deadline = exam_deadlines.get(exam_id, days_available)
+            available = max(1, deadline - buffer)
+            fallback_task["day_index"] = i % available
+            fallback_task["internal_priority"] = 10
+            fallback_task["is_padding"] = False
+            result.append(fallback_task)
 
         return result
 
-    def _generate_basic_calendar(self, exam_contexts: list[dict]) -> list[dict]:
-        """Generate a day-by-day calendar from exam dates (no AI needed)."""
-        tasks = []
-        now = datetime.now(timezone.utc)
-        tz_offset = self.user.get("timezone_offset", 0) or 0
-        local_now = now - timedelta(minutes=tz_offset)
-        today = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        sorted_exams = sorted(exam_contexts, key=lambda ec: ec["exam_date"])
-        exam_date_map = {}
-        for ec in sorted_exams:
-            try:
-                exam_date_map[ec["exam_id"]] = datetime.fromisoformat(ec["exam_date"])
-            except (ValueError, TypeError):
-                continue
-
-        if not exam_date_map:
-            return []
-
-        last_exam = max(exam_date_map.values())
-        total_days = max(1, (last_exam.date() - today.date()).days + 1)
-
-        for day_offset in range(min(total_days, 60)):
-            day = today + timedelta(days=day_offset)
-            day_str = day.strftime("%Y-%m-%d")
-
-            active = [
-                (eid, edate) for eid, edate in exam_date_map.items()
-                if edate.date() >= day.date()
-            ]
-            if not active:
-                continue
-
-            active.sort(key=lambda x: x[1])
-            focus_eid, focus_date = active[0]
-            focus_ec = next(ec for ec in sorted_exams if ec["exam_id"] == focus_eid)
-            days_until = (focus_date.date() - day.date()).days
-            subj = focus_ec["subject"]
-
-            if days_until == 0:
-                tasks.append({
-                    "exam_id": focus_eid, "day_date": day_str, "deadline": day_str,
-                    "title": f"EXAM DAY: {focus_ec['name']}",
-                    "topic": None, "subject": subj,
-                    "sort_order": 1, "estimated_hours": 0, "difficulty": 0,
-                })
-            elif days_until == 1:
-                tasks.extend([
-                    {"exam_id": focus_eid, "day_date": day_str, "deadline": day_str,
-                     "title": f"{subj}: Warmup & Summary Review",
-                     "topic": "Pre-exam warmup", "subject": subj,
-                     "sort_order": 1, "estimated_hours": 1.5, "difficulty": 2},
-                ])
-            elif days_until <= 5:
-                # Simulation First Template
-                tasks.extend([
-                    {"exam_id": focus_eid, "day_date": day_str, "deadline": day_str,
-                     "title": f"{subj}: Full-Length Exam Simulation",
-                     "topic": "Simulation", "subject": subj,
-                     "sort_order": 1, "estimated_hours": 3.0, "difficulty": 5},
-                    {"exam_id": focus_eid, "day_date": day_str, "deadline": day_str,
-                     "title": f"{subj}: Simulation Review & Deep Analysis (תחקיר)",
-                     "topic": "Review", "subject": subj,
-                     "sort_order": 2, "estimated_hours": 1.5, "difficulty": 4},
-                    {"exam_id": focus_eid, "day_date": day_str, "deadline": day_str,
-                     "title": f"{subj}: Targeted Weakness Practice",
-                     "topic": "Practice", "subject": subj,
-                     "sort_order": 3, "estimated_hours": 1.5, "difficulty": 4},
-                ])
-            else:
-                tasks.extend([
-                    {"exam_id": focus_eid, "day_date": day_str, "deadline": day_str,
-                     "title": f"{subj}: Core Material Study",
-                     "topic": "New material", "subject": subj,
-                     "sort_order": 1, "estimated_hours": 3.0, "difficulty": 3},
-                    {"exam_id": focus_eid, "day_date": day_str, "deadline": day_str,
-                     "title": f"{subj}: Practice Exercises",
-                     "topic": "Practice", "subject": subj,
-                     "sort_order": 2, "estimated_hours": 2.0, "difficulty": 3},
-                ])
-
-        return tasks

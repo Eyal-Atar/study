@@ -184,7 +184,7 @@ export function initProfileTabs() {
 
             // Load gamification data when Achievements tab is opened
             if (targetId === 'tab-achievements') {
-                import('./profile.js?v=59').then(m => m.initGamification()).catch(() => {});
+                import('./profile.js?v=AUTO').then(m => m.initGamification()).catch(() => {});
             }
         });
     });
@@ -302,7 +302,7 @@ export function initMobileTabBar() {
         // Special handling for Profile tab: ensure sub-tabs are initialized and fields populated
         if (tab === 'profile') {
             if (typeof window._populateSettingsFields === 'function') window._populateSettingsFields();
-            import('./profile.js?v=59').then(m => m.initGamification()).catch(() => {});
+            import('./profile.js?v=AUTO').then(m => m.initGamification()).catch(() => {});
         }
     }
 

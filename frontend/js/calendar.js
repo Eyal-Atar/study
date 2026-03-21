@@ -1,6 +1,6 @@
-import { getCurrentExams, getCurrentTasks, setCurrentTasks, getAPI, authFetch, getCurrentSchedule, setCurrentSchedule, getCurrentUser, getTodayStr } from './store.js?v=59';
-import { examColorClass, showTaskEditModal, showConfirmModal, examHex } from './ui.js?v=59';
-import { initInteractions } from './interactions.js?v=59';
+import { getCurrentExams, getCurrentTasks, setCurrentTasks, getAPI, authFetch, getCurrentSchedule, setCurrentSchedule, getCurrentUser, getTodayStr } from './store.js?v=AUTO';
+import { examColorClass, showTaskEditModal, showConfirmModal, examHex } from './ui.js?v=AUTO';
+import { initInteractions } from './interactions.js?v=AUTO';
 
 let currentDayIndex = 0;
 let dayKeys = [];
