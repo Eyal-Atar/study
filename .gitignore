@@ -1,40 +1,29 @@
-# Environments
+# Secrets
 .env
 .env.*
 !.env.example
-.venv/
-backend/venv/
-venv/
+*.pem
 
-# Databases
+# Python
+.venv/
+venv/
+__pycache__/
+
+# Local data: legacy SQLite and uploaded study materials
 *.db
 *.db-wal
 *.db-shm
-backend/*.db
+uploads/
 
 # Logs
 *.log
-backend/*.log
 
-# Secrets
-*.pem
-backend/*.pem
-
-# OS files
-.DS_Store
-backend/.DS_Store
-frontend/.DS_Store
-
-# Media/Temp
-*.png
+# Screenshots
 Screenshot*
-uploads/
-backend/uploads/
+legacy/planning/printscreens/
 
-# IDE
+# OS and editors
+.DS_Store
 .vscode/
 .idea/
 .claude/
-
-# Planning (keep if user wants, but .gitignore had it)
-#.planning/
