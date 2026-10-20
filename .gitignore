@@ -1,11 +1,15 @@
 # Environments
 .env
+.env.*
+!.env.example
 .venv/
 backend/venv/
 venv/
 
 # Databases
 *.db
+*.db-wal
+*.db-shm
 backend/*.db
 
 # Logs
