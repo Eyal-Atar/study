@@ -25,6 +25,7 @@ REJECTED_TOKENS: dict[str, Callable[[TokenFactory, EllipticCurvePrivateKey, int]
     "sub-not-uuid": lambda make, other, now: make(sub="not-a-uuid"),
     "no-sub": lambda make, other, now: make(drop=("sub",)),
     "no-exp": lambda make, other, now: make(drop=("exp",)),
+    "no-iat": lambda make, other, now: make(drop=("iat",)),
     "unknown-kid": lambda make, other, now: make(key=other, kid="other-key"),
     "wrong-key-same-kid": lambda make, other, now: make(key=other),
     "hs256": lambda make, other, now: make(key="x" * 32, algorithm="HS256"),
@@ -44,6 +45,7 @@ def test_rejected_tokens_get_401(
     response = client.get("/me", headers=bearer(token))
     assert response.status_code == 401
     assert response.headers["www-authenticate"] == "Bearer"
+    assert response.headers["content-type"] == "application/problem+json"
     assert response.json()["code"] == "unauthenticated"
 
 
@@ -79,6 +81,7 @@ def test_unreachable_jwks_is_503(make_token: TokenFactory) -> None:
     settings = Settings(supabase_url="http://127.0.0.1:9", _env_file=None)  # nothing listens there
     response = TestClient(create_app(settings)).get("/me", headers=bearer(make_token()))
     assert response.status_code == 503
+    assert response.headers["content-type"] == "application/problem+json"
     assert response.json()["code"] == "auth_unavailable"
 
 
@@ -106,6 +109,7 @@ def test_broken_jwks_is_503(settings: Settings, make_token: TokenFactory, error:
     client = TestClient(create_app(settings, signing_keys=BrokenKeys(error)))
     response = client.get("/me", headers=bearer(make_token()))
     assert response.status_code == 503
+    assert response.headers["content-type"] == "application/problem+json"
     assert response.json()["code"] == "auth_unavailable"
 
 
