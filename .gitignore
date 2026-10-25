@@ -8,19 +8,31 @@
 .venv/
 venv/
 __pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+api/build/
+api/dist/
 
 # Local data: legacy SQLite and uploaded study materials
 *.db
 *.db-wal
 *.db-shm
-uploads/
+legacy/backend/uploads/
 
 # Logs
 *.log
 
-# Screenshots
-Screenshot*
+# Screenshots dropped in the repo root
+/Screenshot*
 legacy/planning/printscreens/
+
+# Agent workspaces
+.superpowers/
 
 # OS and editors
 .DS_Store
