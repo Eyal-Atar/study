@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth import SigningKeySource, TokenVerifier, jwks_client
 from app.config import Settings
@@ -15,6 +16,13 @@ def create_app(
     app.state.settings = settings
     app.state.token_verifier = TokenVerifier(keys, issuer=settings.jwt_issuer)
     register_error_handlers(app)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_headers=["Authorization", "Content-Type"],
+        max_age=600,
+    )
     app.include_router(health.router)
     app.include_router(me.router)
     return app
