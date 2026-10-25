@@ -45,7 +45,7 @@ sequenceDiagram
 |---|---|
 | Dependabot | ‏PR ‏#1 מעדכן את `astral-sh/setup-uv` מ-v9.0.0 ל-v10.3.0, והענף שלו יושב על `b62346c`. השינוי השובר היחיד ב-v10 הוא שה-cache כבוי כברירת מחדל באירועים `pull_request_target`, `workflow_run` ו-`release`. ‏`api.yml` רץ רק על `push` ועל `workflow_dispatch`, ולכן השינוי לא משפיע עלינו |
 | Node | במק מותקן v24.14.0, עם npm 11.9.0. ‏Node 24 נמצא ב-LTS (בתחזוקה מ-2026-10-20) עד 2028-04-30, והגרסה האחרונה שלו, 24.22.1, מגיעה עם npm 11.19.1. ‏Node 26 יהיה LTS מ-2026-10-28 |
-| npm | `min-release-age` (בימים) קיים מ-npm 11.10. יש גם `allow-git` ו-`ignore-scripts`. את `devEngines` שב-`package.json` בודקים לפני `install`, `ci` ו-`run`, וברירת המחדל של `onFail` היא `error` |
+| npm | `min-release-age` (בימים) קיים מ-npm 11.10, ו-`min-release-age-exclude` מ-11.17. יש גם `allow-git` ו-`ignore-scripts`. את `devEngines` שב-`package.json` בודקים לפני `install`, `ci` ו-`run`, וברירת המחדל של `onFail` היא `error` |
 | pnpm | הגרסה האחרונה היא 12.15.0, שנכתבה מחדש ב-Rust ויצאה באוגוסט. ‏Dependabot תומך רשמית ב-pnpm רק עד גרסה 10 |
 | TypeScript | הגרסה האחרונה היא 7.0.2, עם הקומפיילר החדש ב-Go. ‏typescript-eslint 8.72 תומך ב-`typescript >=4.8.4 <6.1.0`, ובתבנית של create-vite 9.3.1 כתוב `typescript ~6.0.3`, עם oxlint במקום ESLint |
 | גרסות | Vite 8.3, React 19.3, React Router 8.5 (`react-router-dom` הוסר, ו-`RouterProvider` מגיע מ-`react-router/dom`), TanStack Query 5.104, Tailwind 4.3 עם `@tailwindcss/vite`, supabase-js 2.118, ESLint 10.13, Vitest 5.0, React Aria Components 1.22 |
@@ -59,7 +59,7 @@ sequenceDiagram
 
 | נושא | החלטה | למה | על מה ויתרנו |
 |---|---|---|---|
-| מנהל חבילות | npm 11.10 ומעלה. ב-`web/.npmrc`: `min-release-age=7`, `ignore-scripts=true`, `allow-git=none`. ב-`package.json`: ‏`devEngines` שעוצר גרסה אחרת של Node או של npm | Dependabot תומך בו במלואו. הוא מגיע עם Node, אז אין מה להתקין במק או ב-CI. ההשהיה של 7 ימים זהה ל-`exclude-newer` של uv, ו-`setup-node` כבר מותר ב-Actions | ב-pnpm יש בנוסף `node_modules` קפדני, `trustPolicy` שמזהה ירידה ב-provenance, ורשימה מפורשת של חבילות שמותר להן להריץ סקריפטים. אבל Dependabot לא תומך ב-pnpm 12, ו-pnpm 10 נמצא שתי גרסאות ראשיות מאחור |
+| מנהל חבילות | npm 11.17 ומעלה. ב-`web/.npmrc`: `min-release-age=7`, `ignore-scripts=true`, `allow-git=none`. ב-`package.json`: ‏`devEngines` שעוצר גרסה אחרת של Node או של npm | Dependabot תומך בו במלואו. הוא מגיע עם Node, אז אין מה להתקין במק או ב-CI. ההשהיה של 7 ימים זהה ל-`exclude-newer` של uv, ו-`setup-node` כבר מותר ב-Actions | ב-pnpm יש בנוסף `node_modules` קפדני, `trustPolicy` שמזהה ירידה ב-provenance, ורשימה מפורשת של חבילות שמותר להן להריץ סקריפטים. אבל Dependabot לא תומך ב-pnpm 12, ו-pnpm 10 נמצא שתי גרסאות ראשיות מאחור |
 | ספריית רכיבים | React Aria Components, של Adobe, עם `I18nProvider locale="he-IL"` | ה-RTL נגזר מה-locale, כולל הכיוון של מקשי החצים. הנגישות מובנית, ובסעיף 7.9 היא חובה. יש בה רכיבי תאריך ולוח שנה עם locale ואזור זמן, שנצטרך למבחנים ולשבוע. הרכיבים בלי עיצוב, ולכן מתאימים ל-Tailwind | רכיבים מעוצבים מראש, כמו ב-shadcn/ui. את העיצוב נכתוב בעצמנו |
 | TypeScript | `~6.0.3` | typescript-eslint, שנותן את חוקי ה-lint שמבינים טיפוסים, עוד לא תומך ב-7. גם create-vite נשאר על 6.0 | המהירות של TypeScript 7. ב-Dependabot נוסיף כלל שמתעלם מגרסה ראשית חדשה של `typescript`, עם הערה |
 | lint | ESLint, עם `strictTypeChecked` של typescript-eslint וכללים משלנו (Task 3) | ESLint כתוב בסעיף 7.12. הכללים שלנו אוכפים את 7.9: טקסט רק מ-`he.ts`, logical properties, ובלי `alert` ובלי `dangerouslySetInnerHTML` | oxlint, שמהיר יותר וש-create-vite עבר אליו |
@@ -81,7 +81,7 @@ sequenceDiagram
 
 ## אילוצים גלובליים
 
-- Node `>=24.10.0 <25` ו-npm `>=11.10.0 <12`, דרך `devEngines` ב-`web/package.json`. הפקודות של ה-web רצות מתוך `web/`: `npm ci`, `npm run lint`, `npm run typecheck`, `npm test` ו-`npm run build`.
+- Node `>=24.10.0 <25` ו-npm `>=11.17.0 <12`, דרך `devEngines` ב-`web/package.json`. הפקודות של ה-web רצות מתוך `web/`: `npm ci`, `npm run lint`, `npm run typecheck`, `npm test` ו-`npm run build`.
 - TypeScript `~6.0.3` עם `"strict": true` ו-`"noUncheckedIndexedAccess": true`, ב-`tsconfig.app.json` וב-`tsconfig.node.json`.
 - כל הטקסט בממשק נמצא ב-`web/src/i18n/he.ts`. שם המוצר כתוב רק ב-`web/src/product.ts`, בתור `PRODUCT_NAME`, ומשם הוא מגיע ל-`he.ts` ול-`<title>`. טקסט בתוך JSX הוא שגיאת lint.
 - `<html lang="he" dir="rtl">`. ב-Tailwind משתמשים רק במחלקות לוגיות: `ms-*`, `me-*`, `ps-*`, `pe-*`, `start-*`, `end-*`, `text-start`, `text-end`, `border-s`, `border-e`, `rounded-s` ו-`rounded-e`. מחלקה עם left או right היא שגיאת lint.
@@ -327,7 +327,7 @@ CLAUDE.md, README.md, מסמך התכנון (7.9 ו-12)
 - `Button` ב-`src/ui/Button.tsx`: עוטף את `Button` של `react-aria-components`, עם אותם props ועם `variant?: 'primary' | 'secondary'`.
 - הסקריפטים `dev`, `lint`, `typecheck` (`tsc -b`), `test` (`vitest run`) ו-`build` (`vite build`).
 
-- [ ] **Step 1 (בשיחה הראשית): Node 24 עם npm 11.10 ומעלה**
+- [ ] **Step 1 (בשיחה הראשית): Node 24 עם npm 11.17 ומעלה**
   Run: `source ~/.nvm/nvm.sh && nvm install 24 && nvm alias default 24 && node --version && npm --version`
   Expected: ‏`v24.22.x` ו-`11.19.x`. שאר הגרסאות של Node שמותקנות נשארות.
 
@@ -347,7 +347,7 @@ CLAUDE.md, README.md, מסמך התכנון (7.9 ו-12)
     },
     "devEngines": {
       "runtime": { "name": "node", "version": ">=24.10.0 <25", "onFail": "error" },
-      "packageManager": { "name": "npm", "version": ">=11.10.0 <12", "onFail": "error" }
+      "packageManager": { "name": "npm", "version": ">=11.17.0 <12", "onFail": "error" }
     }
   }
   ```
