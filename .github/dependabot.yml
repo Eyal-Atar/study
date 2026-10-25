@@ -1,0 +1,32 @@
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /api
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      api:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # legacy/ is reference only and is deleted at the end of phase 4. Its alerts
+  # still show in the Security tab; this entry only stops update pull requests.
+  - package-ecosystem: pip
+    directories:
+      - /legacy/backend
+      - /legacy/backend/eval
+    schedule:
+      interval: monthly
+    ignore:
+      - dependency-name: "*"

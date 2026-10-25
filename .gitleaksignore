@@ -1,0 +1,12 @@
+# Findings in old history that were checked and are not live secrets.
+# Each line is a gitleaks fingerprint: <commit>:<file>:<rule>:<line>.
+
+# Old VAPID private key in scripts/test_old_key.py. S01 confirmed it is neither
+# the current key nor the one it replaced; S02 deleted the file (49a4320).
+bc16ac149a8d5f5cd7bc48976dd5d5eb46e6cb0b:scripts/test_old_key.py:generic-api-key:9
+
+# Old VAPID public key in a phase 11 summary of the old planning docs (and its
+# archived copy). A VAPID public key is public by design (browsers receive it),
+# and it is not the current one. Checked in S03 on 2026-10-25.
+f3cd6ddbb1fbc32a670547f41b983f1e0a9c1a88:.planning/phases/11-push-notifications/11-02-SUMMARY.md:generic-api-key:91
+bc16ac149a8d5f5cd7bc48976dd5d5eb46e6cb0b:.planning/milestones/phases 10-14/11-push-notifications/11-02-SUMMARY.md:generic-api-key:91

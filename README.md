@@ -3,6 +3,7 @@
 אפליקציה לתכנון לימודים לסטודנטים בישראל. הריפו בבנייה מחדש (v2).
 
 - `api/`: ה-API של v2, ב-FastAPI עם Python 3.14 ו-uv.
+- `.github/`: CI ל-api, סריקת סודות ו-Dependabot.
 - `docs/superpowers/specs/`: מסמך התכנון של v2.
 - `docs/superpowers/plans/`: תוכנית עבודה לכל scope.
 - `legacy/`: הקוד הקודם, לעיון בלבד. הוא לא מתוחזק ולא רץ, ונמחק בסוף שלב 4.
