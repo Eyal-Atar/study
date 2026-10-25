@@ -98,8 +98,9 @@ class BrokenKeys:
         json.JSONDecodeError("Expecting value", "<html>", 0),
         ConnectionResetError(),
         jwt.PyJWKSetError("The JWK Set did not contain any keys"),
+        UnicodeDecodeError("utf-8", b"\x80", 0, 1, "invalid start byte"),
     ],
-    ids=["not-json", "connection-reset", "empty-key-set"],
+    ids=["not-json", "connection-reset", "empty-key-set", "non-utf8-body"],
 )
 def test_broken_jwks_is_503(settings: Settings, make_token: TokenFactory, error: Exception) -> None:
     client = TestClient(create_app(settings, signing_keys=BrokenKeys(error)))

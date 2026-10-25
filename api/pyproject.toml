@@ -13,12 +13,17 @@ dependencies = [
 
 [tool.uv]
 required-version = ">=0.13"
+# Cooldown: a dependency younger than 7 days stays out of the lock (supply-chain
+# protection, the same idea as Dependabot's cooldown). It also delays security fixes.
+# For an urgent fix, add that one package to `exclude-newer-package` in [tool.uv]
+# (or pass `--exclude-newer-package <pkg>=<date>` to `uv lock`), then remove it again.
 exclude-newer = "7 days"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = ["-ra", "--strict-markers"]
+filterwarnings = ["error"]
 
 [tool.ruff]
 target-version = "py314"

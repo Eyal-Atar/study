@@ -15,6 +15,10 @@ class Settings(BaseSettings):
                 "SUPABASE_URL must be the project URL, for example "
                 "https://<ref>.supabase.co, with no path"
             )
+        if value.query or value.fragment or value.username or value.password:
+            raise ValueError(
+                "SUPABASE_URL must be the bare project URL, with no query, fragment or credentials"
+            )
         return value
 
     @property

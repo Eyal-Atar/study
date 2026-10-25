@@ -37,7 +37,7 @@ _HTTP_STATUS_CODES = {401: "unauthenticated", 404: "not_found", 405: "method_not
 
 class ApiError(Exception):
     def __init__(self, code: str, *, headers: Mapping[str, str] | None = None) -> None:
-        PROBLEMS[code]
+        PROBLEMS[code]  # deliberate KeyError: an unknown code must fail at construction
         super().__init__(code)
         self.code = code
         self.headers = dict(headers) if headers else None

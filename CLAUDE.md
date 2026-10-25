@@ -26,3 +26,5 @@
 | lint | `uv run ruff check .` |
 | בדיקת פורמט | `uv run ruff format --check .` |
 | טיפוסים | `uv run mypy` |
+
+ב-`api/pyproject.toml` מוגדר `exclude-newer = "7 days"`: תלות צעירה מ-7 ימים לא נכנסת ל-lock (הגנת supply-chain), וזה מעכב גם תיקוני אבטחה; לתיקון דחוף מוסיפים את החבילה הבודדת ל-`exclude-newer-package` ב-`[tool.uv]` (או מעבירים `--exclude-newer-package <pkg>=<date>` ל-`uv lock`) ומסירים אותה אחר כך.

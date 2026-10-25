@@ -33,6 +33,7 @@ _JWKS_FAILURES = (
     jwt.PyJWKSetError,
     OSError,
     json.JSONDecodeError,
+    UnicodeDecodeError,
 )
 
 

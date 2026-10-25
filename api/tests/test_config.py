@@ -22,7 +22,16 @@ def test_missing_project_url_fails_at_startup(monkeypatch: pytest.MonkeyPatch) -
         Settings(_env_file=None)
 
 
-@pytest.mark.parametrize("url", ["https://test-ref.supabase.co/auth/v1", "test-ref.supabase.co"])
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://test-ref.supabase.co/auth/v1",
+        "test-ref.supabase.co",
+        "https://test-ref.supabase.co/?x=1",
+        "https://test-ref.supabase.co/#frag",
+        "https://user:pw@test-ref.supabase.co",
+    ],
+)
 def test_project_url_must_be_the_bare_project_url(url: str) -> None:
     with pytest.raises(ValidationError):
         Settings(supabase_url=url, _env_file=None)
