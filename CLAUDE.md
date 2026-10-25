@@ -1,0 +1,28 @@
+# StudyFlow v2
+
+## מסמכים
+
+- מסמך התכנון: `docs/superpowers/specs/2026-10-19-studyflow-v2-design.md`
+- תוכניות לכל scope: `docs/superpowers/plans/`
+- מפת הדרכים והסטטוסים: [artifact](https://claude.ai/code/artifact/29a3c52e-d399-425e-90b6-7c05e9146bfa)
+
+## כללי עבודה
+
+- כל scope מקבל תוכנית לפני תחילת העבודה, ונעשה בענף משלו.
+- באג שאינו קשור למשימה הנוכחית לא מתוקן. הוא נרשם בטבלה "באגים שנרשמו" ב-artifact, באמצעות כלי ה-Docs, והעבודה במשימה נמשכת.
+- `legacy/` לעיון בלבד: לא מריצים אותו, לא עורכים אותו ולא מריצים עליו כלים.
+- אין commit, push או מיזוג בלי אישור מפורש לרשימת הפעולות.
+- כתיבה בעברית, מונחים טכניים באנגלית.
+
+## פקודות `api/`
+
+הפקודות רצות מתוך `api/`.
+
+| פעולה | פקודה |
+| --- | --- |
+| התקנת תלויות | `uv sync` |
+| הרצת השרת | `uv run uvicorn app.main:create_app --factory --reload` |
+| בדיקות | `uv run pytest` |
+| lint | `uv run ruff check .` |
+| בדיקת פורמט | `uv run ruff format --check .` |
+| טיפוסים | `uv run mypy` |
