@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { createBrowserRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { AppProviders } from './app/AppProviders'
+import { createAppApi } from './app/createAppApi'
 import { createQueryClient } from './app/queryClient'
 import { routes } from './app/routes'
 import { createSupabase } from './auth/supabase'
@@ -20,10 +21,11 @@ function createApp(): ReactNode {
     throw error
   }
   const supabase = createSupabase(env)
+  const api = createAppApi(env.apiUrl, supabase.auth)
   const queryClient = createQueryClient()
   const router = createBrowserRouter(routes)
   return (
-    <AppProviders auth={supabase.auth} queryClient={queryClient}>
+    <AppProviders auth={supabase.auth} api={api} queryClient={queryClient}>
       <RouterProvider router={router} />
     </AppProviders>
   )

@@ -1,19 +1,25 @@
 import { QueryClient } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
+import type { ApiClient } from '../api/client'
 import { AppProviders } from '../app/AppProviders'
 import { routes } from '../app/routes'
 import type { FakeAuth } from './fakeAuth'
 
 // Renders the real routes at `path`, inside the real providers, with a fake auth client.
-export function renderRoute(path: string, { auth, queryClient }: { auth: FakeAuth; queryClient?: QueryClient }) {
+export function renderRoute(path: string, { auth, api, queryClient }: { auth: FakeAuth; api?: ApiClient; queryClient?: QueryClient }) {
   const client = queryClient ?? new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  // Tests that do not care about the API get one that never answers.
+  const apiClient = api ?? { get: () => new Promise<never>(() => undefined) }
   const router = createMemoryRouter(routes, { initialEntries: [path] })
   const result = render(
-    <AppProviders auth={auth.client} queryClient={client}>
-      <RouterProvider router={router} />
-    </AppProviders>,
+    <StrictMode>
+      <AppProviders auth={auth.client} api={apiClient} queryClient={client}>
+        <RouterProvider router={router} />
+      </AppProviders>
+    </StrictMode>,
   )
   return { ...result, router }
 }

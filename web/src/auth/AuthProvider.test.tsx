@@ -13,7 +13,7 @@ function Status() {
 
 function renderProvider(auth: FakeAuth, queryClient = new QueryClient()) {
   const result = render(
-    <AppProviders auth={auth.client} queryClient={queryClient}>
+    <AppProviders auth={auth.client} api={{ get: () => Promise.reject(new Error('unused')) }} queryClient={queryClient}>
       <Status />
     </AppProviders>,
   )
