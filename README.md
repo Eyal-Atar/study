@@ -3,6 +3,7 @@
 אפליקציה לתכנון לימודים לסטודנטים בישראל. הריפו בבנייה מחדש (v2).
 
 - `api/`: ה-API של v2, ב-FastAPI עם Python 3.14 ו-uv.
+- `web/`: האפליקציה של v2, ב-React עם TypeScript ו-Vite, בעברית וב-RTL.
 - `.github/`: CI ל-api, סריקת סודות ו-Dependabot.
 - `docs/superpowers/specs/`: מסמך התכנון של v2.
 - `docs/superpowers/plans/`: תוכנית עבודה לכל scope.
@@ -23,3 +24,16 @@ uv run uvicorn app.main:create_app --factory --reload
 ```
 
 בדיקות: `uv run pytest`. lint ופורמט: `uv run ruff check .` ו-`uv run ruff format --check .`. טיפוסים: `uv run mypy`.
+
+## הרצת ה-web
+
+הפקודות רצות מתוך `web/`, וצריך Node 24 עם npm 11.17 ומעלה.
+
+```bash
+cd web
+npm ci
+cp .env.example .env    # וממלאים
+npm run dev
+```
+
+ה-API צריך לרוץ, ו-`CORS_ORIGINS` שלו צריך לכלול את `http://localhost:5173`.
