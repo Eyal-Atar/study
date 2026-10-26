@@ -20,7 +20,8 @@ export interface AuthClient {
   }
   signInWithOAuth(credentials: {
     provider: 'google'
-    options: { redirectTo: string }
+    // prompt=select_account makes Google show the account chooser, even when one account is signed in.
+    options: { redirectTo: string; queryParams: { prompt: 'select_account' } }
   }): Promise<{ error: Error | null }>
   // Only 'local': the default 'global' would sign the user out on every device.
   signOut(options: { scope: 'local' }): Promise<{ error: Error | null }>

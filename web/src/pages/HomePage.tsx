@@ -11,7 +11,11 @@ export function HomePage() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-16">
       <h1 className="text-3xl font-bold">{he.appName}</h1>
-      {me.isPending ? <p className="mt-8">{he.common.loading}</p> : null}
+      {me.isPending ? (
+        <p role="status" className="mt-8">
+          {he.common.loading}
+        </p>
+      ) : null}
       {me.isError ? (
         <div className="mt-8">
           <p role="alert">{errorMessage(me.error)}</p>

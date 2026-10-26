@@ -6,7 +6,7 @@ import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
 
 describe('LoginPage', () => {
-  it('starts Google sign-in with PKCE redirect to the callback route', async () => {
+  it('starts Google sign-in, with the account chooser and a redirect to the callback route', async () => {
     const user = userEvent.setup()
     const auth = createFakeAuth(null)
     renderRoute('/login', { auth })
@@ -14,7 +14,10 @@ describe('LoginPage', () => {
     await user.click(await screen.findByRole('button', { name: he.login.google }))
     expect(auth.signInWithOAuth).toHaveBeenCalledExactlyOnceWith({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: { prompt: 'select_account' },
+      },
     })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })

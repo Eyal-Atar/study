@@ -63,8 +63,36 @@ def test_cors_origins_come_from_a_json_list(monkeypatch: pytest.MonkeyPatch) -> 
         "http://localhost:5173?x=1",
         "http://localhost:5173#top",
         "http://user@localhost:5173",
+        " http://localhost:5173",
+        "http://localhost:5173 ",
+        "http://localhost ",
+        "http://localhost:abc",
+        "http://localhost:",
+        "http://localhost:05173",
+        "http://localhost:99999",
+        "http://x:80",
+        "https://x:443",
     ],
 )
 def test_cors_origin_must_be_exactly_what_a_browser_sends(origin: str) -> None:
-    with pytest.raises(ValidationError, match="CORS_ORIGINS"):
+    with pytest.raises(ValidationError, match="CORS_ORIGINS must list browser origins"):
         Settings(supabase_url="https://test-ref.supabase.co", cors_origins=[origin], _env_file=None)
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "http://localhost:5173",
+        "https://app.example.com",
+        "http://127.0.0.1:8000",
+        "http://[::1]:5173",
+        "https://x:8443",
+        # 443 is the default port of https only, so a browser keeps it in an http origin.
+        "http://x:443",
+    ],
+)
+def test_cors_origin_accepts_what_a_browser_sends(origin: str) -> None:
+    settings = Settings(
+        supabase_url="https://test-ref.supabase.co", cors_origins=[origin], _env_file=None
+    )
+    assert settings.cors_origins == [origin]

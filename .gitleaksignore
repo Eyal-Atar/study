@@ -10,3 +10,13 @@ bc16ac149a8d5f5cd7bc48976dd5d5eb46e6cb0b:scripts/test_old_key.py:generic-api-key
 # and it is not the current one. Checked in S03 on 2026-10-25.
 f3cd6ddbb1fbc32a670547f41b983f1e0a9c1a88:.planning/phases/11-push-notifications/11-02-SUMMARY.md:generic-api-key:91
 bc16ac149a8d5f5cd7bc48976dd5d5eb46e6cb0b:.planning/milestones/phases 10-14/11-push-notifications/11-02-SUMMARY.md:generic-api-key:91
+
+# Fake Supabase publishable key (sb_publishable_ plus a made-up suffix) in the
+# S04 web tests and in the S04 plan. A Supabase publishable key is public by
+# design (browsers receive it), and this one is not real. Checked in S04 on
+# 2026-10-25.
+3a392cd722a93e772091df3a04483d4c3fd8632b:web/src/auth/supabase.test.ts:generic-api-key:9
+3a392cd722a93e772091df3a04483d4c3fd8632b:web/src/config/env.test.ts:generic-api-key:6
+3a392cd722a93e772091df3a04483d4c3fd8632b:web/src/config/env.test.ts:generic-api-key:38
+4ff15e77590e7b3da8aee39e3d4ae4cf1c2de64c:docs/superpowers/plans/2026-10-25-s04-web-skeleton.md:generic-api-key:503
+4ff15e77590e7b3da8aee39e3d4ae4cf1c2de64c:docs/superpowers/plans/2026-10-25-s04-web-skeleton.md:generic-api-key:504

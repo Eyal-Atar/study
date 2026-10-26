@@ -27,6 +27,15 @@ describe('HomePage', () => {
     expect(get).toHaveBeenCalled()
   })
 
+  it('announces the loading of /me as a status', async () => {
+    const { api } = fakeApi(() => new Promise(() => undefined))
+    renderRoute('/', { auth: createFakeAuth(fakeSession()), api })
+
+    // The heading is HomePage's, so the status is not the one RequireAuth shows while auth loads.
+    expect(await screen.findByRole('heading', { name: he.appName })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(he.common.loading)
+  })
+
   it('shows noEmail when the account has no email', async () => {
     const { api } = fakeApi(() => Promise.resolve({ id: 'u1', email: null }))
     renderRoute('/', { auth: createFakeAuth(fakeSession()), api })

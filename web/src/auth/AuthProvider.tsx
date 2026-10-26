@@ -35,7 +35,12 @@ export function AuthProvider({ auth, children }: { auth: AuthClient; children: R
       signInWithGoogle: async () => {
         const { error } = await auth.signInWithOAuth({
           provider: 'google',
-          options: { redirectTo: `${window.location.origin}${AUTH_CALLBACK_PATH}` },
+          options: {
+            redirectTo: `${window.location.origin}${AUTH_CALLBACK_PATH}`,
+            // Always the account chooser: on a shared computer, or with several Google accounts,
+            // Google would otherwise sign in with the account it picks by itself.
+            queryParams: { prompt: 'select_account' },
+          },
         })
         if (error !== null) throw error
       },

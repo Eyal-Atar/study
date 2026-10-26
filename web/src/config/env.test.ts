@@ -125,4 +125,13 @@ describe('readEnv', () => {
       expect(problems[0]).toContain('VITE_API_URL')
     },
   )
+
+  // The client appends paths like /me, so nothing may follow the path, not even an empty ? or #.
+  it.each([
+    ['http://localhost:8000/?', 'http://localhost:8000'],
+    ['http://localhost:8000/#', 'http://localhost:8000'],
+    ['http://localhost:8000/api/?', 'http://localhost:8000/api'],
+  ])('normalizes the API URL %s to %s', (url, expected) => {
+    expect(readEnv({ ...valid, VITE_API_URL: url }).apiUrl).toBe(expected)
+  })
 })

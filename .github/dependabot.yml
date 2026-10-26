@@ -25,6 +25,9 @@ updates:
       # once it supports TypeScript 7, then upgrade TypeScript by hand.
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]
+      # Pinned to ^24 to match the Node 24 runtime. Remove when the runtime moves to Node 26.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /

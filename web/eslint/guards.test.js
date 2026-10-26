@@ -35,33 +35,54 @@ describe('browser dialogs', () => {
   })
 })
 
-describe.each([SOURCE, TEST])('dangerouslySetInnerHTML in %s', (filePath) => {
+describe.each([SOURCE, TEST])('raw HTML in %s', (filePath) => {
   it.each([
     '<div dangerouslySetInnerHTML={{ __html: x }} />',
     "createElement('div', { dangerouslySetInnerHTML: { __html: x } })",
+    "({ 'dangerouslySetInnerHTML': x })",
+    'el.innerHTML = x',
+    'el.outerHTML = x',
+    "el.insertAdjacentHTML('beforeend', x)",
   ])('forbids %s', async (code) => {
     expect(await ruleIds(code, filePath)).toEqual(['no-restricted-syntax'])
+  })
+
+  // Only writing HTML is forbidden: reading it, or writing text, parses nothing.
+  it.each(['const html = el.innerHTML', 'el.textContent = x'])('allows %s', async (code) => {
+    expect(await ruleIds(code, filePath)).toEqual([])
   })
 })
 
 describe('UI text', () => {
-  it.each(['<p>שלום</p>', '<p>Hello</p>', '<input aria-label="שם" />'])(
-    'forbids text written in JSX: %s',
-    async (code) => {
-      expect(await ruleIds(code, SOURCE)).toEqual(['no-restricted-syntax'])
-    },
-  )
-
-  it.each(['<p>{he.tagline}</p>', '<input aria-label={he.tagline} />'])(
-    'allows text from he.ts: %s',
-    async (code) => {
-      expect(await ruleIds(code, SOURCE)).toEqual([])
-    },
-  )
-
-  it('allows text written in tests', async () => {
-    expect(await ruleIds('<p>Hello</p>', TEST)).toEqual([])
+  it.each([
+    '<p>שלום</p>',
+    '<p>Hello</p>',
+    '<input aria-label="שם" />',
+    "<p>{'Hello'}</p>",
+    '<p>{"שלום"}</p>',
+    "<>{'Hello'}</>",
+    "<input aria-label={'שם'} />",
+  ])('forbids text written in JSX: %s', async (code) => {
+    expect(await ruleIds(code, SOURCE)).toEqual(['no-restricted-syntax'])
   })
+
+  it.each([
+    '<p>{he.tagline}</p>',
+    '<input aria-label={he.tagline} />',
+    // No letter: the space JSX needs between two elements.
+    "<p>{' '}</p>",
+    // className is not text the user reads.
+    "<div className={'ms-4'} />",
+  ])('allows %s', async (code) => {
+    expect(await ruleIds(code, SOURCE)).toEqual([])
+  })
+
+  it.each(['<p>Hello</p>', "<p>{'Hello'}</p>", "<input aria-label={'שם'} />"])(
+    'allows text written in tests: %s',
+    async (code) => {
+      expect(await ruleIds(code, TEST)).toEqual([])
+    },
+  )
 })
 
 describe('Tailwind direction', () => {
@@ -74,12 +95,28 @@ describe('Tailwind direction', () => {
     '<div className="border-l" />',
     '<div className="rounded-r-lg" />',
     '<div className={`ml-${n}`} />',
+    '<div className="float-left" />',
+    '<div className="float-right" />',
+    '<div className="clear-right" />',
+    '<div className="bg-left" />',
+    '<div className="object-right" />',
+    '<div className="origin-top-left" />',
+    '<div className="origin-bottom-right" />',
+    '<div className="rounded-tl-lg" />',
+    '<div className="rounded-br" />',
+    '<div className="scroll-ml-2" />',
+    '<div className="scroll-pr-4" />',
   ])('forbids the physical class in %s', async (code) => {
     expect(await ruleIds(code, SOURCE)).toEqual(['no-restricted-syntax'])
   })
 
   it.each([
     '<div className="ms-4 pe-2 text-start start-0 border-s rounded-e-lg" />',
+    '<div className="float-start" />',
+    '<div className="rounded-ss-lg" />',
+    '<div className="scroll-ms-2" />',
+    '<div className="origin-top" />',
+    '<div className="bg-center" />',
     "const tag = 'html'",
   ])('allows %s', async (code) => {
     expect(await ruleIds(code, SOURCE)).toEqual([])

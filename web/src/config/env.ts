@@ -127,7 +127,8 @@ function publishableKey(value: string): string | null {
 }
 
 // The API may sit under a path. The trailing slash goes, since the client appends paths like /me.
+// Built from origin and path, so an empty ? or # (which URL reports as '') is dropped too.
 function apiUrl(value: string): string | null {
   const url = parseHttpUrl(value)
-  return url === null ? null : url.href.replace(/\/+$/, '')
+  return url === null ? null : `${url.origin}${url.pathname}`.replace(/\/+$/, '')
 }
