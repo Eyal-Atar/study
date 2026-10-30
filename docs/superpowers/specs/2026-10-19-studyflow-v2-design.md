@@ -79,19 +79,20 @@ studyflow/
 │   │   ├── main.py
 │   │   ├── config.py         הגדרות מ-env (pydantic-settings)
 │   │   ├── auth.py           אימות JWT של Supabase
-│   │   ├── db/               מודלים, session, טרנזקציות
+│   │   ├── db/               חיבור וטרנזקציה בשם המשתמש (RLS)
 │   │   ├── domain/           לוגיקה טהורה: זמן, מתכנן, גיימיפיקציה
 │   │   ├── services/         תרחישי שימוש: מבחנים, חומרים, תוכנית, התקדמות
 │   │   ├── ai/               לקוח Claude, פרומפטים, סכמות
 │   │   ├── jobs/             משימות רקע ו-worker
 │   │   └── routers/          endpoints דקים
-│   ├── migrations/           Alembic
+│   ├── migrations/           Alembic, עם SQL מפורש
 │   ├── tests/
 │   └── eval/                 golden cases לבדיקת הפרומפטים
-├── supabase/             הגדרות לסביבה מקומית (supabase CLI)
 ├── docs/superpowers/     מסמכי תכנון ותוכניות עבודה
 └── legacy/               הקוד הישן, לעיון בלבד; נמחק אחרי ההעברה
 ```
+
+אין תיקיית `supabase/`. ה-CLI של Supabase צריך Docker כדי להריץ סביבה מקומית, ואין Docker במק. הבדיקות רצות מול Postgres מ-Homebrew (סעיף 7.12).
 
 ### 7.2 רכיבים ותקשורת
 
@@ -122,18 +123,25 @@ flowchart RL
 - כל חישוב של "יום מקומי" (היום, חלונות לימוד, ימי מנוחה) נעשה עם `zoneinfo`, אף פעם לא עם הפרש קבוע בדקות.
 - תאריך מבחן נשמר כ-`date` (תאריך מקומי). שעות קימה ושינה נשמרות כ-`time`.
 - ה-API מחזיר ISO 8601 עם offset; הממשק מציג לפי אזור הזמן של המשתמש.
+- **שעה שלא קיימת או שחוזרת:** שעה שנופלת בפער של המעבר לשעון קיץ זזה קדימה באורך הפער (02:30 הופכת ל-03:30). שעה שחוזרת פעמיים במעבר לשעון חורף מתפרשת כמופע הראשון. שם של אזור זמן נבדק מול רשימת IANA, כולל אותיות גדולות וקטנות. העזרים ב-`api/app/domain/time.py`.
 - **בדיקות חובה:** הלילה של המעבר לשעון חורף ולשעון קיץ ב-`Asia/Jerusalem`, בלוק שחוצה חצות, ומשתמש שפותח את האפליקציה מאזור זמן אחר.
 
 ### 7.4 מודל הנתונים
 
 כל טבלאות האפליקציה יושבות בסכמה `app`, שלא נחשפת דרך ה-REST האוטומטי של Supabase, ועל כולן מופעל RLS לפי `user_id = auth.uid()`. **(החלטה שלי)** — ב-Supabase, טבלה בסכמת `public` בלי RLS קריאה לכל מי שמחזיק את מפתח ה-anon.
 
+**איך RLS נאכף מול ה-API:** ה-API מתחבר עם תפקיד ייעודי, `studyflow_api`, שאין לו הרשאות משלו ואין לו `BYPASSRLS`. כל בקשה רצה בטרנזקציה שעוברת לתפקיד `authenticated` וכותבת את ה-claims המאומתים ל-`request.jwt.claims`, ולכן `auth.uid()` מחזיר את המשתמש ו-RLS חל, כמו ב-PostgREST של Supabase. קוד ששוכח את הטרנזקציה מקבל שגיאת הרשאה, ולא נתונים. המיגרציות ועבודות המערכת רצות בתור `postgres`, שעוקף RLS.
+
+מפתחות זרים בין טבלאות האפליקציה כוללים את `user_id`, ולכן אי אפשר לקשר שורה לשורה של משתמש אחר.
+
+כל טבלה נוצרת במיגרציה של ה-scope שצריך אותה. S05 יוצר את `profiles`, `exams`, `tasks` ו-`blocks`, בלי `exams.status`, `tasks.topic_id`, `tasks.material_id`, `blocks.plan_version_id` ו-`blocks.notified_at`. אחר כך: `plan_versions` ב-S08, `materials` ו-`jobs` ב-S10, `topics` ב-S11, `ai_usage` ב-S12, `push_subscriptions` ב-S16, `xp_events` ו-`badges` ב-S19.
+
 | טבלה | שדות עיקריים | הערות |
 |---|---|---|
 | `profiles` | `id` (= `auth.users.id`), `display_name`, `timezone`, `wake_time`, `sleep_time`, `daily_study_minutes`, `study_windows` (בוקר/צהריים/ערב/לילה), `rest_days_before_exam`, `notify_lead_minutes`, `onboarding_completed_at` | העדפות שנאספו באונבורדינג ובהגדרות |
 | `exams` | `id`, `user_id`, `name`, `exam_date` (date), `difficulty` (1–5), `status`, `deleted_at` | הקושי משמש לחלוקת השעות בין מבחנים במקביל |
 | `materials` | `id`, `exam_id`, `user_id`, `storage_path`, `filename`, `kind` (syllabus / summary / past_exam / solution / notes / other), `mime`, `size_bytes`, `page_count`, `ingest_status`, `text_by_page` | `solution` נשמר כבר עכשיו, למערכת הפידבק העתידית |
-| `topics` | `id`, `exam_id`, `name`, `weight`, `evidence` | נושאים שה-AI מצא, עם הפניה לשאלות במבחני העבר. בעתיד: ביצועים לפי נושא |
+| `topics` | `id`, `user_id`, `exam_id`, `name`, `weight`, `evidence` | נושאים שה-AI מצא, עם הפניה לשאלות במבחני העבר. בעתיד: ביצועים לפי נושא |
 | `tasks` | `id`, `user_id`, `exam_id`, `topic_id`, `title`, `kind` (learn / practice / review / simulation / simulation_review / custom), `estimated_minutes`, `focus` (1–10), `depends_on_task_id`, `material_id`, `status` (todo / done / skipped), `source` (ai / user), `deleted_at` | `material_id` מקשר סימולציה למבחן העבר שלה |
 | `blocks` | `id`, `user_id`, `task_id` (FK עם `ON DELETE CASCADE`), `starts_at`, `ends_at`, `part_index`, `part_count`, `pinned`, `status` (planned / done / missed / skipped), `notified_at`, `plan_version_id` | `pinned` מחליף את `is_manually_edited`: בלוק שהמשתמש קבע לא זז בתכנון מחדש |
 | `plan_versions` | `id`, `user_id`, `reason`, `created_at`, `snapshot` (JSONB של הבלוקים העתידיים) | בסיס ל"ביטול" של כל שינוי בתוכנית |
@@ -271,12 +279,12 @@ flowchart RL
 
 ### 7.12 תפעול
 
-- **סביבות:** מקומית (`supabase start`, `uvicorn`, `vite`), staging ו-production.
+- **סביבות:** מקומית: `uvicorn` ו-`vite` מול פרויקט ה-dev ב-Supabase, ו-Postgres 17 מ-Homebrew לבדיקות. אין Docker במק, ולכן אין `supabase start`. אחר כך staging ו-production.
 - **אירוח:** ה-API וה-worker כקונטיינר על PaaS; ה-web על אירוח סטטי. הספקים הם החלטה של מי שבונה, באזור קרוב לישראל.
 - **CI ב-GitHub Actions:**
   - api: ruff, type-check, pytest
   - web: eslint, tsc, vitest, build
-  - בדיקת מיגרציות
+  - בדיקת מיגרציות: pytest מריץ את כל המיגרציות על Postgres 17 נקי, הלוך וחזור, ובודק שלכל טבלה ב-`app` יש RLS
   - Playwright על main
 - **ניטור:** Sentry ב-web, ב-API וב-worker; אנליטיקת מוצר לאירועי הליבה (הרשמה, אונבורדינג שהושלם, תוכנית שנוצרה, בלוק שהושלם, יום פעיל).
 - **גיבויים:** הגיבויים של Supabase, ועוד dump שבועי.
@@ -301,7 +309,7 @@ flowchart RL
 | שלב | תוכן | שער |
 |---|---|---|
 | 0 — ייצוב וביטחון | ריפו פרטי, Pages כבוי, מפתחות חדשים, ניקוי, `legacy/` | ריפו פרטי ונקי |
-| 1 — שלד | `web/`, `api/`, `supabase/`, אימות, CI | כניסה עם Google למסך ריק בעברית, CI ירוק |
+| 1 — שלד | `web/`, `api/`, אימות, CI | כניסה עם Google למסך ריק בעברית, CI ירוק |
 | 2 — נתונים, זמן ושיבוץ | סכמה, מודל זמן, המתכנן עם בדיקות, גרסאות תוכנית | בדיקות ירוקות, כולל מעבר שעון ו-3 מבחנים |
 | 3 — AI עם Claude | קליטת חומרים, ניתוח קורס, תור עבודות, eval, מכסות | מבחן אמיתי הופך לתוכנית, וכשל מוצג למשתמש |
 | 4 — מסכי הליבה | אונבורדינג, היום, שבוע, מבחן, Push, מיתוג בסיסי | 5 סטודנטים מסיימים אונבורדינג לבד תוך 5 דקות |
@@ -351,7 +359,7 @@ flowchart RL
 
 ## 12. מה נשאר להחלטת מי שבונה
 
-- הספריות בתוך הסטאק: ספריית תאריכים, ספריית התור, Alembic מול מיגרציות של Supabase. רכיבי ה-UI ומנהל החבילות נקבעו ב-S04 (סעיף 7.9).
+- הספריות בתוך הסטאק: ספריית התור. רכיבי ה-UI ומנהל החבילות נקבעו ב-S04 (סעיף 7.9). המיגרציות, הגישה למסד ומודל הזמן נקבעו ב-S05: Alembic עם SQL מפורש, psycopg 3, ו-`zoneinfo` עם החבילה `tzdata` במקום ספריית תאריכים.
 - ספקי האירוח של ה-API ושל ה-web, בתנאי שהם מנוהלים, זולים וקרובים לישראל.
 - המודלים של Claude לכל שלב, לפי תוצאות ה-eval.
 - המספרים המדויקים של המכסות והמגבלות.

@@ -14,16 +14,17 @@
 
 ## הרצת ה-API
 
-הפקודות רצות מתוך `api/`, וצריך [uv](https://docs.astral.sh/uv/).
+הפקודות רצות מתוך `api/`, וצריך [uv](https://docs.astral.sh/uv/). לבדיקות צריך גם Postgres 17 מקומי (`brew install postgresql@17 && brew services start postgresql@17`).
 
 ```bash
 cd api
 uv sync
-cp .env.example .env    # וממלאים את SUPABASE_URL
+cp .env.example .env    # וממלאים את SUPABASE_URL ואת MIGRATION_DATABASE_URL
+uv run alembic upgrade head
 uv run uvicorn app.main:create_app --factory --reload
 ```
 
-בדיקות: `uv run pytest`. lint ופורמט: `uv run ruff check .` ו-`uv run ruff format --check .`. טיפוסים: `uv run mypy`.
+בדיקות: `uv run pytest` (הן יוצרות מסד `studyflow_test` ב-Postgres המקומי). lint ופורמט: `uv run ruff check .` ו-`uv run ruff format --check .`. טיפוסים: `uv run mypy`.
 
 ## הרצת ה-web
 
