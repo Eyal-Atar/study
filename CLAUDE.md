@@ -30,7 +30,7 @@
 | מיגרציות על פרויקט ה-dev | `uv run alembic upgrade head` (קורא את `MIGRATION_DATABASE_URL` מ-`api/.env`) |
 | מיגרציה חדשה | `uv run alembic revision --rev-id <NNNN> -m "<name>"`, עם SQL מפורש ב-`op.execute` |
 
-הבדיקות פונות רק ל-`TEST_DATABASE_URL` (ברירת מחדל `postgresql://localhost:5432/postgres`), ומסרבות לכתובת שאינה מקומית. ‏`psql` נמצא ב-`/opt/homebrew/opt/postgresql@17/bin`. כל טבלה חדשה בסכמה `app` צריכה RLS, ו-`tests/db/test_schema.py` נכשל בלעדיו.
+הבדיקות פונות רק ל-`TEST_DATABASE_URL` (ברירת מחדל `postgresql://localhost:5432/postgres`), ומסרבות לכתובת שאינה מקומית. הן יוצרות ב-Postgres המקומי תפקידים שחלים על כל ה-cluster: `anon`, ‏`authenticated`, ‏`service_role`, ו-`studyflow_api` עם LOGIN ובלי סיסמה. לכן ה-Postgres הזה משמש רק לפיתוח. ‏`psql` נמצא ב-`/opt/homebrew/opt/postgresql@17/bin`. כל טבלה חדשה בסכמה `app` צריכה RLS, ו-`tests/db/test_schema.py` נכשל בלעדיו.
 
 ב-`api/pyproject.toml` מוגדר `exclude-newer = "7 days"`: תלות צעירה מ-7 ימים לא נכנסת ל-lock (הגנת supply-chain), וזה מעכב גם תיקוני אבטחה; לתיקון דחוף מוסיפים את החבילה הבודדת ל-`exclude-newer-package` ב-`[tool.uv]` (או מעבירים `--exclude-newer-package <pkg>=<date>` ל-`uv lock`) ומסירים אותה אחר כך.
 
