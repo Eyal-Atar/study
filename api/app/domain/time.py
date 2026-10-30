@@ -67,8 +67,17 @@ def local_day_bounds(day: dt.date, tz: ZoneInfo) -> tuple[dt.datetime, dt.dateti
 def local_span(
     day: dt.date, start: dt.time, end: dt.time, tz: ZoneInfo
 ) -> tuple[dt.datetime, dt.datetime]:
-    """A window starting at start on day; it ends the next day unless end is later than start."""
+    """A window starting at start on day; it ends the next day unless end is later than start.
+
+    Both ends follow the single-time rules of at_local_time. On the spring-forward day a
+    start inside the gap moves forward past an end that is still before the gap closes, so
+    the span can be empty (end == start); it is never inverted.
+    """
+    if start.tzinfo is not None or end.tzinfo is not None:
+        raise ValueError("Expected naive wall times")
     if start == end:
         raise ValueError("A span cannot start and end at the same time")
     end_day = day if end > start else day + dt.timedelta(days=1)
-    return at_local_time(day, start, tz), at_local_time(end_day, end, tz)
+    span_start = at_local_time(day, start, tz)
+    span_end = at_local_time(end_day, end, tz)
+    return span_start, max(span_start, span_end)

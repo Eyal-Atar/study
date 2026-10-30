@@ -36,7 +36,8 @@ def upgrade() -> None:
             CONSTRAINT profiles_daily_study_minutes_range
                 CHECK (daily_study_minutes BETWEEN 30 AND 960),
             CONSTRAINT profiles_study_windows_valid CHECK (
-                cardinality(study_windows) BETWEEN 1 AND 4
+                array_ndims(study_windows) = 1
+                AND cardinality(study_windows) BETWEEN 1 AND 4
                 AND study_windows <@ ARRAY['morning', 'afternoon', 'evening', 'night']
             ),
             CONSTRAINT profiles_rest_days_before_exam_range

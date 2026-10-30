@@ -129,6 +129,67 @@ def test_user_cannot_link_to_a_row_of_another_user(
             )
 
 
+def test_user_cannot_depend_on_a_task_of_another_user(
+    api_db: psycopg.Connection, make_user: Callable[[], CurrentUser]
+) -> None:
+    a = make_user()
+    b = make_user()
+    ids = seed(api_db, a)
+    seed(api_db, b)
+    with pytest.raises(psycopg.errors.ForeignKeyViolation):
+        with user_transaction(api_db, b) as conn:
+            exam = conn.execute("SELECT id FROM app.exams").fetchone()
+            assert exam is not None
+            conn.execute(
+                "INSERT INTO app.tasks (user_id, exam_id, title, kind, estimated_minutes, "
+                "source, depends_on_task_id) VALUES (%s, %s, 'x', 'learn', 30, 'user', %s)",
+                (b.id, exam[0], ids["tasks"]),
+            )
+
+
+def test_user_cannot_hand_their_exam_to_another_user(
+    api_db: psycopg.Connection, make_user: Callable[[], CurrentUser]
+) -> None:
+    a = make_user()
+    b = make_user()
+    ids_b = seed(api_db, b)
+    with pytest.raises(psycopg.errors.InsufficientPrivilege, match="row-level security"):
+        with user_transaction(api_db, b) as conn:
+            conn.execute("UPDATE app.exams SET user_id = %s WHERE id = %s", (a.id, ids_b["exams"]))
+
+
+def test_user_cannot_move_their_task_to_an_exam_of_another_user(
+    api_db: psycopg.Connection, make_user: Callable[[], CurrentUser]
+) -> None:
+    a = make_user()
+    b = make_user()
+    ids_a = seed(api_db, a)
+    ids_b = seed(api_db, b)
+    with pytest.raises(psycopg.errors.ForeignKeyViolation):
+        with user_transaction(api_db, b) as conn:
+            conn.execute(
+                "UPDATE app.tasks SET exam_id = %s WHERE id = %s",
+                (ids_a["exams"], ids_b["tasks"]),
+            )
+
+
+def test_session_level_subject_cannot_override_the_user(
+    api_db: psycopg.Connection, make_user: Callable[[], CurrentUser]
+) -> None:
+    a = make_user()
+    b = make_user()
+    seed(api_db, a)
+    # What a pooled connection could carry over from earlier use.
+    api_db.execute("select set_config('request.jwt.claim.sub', %s, false)", (str(a.id),))
+    try:
+        with user_transaction(api_db, b) as conn:
+            row = conn.execute("select auth.uid()").fetchone()
+            assert row == (b.id,)
+            assert count(conn, "exams") == 0
+    finally:
+        api_db.execute("select set_config('request.jwt.claim.sub', '', false)")
+
+
 def test_api_role_without_user_transaction_is_denied(api_db: psycopg.Connection) -> None:
     with pytest.raises(psycopg.errors.InsufficientPrivilege):
         api_db.execute("select count(*) from app.exams")

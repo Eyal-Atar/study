@@ -3,8 +3,10 @@
 The API connects as `studyflow_api`, which has no privileges on schema `app` by
 itself. Every query goes through `user_transaction`, which switches the transaction
 to the `authenticated` role with the user's verified claims, so row level security
-applies. Querying outside it would run as a role that bypasses RLS (the owner), which
-is why this is the only way the API reaches the database.
+applies. Querying outside it fails with `permission denied`, because `studyflow_api`
+has no table privileges itself (RLS would be bypassed only by connecting as the owner,
+`postgres`, which the API must never do). This is the only way the API reaches the
+database.
 """
 
 import json
@@ -33,6 +35,12 @@ def user_transaction(
     claims = json.dumps({**user.claims, "sub": str(user.id), "role": "authenticated"})
     with conn.transaction():
         conn.execute("SET LOCAL ROLE authenticated")
-        conn.execute("select set_config('request.jwt.claims', %s, true)", (claims,))
+        # auth.uid() reads request.jwt.claim.sub before request.jwt.claims, so pin it too:
+        # a session-level value left on a pooled connection must not override the user.
+        conn.execute(
+            "select set_config('request.jwt.claims', %s, true), "
+            "set_config('request.jwt.claim.sub', %s, true)",
+            (claims, str(user.id)),
+        )
         conn.execute("SET LOCAL TIME ZONE 'UTC'")
         yield conn

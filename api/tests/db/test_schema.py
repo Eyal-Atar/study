@@ -73,17 +73,45 @@ def test_every_app_table_has_rls_and_an_owner_policy(db: psycopg.Connection) -> 
         ).fetchone()
         assert rls == (True,), table
         policies = db.execute(
-            "SELECT roles::text[] FROM pg_policies WHERE schemaname = 'app' AND tablename = %s",
+            "SELECT roles::text[], qual, with_check FROM pg_policies "
+            "WHERE schemaname = 'app' AND tablename = %s",
             (table,),
         ).fetchall()
         assert policies, table
         assert all(row[0] == ["authenticated"] for row in policies), table
+        # A policy such as USING (true) would expose every user's rows.
+        for _roles, qual, with_check in policies:
+            for expression in (qual, with_check):
+                assert expression is None or "auth.uid()" in expression, (table, expression)
+            assert qual is not None or with_check is not None, table
+
+
+def test_app_views_are_security_invokers_and_there_are_no_materialized_views(
+    db: psycopg.Connection,
+) -> None:
+    # A view runs with its owner's rights and bypasses RLS unless security_invoker is on;
+    # a materialized view cannot enforce RLS at all.
+    views = db.execute(
+        "SELECT c.relname, c.relkind, coalesce(c.reloptions, '{}') FROM pg_class c "
+        "JOIN pg_namespace n ON n.oid = c.relnamespace "
+        "WHERE n.nspname = 'app' AND c.relkind IN ('v', 'm')"
+    ).fetchall()
+    for name, kind, options in views:
+        assert kind == "v", f"materialized view app.{name}"
+        assert "security_invoker=true" in options, f"view app.{name} bypasses RLS"
 
 
 def test_only_authenticated_has_table_privileges(db: psycopg.Connection) -> None:
-    privileges = ("SELECT", "INSERT", "UPDATE", "DELETE")
+    # TRUNCATE ignores RLS, so every privilege counts, not only the CRUD ones.
+    privileges = ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
+    authenticated_grants = {
+        "profiles": {"SELECT", "INSERT", "UPDATE"},
+        "exams": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+        "tasks": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+        "blocks": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    }
     for table in _app_tables(db):
-        for role in ("anon", "studyflow_api"):
+        for role in ("anon", "studyflow_api", "service_role"):
             for privilege in privileges:
                 allowed = db.execute(
                     "SELECT has_table_privilege(%s, %s, %s)", (role, f"app.{table}", privilege)
@@ -94,12 +122,7 @@ def test_only_authenticated_has_table_privileges(db: psycopg.Connection) -> None
                 "SELECT has_table_privilege('authenticated', %s, %s)",
                 (f"app.{table}", privilege),
             ).fetchone()
-            if table == "alembic_version":
-                expected = False
-            elif table == "profiles":
-                expected = privilege != "DELETE"
-            else:
-                expected = True
+            expected = privilege in authenticated_grants.get(table, set())
             assert allowed == (expected,), (table, privilege)
 
 
@@ -211,6 +234,13 @@ def _same_wake_and_sleep(db: psycopg.Connection, user_id: UUID) -> Any:
         pytest.param(_block(part_index=3, part_count=2), id="part-index-above-count"),
         pytest.param(_profile("study_windows", ["dawn"]), id="study-windows-unknown"),
         pytest.param(_profile("study_windows", []), id="study-windows-empty"),
+        pytest.param(
+            lambda db, user_id: db.execute(
+                "INSERT INTO app.profiles (id, study_windows) VALUES (%s, '{{morning},{night}}')",
+                (user_id,),
+            ),
+            id="study-windows-two-dimensional",
+        ),
         pytest.param(_same_wake_and_sleep, id="wake-equals-sleep"),
     ],
 )

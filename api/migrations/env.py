@@ -3,6 +3,7 @@ from pathlib import Path
 
 import psycopg
 from alembic import context
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import create_engine, text
 
@@ -23,6 +24,15 @@ class _MigrationSettings(BaseSettings):
     )
 
     migration_database_url: str
+
+    @field_validator("migration_database_url")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        # An empty string would make psycopg fall back to libpq defaults (PG* variables or
+        # the local socket), i.e. possibly an unintended server.
+        if not value.strip():
+            raise ValueError("MIGRATION_DATABASE_URL must not be empty")
+        return value
 
 
 def _database_url() -> str:

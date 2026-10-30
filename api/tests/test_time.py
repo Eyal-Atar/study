@@ -118,6 +118,31 @@ def test_span_rejects_equal_start_and_end() -> None:
         local_span(date(2026, 10, 26), time(8), time(8), JLM)
 
 
+def test_span_starting_in_the_spring_gap_is_never_inverted() -> None:
+    gap_start = datetime(2027, 3, 26, 0, 30, tzinfo=UTC)
+    assert local_span(date(2027, 3, 26), time(2, 30), time(3, 0), JLM) == (gap_start, gap_start)
+    assert local_span(date(2027, 3, 26), time(2, 30), time(3, 15), JLM) == (gap_start, gap_start)
+
+
+@pytest.mark.parametrize("day", [date(2026, 10, 25), date(2027, 3, 26)])
+def test_spans_on_transition_days_are_never_inverted(day: date) -> None:
+    grid = [time(minute // 60, minute % 60) for minute in range(0, 24 * 60, 15)]
+    for start in grid:
+        for end in grid:
+            if start == end:
+                continue
+            span_start, span_end = local_span(day, start, end, JLM)
+            assert span_start <= span_end, (start, end)
+            assert span_end - span_start <= timedelta(hours=25), (start, end)
+
+
+def test_span_rejects_aware_times() -> None:
+    with pytest.raises(ValueError):
+        local_span(date(2026, 10, 26), time(8, tzinfo=UTC), time(9), JLM)
+    with pytest.raises(ValueError):
+        local_span(date(2026, 10, 26), time(8), time(9, tzinfo=UTC), JLM)
+
+
 def test_local_date_depends_on_the_timezone() -> None:
     instant = datetime(2026, 10, 30, 22, 30, tzinfo=UTC)
     assert local_date(instant, JLM) == date(2026, 10, 31)

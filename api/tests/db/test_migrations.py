@@ -136,3 +136,30 @@ def test_migrations_round_trip() -> None:
             assert version == [(head,)]
     finally:
         drop_database(admin_url, name)
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("PGHOSTADDR", "10.0.0.5"),
+        ("PGSERVICE", "prod"),
+        ("PGSERVICEFILE", "/etc/pg_service.conf"),
+    ],
+)
+def test_require_local_database_url_checks_environment_even_with_a_host(
+    monkeypatch: pytest.MonkeyPatch, name: str, value: str
+) -> None:
+    for var in ("PGHOST", "PGHOSTADDR", "PGSERVICE", "PGSERVICEFILE"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv(name, value)
+    with pytest.raises(ValueError, match="Refusing"):
+        require_local_database_url("host=localhost dbname=x")
+
+
+def test_require_local_database_url_accepts_loopback_pghostaddr(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for var in ("PGHOST", "PGSERVICE", "PGSERVICEFILE"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("PGHOSTADDR", "127.0.0.1")
+    assert require_local_database_url("host=localhost dbname=x") == "host=localhost dbname=x"

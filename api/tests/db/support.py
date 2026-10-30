@@ -40,12 +40,15 @@ def require_local_database_url(url: str) -> str:
     for key in ("service", "servicefile"):
         if params.get(key):
             raise _reject(key, str(params[key]))
+    for name in ("PGSERVICE", "PGSERVICEFILE"):
+        if os.environ.get(name):
+            raise _reject(name, os.environ[name])
     host = str(params.get("host") or "")
     hostaddr = str(params.get("hostaddr") or "")
     if not host and not hostaddr:
-        if os.environ.get("PGSERVICE"):
-            raise _reject("PGSERVICE", os.environ["PGSERVICE"])
         host = os.environ.get("PGHOST", "")
+    if not hostaddr:
+        # libpq applies PGHOSTADDR even when the string names a host.
         hostaddr = os.environ.get("PGHOSTADDR", "")
     if host:
         _check_hosts("host", host, _LOCAL_HOSTS, allow_socket=True)
