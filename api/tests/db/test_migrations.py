@@ -1,4 +1,3 @@
-import os
 from uuid import uuid4
 
 import psycopg
@@ -7,7 +6,7 @@ from alembic import command
 from alembic.script import ScriptDirectory
 
 from tests.db.support import (
-    DEFAULT_TEST_DATABASE_URL,
+    admin_database_url,
     alembic_config,
     create_database,
     drop_database,
@@ -22,15 +21,30 @@ from tests.db.support import (
         "postgresql://127.0.0.1/x",
         "postgresql://[::1]/x",
         "postgresql:///x?host=/tmp",
+        "host=localhost hostaddr=127.0.0.1 dbname=x",
+        "host=/tmp dbname=x",
     ],
 )
 def test_require_local_database_url_accepts_local_urls(url: str) -> None:
     assert require_local_database_url(url) == url
 
 
+def test_require_local_database_url_accepts_unset_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name in ("PGHOST", "PGHOSTADDR", "PGSERVICE"):
+        monkeypatch.delenv(name, raising=False)
+    url = "postgresql:///x"
+    assert require_local_database_url(url) == url
+
+
 @pytest.mark.parametrize(
     "url",
     [
+        "postgresql://localhost/x?hostaddr=10.0.0.5",
+        "host=localhost hostaddr=10.0.0.5 dbname=x",
+        "postgresql://localhost/x?service=prod",
+        "host=localhost,evil.example.com dbname=x",
         "postgresql://postgres.vxcotmpomtgdrmsvvjku:pw@aws-0-eu-west-1.pooler.supabase.com:5432/postgres",
         "postgresql://db.vxcotmpomtgdrmsvvjku.supabase.co/postgres",
         "postgresql://10.0.0.5/postgres",
@@ -39,6 +53,16 @@ def test_require_local_database_url_accepts_local_urls(url: str) -> None:
 def test_require_local_database_url_rejects_remote_urls(url: str) -> None:
     with pytest.raises(ValueError, match="Refusing"):
         require_local_database_url(url)
+
+
+def test_require_local_database_url_checks_pghost_when_url_has_no_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PGHOSTADDR", raising=False)
+    monkeypatch.delenv("PGSERVICE", raising=False)
+    monkeypatch.setenv("PGHOST", "db.example.com")
+    with pytest.raises(ValueError, match="Refusing"):
+        require_local_database_url("postgresql:///x")
 
 
 def test_auth_uid_reads_sub_from_jwt_claims(db: psycopg.Connection) -> None:
@@ -86,9 +110,9 @@ def test_only_authenticated_may_use_the_app_schema(db: psycopg.Connection) -> No
 
 
 def test_migrations_round_trip() -> None:
-    admin_url = require_local_database_url(
-        os.environ.get("TEST_DATABASE_URL", DEFAULT_TEST_DATABASE_URL)
-    )
+    # Downgrade revokes a cluster-wide membership, so this test must not run in parallel with
+    # other DB tests (pytest-xdist is not used).
+    admin_url = admin_database_url()
     name = "studyflow_migrations_test"
     url = create_database(admin_url, name)
     try:

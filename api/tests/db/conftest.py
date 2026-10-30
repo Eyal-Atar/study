@@ -1,4 +1,3 @@
-import os
 from collections.abc import Callable, Iterator
 from uuid import uuid4
 
@@ -9,19 +8,16 @@ from psycopg.conninfo import make_conninfo
 
 from app.auth import CurrentUser
 from tests.db.support import (
-    DEFAULT_TEST_DATABASE_URL,
+    admin_database_url,
     alembic_config,
     create_database,
     drop_database,
-    require_local_database_url,
 )
 
 
 @pytest.fixture(scope="session")
 def migrated_database_url() -> Iterator[str]:
-    admin_url = require_local_database_url(
-        os.environ.get("TEST_DATABASE_URL", DEFAULT_TEST_DATABASE_URL)
-    )
+    admin_url = admin_database_url()
     url = create_database(admin_url, "studyflow_test")
     try:
         command.upgrade(alembic_config(url), "head")

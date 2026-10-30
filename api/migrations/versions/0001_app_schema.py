@@ -21,7 +21,9 @@ def upgrade() -> None:
         END
         $$
     """)
-    # In case the role was created by hand without it.
+    # In case the role was created by hand without it. The migration role needs ADMIN on
+    # studyflow_api: true when this migration or `postgres` itself created it (Postgres 16+
+    # grants the creator ADMIN), which is how the setup instructions create it.
     op.execute("ALTER ROLE studyflow_api NOINHERIT")
     # From Postgres 16 the role attribute only sets the default for new grants, so the
     # options are written on the grant itself.
