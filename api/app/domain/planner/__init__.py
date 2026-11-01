@@ -1,5 +1,14 @@
 """The study planner: pure domain logic, no database access."""
 
+from app.domain.planner.capacity import (
+    BREAK_MINUTES,
+    LONG_BREAK_MINUTES,
+    MIN_PART_MINUTES,
+    WINDOW_EDGE_RESERVE_MINUTES,
+    day_fits,
+    room,
+    simulation_window,
+)
 from app.domain.planner.intervals import Interval, clip, merge, subtract
 from app.domain.planner.model import (
     DayAssignment,
@@ -20,6 +29,10 @@ from app.domain.planner.model import (
 )
 
 __all__ = [
+    "BREAK_MINUTES",
+    "LONG_BREAK_MINUTES",
+    "MIN_PART_MINUTES",
+    "WINDOW_EDGE_RESERVE_MINUTES",
     "DayAssignment",
     "DayItem",
     "DayPlan",
@@ -37,6 +50,9 @@ __all__ = [
     "UnscheduledReason",
     "WarningCode",
     "clip",
+    "day_fits",
     "merge",
+    "room",
+    "simulation_window",
     "subtract",
 ]
