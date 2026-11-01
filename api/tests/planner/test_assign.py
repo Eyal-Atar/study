@@ -157,9 +157,28 @@ def test_failed_long_task_frees_its_days() -> None:
     exam = make_exam(nov(4))  # study days November 1-2
     long = make_task(exam, 600, TaskKind.CUSTOM)
     practice = make_task(exam, 60, TaskKind.PRACTICE)
-    result = assign([exam], [long, practice])
+    after = make_task(exam, 60, depends_on=long.id)
+    result = assign([exam], [long, practice, after])
     assert by_day(result) == {nov(1): [(practice.id, 60)]}
-    assert result.unscheduled == (unscheduled(long, UnscheduledReason.NOT_ENOUGH_TIME),)
+    assert result.unscheduled == (
+        unscheduled(long, UnscheduledReason.NOT_ENOUGH_TIME),
+        unscheduled(after, UnscheduledReason.DEPENDENCY_NOT_SCHEDULED, blocked_by=long),
+    )
+
+
+def test_only_the_first_failed_long_task_is_dropped() -> None:
+    a = make_exam(nov(4))  # study days November 1-2
+    b = make_exam(nov(6))  # study days November 1-4
+    long_a = make_task(a, 600, TaskKind.CUSTOM)
+    long_b = make_task(b, 600, TaskKind.CUSTOM)
+    # First run: A takes November 1-2 and fails, so B starts on November 3 and fails too.
+    result = assign([a, b], [long_a, long_b])
+    assert by_day(result) == {
+        nov(1): [(long_b.id, 240)],
+        nov(2): [(long_b.id, 240)],
+        nov(3): [(long_b.id, 120)],
+    }
+    assert result.unscheduled == (unscheduled(long_a, UnscheduledReason.NOT_ENOUGH_TIME),)
 
 
 def test_dependent_comes_after_its_prerequisite() -> None:

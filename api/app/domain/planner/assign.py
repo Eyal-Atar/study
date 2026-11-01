@@ -97,13 +97,15 @@ def assign_days(
     context = _prepare(profile, exams, tasks, _new_days(study, profile))
     # A multi-day task that never finishes is placed whole or not at all. Its parts
     # took time that other tasks could have used, so the loop runs again without
-    # it. Every rerun excludes at least one more task, so this ends.
+    # it. Only the earliest started one is dropped: its parts go on first every day,
+    # so its failure is real, while later ones may have failed only because of it.
+    # Every rerun excludes one more task, so this ends.
     excluded: frozenset[UUID] = frozenset()
     while True:
         days, progress = _run_days(context, study, profile, excluded)
         if not progress.started:
             break
-        excluded |= progress.started.keys()
+        excluded = excluded.union((next(iter(progress.started)),))
     return DayAssignment(
         days=_day_plans(study, days),
         unscheduled=tuple(
