@@ -1,5 +1,13 @@
 """The study planner: pure domain logic, no database access."""
 
+from app.domain.planner.availability import (
+    STUDY_WINDOW_HOURS,
+    awake_span,
+    day_windows,
+    exam_cutoff,
+    last_study_day,
+    study_days,
+)
 from app.domain.planner.capacity import (
     BREAK_MINUTES,
     LONG_BREAK_MINUTES,
@@ -32,6 +40,7 @@ __all__ = [
     "BREAK_MINUTES",
     "LONG_BREAK_MINUTES",
     "MIN_PART_MINUTES",
+    "STUDY_WINDOW_HOURS",
     "WINDOW_EDGE_RESERVE_MINUTES",
     "DayAssignment",
     "DayItem",
@@ -49,10 +58,15 @@ __all__ = [
     "Unscheduled",
     "UnscheduledReason",
     "WarningCode",
+    "awake_span",
     "clip",
     "day_fits",
+    "day_windows",
+    "exam_cutoff",
+    "last_study_day",
     "merge",
     "room",
     "simulation_window",
+    "study_days",
     "subtract",
 ]
