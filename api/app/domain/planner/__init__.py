@@ -1,5 +1,6 @@
 """The study planner: pure domain logic, no database access."""
 
+from app.domain.planner.assign import assign_days
 from app.domain.planner.availability import (
     STUDY_WINDOW_HOURS,
     awake_span,
@@ -17,6 +18,7 @@ from app.domain.planner.capacity import (
     room,
     simulation_window,
 )
+from app.domain.planner.dependencies import Dependencies, resolve_dependencies
 from app.domain.planner.intervals import Interval, clip, merge, subtract
 from app.domain.planner.model import (
     DayAssignment,
@@ -45,6 +47,7 @@ __all__ = [
     "DayAssignment",
     "DayItem",
     "DayPlan",
+    "Dependencies",
     "Exam",
     "Interval",
     "PlanWarning",
@@ -58,6 +61,7 @@ __all__ = [
     "Unscheduled",
     "UnscheduledReason",
     "WarningCode",
+    "assign_days",
     "awake_span",
     "clip",
     "day_fits",
@@ -65,6 +69,7 @@ __all__ = [
     "exam_cutoff",
     "last_study_day",
     "merge",
+    "resolve_dependencies",
     "room",
     "simulation_window",
     "study_days",
