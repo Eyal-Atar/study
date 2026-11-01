@@ -1,0 +1,134 @@
+from dataclasses import replace
+from datetime import UTC, date, datetime, time, timedelta
+from typing import Any
+from uuid import uuid4
+from zoneinfo import ZoneInfo
+
+import pytest
+
+from app.domain.planner import (
+    Exam,
+    Interval,
+    PlannerInputError,
+    Task,
+    TaskKind,
+    clip,
+    merge,
+    subtract,
+)
+from tests.planner.factories import make_exam, make_profile, make_task
+
+
+def at(h: int, m: int = 0) -> datetime:
+    return datetime(2026, 11, 2, h, m, tzinfo=UTC)
+
+
+def iv(a: tuple[int, ...], b: tuple[int, ...]) -> Interval:
+    return Interval(at(*a), at(*b))
+
+
+def test_interval_minutes() -> None:
+    assert iv((7,), (15,)).minutes == 480
+
+
+@pytest.mark.parametrize(
+    ("start", "end"),
+    [
+        (at(8), at(8)),
+        (at(9), at(8)),
+        (datetime(2026, 11, 2, 7), at(8)),
+        (datetime(2026, 11, 2, 7, tzinfo=ZoneInfo("Asia/Jerusalem")), at(8)),
+        (at(7).replace(second=30), at(8)),
+    ],
+    ids=["equal", "inverted", "naive", "non-utc", "seconds"],
+)
+def test_interval_rejects_bad_bounds(start: datetime, end: datetime) -> None:
+    with pytest.raises(ValueError):
+        Interval(start, end)
+
+
+def test_merge_joins_overlapping_and_touching() -> None:
+    intervals = [iv((9,), (10,)), iv((7,), (8,)), iv((8,), (8, 30)), iv((9, 30), (11,))]
+    assert merge(intervals) == [iv((7,), (8, 30)), iv((9,), (11,))]
+
+
+def test_subtract_cuts_a_hole() -> None:
+    assert subtract([iv((7,), (15,))], iv((8,), (9,))) == [iv((7,), (8,)), iv((9,), (15,))]
+
+
+def test_subtract_keeps_what_it_does_not_touch() -> None:
+    intervals = [iv((7,), (8,)), iv((10,), (11,))]
+    assert subtract(intervals, iv((8,), (10,))) == intervals
+
+
+def test_subtract_removes_a_covered_interval() -> None:
+    assert subtract([iv((8,), (9,))], iv((7,), (10,))) == []
+
+
+def test_clip_to_bounds() -> None:
+    intervals = [iv((7,), (9,)), iv((10,), (12,))]
+    assert clip(intervals, start=at(8), end=at(11)) == [iv((8,), (9,)), iv((10,), (11,))]
+    assert clip(intervals) == intervals
+
+
+def test_profile_accepts_database_defaults() -> None:
+    assert make_profile().study_start_delay == timedelta(hours=1)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"daily_study_minutes": 29},
+        {"daily_study_minutes": 961},
+        {"study_windows": frozenset()},
+        {"rest_days_before_exam": -1},
+        {"rest_days_before_exam": 15},
+        {"wake_time": time(23, 0)},
+        {"wake_time": time(8, 0, 30)},
+        {"sleep_time": time(23, 0, tzinfo=UTC)},
+        {"study_start_delay": timedelta(minutes=-1)},
+        {"study_start_delay": timedelta(hours=6, minutes=1)},
+    ],
+)
+def test_profile_rejects_out_of_range(overrides: dict[str, Any]) -> None:
+    with pytest.raises(PlannerInputError):
+        make_profile(**overrides)
+
+
+@pytest.mark.parametrize("difficulty", [0, 6])
+def test_exam_rejects_difficulty_out_of_range(difficulty: int) -> None:
+    with pytest.raises(PlannerInputError):
+        Exam(id=uuid4(), exam_date=date(2026, 12, 1), difficulty=difficulty)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"estimated_minutes": 4},
+        {"estimated_minutes": 601},
+        {"focus": 0},
+        {"focus": 11},
+    ],
+)
+def test_task_rejects_out_of_range(overrides: dict[str, Any]) -> None:
+    exam = make_exam(date(2026, 12, 1))
+    with pytest.raises(PlannerInputError):
+        make_task(exam, 60, **overrides)
+
+
+def test_task_rejects_self_dependency() -> None:
+    task_id = uuid4()
+    with pytest.raises(PlannerInputError):
+        Task(
+            id=task_id,
+            exam_id=uuid4(),
+            kind=TaskKind.LEARN,
+            estimated_minutes=60,
+            depends_on=task_id,
+        )
+
+
+def test_profile_is_immutable() -> None:
+    with pytest.raises(AttributeError):
+        make_profile().daily_study_minutes = 100  # type: ignore[misc]
+    assert replace(make_profile(), daily_study_minutes=100).daily_study_minutes == 100
