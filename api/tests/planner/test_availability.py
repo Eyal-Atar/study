@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -145,6 +146,30 @@ def test_night_before_a_rest_day_ends_at_midnight() -> None:
     days = {d.date: d for d in study_days(profile, [EXAM], NOW)}
     assert days[date(2026, 11, 2)].windows[-1].end == Z(2026, 11, 2, 23)
     assert days[date(2026, 11, 3)].windows[-1].end == Z(2026, 11, 3, 22)
+
+
+def test_overlapping_waking_hours_do_not_share_a_window() -> None:
+    # Santiago has no midnight on September 6, 2026: 00:00 jumps to 01:00 (03:00Z).
+    # Sleep at 00:30 falls in the gap and moves to 01:30 (04:30Z), after the next
+    # wake-up at 01:00 (04:00Z), so the waking hours of September 5 and 6 overlap.
+    profile = make_profile(
+        timezone=ZoneInfo("America/Santiago"),
+        wake_time=time(1),
+        sleep_time=time(0, 30),
+        study_windows=frozenset({N}),
+        rest_days_before_exam=0,
+        study_start_delay=timedelta(0),
+    )
+    sep5, sep6 = date(2026, 9, 5), date(2026, 9, 6)
+    assert day_windows(profile, sep6)[0].start < day_windows(profile, sep5)[-1].end
+    exam = make_exam(date(2026, 9, 8))
+    days = {d.date: d for d in study_days(profile, [exam], Z(2026, 9, 5, 12))}
+    assert days[sep5].windows == (iv(Z(2026, 9, 6, 1), Z(2026, 9, 6, 4, 30)),)
+    assert days[sep6].windows == (
+        iv(Z(2026, 9, 6, 4, 30), Z(2026, 9, 6, 5)),
+        iv(Z(2026, 9, 7, 0), Z(2026, 9, 7, 3, 30)),
+    )
+    assert days[sep5].windows[-1].end <= days[sep6].windows[0].start
 
 
 def test_busy_time_is_removed() -> None:
