@@ -5,6 +5,14 @@ database ranges, unique ids, tasks whose exam is in the input, and busy time as
 UTC whole-minute intervals in the first 14 days of the horizon. The building
 blocks (exams_for, tasks_for, busy_for) take what they depend on, so a later
 scope can compose them into a larger input.
+
+The whole inputs are wide half the time and dense the other half. A wide input
+spreads up to MAX_EXAMS exams over MAX_DAYS_TO_EXAM days, so most of its tasks
+fit. A dense one crowds 10 to 30 tasks of an hour or so into the few days before
+one or two exams with a small daily budget, so days fill up to their capacity
+and tasks are reported for lack of time: that is where packing and the report
+are tested. The building blocks take the ranges as parameters, and the defaults
+are the wide ones.
 """
 
 import datetime as dt
@@ -18,7 +26,9 @@ from hypothesis import settings
 from hypothesis import strategies as st
 
 from app.domain.planner import (
+    BlockStatus,
     Exam,
+    ExistingBlock,
     Interval,
     Profile,
     StudyWindow,
@@ -66,6 +76,14 @@ TASK_MINUTES: Final = (5, 15, 30, 45, 60, 90, 120, 180, 240, 300, 600)
 # Most tasks are still to do. sampled_from shrinks towards the first entry.
 TASK_STATUSES: Final = (TaskStatus.TODO,) * 6 + (TaskStatus.DONE, TaskStatus.SKIPPED)
 
+# The dense input: one or two exams soon after today, many tasks of about an hour,
+# and a small daily budget.
+DENSE_MAX_EXAMS: Final = 2
+DENSE_DAYS_TO_EXAM: Final = (1, 10)
+DENSE_TASK_COUNT: Final = (10, 30)
+DENSE_TASK_MINUTES: Final = (30, 45, 60, 90, 120)
+DENSE_DAILY_MINUTES: Final = (60, 240)
+
 MAX_BUSY: Final = 3
 BUSY_DAYS: Final = 14
 MAX_BUSY_QUARTERS: Final = 8 * 4
@@ -84,14 +102,27 @@ class PlannerInputs(NamedTuple):
     busy: tuple[Interval, ...]
 
 
+class PlanInputs(NamedTuple):
+    """The arguments of plan, in its order: plan(*inputs)."""
+
+    profile: Profile
+    exams: tuple[Exam, ...]
+    tasks: tuple[Task, ...]
+    existing_blocks: tuple[ExistingBlock, ...]
+    now: dt.datetime
+
+
 def _quarter(index: int) -> dt.time:
     """The wall time of quarter hour `index` of the day (0 is 00:00, 95 is 23:45)."""
     return dt.time(index // 4, index % 4 * 15)
 
 
 @st.composite
-def profiles(draw: st.DrawFn) -> Profile:
-    """A valid profile in one of TIMEZONES.
+def profiles(
+    draw: st.DrawFn, min_daily_minutes: int = DAILY_MINUTES_STEP, max_daily_minutes: int = 960
+) -> Profile:
+    """A valid profile in one of TIMEZONES, with a daily budget in steps of half an
+    hour between the two bounds.
 
     The awake span is 15 minutes to 23:45 hours from wake_time, half the time a
     usual 14 to 18 hours, so sleep_time differs from wake_time and often falls
@@ -103,7 +134,12 @@ def profiles(draw: st.DrawFn) -> Profile:
         timezone=ZoneInfo(draw(st.sampled_from(TIMEZONES))),
         wake_time=_quarter(wake),
         sleep_time=_quarter((wake + awake) % QUARTERS_PER_DAY),
-        daily_study_minutes=draw(st.integers(1, 960 // DAILY_MINUTES_STEP)) * DAILY_MINUTES_STEP,
+        daily_study_minutes=draw(
+            st.integers(
+                min_daily_minutes // DAILY_MINUTES_STEP, max_daily_minutes // DAILY_MINUTES_STEP
+            )
+        )
+        * DAILY_MINUTES_STEP,
         study_windows=draw(st.frozensets(st.sampled_from(StudyWindow), min_size=1)),
         rest_days_before_exam=draw(st.integers(0, MAX_REST_DAYS)),
         study_start_delay=draw(st.sampled_from(START_DELAY_MINUTES)) * _MINUTE,
@@ -119,13 +155,18 @@ def nows(draw: st.DrawFn) -> dt.datetime:
 
 
 @st.composite
-def exams_for(draw: st.DrawFn, today: dt.date) -> tuple[Exam, ...]:
-    """1 to MAX_EXAMS exams, each 0 to MAX_DAYS_TO_EXAM days after today."""
-    ids = draw(st.lists(st.uuids(), min_size=1, max_size=MAX_EXAMS, unique=True))
+def exams_for(
+    draw: st.DrawFn,
+    today: dt.date,
+    max_exams: int = MAX_EXAMS,
+    days_to_exam: tuple[int, int] = (0, MAX_DAYS_TO_EXAM),
+) -> tuple[Exam, ...]:
+    """1 to max_exams exams, each a number of days after today in days_to_exam."""
+    ids = draw(st.lists(st.uuids(), min_size=1, max_size=max_exams, unique=True))
     return tuple(
         Exam(
             id=exam_id,
-            exam_date=today + draw(st.integers(0, MAX_DAYS_TO_EXAM)) * _ONE_DAY,
+            exam_date=today + draw(st.integers(*days_to_exam)) * _ONE_DAY,
             difficulty=draw(st.integers(1, 5)),
         )
         for exam_id in ids
@@ -190,10 +231,16 @@ def _prerequisite(
 
 
 @st.composite
-def tasks_for(draw: st.DrawFn, exams: Sequence[Exam]) -> tuple[Task, ...]:
-    """0 to MAX_TASKS tasks of these exams, of every kind, mostly to do."""
+def tasks_for(
+    draw: st.DrawFn,
+    exams: Sequence[Exam],
+    count_range: tuple[int, int] = (0, MAX_TASKS),
+    minutes: Sequence[int] = TASK_MINUTES,
+) -> tuple[Task, ...]:
+    """A number of tasks in count_range for these exams, of every kind, mostly to
+    do, each of one of these minutes."""
     exam_ids = frozenset(exam.id for exam in exams)
-    count = draw(st.integers(0, MAX_TASKS))
+    count = draw(st.integers(*count_range))
     ids = draw(
         st.lists(
             st.uuids().filter(lambda candidate: candidate not in exam_ids),
@@ -211,7 +258,7 @@ def tasks_for(draw: st.DrawFn, exams: Sequence[Exam]) -> tuple[Task, ...]:
             id=task_id,
             exam_id=draw(st.sampled_from(exams)).id,
             kind=kind,
-            estimated_minutes=draw(st.sampled_from(TASK_MINUTES)),
+            estimated_minutes=draw(st.sampled_from(minutes)),
             focus=draw(st.integers(1, 10)),
             depends_on=prerequisite,
             status=draw(st.sampled_from(TASK_STATUSES)),
@@ -243,15 +290,71 @@ def busy_for(draw: st.DrawFn, profile: Profile, now: dt.datetime) -> tuple[Inter
 
 
 @st.composite
-def planner_inputs(draw: st.DrawFn) -> PlannerInputs:
-    """A whole planner input; the exams count from the local day of now."""
-    profile = draw(profiles())
+def existing_blocks_for(
+    draw: st.DrawFn, profile: Profile, now: dt.datetime, tasks: Sequence[Task]
+) -> tuple[ExistingBlock, ...]:
+    """Blocks already in the calendar, at the times busy_for draws, of any status,
+    pinned or not. Each belongs to a task of the input, or to a deleted task when
+    there are none."""
+    task_ids = st.sampled_from([task.id for task in tasks]) if tasks else st.uuids()
+    return tuple(
+        ExistingBlock(
+            task_id=draw(task_ids),
+            interval=interval,
+            status=draw(st.sampled_from(BlockStatus)),
+            pinned=draw(st.booleans()),
+        )
+        for interval in draw(busy_for(profile, now))
+    )
+
+
+class _Core(NamedTuple):
+    profile: Profile
+    now: dt.datetime
+    exams: tuple[Exam, ...]
+    tasks: tuple[Task, ...]
+
+
+@st.composite
+def _core(draw: st.DrawFn, dense: bool) -> _Core:
+    """Everything but the busy time; the exams count from the local day of now."""
+    if dense:
+        profile = draw(profiles(*DENSE_DAILY_MINUTES))
+    else:
+        profile = draw(profiles())
     now = draw(nows())
-    exams = draw(exams_for(local_date(now, profile.timezone)))
+    today = local_date(now, profile.timezone)
+    if dense:
+        exams = draw(exams_for(today, max_exams=DENSE_MAX_EXAMS, days_to_exam=DENSE_DAYS_TO_EXAM))
+        tasks = draw(tasks_for(exams, count_range=DENSE_TASK_COUNT, minutes=DENSE_TASK_MINUTES))
+    else:
+        exams = draw(exams_for(today))
+        tasks = draw(tasks_for(exams))
+    return _Core(profile, now, exams, tasks)
+
+
+def _cores() -> st.SearchStrategy[_Core]:
+    """A wide input half the time and a dense one the other half."""
+    return st.one_of(_core(dense=False), _core(dense=True))
+
+
+@st.composite
+def planner_inputs(draw: st.DrawFn) -> PlannerInputs:
+    """A whole input of assign_days."""
+    profile, now, exams, tasks = draw(_cores())
     return PlannerInputs(
+        profile=profile, exams=exams, tasks=tasks, now=now, busy=draw(busy_for(profile, now))
+    )
+
+
+@st.composite
+def plan_inputs(draw: st.DrawFn) -> PlanInputs:
+    """A whole input of plan: the busy time comes as existing blocks."""
+    profile, now, exams, tasks = draw(_cores())
+    return PlanInputs(
         profile=profile,
         exams=exams,
-        tasks=draw(tasks_for(exams)),
+        tasks=tasks,
+        existing_blocks=draw(existing_blocks_for(profile, now, tasks)),
         now=now,
-        busy=draw(busy_for(profile, now)),
     )
