@@ -92,14 +92,33 @@ def _number_parts(placed: Sequence[tuple[UUID, Interval]]) -> tuple[PlannedBlock
     return tuple(blocks)
 
 
+def _stuck_on_cycle(tasks: Sequence[Task]) -> frozenset[UUID]:
+    """Tasks on a dependency cycle, or waiting (through any chain) on one: time cannot fix them."""
+    dependencies = resolve_dependencies(tasks)
+    stuck: set[UUID] = set()
+    for task in tasks:
+        node: UUID | None = task.id
+        seen: set[UUID] = set()
+        while node is not None and node not in seen:
+            if node in dependencies.in_cycle:
+                stuck.add(task.id)
+                break
+            seen.add(node)
+            node = dependencies.prerequisite.get(node)
+    return frozenset(stuck)
+
+
 def _missing_minutes(
-    exams: Sequence[Exam], tasks: Sequence[Task], assignment: DayAssignment
+    exams: Sequence[Exam],
+    tasks: Sequence[Task],
+    assignment: DayAssignment,
+    stuck: frozenset[UUID],
 ) -> dict[UUID, int]:
-    """Exam -> minutes left unscheduled, a dependency cycle excepted (more time cannot fix it)."""
+    """Exam -> minutes left unscheduled, tasks stuck on a cycle excepted."""
     exam_of = {task.id: task.exam_id for task in tasks}
     missing = dict.fromkeys((exam.id for exam in exams), 0)
     for item in assignment.unscheduled:
-        if item.reason is not UnscheduledReason.DEPENDENCY_CYCLE:
+        if item.task_id not in stuck:
             missing[exam_of[item.task_id]] += item.minutes
     return missing
 
@@ -113,16 +132,26 @@ def _shortfalls(
     assignment: DayAssignment,
 ) -> tuple[ExamShortfall, ...]:
     """Per exam with missing minutes: the smallest larger daily budget that fits them."""
-    missing = _missing_minutes(exams, tasks, assignment)
+    stuck = _stuck_on_cycle(tasks)
+    missing = _missing_minutes(exams, tasks, assignment, stuck)
     short = [exam.id for exam in exams if missing[exam.id] > 0]
+    # Study days do not depend on the budget, so no budget fixes an exam that has none.
+    hopeless = {
+        item.task_id
+        for item in assignment.unscheduled
+        if item.reason is UnscheduledReason.NO_STUDY_DAYS and item.task_id not in stuck
+    }
+    exam_of = {task.id: task.exam_id for task in tasks}
+    hopeless_exams = {exam_of[task_id] for task_id in hopeless}
+    sweep = [id_ for id_ in short if id_ not in hopeless_exams]
     fixed: dict[UUID, int] = {}
     first = _BUDGET_STEP * (profile.daily_study_minutes // _BUDGET_STEP + 1)
     for budget in range(first, _MAX_DAILY_MINUTES + 1, _BUDGET_STEP):
-        if len(fixed) == len(short):
+        if len(fixed) == len(sweep):
             break
         trial = assign_days(replace(profile, daily_study_minutes=budget), exams, tasks, now, busy)
-        still = _missing_minutes(exams, tasks, trial)
-        fixed.update({id_: budget for id_ in short if id_ not in fixed and still[id_] == 0})
+        still = _missing_minutes(exams, tasks, trial, stuck)
+        fixed.update({id_: budget for id_ in sweep if id_ not in fixed and still[id_] == 0})
     return tuple(
         ExamShortfall(exam_id=id_, minutes=missing[id_], daily_minutes=fixed.get(id_))
         for id_ in short

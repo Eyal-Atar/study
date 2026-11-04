@@ -13,6 +13,7 @@ from app.domain.planner import (
     BREAK_MINUTES,
     MIN_PART_MINUTES,
     BlockStatus,
+    DayAssignment,
     ExistingBlock,
     Interval,
     PlannedBlock,
@@ -21,7 +22,6 @@ from app.domain.planner import (
     StudyDay,
     TaskKind,
     TaskStatus,
-    UnscheduledReason,
     assign_days,
     exam_cutoff,
     last_study_day,
@@ -69,15 +69,26 @@ def _by_task(result: PlanResult) -> dict[UUID, list[PlannedBlock]]:
     return blocks
 
 
-def _missing_minutes(
-    inputs: PlanInputs, profile: Profile, busy: Sequence[Interval]
-) -> Counter[UUID]:
-    """Exam -> the minutes assign_days leaves in the report, a dependency cycle excepted."""
+def _missing_minutes(inputs: PlanInputs, result: DayAssignment | PlanResult) -> Counter[UUID]:
+    """Exam -> the unscheduled minutes of a result, except for tasks that time cannot fix:
+    those on a dependency cycle or waiting, through any chain, on one."""
+    in_cycle = resolve_dependencies(inputs.tasks).in_cycle
+    prerequisite = resolve_dependencies(inputs.tasks).prerequisite
     exam_of = {task.id: task.exam_id for task in inputs.tasks}
-    result = assign_days(profile, inputs.exams, inputs.tasks, inputs.now, busy)
+
+    def stuck(task_id: UUID) -> bool:
+        seen: set[UUID] = set()
+        node: UUID | None = task_id
+        while node is not None and node not in seen:
+            if node in in_cycle:
+                return True
+            seen.add(node)
+            node = prerequisite.get(node)
+        return False
+
     missing: Counter[UUID] = Counter()
     for entry in result.unscheduled:
-        if entry.reason is not UnscheduledReason.DEPENDENCY_CYCLE:
+        if not stuck(entry.task_id):
             missing[exam_of[entry.task_id]] += entry.minutes
     return missing
 
@@ -123,6 +134,8 @@ def test_blocks_pack_what_the_days_hold(inputs: PlanInputs) -> None:
         for item in day_plan.items:
             items[item.task_id] += item.minutes
         assert minutes == items
+        # This pins the busy rule (only done or pinned blocks take time) and the call into
+        # pack_day, not the packing rules; test_pack.py and the checks above pin those.
         expected = pack_day(day_plan.day, day_plan.items, tasks_by_id, prerequisite)
         assert [(block.task_id, block.interval) for block in packed] == list(expected)
 
@@ -189,11 +202,7 @@ def test_shortfalls_match_the_report(inputs: PlanInputs) -> None:
     profile = inputs.profile
     busy = _busy(inputs.existing_blocks)
     result = plan(*inputs)
-    exam_of = {task.id: task.exam_id for task in inputs.tasks}
-    missing: Counter[UUID] = Counter()
-    for entry in result.unscheduled:
-        if entry.reason is not UnscheduledReason.DEPENDENCY_CYCLE:
-            missing[exam_of[entry.task_id]] += entry.minutes
+    missing = _missing_minutes(inputs, result)
 
     shortfalls = {shortfall.exam_id: shortfall for shortfall in result.shortfalls}
     assert len(shortfalls) == len(result.shortfalls)
@@ -203,7 +212,10 @@ def test_shortfalls_match_the_report(inputs: PlanInputs) -> None:
 
     def missing_with(minutes: int) -> Counter[UUID]:
         if minutes not in trials:
-            trials[minutes] = _missing_minutes(inputs, _with_budget(profile, minutes), busy)
+            trial = assign_days(
+                _with_budget(profile, minutes), inputs.exams, inputs.tasks, inputs.now, busy
+            )
+            trials[minutes] = _missing_minutes(inputs, trial)
         return trials[minutes]
 
     for exam_id, shortfall in shortfalls.items():

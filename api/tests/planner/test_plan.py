@@ -1,4 +1,6 @@
-from datetime import UTC, date, datetime
+import importlib
+from datetime import UTC, date, datetime, time
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -107,6 +109,85 @@ def test_a_cycle_is_not_a_shortfall() -> None:
     result = plan(make_profile(), [exam], [a, b], [], NOW)
     assert [u.reason for u in result.unscheduled] == [UnscheduledReason.DEPENDENCY_CYCLE] * 2
     assert result.shortfalls == ()
+
+
+def test_tasks_that_wait_on_a_cycle_are_not_a_shortfall() -> None:
+    exam = make_exam(nov(3))
+    a_id, b_id = uuid4(), uuid4()
+    a = make_task(exam, 30, id=a_id, depends_on=b_id)
+    b = make_task(exam, 30, id=b_id, depends_on=a_id)
+    c = make_task(exam, 30, depends_on=a_id)
+    d = make_task(exam, 150)
+    e = make_task(exam, 150)
+    result = plan(make_profile(), [exam], [a, b, c, d, e], [], NOW)
+    assert [(u.task_id, u.reason) for u in result.unscheduled] == [
+        (a.id, UnscheduledReason.DEPENDENCY_CYCLE),
+        (b.id, UnscheduledReason.DEPENDENCY_CYCLE),
+        (c.id, UnscheduledReason.DEPENDENCY_NOT_SCHEDULED),
+        (e.id, UnscheduledReason.NOT_ENOUGH_TIME),
+    ]
+    assert result.shortfalls == (ExamShortfall(exam_id=exam.id, minutes=150, daily_minutes=300),)
+
+
+def test_an_exam_without_study_days_has_no_suggestion() -> None:
+    exam = make_exam(nov(1))  # its last study day is before now
+    task = make_task(exam, 90)
+    result = plan(make_profile(), [exam], [task], [], NOW)
+    assert result.shortfalls == (ExamShortfall(exam_id=exam.id, minutes=90, daily_minutes=None),)
+
+
+def test_an_exam_no_budget_can_fix_costs_no_trial_runs(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = importlib.import_module("app.domain.planner.plan")
+    real = module.assign_days
+    calls: list[int] = []
+
+    def counting(*args: Any, **kwargs: Any) -> Any:
+        calls.append(1)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(module, "assign_days", counting)
+    exam = make_exam(nov(1))
+    result = plan(make_profile(), [exam], [make_task(exam, 90)], [], NOW)
+    assert result.shortfalls == (ExamShortfall(exam_id=exam.id, minutes=90, daily_minutes=None),)
+    assert len(calls) == 1
+
+
+def test_shortfalls_follow_the_exam_order() -> None:
+    fixable = make_exam(nov(3))
+    hopeless = make_exam(nov(3))
+    tasks = [
+        make_task(hopeless, 480),
+        make_task(hopeless, 480),
+        make_task(fixable, 150),
+        make_task(fixable, 150),
+    ]
+    result = plan(make_profile(), [hopeless, fixable], tasks, [], NOW)
+    assert [(s.exam_id, s.daily_minutes) for s in result.shortfalls] == [
+        (hopeless.id, None),
+        (fixable.id, 300),
+    ]
+    reverse = plan(make_profile(), [fixable, hopeless], tasks, [], NOW)
+    assert [s.exam_id for s in reverse.shortfalls] == [fixable.id, hopeless.id]
+
+
+def test_the_largest_suggestion_is_960() -> None:
+    profile = make_profile(
+        wake_time=time(6, 0), sleep_time=time(2, 0), study_windows=frozenset(StudyWindow)
+    )
+    exam = make_exam(nov(3))
+    a = make_task(exam, 480)
+    b = make_task(exam, 480)
+    result = plan(profile, [exam], [a, b], [], NOW)
+    assert result.shortfalls == (ExamShortfall(exam_id=exam.id, minutes=960, daily_minutes=960),)
+
+
+def test_a_budget_off_the_step_starts_the_sweep_at_the_next_step() -> None:
+    exam = make_exam(nov(3))
+    a = make_task(exam, 60)
+    b = make_task(exam, 60)
+    result = plan(make_profile(daily_study_minutes=100), [exam], [a, b], [], NOW)
+    assert [u.task_id for u in result.unscheduled] == [b.id]
+    assert result.shortfalls == (ExamShortfall(exam_id=exam.id, minutes=60, daily_minutes=120),)
 
 
 def test_rejects_what_is_not_an_existing_block() -> None:
