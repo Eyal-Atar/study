@@ -42,6 +42,7 @@ from app.domain.planner.model import (
     UnscheduledReason,
     WarningCode,
 )
+from app.domain.planner.pack import pack_day
 
 __all__ = [
     "BREAK_MINUTES",
@@ -79,6 +80,7 @@ __all__ = [
     "exam_cutoff",
     "last_study_day",
     "merge",
+    "pack_day",
     "resolve_dependencies",
     "room",
     "simulation_window",
