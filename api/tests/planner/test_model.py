@@ -7,8 +7,12 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from app.domain.planner import (
+    BlockStatus,
     Exam,
+    ExamShortfall,
+    ExistingBlock,
     Interval,
+    PlannedBlock,
     PlannerInputError,
     StudyWindow,
     Task,
@@ -171,3 +175,68 @@ def test_profile_is_immutable() -> None:
     with pytest.raises(AttributeError):
         make_profile().daily_study_minutes = 100  # type: ignore[misc]
     assert replace(make_profile(), daily_study_minutes=100).daily_study_minutes == 100
+
+
+def test_existing_block_accepts_valid_fields() -> None:
+    block = ExistingBlock(
+        task_id=uuid4(), interval=iv((7,), (8,)), status=BlockStatus.DONE, pinned=False
+    )
+    assert block.status is BlockStatus.DONE
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"task_id": "x"},
+        {"interval": (at(7), at(8))},
+        {"status": "done"},
+        {"pinned": 1},
+    ],
+)
+def test_existing_block_rejects_bad_types(overrides: dict[str, Any]) -> None:
+    fields: dict[str, Any] = {
+        "task_id": uuid4(),
+        "interval": iv((7,), (8,)),
+        "status": BlockStatus.PLANNED,
+        "pinned": True,
+    }
+    with pytest.raises(PlannerInputError):
+        ExistingBlock(**{**fields, **overrides})
+
+
+@pytest.mark.parametrize(
+    ("part_index", "part_count", "valid"),
+    [(1, 1, True), (2, 3, True), (0, 1, False), (2, 1, False), (1, 0, False)],
+)
+def test_planned_block_part_range(part_index: int, part_count: int, valid: bool) -> None:
+    def build() -> PlannedBlock:
+        return PlannedBlock(
+            task_id=uuid4(),
+            interval=iv((7,), (8,)),
+            part_index=part_index,
+            part_count=part_count,
+        )
+
+    if valid:
+        build()
+    else:
+        with pytest.raises(PlannerInputError):
+            build()
+
+
+@pytest.mark.parametrize("overrides", [{"task_id": "x"}, {"interval": None}])
+def test_planned_block_rejects_bad_types(overrides: dict[str, Any]) -> None:
+    fields: dict[str, Any] = {
+        "task_id": uuid4(),
+        "interval": iv((7,), (8,)),
+        "part_index": 1,
+        "part_count": 1,
+    }
+    with pytest.raises(PlannerInputError):
+        PlannedBlock(**{**fields, **overrides})
+
+
+def test_exam_shortfall_needs_minutes() -> None:
+    with pytest.raises(PlannerInputError):
+        ExamShortfall(exam_id=uuid4(), minutes=0, daily_minutes=None)
+    assert ExamShortfall(exam_id=uuid4(), minutes=1, daily_minutes=None).minutes == 1

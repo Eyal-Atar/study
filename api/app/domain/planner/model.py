@@ -46,6 +46,14 @@ class UnscheduledReason(StrEnum):
     DEPENDENCY_CYCLE = "dependency_cycle"
     DEPENDENCY_NOT_SCHEDULED = "dependency_not_scheduled"
     DEPENDENCY_TOO_LATE = "dependency_too_late"
+    LONGER_THAN_DAILY_MINUTES = "longer_than_daily_minutes"
+
+
+class BlockStatus(StrEnum):
+    PLANNED = "planned"
+    DONE = "done"
+    MISSED = "missed"
+    SKIPPED = "skipped"
 
 
 class WarningCode(StrEnum):
@@ -176,3 +184,53 @@ class DayAssignment:
     days: tuple[DayPlan, ...]
     unscheduled: tuple[Unscheduled, ...]
     warnings: tuple[PlanWarning, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ExistingBlock:
+    """A block already in the calendar, as the planner is given it."""
+
+    task_id: UUID
+    interval: Interval
+    status: BlockStatus
+    pinned: bool
+
+    def __post_init__(self) -> None:
+        _require(isinstance(self.task_id, UUID), "task_id must be a UUID")
+        _require(isinstance(self.interval, Interval), "interval must be an Interval")
+        _require(isinstance(self.status, BlockStatus), "status must be a BlockStatus")
+        _require(isinstance(self.pinned, bool), "pinned must be a bool")
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class PlannedBlock:
+    """One timed part of a task: part part_index of part_count."""
+
+    task_id: UUID
+    interval: Interval
+    part_index: int
+    part_count: int
+
+    def __post_init__(self) -> None:
+        _require(isinstance(self.task_id, UUID), "task_id must be a UUID")
+        _require(isinstance(self.interval, Interval), "interval must be an Interval")
+        _require(self.part_count >= 1, "part_count must be at least 1")
+        _require(1 <= self.part_index <= self.part_count, "part_index must be 1-part_count")
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ExamShortfall:
+    exam_id: UUID
+    minutes: int
+    daily_minutes: int | None
+
+    def __post_init__(self) -> None:
+        _require(self.minutes > 0, "minutes must be positive")
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class PlanResult:
+    blocks: tuple[PlannedBlock, ...]
+    unscheduled: tuple[Unscheduled, ...]
+    warnings: tuple[PlanWarning, ...]
+    shortfalls: tuple[ExamShortfall, ...]

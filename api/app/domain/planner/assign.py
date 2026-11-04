@@ -120,6 +120,8 @@ class _Context:
     day_after: frozenset[UUID]
     # Simulations that no eligible day can hold: within the budget and in one window.
     no_window: frozenset[UUID]
+    # Simulations longer than the daily budget: no day can ever hold them.
+    over_budget: frozenset[UUID]
 
 
 @dataclass(slots=True)
@@ -263,6 +265,9 @@ def _prepare(
                 _holds_simulation(days[index], task, profile.daily_study_minutes)
                 for index in eligible[task.exam_id]
             )
+        ),
+        over_budget=frozenset(
+            task.id for task in simulations if task.estimated_minutes > profile.daily_study_minutes
         ),
     )
 
@@ -508,6 +513,8 @@ def _reason(
             return UnscheduledReason.DEPENDENCY_NOT_SCHEDULED, prerequisite
         if not any(_is_ready(context, progress, task, index) for index in eligible):
             return UnscheduledReason.DEPENDENCY_TOO_LATE, prerequisite
+    if task.id in context.over_budget:
+        return UnscheduledReason.LONGER_THAN_DAILY_MINUTES, None
     if task.id in context.no_window:
         return UnscheduledReason.NO_CONTIGUOUS_WINDOW, None
     return UnscheduledReason.NOT_ENOUGH_TIME, None

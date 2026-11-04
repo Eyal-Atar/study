@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import UTC, date, datetime
 
 import pytest
@@ -130,7 +131,23 @@ def test_simulation_longer_than_the_daily_budget() -> None:
     simulation = sim(exam, 300)
     result = assign([exam], [simulation])
     assert by_day(result) == {}
-    assert result.unscheduled == (unscheduled(simulation, UnscheduledReason.NO_CONTIGUOUS_WINDOW),)
+    assert result.unscheduled == (
+        unscheduled(simulation, UnscheduledReason.LONGER_THAN_DAILY_MINUTES),
+    )
+
+
+def test_an_over_budget_simulation_reports_its_dependency_first() -> None:
+    exam = make_exam(nov(5))
+    a = make_task(exam, 30, TaskKind.LEARN)
+    b = make_task(exam, 30, TaskKind.LEARN, depends_on=a.id)
+    a = replace(a, depends_on=b.id)
+    simulation = make_task(exam, 300, TaskKind.SIMULATION, depends_on=a.id)
+    result = assign([exam], [a, b, simulation])
+    assert result.unscheduled == (
+        unscheduled(a, UnscheduledReason.DEPENDENCY_CYCLE),
+        unscheduled(b, UnscheduledReason.DEPENDENCY_CYCLE),
+        unscheduled(simulation, UnscheduledReason.DEPENDENCY_NOT_SCHEDULED, blocked_by=a),
+    )
 
 
 def test_simulation_is_never_split() -> None:
