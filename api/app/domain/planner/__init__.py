@@ -43,6 +43,7 @@ from app.domain.planner.model import (
     WarningCode,
 )
 from app.domain.planner.pack import pack_day
+from app.domain.planner.plan import plan
 
 __all__ = [
     "BREAK_MINUTES",
@@ -81,6 +82,7 @@ __all__ = [
     "last_study_day",
     "merge",
     "pack_day",
+    "plan",
     "resolve_dependencies",
     "room",
     "simulation_window",
