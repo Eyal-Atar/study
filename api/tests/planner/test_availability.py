@@ -5,6 +5,7 @@ import pytest
 
 from app.domain.planner import (
     Interval,
+    PlannerInputError,
     StudyWindow,
     day_windows,
     exam_cutoff,
@@ -200,5 +201,5 @@ def test_no_exams_means_no_days() -> None:
 
 
 def test_naive_now_is_rejected() -> None:
-    with pytest.raises(ValueError, match="aware"):
+    with pytest.raises(PlannerInputError, match="aware"):
         study_days(make_profile(), [EXAM], datetime(2026, 11, 1, 7))

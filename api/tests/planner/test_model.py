@@ -10,6 +10,7 @@ from app.domain.planner import (
     Exam,
     Interval,
     PlannerInputError,
+    StudyWindow,
     Task,
     TaskKind,
     clip,
@@ -95,10 +96,32 @@ def test_profile_rejects_out_of_range(overrides: dict[str, Any]) -> None:
         make_profile(**overrides)
 
 
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        pytest.param({"timezone": "Asia/Jerusalem"}, id="timezone-str"),
+        pytest.param({"study_windows": frozenset({"dawn"})}, id="unknown-window"),
+        pytest.param({"study_windows": frozenset({"morning"})}, id="window-str"),
+        pytest.param(
+            {"study_windows": frozenset({StudyWindow.MORNING, "evening"})}, id="one-window-str"
+        ),
+    ],
+)
+def test_profile_rejects_wrong_types(overrides: dict[str, Any]) -> None:
+    with pytest.raises(PlannerInputError):
+        make_profile(**overrides)
+
+
 @pytest.mark.parametrize("difficulty", [0, 6])
 def test_exam_rejects_difficulty_out_of_range(difficulty: int) -> None:
     with pytest.raises(PlannerInputError):
         Exam(id=uuid4(), exam_date=date(2026, 12, 1), difficulty=difficulty)
+
+
+def test_exam_rejects_an_id_that_is_not_a_uuid() -> None:
+    fields: dict[str, Any] = {"id": str(uuid4()), "exam_date": date(2026, 12, 1), "difficulty": 3}
+    with pytest.raises(PlannerInputError):
+        Exam(**fields)
 
 
 @pytest.mark.parametrize(
@@ -111,6 +134,22 @@ def test_exam_rejects_difficulty_out_of_range(difficulty: int) -> None:
     ],
 )
 def test_task_rejects_out_of_range(overrides: dict[str, Any]) -> None:
+    exam = make_exam(date(2026, 12, 1))
+    with pytest.raises(PlannerInputError):
+        make_task(exam, 60, **overrides)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        pytest.param({"kind": "learn"}, id="kind-str"),
+        pytest.param({"status": "todo"}, id="status-str"),
+        pytest.param({"id": str(uuid4())}, id="id-str"),
+        pytest.param({"exam_id": str(uuid4())}, id="exam-id-str"),
+        pytest.param({"depends_on": str(uuid4())}, id="depends-on-str"),
+    ],
+)
+def test_task_rejects_wrong_types(overrides: dict[str, Any]) -> None:
     exam = make_exam(date(2026, 12, 1))
     with pytest.raises(PlannerInputError):
         make_task(exam, 60, **overrides)

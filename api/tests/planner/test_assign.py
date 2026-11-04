@@ -181,6 +181,42 @@ def test_only_the_first_failed_long_task_is_dropped() -> None:
     assert result.unscheduled == (unscheduled(long_a, UnscheduledReason.NOT_ENOUGH_TIME),)
 
 
+def test_a_later_exams_long_task_does_not_take_an_earlier_exams_day() -> None:
+    a = make_exam(nov(4))  # study days November 1-2
+    b = make_exam(nov(10))  # study days November 1-8
+    a1, a2 = make_task(a, 200), make_task(a, 240)
+    long_b = make_task(b, 600, TaskKind.CUSTOM)
+    result = assign([a, b], [a1, a2, long_b])
+    # B's long task starts in what is left of November 1, but on November 2 A's
+    # task goes first, and B goes on after A's last day.
+    assert by_day(result) == {
+        nov(1): [(a1.id, 200), (long_b.id, 40)],
+        nov(2): [(a2.id, 240)],
+        nov(3): [(long_b.id, 240)],
+        nov(4): [(long_b.id, 240)],
+        nov(5): [(long_b.id, 80)],
+    }
+    assert result.unscheduled == ()
+
+
+def test_the_failed_long_task_of_the_earliest_exam_is_dropped() -> None:
+    a = make_exam(nov(4))  # study days November 1-2
+    b = make_exam(nov(5))  # study days November 1-3
+    simulation = make_task(a, 60, TaskKind.SIMULATION)
+    long_a = make_task(a, 600, TaskKind.CUSTOM, depends_on=simulation.id)
+    long_b = make_task(b, 600, TaskKind.CUSTOM)
+    result = assign([a, b], [simulation, long_a, long_b])
+    # First run: B's long task starts first, on November 1, since A's waits for the
+    # simulation. On November 2 A's goes first, and both fail. A's is dropped, as
+    # it is of the earlier exam, and B's then fits.
+    assert by_day(result) == {
+        nov(1): [(simulation.id, 60), (long_b.id, 180)],
+        nov(2): [(long_b.id, 240)],
+        nov(3): [(long_b.id, 180)],
+    }
+    assert result.unscheduled == (unscheduled(long_a, UnscheduledReason.NOT_ENOUGH_TIME),)
+
+
 def test_dependent_comes_after_its_prerequisite() -> None:
     exam = make_exam(nov(5))
     a = make_task(exam, 60)
@@ -326,7 +362,7 @@ def _naive_now() -> tuple[list[Exam], list[Task], datetime]:
         pytest.param(_duplicate_task_id, PlannerInputError, id="duplicate-task-id"),
         pytest.param(_duplicate_exam_id, PlannerInputError, id="duplicate-exam-id"),
         pytest.param(_unknown_exam, PlannerInputError, id="unknown-exam"),
-        pytest.param(_naive_now, ValueError, id="naive-now"),
+        pytest.param(_naive_now, PlannerInputError, id="naive-now"),
     ],
 )
 def test_invalid_input(

@@ -15,6 +15,7 @@ from app.domain.planner import (
     Task,
     TaskKind,
     TaskStatus,
+    UnscheduledReason,
     assign_days,
     awake_span,
     day_fits,
@@ -47,6 +48,21 @@ def _split(plan: DayPlan, tasks: Mapping[UUID, Task]) -> tuple[list[int], int | 
         (simulations if is_simulation else regular).append(item.minutes)
     assert len(simulations) <= 1
     return regular, simulations[0] if simulations else None
+
+
+def _goes_in_whole(plan: DayPlan, minutes: int, tasks: Mapping[UUID, Task], daily: int) -> bool:
+    """Whether an item of these minutes still goes whole into the day as planned:
+    within the daily budget, and with the capacity rule."""
+    regular, simulation = _split(plan, tasks)
+    used = sum(item.minutes for item in plan.items)
+    windows = [window.minutes for window in plan.day.windows]
+    return used + minutes <= daily and day_fits(windows, [*regular, minutes], simulation)
+
+
+def _needs_a_later_day(task: Task, prerequisite: Task) -> bool:
+    """Whether the task may go only on a day after its prerequisite's last day: a
+    dependent of a simulation, and a simulation that has a prerequisite."""
+    return prerequisite.kind is TaskKind.SIMULATION or task.kind is TaskKind.SIMULATION
 
 
 def _places(result: DayAssignment) -> dict[UUID, list[tuple[dt.date, int, int]]]:
@@ -172,14 +188,54 @@ def test_dependencies_hold(inputs: PlannerInputs) -> None:
         assert prerequisite in places
         last_date, last_position, _ = max(places[prerequisite])
         first_date, first_position, _ = min(parts)
-        strictly_later = (
-            tasks[prerequisite].kind is TaskKind.SIMULATION
-            and tasks[task_id].kind is TaskKind.SIMULATION_REVIEW
-        )
-        if strictly_later:
+        if _needs_a_later_day(tasks[task_id], tasks[prerequisite]):
             assert last_date < first_date
         else:
             assert (last_date, last_position) < (first_date, first_position)
+
+
+@PROPERTY_SETTINGS
+@given(planner_inputs())
+def test_reported_tasks_did_not_fit(inputs: PlannerInputs) -> None:
+    """A task reported for lack of time went whole into none of the days it was
+    ready on. Only for a task that an empty day of its exam holds whole (a longer
+    one spans days), and not a simulation or a review, which have their own steps.
+    Readiness comes from the board: from the prerequisite's last day, or from the
+    day after it when the task needs a later day."""
+    profile = inputs.profile
+    result = assign_days(*inputs)
+    tasks = _tasks_by_id(inputs)
+    last_days = {exam.id: last_study_day(exam, profile) for exam in inputs.exams}
+    prerequisites = resolve_dependencies(inputs.tasks).prerequisite
+    places = _places(result)
+    daily = profile.daily_study_minutes
+    own_steps = (TaskKind.SIMULATION, TaskKind.SIMULATION_REVIEW)
+
+    for entry in result.unscheduled:
+        task = tasks[entry.task_id]
+        if entry.reason is not UnscheduledReason.NOT_ENOUGH_TIME or task.kind in own_steps:
+            continue
+        minutes = task.estimated_minutes
+        eligible = [
+            plan
+            for plan in result.days
+            if plan.day.windows and plan.day.date <= last_days[task.exam_id]
+        ]
+        if not any(
+            _goes_in_whole(DayPlan(day=plan.day, items=()), minutes, tasks, daily)
+            for plan in eligible
+        ):
+            continue  # a multi-day task
+        ready_from = dt.date.min
+        prerequisite = prerequisites.get(task.id)
+        if prerequisite is not None:
+            assert prerequisite in places  # else the reason is dependency_not_scheduled
+            ready_from = max(date for date, _, _ in places[prerequisite])
+            if _needs_a_later_day(task, tasks[prerequisite]):
+                ready_from += dt.timedelta(days=1)
+        for plan in eligible:
+            if plan.day.date >= ready_from:
+                assert not _goes_in_whole(plan, minutes, tasks, daily)
 
 
 @PROPERTY_SETTINGS

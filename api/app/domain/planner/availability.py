@@ -11,7 +11,7 @@ from typing import Final
 
 from app.domain.planner.capacity import MIN_PART_MINUTES
 from app.domain.planner.intervals import Interval, clip, merge, subtract
-from app.domain.planner.model import Exam, Profile, StudyDay, StudyWindow
+from app.domain.planner.model import Exam, PlannerInputError, Profile, StudyDay, StudyWindow
 from app.domain.time import ensure_utc, local_date, local_day_bounds, local_span
 
 STUDY_WINDOW_HOURS: Final[Mapping[StudyWindow, tuple[dt.time, dt.time]]] = MappingProxyType(
@@ -73,6 +73,14 @@ def exam_cutoff(exam: Exam, profile: Profile) -> dt.datetime:
     return local_day_bounds(day, profile.timezone)[0]
 
 
+def _utc(now: dt.datetime) -> dt.datetime:
+    """now in UTC. A naive now is a bug in the caller, so it is a PlannerInputError."""
+    try:
+        return ensure_utc(now)
+    except ValueError as error:
+        raise PlannerInputError("now must be an aware datetime") from error
+
+
 def _ceil_to_minute(instant: dt.datetime) -> dt.datetime:
     floored = instant.replace(second=0, microsecond=0)
     return floored if floored == instant else floored + dt.timedelta(minutes=1)
@@ -85,7 +93,7 @@ def study_days(
     busy: Sequence[Interval] = (),
 ) -> tuple[StudyDay, ...]:
     """One StudyDay per local day from today (or last night) to the last study day."""
-    now = _ceil_to_minute(ensure_utc(now))
+    now = _ceil_to_minute(_utc(now))
     if not exams:
         return ()
     tz = profile.timezone

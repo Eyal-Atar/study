@@ -1,12 +1,16 @@
 """Planner input and output types.
 
 Profile, Exam and Task mirror the CHECK constraints of the database tables, so the
-planner only ever sees valid input. Every violation raises PlannerInputError.
+planner only ever sees valid input. They also check the types the planner relies
+on: a plain str where an enum belongs fails the planner's identity checks (`is`),
+and one where a UUID belongs compares unequal to it, so the task would silently
+drop out of the plan. Every violation raises PlannerInputError.
 """
 
 import datetime as dt
 from dataclasses import dataclass
 from enum import StrEnum
+from itertools import pairwise
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -74,6 +78,11 @@ class Profile:
     study_start_delay: dt.timedelta = dt.timedelta(hours=1)
 
     def __post_init__(self) -> None:
+        _require(isinstance(self.timezone, ZoneInfo), "timezone must be a ZoneInfo")
+        _require(
+            all(isinstance(window, StudyWindow) for window in self.study_windows),
+            "study_windows must hold StudyWindow members",
+        )
         _check_wall_time("wake_time", self.wake_time)
         _check_wall_time("sleep_time", self.sleep_time)
         _require(self.wake_time != self.sleep_time, "wake_time must differ from sleep_time")
@@ -97,6 +106,7 @@ class Exam:
     difficulty: int
 
     def __post_init__(self) -> None:
+        _require(isinstance(self.id, UUID), "id must be a UUID")
         _require(1 <= self.difficulty <= 5, "difficulty must be 1-5")
 
 
@@ -111,6 +121,14 @@ class Task:
     status: TaskStatus = TaskStatus.TODO
 
     def __post_init__(self) -> None:
+        _require(isinstance(self.id, UUID), "id must be a UUID")
+        _require(isinstance(self.exam_id, UUID), "exam_id must be a UUID")
+        _require(isinstance(self.kind, TaskKind), "kind must be a TaskKind")
+        _require(isinstance(self.status, TaskStatus), "status must be a TaskStatus")
+        _require(
+            self.depends_on is None or isinstance(self.depends_on, UUID),
+            "depends_on must be a UUID or None",
+        )
         _require(5 <= self.estimated_minutes <= 600, "estimated_minutes must be 5-600")
         _require(1 <= self.focus <= 10, "focus must be 1-10")
         _require(self.depends_on != self.id, "a task cannot depend on itself")
@@ -124,7 +142,7 @@ class StudyDay:
     def __post_init__(self) -> None:
         for window in self.windows:
             _require(window.minutes >= 30, "a study window must be at least 30 minutes")
-        for earlier, later in zip(self.windows, self.windows[1:], strict=False):
+        for earlier, later in pairwise(self.windows):
             _require(earlier.end <= later.start, "study windows must be sorted and disjoint")
 
 
