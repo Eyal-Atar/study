@@ -10,7 +10,7 @@ from uuid import UUID
 from app.domain.planner.assign import assign_days
 from app.domain.planner.availability import start_minute
 from app.domain.planner.dependencies import resolve_dependencies
-from app.domain.planner.fixed import BlockRole, FixedState, block_role, fixed_state
+from app.domain.planner.fixed import BlockRole, FixedState, block_role, check_blocks, fixed_state
 from app.domain.planner.intervals import Interval
 from app.domain.planner.model import (
     DayAssignment,
@@ -18,7 +18,6 @@ from app.domain.planner.model import (
     ExamShortfall,
     ExistingBlock,
     PlannedBlock,
-    PlannerInputError,
     PlanResult,
     Profile,
     Task,
@@ -94,16 +93,6 @@ def replan(
 
 def _unscheduled_minutes(result: PlanResult) -> int:
     return sum(item.minutes for item in result.unscheduled)
-
-
-def check_blocks(existing_blocks: Sequence[ExistingBlock]) -> None:
-    seen: set[UUID] = set()
-    for block in existing_blocks:
-        if not isinstance(block, ExistingBlock):
-            raise PlannerInputError("existing_blocks must hold ExistingBlock items")
-        if block.id in seen:
-            raise PlannerInputError(f"duplicate block id {block.id}")
-        seen.add(block.id)
 
 
 def _assign(

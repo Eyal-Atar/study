@@ -108,3 +108,25 @@ def test_fixed_state() -> None:
         f,
     )
     assert dict(state.after) == {c.id: nov(2), d.id: nov(3)}
+
+
+@pytest.mark.parametrize(
+    ("p_kind", "t_kind", "after"),
+    [
+        pytest.param(TaskKind.SIMULATION, TaskKind.REVIEW, True, id="simulation-prerequisite"),
+        pytest.param(TaskKind.LEARN, TaskKind.SIMULATION, True, id="simulation-dependent"),
+        pytest.param(TaskKind.LEARN, TaskKind.REVIEW, False, id="plain-pair"),
+    ],
+)
+def test_a_simulation_pair_counts_the_prerequisites_past_blocks(
+    p_kind: TaskKind, t_kind: TaskKind, after: bool
+) -> None:
+    profile = make_profile()
+    exam = make_exam(nov(5))
+    p = make_task(exam, 60, p_kind)
+    t = make_task(exam, 60, t_kind, depends_on=p.id)
+    done = make_block(p, Z(2026, 11, 1, 6), Z(2026, 11, 1, 7), status=BlockStatus.DONE)
+    state = fixed_state(profile, [p, t], [done], START)
+    assert state.tasks == (t,)
+    assert dict(state.after) == ({t.id: nov(1)} if after else {})
+    assert state.busy == ()

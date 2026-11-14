@@ -13,7 +13,7 @@ from uuid import UUID
 
 from app.domain.planner.assign import assign_days
 from app.domain.planner.availability import start_minute, study_date
-from app.domain.planner.fixed import BlockRole, block_role, fixed_state
+from app.domain.planner.fixed import BlockRole, block_role, check_blocks, fixed_state
 from app.domain.planner.intervals import Interval
 from app.domain.planner.model import (
     BlockStatus,
@@ -30,7 +30,7 @@ from app.domain.planner.model import (
     Unscheduled,
     UnscheduledReason,
 )
-from app.domain.planner.plan import check_blocks, number_parts, pack_assignment
+from app.domain.planner.plan import number_parts, pack_assignment
 from app.domain.planner.stability import is_complete
 
 
@@ -48,12 +48,17 @@ def place_task(
     """Place what is left of one task in the next free slot, moving no other live block.
 
     The blocks in release leave the calendar (and are placed anew); the new blocks
-    start no earlier than not_before. On success the blocks are the task's live
+    start no earlier than not_before. release takes only PLANNED blocks of the task
+    that are live: candidates, and also fixed ones (pinned, or already running),
+    since deferring a block is the one explicit user action that moves a fixed
+    block. A released fixed block's id is in removed like any other. A planned block
+    that already ended (history), a block of another task or a block that is not
+    PLANNED raises PlannerInputError. On success the blocks are the task's live
     blocks and its new ones, numbered; on failure nothing changes and the task is
     reported unscheduled with the reason.
     """
-    task = _check_request(tasks, existing_blocks, task_id, release, not_before)
     start = start_minute(now)
+    task = _check_request(tasks, existing_blocks, task_id, start, release, not_before)
     released = frozenset(release)  # only tested for membership
     live = [
         block
@@ -61,8 +66,12 @@ def place_task(
         if block.id not in released
         and block_role(block, start) in (BlockRole.FIXED, BlockRole.CANDIDATE)
     ]
-    state = fixed_state(profile, [task], live, start)
-    remaining = state.tasks[0].estimated_minutes if state.tasks else task.estimated_minutes
+    # The whole board, every task included: the busy time, the day budgets, the
+    # simulation days and the day the task must wait past. Only what is left of the
+    # task itself comes from the single-task state.
+    board = fixed_state(profile, tasks, live, start)
+    left = fixed_state(profile, [task], live, start).tasks
+    remaining = left[0].estimated_minutes if left else task.estimated_minutes
     todo = {t.id: t for t in tasks if t.status is TaskStatus.TODO}
 
     def fail(reason: UnscheduledReason, blocked_by: UUID | None = None) -> PlanResult:
@@ -79,35 +88,36 @@ def place_task(
         )
 
     own = [block for block in live if block.task_id == task_id]
-    after: dict[UUID, dt.date] = {}
     prerequisite = todo.get(task.depends_on) if task.depends_on is not None else None
     if prerequisite is not None:
         required = [block for block in live if block.task_id == prerequisite.id]
         minutes = sum(block.interval.minutes for block in required)
         if not is_complete(prerequisite, minutes, has_live_block=bool(required)):
             return fail(UnscheduledReason.DEPENDENCY_NOT_SCHEDULED, prerequisite.id)
-        days = [study_date(profile, b.interval.start) for b in required if b.interval.end > start]
-        if days:
-            after[task_id] = max(days)
+    # The last day of the prerequisite's live blocks, as fixed_state counts it (every
+    # one of them for a simulation pair, else those that end after the start).
+    after: dict[UUID, dt.date] = {}
+    if task_id in board.after:
+        after[task_id] = board.after[task_id]
 
     placed: list[tuple[UUID, Interval]] = []
     warnings: tuple[PlanWarning, ...] = ()
-    if state.tasks:
+    if left:
         earliest = start if not_before is None else max(start, start_minute(not_before))
         assignment = assign_days(
             profile,
             exams,
-            state.tasks,
+            left,
             earliest,
-            state.busy,
-            used=state.used,
-            simulation_days=state.simulation_days,
+            board.busy,
+            used=board.used,
+            simulation_days=board.simulation_days,
             after=after,
         )
         if assignment.unscheduled:
             item = assignment.unscheduled[0]
             return fail(item.reason, item.blocked_by)
-        placed = pack_assignment(state.tasks, assignment)
+        placed = pack_assignment(left, assignment)
         warnings = assignment.warnings
 
         dependent = _dependent_too_early(profile, task, tasks, live, own, placed)
@@ -128,6 +138,7 @@ def _check_request(
     tasks: Sequence[Task],
     existing_blocks: Sequence[ExistingBlock],
     task_id: UUID,
+    start: dt.datetime,
     release: Collection[UUID],
     not_before: dt.datetime | None,
 ) -> Task:
@@ -139,8 +150,13 @@ def _check_request(
     by_id = {block.id: block for block in existing_blocks}
     for block_id in release:
         block = by_id.get(block_id)
-        if block is None or block.task_id != task_id or block.status is not BlockStatus.PLANNED:
-            raise PlannerInputError("release must hold planned blocks of the task")
+        if (
+            block is None
+            or block.task_id != task_id
+            or block.status is not BlockStatus.PLANNED
+            or block_role(block, start) is BlockRole.HISTORY
+        ):
+            raise PlannerInputError("release must hold live planned blocks of the task")
     if not_before is not None and (
         not_before.tzinfo is None or not_before.tzinfo.utcoffset(not_before) is None
     ):

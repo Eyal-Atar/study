@@ -298,6 +298,39 @@ def test_a_day_with_a_simulation_takes_no_other() -> None:
     assert by_day(others) == {nov(2): [(simulation.id, 60)]}
 
 
+def test_a_task_that_fits_whole_only_before_its_after_day_spans_the_later_days() -> None:
+    exam = make_exam(nov(5))
+    a = make_task(exam, 200)
+    used = {nov(1): 30, nov(2): 100, nov(3): 100}
+    result = assign_days(make_profile(), [exam], [a], NOW, used=used, after={a.id: nov(1)})
+    assert by_day(result) == {nov(2): [(a.id, 140)], nov(3): [(a.id, 60)]}
+    assert result.unscheduled == ()
+
+
+def test_a_simulation_is_kept_a_day_after_its_after_day() -> None:
+    exam = make_exam(nov(5))
+    late = make_task(exam, 60, TaskKind.SIMULATION)
+    other = make_task(exam, 60, TaskKind.SIMULATION)
+    result = assign_days(make_profile(), [exam], [late, other], NOW, after={late.id: nov(2)})
+    assert by_day(result) == {nov(2): [(other.id, 60)], nov(3): [(late.id, 60)]}
+    assert result.unscheduled == ()
+
+
+def test_a_simulation_with_no_window_after_its_after_day() -> None:
+    exam = make_exam(nov(5))
+    simulation = make_task(exam, 60, TaskKind.SIMULATION)
+    result = assign_days(
+        make_profile(),
+        [exam],
+        [simulation],
+        NOW,
+        simulation_days=[nov(3)],
+        after={simulation.id: nov(2)},
+    )
+    assert by_day(result) == {}
+    assert result.unscheduled == (unscheduled(simulation, UnscheduledReason.NO_CONTIGUOUS_WINDOW),)
+
+
 def test_a_task_after_a_day_waits_for_the_next() -> None:
     exam = make_exam(nov(5))
     a = make_task(exam, 60)

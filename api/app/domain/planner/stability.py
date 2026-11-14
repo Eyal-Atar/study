@@ -23,7 +23,13 @@ from uuid import UUID
 from app.domain.planner.availability import last_study_day, open_windows, start_minute, study_date
 from app.domain.planner.capacity import MIN_PART_MINUTES
 from app.domain.planner.dependencies import Dependencies, resolve_dependencies
-from app.domain.planner.fixed import MIN_REMAINDER_MINUTES, BlockRole, block_role, fixed_state
+from app.domain.planner.fixed import (
+    MIN_REMAINDER_MINUTES,
+    BlockRole,
+    block_role,
+    check_blocks,
+    fixed_state,
+)
 from app.domain.planner.intervals import Interval
 from app.domain.planner.model import (
     Exam,
@@ -49,7 +55,11 @@ def valid_blocks(
     existing_blocks: Sequence[ExistingBlock],
     now: dt.datetime,
 ) -> tuple[ExistingBlock, ...]:
-    """The candidate blocks that stay where they are, by (interval.start, id)."""
+    """The candidate blocks that stay where they are, by (interval.start, id).
+
+    Raises PlannerInputError for an item that is not an ExistingBlock or a duplicate id.
+    """
+    check_blocks(existing_blocks)
     start = start_minute(now)
     roles = [(block, block_role(block, start)) for block in existing_blocks]
     fixed = [block for block, role in roles if role is BlockRole.FIXED]

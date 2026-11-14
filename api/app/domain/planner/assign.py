@@ -13,7 +13,7 @@ ready work had its turn.
 """
 
 import datetime as dt
-from collections.abc import Collection, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Final
@@ -272,14 +272,21 @@ def _prepare(
     }
     todo = tuple(task for task in tasks if task.status is TaskStatus.TODO)
     dependencies = resolve_dependencies(tasks)
+
+    def usable(task: Task) -> tuple[int, ...]:
+        """The indices of the eligible days the task may use: after its after day."""
+        waits_past = after.get(task.id)
+        indices = eligible[task.exam_id]
+        if waits_past is None:
+            return indices
+        return tuple(index for index in indices if days[index].date > waits_past)
+
     multi_day = frozenset(
-        task.id
-        for task in todo
-        if _is_multi_day(task, [days[index] for index in eligible[task.exam_id]])
+        task.id for task in todo if _is_multi_day(task, [days[index] for index in usable(task)])
     )
     simulations = [task for task in todo if task.kind is TaskKind.SIMULATION]
     simulation_ids = frozenset(task.id for task in simulations)
-    reserved = _reserve_simulations(ranked, todo, days, eligible, dependencies)
+    reserved = _reserve_simulations(ranked, todo, days, eligible, dependencies, usable)
     return _Context(
         todo=todo,
         simulations=tuple(
@@ -300,7 +307,7 @@ def _prepare(
         no_window=frozenset(
             task.id
             for task in simulations
-            if not any(_holds_simulation(days[index], task) for index in eligible[task.exam_id])
+            if not any(_holds_simulation(days[index], task) for index in usable(task))
         ),
         over_budget=frozenset(
             task.id for task in simulations if task.estimated_minutes > profile.daily_study_minutes
@@ -345,6 +352,7 @@ def _reserve_simulations(
     days: Sequence[_Day],
     eligible: Mapping[UUID, tuple[int, ...]],
     dependencies: Dependencies,
+    usable: Callable[[Task], tuple[int, ...]],
 ) -> dict[UUID, int]:
     """A day of its own for each simulation that can have one: simulation -> day index.
 
@@ -352,7 +360,8 @@ def _reserve_simulations(
     The last one aims at the last of them, or at the one before when a task waits
     for it (its review, say), so that task gets a later day too. When the aimed day
     is already kept or cannot hold the simulation, the search goes forward, then
-    back, then to the last day. Earlier exams choose first.
+    back, then to the last day. The search skips the days a simulation may not use
+    (usable: those up to its after day). Earlier exams choose first.
     """
     reserved: dict[UUID, int] = {}
     kept: set[int] = set()  # only tested for membership
@@ -372,9 +381,14 @@ def _reserve_simulations(
         count = len(simulations)
         for number, simulation in enumerate(simulations, start=1):
             target = (number * (end + 1) + count - 1) // count - 1  # ceil(n * (end + 1) / k) - 1
+            allowed = usable(simulation)
             for position in _search_order(target, end, len(candidates)):
                 index = candidates[position]
-                if index not in kept and _holds_simulation(days[index], simulation):
+                if (
+                    index not in kept
+                    and index in allowed
+                    and _holds_simulation(days[index], simulation)
+                ):
                     reserved[simulation.id] = index
                     kept.add(index)
                     break

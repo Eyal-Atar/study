@@ -328,3 +328,46 @@ def test_undo_drops_a_started_saved_block_and_deletes_the_open_one_with_its_id()
     assert result.dropped == (saved,)
     assert result.delete == (current.id,)
     assert result.restore == ()
+
+
+def test_undo_keeps_a_block_pinned_since_the_change() -> None:
+    saved = block(12, 13)
+    pinned = moved(saved, 12, 13, pinned=True)
+    result = undo([saved], [pinned], at(6))
+    assert result == UndoResult(delete=(), restore=(), dropped=(saved,))
+
+
+def test_undo_keeps_a_block_moved_and_pinned_since_the_change() -> None:
+    saved = block(12, 13)
+    pinned = moved(saved, 14, 15, pinned=True)
+    result = undo([saved], [pinned], at(6))
+    assert result == UndoResult(delete=(), restore=(), dropped=(saved,))
+
+
+def test_undo_keeps_a_pinned_block_created_since_the_change() -> None:
+    pinned = block(12, 13, pinned=True)
+    result = undo([], [pinned], at(6))
+    assert result == UndoResult(delete=(), restore=(), dropped=())
+
+
+def test_undo_drops_a_saved_block_that_overlaps_a_new_pinned_block() -> None:
+    saved = block(12, 13)
+    pinned = block(12, 14, pinned=True)
+    result = undo([saved], [pinned], at(6))
+    assert result == UndoResult(delete=(), restore=(), dropped=(saved,))
+
+
+def test_undo_treats_a_pinned_block_as_saved_like_any_open_block() -> None:
+    saved = block(12, 13, pinned=True)
+    other = block(9, 10, pinned=True)
+    unchanged = undo([saved], [moved(saved, 12, 13)], at(6))
+    assert unchanged == UndoResult(delete=(), restore=(), dropped=())
+    gone = undo([saved, other], [moved(saved, 12, 13)], at(6))
+    assert gone == UndoResult(delete=(), restore=(other,), dropped=())
+
+
+def test_undo_ignores_the_numbering_of_a_pinned_block() -> None:
+    saved = block(12, 13, pinned=True, part_index=1, part_count=2)
+    renumbered = moved(saved, 12, 13, part_index=1, part_count=1)
+    result = undo([saved], [renumbered], at(6))
+    assert result == UndoResult(delete=(renumbered.id,), restore=(saved,), dropped=())

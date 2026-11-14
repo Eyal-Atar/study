@@ -174,6 +174,11 @@ def _overlaps(a: Interval, b: Interval) -> bool:
     return a.start < b.end and b.start < a.end
 
 
+def _place(block: SnapshotBlock) -> tuple[UUID, UUID, Interval, bool, BlockStatus]:
+    """What the user decides about a block: everything but its numbering."""
+    return (block.id, block.task_id, block.interval, block.pinned, block.status)
+
+
 def undo(
     saved: Sequence[SnapshotBlock],
     current: Sequence[SnapshotBlock],
@@ -181,16 +186,29 @@ def undo(
 ) -> UndoResult:
     """What to delete and restore to return the future calendar to the snapshot.
 
-    Open blocks (PLANNED, not yet started) are the only ones undo may change. A saved
-    block comes back if it has not started, was not closed since (same id) and does not
-    overlap a closed PLANNED or DONE block; otherwise it is dropped.
+    Open blocks (PLANNED, not yet started) are the only ones undo may change. A pinned
+    block of `current` is open only when it is unchanged: a saved block has the same
+    id, task_id, interval, pinned and status. part_index and part_count are ignored,
+    because the numbering is derived from the board (a replan renumbers a task's
+    blocks when its other blocks change) and is not a user change. Any other pinned
+    block was pinned, moved or created pinned by the user since the change, so it is
+    closed: it is never deleted, and it blocks the saved blocks that overlap it or
+    share its id.
+
+    A saved block comes back if it has not started, was not closed since (same id) and
+    does not overlap a closed PLANNED or DONE block; otherwise it is dropped.
     `saved` is expected to come from parse_snapshot (unique ids).
     """
     start = start_minute(now)
+    saved_places = {_place(block) for block in saved}  # only tested for membership
     open_blocks: list[SnapshotBlock] = []
     closed: list[SnapshotBlock] = []
     for block in current:
-        if block.status is BlockStatus.PLANNED and block.interval.start >= start:
+        if (
+            block.status is BlockStatus.PLANNED
+            and block.interval.start >= start
+            and (not block.pinned or _place(block) in saved_places)
+        ):
             open_blocks.append(block)
         else:
             closed.append(block)

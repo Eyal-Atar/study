@@ -20,6 +20,7 @@ from app.domain.planner.intervals import Interval
 from app.domain.planner.model import (
     BlockStatus,
     ExistingBlock,
+    PlannerInputError,
     Profile,
     Task,
     TaskKind,
@@ -36,6 +37,17 @@ class BlockRole(Enum):
     FIXED = "fixed"  # never moves: done, pinned, or running at the start
     CANDIDATE = "candidate"  # planned for later and free to move
     HISTORY = "history"  # in the past or missed or skipped: it plays no part
+
+
+def check_blocks(existing_blocks: Sequence[ExistingBlock]) -> None:
+    """Raises PlannerInputError unless every item is an ExistingBlock with its own id."""
+    seen: set[UUID] = set()  # only tested for membership
+    for block in existing_blocks:
+        if not isinstance(block, ExistingBlock):
+            raise PlannerInputError("existing_blocks must hold ExistingBlock items")
+        if block.id in seen:
+            raise PlannerInputError(f"duplicate block id {block.id}")
+        seen.add(block.id)
 
 
 def block_role(block: ExistingBlock, start: dt.datetime) -> BlockRole:
@@ -63,7 +75,10 @@ class FixedState:
     used: Mapping[dt.date, int]
     # The study days that hold a fixed simulation, so they take no other.
     simulation_days: frozenset[dt.date]
-    # Task -> the last study day of its prerequisite's fixed blocks: it goes on a later day.
+    # Task -> the last study day of its prerequisite's fixed blocks: it goes on a later
+    # day. Only blocks that end after the start count, unless the task or its
+    # prerequisite is a simulation: then every fixed block of the prerequisite counts,
+    # since a simulation pair never shares a study day.
     after: Mapping[UUID, dt.date]
 
 
@@ -80,6 +95,7 @@ def fixed_state(
     simulation_days: set[dt.date] = set()  # only tested for membership
     minutes: dict[UUID, int] = {}  # task -> the minutes of its fixed blocks
     last_day: dict[UUID, dt.date] = {}  # task -> its latest fixed block ending after start
+    last_day_ever: dict[UUID, dt.date] = {}  # task -> its latest fixed block, past ones too
     for block in fixed:
         interval = block.interval
         day = study_date(profile, interval.start)
@@ -88,21 +104,27 @@ def fixed_state(
         task = tasks_by_id.get(block.task_id)
         if task is not None and task.kind is TaskKind.SIMULATION:
             simulation_days.add(day)
+        last_day_ever[block.task_id] = max(day, last_day_ever.get(block.task_id, day))
         if interval.end > start:
             busy.append(Interval(interval.start - _BREAK, interval.end + _BREAK))
             last_day[block.task_id] = max(day, last_day.get(block.task_id, day))
 
     left = [_remainder(task, minutes.get(task.id)) for task in tasks]
     remaining = tuple(task for task in left if task is not None)
-    todo = {task.id for task in tasks if task.status is TaskStatus.TODO}
-    after = {
-        task.id: last_day[task.depends_on]
-        for task in remaining
-        if task.status is TaskStatus.TODO
-        and task.depends_on is not None
-        and task.depends_on in todo
-        and task.depends_on in last_day
-    }
+    todo = {task.id: task for task in tasks if task.status is TaskStatus.TODO}
+    after: dict[UUID, dt.date] = {}
+    for task in remaining:
+        if task.status is not TaskStatus.TODO or task.depends_on is None:
+            continue
+        prerequisite = todo.get(task.depends_on)
+        if prerequisite is None:
+            continue
+        # A simulation pair needs a later study day than any fixed block of the
+        # prerequisite, also one that ended before the start.
+        simulation = TaskKind.SIMULATION in (task.kind, prerequisite.kind)
+        days = last_day_ever if simulation else last_day
+        if prerequisite.id in days:
+            after[task.id] = days[prerequisite.id]
     return FixedState(
         tasks=remaining,
         busy=tuple(busy),

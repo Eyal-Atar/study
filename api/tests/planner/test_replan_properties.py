@@ -53,6 +53,7 @@ from app.domain.planner import (
     undo,
     valid_blocks,
 )
+from tests.planner.factories import make_profile
 from tests.planner.strategies import PROPERTY_SETTINGS, ReplanScenario, replan_scenarios
 
 _BREAK = dt.timedelta(minutes=BREAK_MINUTES)
@@ -148,6 +149,33 @@ FINDING_3 = _scenario(
     ],
     _at(11, 14, 9),
 )
+
+
+# Final review C1: a simulation pair whose prerequisite was finished earlier today,
+# on the exam's only study day (November 1 in Israel; the study window starts at
+# 07:00Z). The dependent must not land later the same day.
+def _done_today_pair(prerequisite: TaskKind, dependent: TaskKind) -> ReplanScenario:
+    exam = Exam(id=_id(1), exam_date=dt.date(2026, 11, 3), difficulty=3)
+    return ReplanScenario(
+        profile=make_profile(),
+        exams=(exam,),
+        tasks=(
+            Task(id=_id(2), exam_id=exam.id, kind=prerequisite, estimated_minutes=60),
+            Task(
+                id=_id(3),
+                exam_id=exam.id,
+                kind=dependent,
+                estimated_minutes=60,
+                depends_on=_id(2),
+            ),
+        ),
+        existing_blocks=(_block(101, 2, _at(11, 1, 6), 60, BlockStatus.DONE),),
+        now=_at(11, 1, 7, 30),
+    )
+
+
+FINAL_C1 = _done_today_pair(TaskKind.SIMULATION, TaskKind.REVIEW)
+FINAL_C1_MIRROR = _done_today_pair(TaskKind.LEARN, TaskKind.SIMULATION)
 
 
 class _Roles(NamedTuple):
@@ -388,6 +416,8 @@ _PLANNERS: dict[str, Callable[[ReplanScenario], PlanResult]] = {
 
 @PROPERTY_SETTINGS
 @given(replan_scenarios())
+@example(FINAL_C1)
+@example(FINAL_C1_MIRROR)
 def test_replanning_keeps_the_invariants(scenario: ReplanScenario) -> None:
     for name, planner in _PLANNERS.items():
         try:
@@ -436,6 +466,8 @@ def _applied(scenario: ReplanScenario, result: PlanResult, generation: str) -> R
 @given(replan_scenarios())
 @example(FINDING_2)
 @example(FINDING_4)
+@example(FINAL_C1)
+@example(FINAL_C1_MIRROR)
 def test_replanning_twice_moves_nothing(scenario: ReplanScenario) -> None:
     first = replan(*scenario)
     second = replan(*_applied(scenario, first, "replanned"))

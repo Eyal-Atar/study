@@ -182,6 +182,74 @@ def test_a_dependent_with_no_later_day_reports_its_prerequisite() -> None:
     ]
 
 
+SIMULATION_PAIRS = [
+    pytest.param(TaskKind.SIMULATION, TaskKind.REVIEW, id="simulation-prerequisite"),
+    pytest.param(TaskKind.LEARN, TaskKind.SIMULATION, id="simulation-dependent"),
+]
+
+
+@pytest.mark.parametrize(("p_kind", "t_kind"), SIMULATION_PAIRS)
+def test_a_simulation_pair_waits_a_day_after_a_prerequisite_done_earlier_today(
+    p_kind: TaskKind, t_kind: TaskKind
+) -> None:
+    exam = make_exam(nov(4))  # study days November 1 and 2
+    p = make_task(exam, 60, p_kind)
+    t = make_task(exam, 60, t_kind, depends_on=p.id)
+    done = make_block(p, Z(2026, 11, 1, 6), Z(2026, 11, 1, 7), status=BlockStatus.DONE)
+    result = plan(make_profile(), [exam], [p, t], [done], Z(2026, 11, 1, 7, 30))
+    assert [(block.task_id, block.interval) for block in result.blocks] == [
+        (p.id, span(6, 7)),
+        (t.id, span(7, 8, 2)),
+    ]
+    assert result.unscheduled == ()
+
+
+@pytest.mark.parametrize(("p_kind", "t_kind"), SIMULATION_PAIRS)
+def test_a_simulation_pair_with_no_later_day_after_a_prerequisite_done_today(
+    p_kind: TaskKind, t_kind: TaskKind
+) -> None:
+    exam = make_exam(nov(3))  # one study day, November 1
+    p = make_task(exam, 60, p_kind)
+    t = make_task(exam, 60, t_kind, depends_on=p.id)
+    done = make_block(p, Z(2026, 11, 1, 6), Z(2026, 11, 1, 7), status=BlockStatus.DONE)
+    result = plan(make_profile(), [exam], [p, t], [done], Z(2026, 11, 1, 7, 30))
+    assert [block.block_id for block in result.blocks] == [done.id]
+    assert [(u.task_id, u.reason, u.blocked_by) for u in result.unscheduled] == [
+        (t.id, UnscheduledReason.DEPENDENCY_TOO_LATE, p.id)
+    ]
+
+
+def test_a_dependent_spans_the_days_after_its_prerequisite() -> None:
+    profile = make_profile()
+    exam = make_exam(nov(5))
+    p = make_task(exam, 30)
+    t = make_task(exam, 200, depends_on=p.id)
+    x = make_task(exam, 200)
+    blocks = [
+        make_block(p, Z(2026, 11, 1, 13), Z(2026, 11, 1, 13, 30), pinned=True),
+        make_block(x, Z(2026, 11, 2, 7), Z(2026, 11, 2, 8, 40), pinned=True),
+        make_block(x, Z(2026, 11, 3, 7), Z(2026, 11, 3, 8, 40), pinned=True),
+    ]
+    result = plan(profile, [exam], [p, t, x], blocks, NOW)
+    assert result.unscheduled == ()
+    assert [b.interval for b in result.blocks if b.task_id == t.id] == [
+        at(8, 50, 11, 10, 2),
+        at(8, 50, 9, 50, 3),
+    ]
+
+
+def test_a_plain_pair_may_share_the_day_of_a_prerequisite_done_earlier_today() -> None:
+    exam = make_exam(nov(3))
+    p = make_task(exam, 60)
+    t = make_task(exam, 60, TaskKind.REVIEW, depends_on=p.id)
+    done = make_block(p, Z(2026, 11, 1, 6), Z(2026, 11, 1, 7), status=BlockStatus.DONE)
+    result = plan(make_profile(), [exam], [p, t], [done], Z(2026, 11, 1, 7, 30))
+    assert [(block.task_id, block.interval) for block in result.blocks] == [
+        (p.id, span(6, 7)),
+        (t.id, at(7, 30, 8, 30)),
+    ]
+
+
 def test_a_small_remainder_is_five_minutes() -> None:
     exam = make_exam(nov(5))
     a = make_task(exam, 60)

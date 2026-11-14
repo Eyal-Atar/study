@@ -242,3 +242,15 @@ def test_replan_returns_the_stable_plan_when_everything_fits() -> None:
     result = replan(profile, [exam], [a], existing, NOW)
     assert result == plan(profile, [exam], [a], existing, NOW, keep_valid=True)
     assert kept(result) == {existing[0].id: span(12, 13)}
+
+
+def test_a_new_block_keeps_a_break_from_a_kept_candidate() -> None:
+    profile = make_profile()
+    exam = make_exam(nov(5))
+    a = make_task(exam, 60)
+    candidate = make_block(a, Z(2026, 11, 1, 7, 30), Z(2026, 11, 1, 8, 30))
+    b = make_task(exam, 60)
+    result = replan(profile, [exam], [a, b], [candidate], NOW)
+    assert kept(result) == {candidate.id: at(7, 30, 8, 30)}
+    assert new(result, b) == [at(8, 40, 9, 40)]
+    assert result.removed == ()

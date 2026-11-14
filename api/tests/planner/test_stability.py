@@ -1,14 +1,17 @@
 """Which candidate blocks stay where they are: valid_blocks, pass by pass."""
 
 from datetime import UTC, date, datetime, time, timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
+
+import pytest
 
 from app.domain.planner import (
     BlockStatus,
     Exam,
     ExistingBlock,
     Interval,
+    PlannerInputError,
     Profile,
     StudyWindow,
     Task,
@@ -45,6 +48,18 @@ def test_a_valid_candidate_stays() -> None:
     a = make_task(exam, 60)
     b1 = block(a, 1, 9, 10)
     assert valid_blocks(make_profile(), [exam], [a], [b1], NOW) == (b1,)
+
+
+def test_duplicate_block_ids_are_rejected() -> None:
+    exam = make_exam(nov(5))
+    a = make_task(exam, 120)
+    block_id = uuid4()
+    blocks = [
+        make_block(a, Z(2026, 11, 1, 9), Z(2026, 11, 1, 10), id=block_id),
+        make_block(a, Z(2026, 11, 1, 11), Z(2026, 11, 1, 12), id=block_id),
+    ]
+    with pytest.raises(PlannerInputError):
+        valid_blocks(make_profile(), [exam], [a], blocks, NOW)
 
 
 def test_a_block_of_a_task_not_in_the_input_goes() -> None:
