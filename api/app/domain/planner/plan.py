@@ -8,10 +8,11 @@ from typing import Final
 from uuid import UUID
 
 from app.domain.planner.assign import assign_days
+from app.domain.planner.availability import start_minute
 from app.domain.planner.dependencies import resolve_dependencies
+from app.domain.planner.fixed import BlockRole, FixedState, block_role, fixed_state
 from app.domain.planner.intervals import Interval
 from app.domain.planner.model import (
-    BlockStatus,
     DayAssignment,
     Exam,
     ExamShortfall,
@@ -21,6 +22,7 @@ from app.domain.planner.model import (
     PlanResult,
     Profile,
     Task,
+    TaskStatus,
     UnscheduledReason,
 )
 from app.domain.planner.pack import pack_day
@@ -37,16 +39,26 @@ def plan(
     tasks: Sequence[Task],
     existing_blocks: Sequence[ExistingBlock],
     now: dt.datetime,
+    *,
+    keep_valid: bool = False,
 ) -> PlanResult:
     """Plan timed blocks for every todo task, and report what did not fit.
 
-    Done and pinned existing blocks only take time: they are busy, and they do not
-    shorten their task (S08 does that). Other existing blocks are ignored.
+    Fixed blocks (done, pinned or running) stay where they are and come back in
+    the blocks; only what they leave of each task is planned anew. Candidate
+    blocks (planned for later, not pinned) are all removed and planned again.
+    Blocks in the past do nothing.
     """
-    busy = _busy(existing_blocks)
-    assignment = assign_days(profile, exams, tasks, now, busy)
-    tasks_by_id = {task.id: task for task in tasks}
-    prerequisite = resolve_dependencies(tasks).prerequisite
+    if keep_valid:
+        raise NotImplementedError("keeping valid candidate blocks is not implemented yet")
+    _check_blocks(existing_blocks)
+    start = start_minute(now)
+    roles = [(block, block_role(block, start)) for block in existing_blocks]
+    fixed = [block for block, role in roles if role is BlockRole.FIXED]
+    state = fixed_state(profile, tasks, fixed, start)
+    assignment = _assign(profile, exams, state, now)
+    tasks_by_id = {task.id: task for task in state.tasks}
+    prerequisite = resolve_dependencies(state.tasks).prerequisite
     placed = [
         (task_id, interval)
         for day_plan in assignment.days
@@ -54,33 +66,60 @@ def plan(
         for task_id, interval in pack_day(day_plan.day, day_plan.items, tasks_by_id, prerequisite)
     ]
     return PlanResult(
-        blocks=_number_parts(placed),
-        removed=(),
+        blocks=_number_parts(tasks, fixed, placed),
+        removed=tuple(block.id for block, role in roles if role is BlockRole.CANDIDATE),
         unscheduled=assignment.unscheduled,
         warnings=assignment.warnings,
-        shortfalls=_shortfalls(profile, exams, tasks, now, busy, assignment),
+        shortfalls=_shortfalls(profile, exams, state, now, assignment),
     )
 
 
-def _busy(existing_blocks: Sequence[ExistingBlock]) -> list[Interval]:
-    busy: list[Interval] = []
+def _check_blocks(existing_blocks: Sequence[ExistingBlock]) -> None:
+    seen: set[UUID] = set()
     for block in existing_blocks:
         if not isinstance(block, ExistingBlock):
             raise PlannerInputError("existing_blocks must hold ExistingBlock items")
-        if block.pinned or block.status is BlockStatus.DONE:
-            busy.append(block.interval)
-    return busy
+        if block.id in seen:
+            raise PlannerInputError(f"duplicate block id {block.id}")
+        seen.add(block.id)
 
 
-def _number_parts(placed: Sequence[tuple[UUID, Interval]]) -> tuple[PlannedBlock, ...]:
-    """Blocks in start order; each task's blocks are numbered 1..n in time order."""
-    ordered = sorted(placed, key=lambda block: block[1].start)
+def _assign(
+    profile: Profile, exams: Sequence[Exam], state: FixedState, now: dt.datetime
+) -> DayAssignment:
+    """Assign what the fixed blocks leave, around them."""
+    return assign_days(
+        profile,
+        exams,
+        state.tasks,
+        now,
+        state.busy,
+        used=state.used,
+        simulation_days=state.simulation_days,
+        after=state.after,
+    )
+
+
+def _number_parts(
+    tasks: Sequence[Task],
+    fixed: Sequence[ExistingBlock],
+    placed: Sequence[tuple[UUID, Interval]],
+) -> tuple[PlannedBlock, ...]:
+    """The fixed blocks of the todo tasks and the new blocks, by (start, end); each
+    task's blocks are numbered 1..n in that order. A fixed block keeps its id."""
+    todo = {task.id for task in tasks if task.status is TaskStatus.TODO}
+    entries: list[tuple[UUID, Interval, UUID | None]] = [
+        (block.task_id, block.interval, block.id) for block in fixed if block.task_id in todo
+    ]
+    entries.extend((task_id, interval, None) for task_id, interval in placed)
+    # sorted() is stable, so equal intervals keep the order above.
+    ordered = sorted(entries, key=lambda entry: (entry[1].start, entry[1].end))
     counts: dict[UUID, int] = defaultdict(int)
-    for task_id, _ in ordered:
+    for task_id, _, _ in ordered:
         counts[task_id] += 1
     seen: dict[UUID, int] = defaultdict(int)
     blocks: list[PlannedBlock] = []
-    for task_id, interval in ordered:
+    for task_id, interval, block_id in ordered:
         seen[task_id] += 1
         blocks.append(
             PlannedBlock(
@@ -88,6 +127,7 @@ def _number_parts(placed: Sequence[tuple[UUID, Interval]]) -> tuple[PlannedBlock
                 interval=interval,
                 part_index=seen[task_id],
                 part_count=counts[task_id],
+                block_id=block_id,
             )
         )
     return tuple(blocks)
@@ -127,12 +167,15 @@ def _missing_minutes(
 def _shortfalls(
     profile: Profile,
     exams: Sequence[Exam],
-    tasks: Sequence[Task],
+    state: FixedState,
     now: dt.datetime,
-    busy: Sequence[Interval],
     assignment: DayAssignment,
 ) -> tuple[ExamShortfall, ...]:
-    """Per exam with missing minutes: the smallest larger daily budget that fits them."""
+    """Per exam with missing minutes: the smallest larger daily budget that fits them.
+
+    The trial runs plan the same remaining tasks around the same fixed blocks.
+    """
+    tasks = state.tasks
     stuck = _stuck_on_cycle(tasks)
     missing = _missing_minutes(exams, tasks, assignment, stuck)
     short = [exam.id for exam in exams if missing[exam.id] > 0]
@@ -150,7 +193,7 @@ def _shortfalls(
     for budget in range(first, _MAX_DAILY_MINUTES + 1, _BUDGET_STEP):
         if len(fixed) == len(sweep):
             break
-        trial = assign_days(replace(profile, daily_study_minutes=budget), exams, tasks, now, busy)
+        trial = _assign(replace(profile, daily_study_minutes=budget), exams, state, now)
         still = _missing_minutes(exams, tasks, trial, stuck)
         fixed.update({id_: budget for id_ in sweep if id_ not in fixed and still[id_] == 0})
     return tuple(

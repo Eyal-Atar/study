@@ -2,12 +2,16 @@
 
 from datetime import UTC, date, datetime, time
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import NAMESPACE_OID, UUID, uuid4, uuid5
 from zoneinfo import ZoneInfo
 
 from app.domain.planner import (
+    BlockStatus,
     DayAssignment,
     Exam,
+    ExistingBlock,
+    Interval,
+    PlanResult,
     Profile,
     StudyWindow,
     Task,
@@ -53,3 +57,41 @@ def by_day(result: DayAssignment) -> dict[date, list[tuple[UUID, int]]]:
         for plan in result.days
         if plan.items
     }
+
+
+def make_block(
+    task: Task,
+    start: datetime,
+    end: datetime,
+    *,
+    status: BlockStatus = BlockStatus.PLANNED,
+    pinned: bool = False,
+    id: UUID | None = None,
+) -> ExistingBlock:
+    return ExistingBlock(
+        id=uuid4() if id is None else id,
+        task_id=task.id,
+        interval=Interval(start, end),
+        status=status,
+        pinned=pinned,
+    )
+
+
+def as_existing(result: PlanResult) -> list[ExistingBlock]:
+    """The result's blocks as they would be stored: planned and not pinned. A new
+    block gets an id derived from its task and start, so the same result gives the
+    same ids."""
+    return [
+        ExistingBlock(
+            id=(
+                block.block_id
+                if block.block_id is not None
+                else uuid5(NAMESPACE_OID, f"{block.task_id}:{block.interval.start.isoformat()}")
+            ),
+            task_id=block.task_id,
+            interval=block.interval,
+            status=BlockStatus.PLANNED,
+            pinned=False,
+        )
+        for block in result.blocks
+    ]

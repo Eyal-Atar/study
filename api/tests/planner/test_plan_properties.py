@@ -12,22 +12,26 @@ from hypothesis import given
 from app.domain.planner import (
     BREAK_MINUTES,
     MIN_PART_MINUTES,
-    BlockStatus,
+    BlockRole,
     DayAssignment,
-    ExistingBlock,
+    FixedState,
     Interval,
     PlannedBlock,
     PlanResult,
     Profile,
     StudyDay,
+    Task,
     TaskKind,
     TaskStatus,
     assign_days,
+    block_role,
     exam_cutoff,
+    fixed_state,
     last_study_day,
     pack_day,
     plan,
     resolve_dependencies,
+    start_minute,
     study_days,
 )
 from tests.planner.strategies import PROPERTY_SETTINGS, PlanInputs, plan_inputs
@@ -36,13 +40,28 @@ BUDGET_STEP = 30
 MAX_DAILY_MINUTES = 960
 
 
-def _busy(existing_blocks: Sequence[ExistingBlock]) -> list[Interval]:
-    """The same rule as plan(): done or pinned blocks take time."""
-    return [
-        block.interval
-        for block in existing_blocks
-        if block.pinned or block.status is BlockStatus.DONE
+def _state(inputs: PlanInputs) -> FixedState:
+    """The same rule as plan(): the fixed blocks take their time, their task's
+    minutes and their day's budget."""
+    start = start_minute(inputs.now)
+    fixed = [
+        block for block in inputs.existing_blocks if block_role(block, start) is BlockRole.FIXED
     ]
+    return fixed_state(inputs.profile, inputs.tasks, fixed, start)
+
+
+def _assign(inputs: PlanInputs, state: FixedState, profile: Profile) -> DayAssignment:
+    """assign_days as plan() calls it, with this profile."""
+    return assign_days(
+        profile,
+        inputs.exams,
+        state.tasks,
+        inputs.now,
+        state.busy,
+        used=state.used,
+        simulation_days=state.simulation_days,
+        after=state.after,
+    )
 
 
 def _overlaps(a: Interval, b: Interval) -> bool:
@@ -61,20 +80,28 @@ def _window_of(block: PlannedBlock, days: Sequence[StudyDay]) -> tuple[dt.date, 
     return holders[0]
 
 
-def _by_task(result: PlanResult) -> dict[UUID, list[PlannedBlock]]:
+def _by_task(blocks: Sequence[PlannedBlock]) -> dict[UUID, list[PlannedBlock]]:
     """Task -> its blocks in time order."""
-    blocks: dict[UUID, list[PlannedBlock]] = defaultdict(list)
-    for block in sorted(result.blocks, key=lambda block: block.interval.start):
-        blocks[block.task_id].append(block)
-    return blocks
+    by_task: dict[UUID, list[PlannedBlock]] = defaultdict(list)
+    for block in sorted(blocks, key=lambda block: block.interval.start):
+        by_task[block.task_id].append(block)
+    return by_task
 
 
-def _missing_minutes(inputs: PlanInputs, result: DayAssignment | PlanResult) -> Counter[UUID]:
+def _new(result: PlanResult) -> list[PlannedBlock]:
+    """The blocks the plan adds, in time order: those of no existing block."""
+    return sorted(
+        (block for block in result.blocks if block.block_id is None),
+        key=lambda block: block.interval.start,
+    )
+
+
+def _missing_minutes(tasks: Sequence[Task], result: DayAssignment | PlanResult) -> Counter[UUID]:
     """Exam -> the unscheduled minutes of a result, except for tasks that time cannot fix:
     those on a dependency cycle or waiting, through any chain, on one."""
-    in_cycle = resolve_dependencies(inputs.tasks).in_cycle
-    prerequisite = resolve_dependencies(inputs.tasks).prerequisite
-    exam_of = {task.id: task.exam_id for task in inputs.tasks}
+    in_cycle = resolve_dependencies(tasks).in_cycle
+    prerequisite = resolve_dependencies(tasks).prerequisite
+    exam_of = {task.id: task.exam_id for task in tasks}
 
     def stuck(task_id: UUID) -> bool:
         seen: set[UUID] = set()
@@ -100,14 +127,18 @@ def _with_budget(profile: Profile, minutes: int) -> Profile:
 @PROPERTY_SETTINGS
 @given(plan_inputs())
 def test_blocks_pack_what_the_days_hold(inputs: PlanInputs) -> None:
-    profile, exams, tasks, existing_blocks, now = inputs
-    busy = _busy(existing_blocks)
+    profile, exams, tasks, _, now = inputs
+    state = _state(inputs)
+    busy = state.busy
     result = plan(*inputs)
     days = study_days(profile, exams, now, busy)
-    assignment = assign_days(profile, exams, tasks, now, busy)
+    assignment = _assign(inputs, state, profile)
     tasks_by_id = {task.id: task for task in tasks}
+    remaining = {task.id: task for task in state.tasks}
     exams_by_id = {exam.id: exam for exam in exams}
-    blocks = sorted(result.blocks, key=lambda block: block.interval.start)
+    # Windows, overlaps, breaks and day sums are about the new blocks; a fixed block
+    # stays where it is.
+    blocks = _new(result)
 
     # 1. Each block lies whole in one study window.
     places = [_window_of(block, days) for block in blocks]
@@ -120,7 +151,7 @@ def test_blocks_pack_what_the_days_hold(inputs: PlanInputs) -> None:
             assert b.interval.start - a.interval.end >= dt.timedelta(minutes=BREAK_MINUTES)
     # 4. Each day's blocks hold exactly the minutes its items have, and they are
     # what pack_day makes of those items, so plan() packed the same days.
-    prerequisite = resolve_dependencies(tasks).prerequisite
+    prerequisite = resolve_dependencies(state.tasks).prerequisite
     on_day: dict[dt.date, list[PlannedBlock]] = defaultdict(list)
     for block, (date, _) in zip(blocks, places, strict=True):
         on_day[date].append(block)
@@ -136,50 +167,60 @@ def test_blocks_pack_what_the_days_hold(inputs: PlanInputs) -> None:
         assert minutes == items
         # This pins the busy rule (only done or pinned blocks take time) and the call into
         # pack_day, not the packing rules; test_pack.py and the checks above pin those.
-        expected = pack_day(day_plan.day, day_plan.items, tasks_by_id, prerequisite)
+        expected = pack_day(day_plan.day, day_plan.items, remaining, prerequisite)
         assert [(block.task_id, block.interval) for block in packed] == list(expected)
 
     date_of = {block: date for block, (date, _) in zip(blocks, places, strict=True)}
-    by_task = _by_task(result)
+    by_task = _by_task(result.blocks)
+    new_by_task = _by_task(blocks)
     reported = Counter(entry.task_id for entry in result.unscheduled)
     assert by_task.keys() <= tasks_by_id.keys()
     for task in tasks:
         own = by_task.get(task.id, [])
-        # 5. A todo task is planned whole or reported once; any other task has no blocks.
+        new = new_by_task.get(task.id, [])
+        # 5. A todo task is planned whole (what the fixed blocks leave of it) or reported
+        # once; any other task has no blocks.
         if task.status is not TaskStatus.TODO:
             assert not own
-        elif own:
-            assert sum(block.interval.minutes for block in own) == task.estimated_minutes
-            assert task.id not in reported
-        else:
+        elif task.id in reported:
             assert reported[task.id] == 1
+            assert not new
+        elif task.id in remaining:
+            assert sum(block.interval.minutes for block in new) == (
+                remaining[task.id].estimated_minutes
+            )
+        else:
+            assert not new
         if not own:
             continue
-        # 6. The parts are numbered 1..n in time order.
+        # 6. The parts, fixed and new, are numbered 1..n in time order.
         assert [block.part_index for block in own] == list(range(1, len(own) + 1))
         assert all(block.part_count == len(own) for block in own)
+        if not new:
+            continue
         # 7. A simulation is one block; the parts of a split task are long enough.
         if task.kind is TaskKind.SIMULATION:
-            assert len(own) == 1
-            assert own[0].interval.minutes == task.estimated_minutes
-        elif len(own) > 1:
-            assert all(block.interval.minutes >= MIN_PART_MINUTES for block in own)
+            assert len(new) == 1
+            assert new[0].interval.minutes == remaining[task.id].estimated_minutes
+        elif len(new) > 1:
+            assert all(block.interval.minutes >= MIN_PART_MINUTES for block in new)
         # 8. Every block is before its exam's cutoff, on a day the exam may use.
         exam = exams_by_id[task.exam_id]
         cutoff = exam_cutoff(exam, profile)
-        assert all(block.interval.end <= cutoff for block in own)
-        assert all(date_of[block] <= last_study_day(exam, profile) for block in own)
+        assert all(block.interval.end <= cutoff for block in new)
+        assert all(date_of[block] <= last_study_day(exam, profile) for block in new)
 
 
 @PROPERTY_SETTINGS
 @given(plan_inputs())
 def test_dependencies_hold_in_time(inputs: PlanInputs) -> None:
-    profile, exams, tasks, existing_blocks, now = inputs
+    profile, exams, _, _, now = inputs
+    state = _state(inputs)
     result = plan(*inputs)
-    days = study_days(profile, exams, now, _busy(existing_blocks))
-    tasks_by_id = {task.id: task for task in tasks}
-    prerequisites = resolve_dependencies(tasks).prerequisite
-    by_task = _by_task(result)
+    days = study_days(profile, exams, now, state.busy)
+    tasks_by_id = {task.id: task for task in state.tasks}
+    prerequisites = resolve_dependencies(state.tasks).prerequisite
+    by_task = _by_task(_new(result))
 
     for task_id, own in by_task.items():
         prerequisite = prerequisites.get(task_id)
@@ -200,9 +241,9 @@ def test_shortfalls_match_the_report(inputs: PlanInputs) -> None:
     """Each shortfall has the exam's missing minutes, and its suggested budget is
     the smallest step of 30 that leaves the exam nothing missing."""
     profile = inputs.profile
-    busy = _busy(inputs.existing_blocks)
+    state = _state(inputs)
     result = plan(*inputs)
-    missing = _missing_minutes(inputs, result)
+    missing = _missing_minutes(state.tasks, result)
 
     shortfalls = {shortfall.exam_id: shortfall for shortfall in result.shortfalls}
     assert len(shortfalls) == len(result.shortfalls)
@@ -212,10 +253,8 @@ def test_shortfalls_match_the_report(inputs: PlanInputs) -> None:
 
     def missing_with(minutes: int) -> Counter[UUID]:
         if minutes not in trials:
-            trial = assign_days(
-                _with_budget(profile, minutes), inputs.exams, inputs.tasks, inputs.now, busy
-            )
-            trials[minutes] = _missing_minutes(inputs, trial)
+            trial = _assign(inputs, state, _with_budget(profile, minutes))
+            trials[minutes] = _missing_minutes(state.tasks, trial)
         return trials[minutes]
 
     for exam_id, shortfall in shortfalls.items():

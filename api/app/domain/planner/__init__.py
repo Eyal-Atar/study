@@ -22,6 +22,7 @@ from app.domain.planner.capacity import (
     simulation_window,
 )
 from app.domain.planner.dependencies import Dependencies, resolve_dependencies
+from app.domain.planner.fixed import BlockRole, FixedState, block_role, fixed_state
 from app.domain.planner.intervals import Interval, clip, merge, subtract
 from app.domain.planner.model import (
     BlockStatus,
@@ -54,6 +55,7 @@ __all__ = [
     "MIN_PART_MINUTES",
     "STUDY_WINDOW_HOURS",
     "WINDOW_EDGE_RESERVE_MINUTES",
+    "BlockRole",
     "BlockStatus",
     "DayAssignment",
     "DayItem",
@@ -62,6 +64,7 @@ __all__ = [
     "Exam",
     "ExamShortfall",
     "ExistingBlock",
+    "FixedState",
     "Interval",
     "PlanResult",
     "PlanWarning",
@@ -78,10 +81,12 @@ __all__ = [
     "WarningCode",
     "assign_days",
     "awake_span",
+    "block_role",
     "clip",
     "day_fits",
     "day_windows",
     "exam_cutoff",
+    "fixed_state",
     "last_study_day",
     "merge",
     "open_windows",

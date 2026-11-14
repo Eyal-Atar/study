@@ -13,8 +13,9 @@ ready work had its turn.
 """
 
 import datetime as dt
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import Final
 from uuid import UUID
 
@@ -51,11 +52,18 @@ class _Day:
     index: int
     date: dt.date
     windows: tuple[int, ...]  # the window lengths in minutes, in time order
-    budget: int  # what is left of daily_study_minutes
+    # The day's budget before any task: daily_study_minutes less the used minutes.
+    limit: int
+    # Whether the day may take a simulation: not when it holds a fixed one.
+    takes_simulation: bool
+    budget: int = field(init=False)  # what is left of limit
     items: list[DayItem] = field(default_factory=list)
     # The capacity rule takes the simulation apart from the other items.
     simulation: int | None = None  # the minutes of the day's simulation, if it has one
     regular: list[int] = field(default_factory=list)  # the minutes of the other items
+
+    def __post_init__(self) -> None:
+        self.budget = self.limit
 
     def add(self, item: DayItem, *, simulation: bool) -> None:
         self.items.append(item)
@@ -78,7 +86,8 @@ class _Day:
     def fits_simulation(self, minutes: int) -> bool:
         """Whether a simulation of these minutes still goes in, whole and in one window."""
         return (
-            self.simulation is None
+            self.takes_simulation
+            and self.simulation is None
             and minutes <= self.budget
             and day_fits(self.windows, self.regular, minutes)
         )
@@ -122,6 +131,10 @@ class _Context:
     no_window: frozenset[UUID]
     # Simulations longer than the daily budget: no day can ever hold them.
     over_budget: frozenset[UUID]
+    # Task -> the day it must come after (the last day of its prerequisite's fixed blocks).
+    after: Mapping[UUID, dt.date]
+    # Tasks in after whose exam has no eligible day after that day.
+    no_day_after: frozenset[UUID]
 
 
 @dataclass(slots=True)
@@ -141,12 +154,26 @@ def assign_days(
     tasks: Sequence[Task],
     now: dt.datetime,
     busy: Sequence[Interval] = (),
+    *,
+    used: Mapping[dt.date, int] | None = None,
+    simulation_days: Collection[dt.date] = (),
+    after: Mapping[UUID, dt.date] | None = None,
 ) -> DayAssignment:
-    """Assign every todo task to study days, or report why it does not fit."""
+    """Assign every todo task to study days, or report why it does not fit.
+
+    The keywords come from the fixed blocks: used takes minutes out of a day's
+    budget, a day in simulation_days takes no simulation, and a task in after
+    goes only on a day after the given one.
+    """
     _check_input(exams, tasks)
     # study_days rejects a naive now, even when there is nothing to plan.
     study = study_days(profile, exams, now, busy)
-    context = _prepare(profile, exams, tasks, _new_days(study, profile))
+    limits = _Limits(
+        daily=profile.daily_study_minutes,
+        used=MappingProxyType(dict(used or {})),
+        simulation_days=frozenset(simulation_days),
+    )
+    context = _prepare(profile, exams, tasks, _new_days(study, limits), dict(after or {}))
     # A multi-day task that never finishes is placed whole or not at all. Its parts
     # took time that other tasks could have used, so the loop runs again without
     # it. Each run drops one: the unfinished task of the earliest exam, and of that
@@ -160,7 +187,7 @@ def assign_days(
     # keeps the day it was given in every run.
     excluded: frozenset[UUID] = frozenset()
     while True:
-        days, progress = _run_days(context, study, profile, excluded)
+        days, progress = _run_days(context, study, limits, excluded)
         if not progress.started:
             break
         # min() keeps the first of equal keys, so of one exam the earliest started.
@@ -177,23 +204,33 @@ def assign_days(
     )
 
 
-def _new_days(study: Sequence[StudyDay], profile: Profile) -> list[_Day]:
+@dataclass(frozen=True, slots=True)
+class _Limits:
+    """What bounds each day before any task: the budget and the simulation rule."""
+
+    daily: int  # daily_study_minutes
+    used: Mapping[dt.date, int]  # day -> minutes the fixed blocks already take
+    simulation_days: frozenset[dt.date]  # days that hold a fixed simulation
+
+
+def _new_days(study: Sequence[StudyDay], limits: _Limits) -> list[_Day]:
     return [
         _Day(
             index=index,
             date=day.date,
             windows=tuple(window.minutes for window in day.windows),
-            budget=profile.daily_study_minutes,
+            limit=max(0, limits.daily - limits.used.get(day.date, 0)),
+            takes_simulation=day.date not in limits.simulation_days,
         )
         for index, day in enumerate(study)
     ]
 
 
 def _run_days(
-    context: _Context, study: Sequence[StudyDay], profile: Profile, excluded: frozenset[UUID]
+    context: _Context, study: Sequence[StudyDay], limits: _Limits, excluded: frozenset[UUID]
 ) -> tuple[list[_Day], _Progress]:
     """One pass of the day loop, from the first day, never placing the excluded tasks."""
-    days = _new_days(study, profile)
+    days = _new_days(study, limits)
     progress = _Progress(excluded=excluded)
     for day in days:
         if day.windows:
@@ -219,7 +256,11 @@ def _check_unique(kind: str, ids: Sequence[UUID]) -> None:
 
 
 def _prepare(
-    profile: Profile, exams: Sequence[Exam], tasks: Sequence[Task], days: Sequence[_Day]
+    profile: Profile,
+    exams: Sequence[Exam],
+    tasks: Sequence[Task],
+    days: Sequence[_Day],
+    after: Mapping[UUID, dt.date],
 ) -> _Context:
     # sorted() is stable, so the input order breaks the remaining ties.
     ranked = sorted(exams, key=lambda e: (e.exam_date, -e.difficulty))
@@ -234,13 +275,11 @@ def _prepare(
     multi_day = frozenset(
         task.id
         for task in todo
-        if _is_multi_day(task, [days[index] for index in eligible[task.exam_id]], profile)
+        if _is_multi_day(task, [days[index] for index in eligible[task.exam_id]])
     )
     simulations = [task for task in todo if task.kind is TaskKind.SIMULATION]
     simulation_ids = frozenset(task.id for task in simulations)
-    reserved = _reserve_simulations(
-        ranked, todo, days, eligible, dependencies, profile.daily_study_minutes
-    )
+    reserved = _reserve_simulations(ranked, todo, days, eligible, dependencies)
     return _Context(
         todo=todo,
         simulations=tuple(
@@ -261,13 +300,17 @@ def _prepare(
         no_window=frozenset(
             task.id
             for task in simulations
-            if not any(
-                _holds_simulation(days[index], task, profile.daily_study_minutes)
-                for index in eligible[task.exam_id]
-            )
+            if not any(_holds_simulation(days[index], task) for index in eligible[task.exam_id])
         ),
         over_budget=frozenset(
             task.id for task in simulations if task.estimated_minutes > profile.daily_study_minutes
+        ),
+        after=MappingProxyType(after),
+        no_day_after=frozenset(
+            task.id
+            for task in todo
+            if task.id in after
+            and not any(days[index].date > after[task.id] for index in eligible[task.exam_id])
         ),
     )
 
@@ -302,7 +345,6 @@ def _reserve_simulations(
     days: Sequence[_Day],
     eligible: Mapping[UUID, tuple[int, ...]],
     dependencies: Dependencies,
-    daily_minutes: int,
 ) -> dict[UUID, int]:
     """A day of its own for each simulation that can have one: simulation -> day index.
 
@@ -332,7 +374,7 @@ def _reserve_simulations(
             target = (number * (end + 1) + count - 1) // count - 1  # ceil(n * (end + 1) / k) - 1
             for position in _search_order(target, end, len(candidates)):
                 index = candidates[position]
-                if index not in kept and _holds_simulation(days[index], simulation, daily_minutes):
+                if index not in kept and _holds_simulation(days[index], simulation):
                     reserved[simulation.id] = index
                     kept.add(index)
                     break
@@ -348,10 +390,15 @@ def _search_order(target: int, end: int, count: int) -> list[int]:
     return order
 
 
-def _holds_simulation(day: _Day, simulation: Task, daily_minutes: int) -> bool:
-    """Whether a day can hold the whole simulation: within the budget, in one window."""
+def _holds_simulation(day: _Day, simulation: Task) -> bool:
+    """Whether an empty day can hold the whole simulation: it takes simulations, and
+    the simulation is within the day's budget and in one window."""
     minutes = simulation.estimated_minutes
-    return minutes <= daily_minutes and simulation_window(day.windows, minutes) is not None
+    return (
+        day.takes_simulation
+        and minutes <= day.limit
+        and simulation_window(day.windows, minutes) is not None
+    )
 
 
 def _is_eligible(day: _Day, last_day: dt.date) -> bool:
@@ -364,13 +411,12 @@ def _phase(task: Task) -> int:
     return 0 if task.kind in (TaskKind.REVIEW, TaskKind.LEARN) else 1
 
 
-def _is_multi_day(task: Task, eligible: Sequence[_Day], profile: Profile) -> bool:
+def _is_multi_day(task: Task, eligible: Sequence[_Day]) -> bool:
     """Only a task that no empty day of its exam holds whole is split over days."""
     if task.kind is TaskKind.SIMULATION:
         return False
     return not any(
-        min(profile.daily_study_minutes, room(day.windows, [])) >= task.estimated_minutes
-        for day in eligible
+        min(day.limit, room(day.windows, [])) >= task.estimated_minutes for day in eligible
     )
 
 
@@ -443,8 +489,15 @@ def _is_candidate(context: _Context, progress: _Progress, day: _Day, task: Task)
         and task.id not in progress.excluded
         and task.id not in context.dependencies.in_cycle
         and _is_eligible(day, context.last_day[task.exam_id])
+        and _is_after(context, task, day)
         and _is_ready(context, progress, task, day.index)
     )
+
+
+def _is_after(context: _Context, task: Task, day: _Day) -> bool:
+    """Whether the day comes after the day the task must wait past, if it has one."""
+    waits_past = context.after.get(task.id)
+    return waits_past is None or day.date > waits_past
 
 
 def _fitting_minutes(context: _Context, day: _Day, task: Task) -> int:
@@ -513,6 +566,8 @@ def _reason(
             return UnscheduledReason.DEPENDENCY_NOT_SCHEDULED, prerequisite
         if not any(_is_ready(context, progress, task, index) for index in eligible):
             return UnscheduledReason.DEPENDENCY_TOO_LATE, prerequisite
+    if task.id in context.no_day_after:
+        return UnscheduledReason.DEPENDENCY_TOO_LATE, task.depends_on
     if task.id in context.over_budget:
         return UnscheduledReason.LONGER_THAN_DAILY_MINUTES, None
     if task.id in context.no_window:

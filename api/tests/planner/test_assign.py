@@ -271,6 +271,52 @@ def test_prerequisite_finished_too_late() -> None:
     )
 
 
+def test_used_minutes_shrink_a_days_budget() -> None:
+    exam = make_exam(nov(5))
+    a = make_task(exam, 120)
+    result = assign_days(make_profile(), [exam], [a], NOW, used={nov(1): 180})
+    assert by_day(result) == {nov(2): [(a.id, 120)]}
+
+
+def test_used_minutes_make_a_task_span_days() -> None:
+    exam = make_exam(nov(5))
+    a = make_task(exam, 180)
+    used = {nov(1): 150, nov(2): 150, nov(3): 150}
+    result = assign_days(make_profile(), [exam], [a], NOW, used=used)
+    assert by_day(result) == {nov(1): [(a.id, 90)], nov(2): [(a.id, 90)]}
+
+
+def test_a_day_with_a_simulation_takes_no_other() -> None:
+    exam = make_exam(nov(5))
+    simulation = make_task(exam, 60, TaskKind.SIMULATION)
+    result = assign_days(
+        make_profile(), [exam], [simulation], NOW, simulation_days=[nov(1), nov(2), nov(3)]
+    )
+    assert by_day(result) == {}
+    assert result.unscheduled == (unscheduled(simulation, UnscheduledReason.NO_CONTIGUOUS_WINDOW),)
+    others = assign_days(make_profile(), [exam], [simulation], NOW, simulation_days=[nov(3)])
+    assert by_day(others) == {nov(2): [(simulation.id, 60)]}
+
+
+def test_a_task_after_a_day_waits_for_the_next() -> None:
+    exam = make_exam(nov(5))
+    a = make_task(exam, 60)
+    result = assign_days(make_profile(), [exam], [a], NOW, after={a.id: nov(2)})
+    assert by_day(result) == {nov(3): [(a.id, 60)]}
+    prerequisite = uuid4()
+    late = make_task(exam, 60, depends_on=prerequisite)
+    blocked = assign_days(make_profile(), [exam], [late], NOW, after={late.id: nov(3)})
+    assert by_day(blocked) == {}
+    assert blocked.unscheduled == (
+        Unscheduled(
+            task_id=late.id,
+            minutes=60,
+            reason=UnscheduledReason.DEPENDENCY_TOO_LATE,
+            blocked_by=prerequisite,
+        ),
+    )
+
+
 def test_exam_without_study_days() -> None:
     exam = make_exam(nov(2))  # tomorrow, and the rest day is today
     task = make_task(exam, 60)
