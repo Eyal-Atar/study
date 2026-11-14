@@ -452,17 +452,6 @@ def _applied(scenario: ReplanScenario, result: PlanResult, generation: str) -> R
     return scenario._replace(existing_blocks=(*stays, *new))
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "S08 Task 7 finding 2: a task on a dependency cycle whose other member is covered "
-        "by fixed blocks is planned by plan() (fixed_state drops the covered member, so "
-        "the cycle is gone) but valid_blocks still sees the cycle in the whole task list "
-        "(stability._valid_alone, in_cycle) and removes its blocks on every replan. "
-        "Finding 4: a remainder topped up to 5 minutes (fixed._remainder) leaves the task "
-        "over its estimate, so stability._valid_in_time removes that block next time"
-    ),
-)
 @PROPERTY_SETTINGS
 @given(replan_scenarios())
 @example(FINDING_2)

@@ -28,7 +28,8 @@ from app.domain.planner.model import (
 
 _BREAK: Final = dt.timedelta(minutes=BREAK_MINUTES)
 # The shortest remainder a partly done task keeps: the smallest task the model accepts.
-_MIN_REMAINDER_MINUTES: Final = 5
+# A task can so end up to MIN_REMAINDER_MINUTES - 1 minutes over its estimate.
+MIN_REMAINDER_MINUTES: Final = 5
 
 
 class BlockRole(Enum):
@@ -120,4 +121,4 @@ def _remainder(task: Task, fixed_minutes: int | None) -> Task | None:
     left = task.estimated_minutes - fixed_minutes
     if left <= 0:
         return None
-    return replace(task, estimated_minutes=max(_MIN_REMAINDER_MINUTES, left))
+    return replace(task, estimated_minutes=max(MIN_REMAINDER_MINUTES, left))

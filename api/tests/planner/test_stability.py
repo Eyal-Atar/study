@@ -1,15 +1,21 @@
 """Which candidate blocks stay where they are: valid_blocks, pass by pass."""
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from app.domain.planner import (
     BlockStatus,
+    Exam,
     ExistingBlock,
+    Interval,
+    Profile,
+    StudyWindow,
     Task,
     TaskKind,
     TaskStatus,
     is_complete,
+    replan,
     valid_blocks,
 )
 from tests.planner.factories import NOW, make_block, make_exam, make_profile, make_task
@@ -214,3 +220,81 @@ def test_is_complete() -> None:
     assert not is_complete(a, 59, has_live_block=True)
     assert is_complete(simulation, 0, has_live_block=True)
     assert not is_complete(simulation, 0, has_live_block=False)
+
+
+# The profile, exam and ids of the property-test findings (test_replan_properties.py).
+_UTC_PROFILE = Profile(
+    timezone=ZoneInfo("UTC"),
+    wake_time=time(7),
+    sleep_time=time(23),
+    daily_study_minutes=240,
+    study_windows=frozenset({StudyWindow.MORNING, StudyWindow.AFTERNOON}),
+    rest_days_before_exam=0,
+    study_start_delay=timedelta(0),
+)
+_EXAM = Exam(id=UUID(int=1), exam_date=nov(20), difficulty=3)
+_NOW = Z(2026, 11, 14, 9)
+
+
+def _stored(
+    number: int,
+    task: int,
+    start: datetime,
+    minutes: int,
+    *,
+    status: BlockStatus = BlockStatus.PLANNED,
+    pinned: bool = False,
+) -> ExistingBlock:
+    return ExistingBlock(
+        id=UUID(int=number),
+        task_id=UUID(int=task),
+        interval=Interval(start, start + timedelta(minutes=minutes)),
+        status=status,
+        pinned=pinned,
+    )
+
+
+def test_a_cycle_broken_by_a_covered_member_keeps_the_other_members_block() -> None:
+    # Finding 2: tasks 2 and 4 wait for each other, and a pinned block covers task 2.
+    # plan schedules task 4 (the covered member no longer holds it back), so its
+    # stored block is valid.
+    tasks = [
+        Task(
+            id=UUID(int=2),
+            exam_id=_EXAM.id,
+            kind=TaskKind.LEARN,
+            estimated_minutes=30,
+            depends_on=UUID(int=4),
+        ),
+        Task(
+            id=UUID(int=4),
+            exam_id=_EXAM.id,
+            kind=TaskKind.LEARN,
+            estimated_minutes=30,
+            depends_on=UUID(int=2),
+        ),
+    ]
+    pin = _stored(101, 2, Z(2026, 11, 14, 10), 30, pinned=True)
+    stored = _stored(102, 4, Z(2026, 11, 15, 7), 30)
+    first = replan(_UTC_PROFILE, [_EXAM], tasks, [pin], _NOW)
+    assert [b.interval for b in first.blocks if b.block_id is None] == [stored.interval]
+    assert valid_blocks(_UTC_PROFILE, [_EXAM], tasks, [pin, stored], _NOW) == (stored,)
+    assert replan(_UTC_PROFILE, [_EXAM], tasks, [pin, stored], _NOW).removed == ()
+
+
+def test_a_remainder_topped_up_to_five_minutes_stays() -> None:
+    # Finding 4: 30 of 32 minutes done; the 2-minute remainder is planned as 5.
+    tasks = [Task(id=UUID(int=2), exam_id=_EXAM.id, kind=TaskKind.LEARN, estimated_minutes=32)]
+    done = _stored(101, 2, Z(2026, 11, 14, 8), 30, status=BlockStatus.DONE)
+    stored = _stored(102, 2, Z(2026, 11, 14, 9), 5)
+    first = replan(_UTC_PROFILE, [_EXAM], tasks, [done], _NOW)
+    assert [b.interval for b in first.blocks if b.block_id is None] == [stored.interval]
+    assert valid_blocks(_UTC_PROFILE, [_EXAM], tasks, [done, stored], _NOW) == (stored,)
+    assert replan(_UTC_PROFILE, [_EXAM], tasks, [done, stored], _NOW).removed == ()
+
+
+def test_a_top_up_never_goes_past_five_minutes_of_remainder() -> None:
+    tasks = [Task(id=UUID(int=2), exam_id=_EXAM.id, kind=TaskKind.LEARN, estimated_minutes=32)]
+    done = _stored(101, 2, Z(2026, 11, 14, 8), 30, status=BlockStatus.DONE)
+    stored = _stored(102, 2, Z(2026, 11, 14, 9), 6)
+    assert valid_blocks(_UTC_PROFILE, [_EXAM], tasks, [done, stored], _NOW) == ()

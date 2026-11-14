@@ -23,7 +23,7 @@ from uuid import UUID
 from app.domain.planner.availability import last_study_day, open_windows, start_minute, study_date
 from app.domain.planner.capacity import MIN_PART_MINUTES
 from app.domain.planner.dependencies import Dependencies, resolve_dependencies
-from app.domain.planner.fixed import BlockRole, block_role, fixed_state
+from app.domain.planner.fixed import MIN_REMAINDER_MINUTES, BlockRole, block_role, fixed_state
 from app.domain.planner.intervals import Interval
 from app.domain.planner.model import (
     Exam,
@@ -57,10 +57,12 @@ def valid_blocks(
         (block for block, role in roles if role is BlockRole.CANDIDATE),
         key=lambda block: (block.interval.start, block.id),
     )
-    dependencies = resolve_dependencies(tasks)
-    alone = _valid_alone(profile, exams, tasks, fixed, candidates, now, dependencies)
+    # Cycles are found among what the fixed blocks leave, as plan finds them: a
+    # covered member no longer holds the other members of its cycle back.
+    in_cycle = resolve_dependencies(fixed_state(profile, tasks, fixed, start).tasks).in_cycle
+    alone = _valid_alone(profile, exams, tasks, fixed, candidates, now, in_cycle)
     in_time = _valid_in_time(profile, tasks, fixed, alone, start)
-    return _valid_in_order(profile, tasks, fixed, in_time, dependencies)
+    return _valid_in_order(profile, tasks, fixed, in_time, resolve_dependencies(tasks))
 
 
 def _overlaps(a: Interval, b: Interval) -> bool:
@@ -74,7 +76,7 @@ def _valid_alone(
     fixed: Sequence[ExistingBlock],
     candidates: Sequence[ExistingBlock],
     now: dt.datetime,
-    dependencies: Dependencies,
+    in_cycle: frozenset[UUID],
 ) -> list[ExistingBlock]:
     """Pass 1: the candidates that are valid each by itself, in the given order."""
     tasks_by_id = {task.id: task for task in tasks}
@@ -86,7 +88,7 @@ def _valid_alone(
         task = tasks_by_id.get(block.task_id)
         if task is None or task.status is not TaskStatus.TODO:
             continue
-        if task.id in dependencies.in_cycle:
+        if task.id in in_cycle:
             continue
         exam = exams_by_id.get(task.exam_id)
         if exam is None:
@@ -123,6 +125,7 @@ def _valid_in_time(
     task_minutes: dict[UUID, int] = {}
     for block in fixed:
         task_minutes[block.task_id] = task_minutes.get(block.task_id, 0) + block.interval.minutes
+    caps = {task.id: _cap(task, task_minutes.get(task.id, 0)) for task in tasks}
     day_minutes = dict(state.used)
     simulation_days = set(state.simulation_days)  # only tested for membership
     kept: list[ExistingBlock] = []
@@ -134,7 +137,7 @@ def _valid_in_time(
         simulation = task.kind is TaskKind.SIMULATION
         if (
             any(_overlaps(interval, other.interval) for other in kept)
-            or task_minutes.get(task.id, 0) + minutes > task.estimated_minutes
+            or task_minutes.get(task.id, 0) + minutes > caps[task.id]
             or day_minutes.get(day, 0) + minutes > profile.daily_study_minutes
             or (simulation and day in simulation_days)
         ):
@@ -145,6 +148,15 @@ def _valid_in_time(
         if simulation:
             simulation_days.add(day)
     return kept
+
+
+def _cap(task: Task, fixed_minutes: int) -> int:
+    """The most minutes a task's live blocks may hold. A partly done task's remainder
+    is planned as at least MIN_REMAINDER_MINUTES (fixed_state), so it may end over
+    its estimate by less than that."""
+    if fixed_minutes < task.estimated_minutes:
+        return max(task.estimated_minutes, fixed_minutes + MIN_REMAINDER_MINUTES)
+    return task.estimated_minutes
 
 
 def _ranks(tasks: Sequence[Task], prerequisite: Mapping[UUID, UUID]) -> dict[UUID, int]:
