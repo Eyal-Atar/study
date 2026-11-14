@@ -17,7 +17,6 @@ from typing import NamedTuple
 from uuid import NAMESPACE_OID, UUID, uuid5
 from zoneinfo import ZoneInfo
 
-import pytest
 from hypothesis import example, given
 from hypothesis import strategies as st
 
@@ -63,8 +62,8 @@ _MIN_REMAINDER = 5
 _MAX_OVERSHOOT = _MIN_REMAINDER - 1
 
 
-# The minimal reproductions of the findings of S08 Task 7, run first as explicit
-# examples so that each xfail fails the same way on every run.
+# The minimal reproductions of the findings of S08 Task 7, kept as explicit examples
+# so that every run checks them first.
 def _id(number: int) -> UUID:
     return UUID(int=number)
 
@@ -116,13 +115,6 @@ def _block(
     )
 
 
-# Finding 1: a simulation of 30 minutes covered by a pinned block of 15.
-FINDING_1 = _scenario(
-    _PROFILE,
-    [Task(id=_id(2), exam_id=_id(1), kind=TaskKind.SIMULATION, estimated_minutes=30)],
-    [_block(101, 2, _at(11, 15, 8), 15, pinned=True)],
-    _at(11, 14, 9),
-)
 # Finding 2: tasks 2 and 4 wait for each other, and a pinned block covers task 2.
 FINDING_2 = _scenario(
     _PROFILE,
@@ -144,7 +136,9 @@ FINDING_4 = _scenario(
     [_block(101, 2, _at(11, 14, 8), 30, BlockStatus.DONE)],
     _at(11, 14, 9),
 )
-# Finding 3: a planned block that overlaps a done block of the same task, both later today.
+# Finding 3: a planned block that overlaps a done block of the same task, both later
+# today. The database forbids that overlap, so the undo property drops the done block
+# from its board (see _as_in_the_database).
 FINDING_3 = _scenario(
     _PROFILE,
     [Task(id=_id(2), exam_id=_id(1), kind=TaskKind.LEARN, estimated_minutes=30)],
@@ -209,12 +203,9 @@ def _new_id(block: PlannedBlock, generation: str) -> UUID:
     return uuid5(NAMESPACE_OID, f"{generation}:{block.task_id}:{block.interval.start.isoformat()}")
 
 
-def _check_invariants(
-    scenario: ReplanScenario, result: PlanResult, *, as_written: bool = False
-) -> None:
-    """Rules 1-11 of the brief. Rule 7 asks every covered todo task for its whole
-    estimate; with as_written False, a simulation that has a fixed or kept block is
-    covered by it whatever its length (is_complete), as the planner's rule says."""
+def _check_invariants(scenario: ReplanScenario, result: PlanResult) -> None:
+    """Rules 1-11 of the brief, with rule 7 as the user decided it: a simulation
+    that has a fixed or kept block is covered by it, whatever its length."""
     profile, exams, tasks, _, now = scenario
     roles = _roles(scenario)
     start = roles.start
@@ -327,7 +318,11 @@ def _check_invariants(
             continue
         estimate = task.estimated_minutes
         live_minutes = sum(block.interval.minutes for block in by_task.get(task.id, []))
-        if task.id in reported:
+        if task.kind is TaskKind.SIMULATION and settled[task.id]:
+            # A simulation never splits: any fixed or kept block of it covers it.
+            assert task.id not in reported, f"covered simulation {task.id} is reported"
+            assert not new_by_task.get(task.id), f"covered simulation {task.id} got a block"
+        elif task.id in reported:
             assert reported[task.id] == 1
             assert not new_by_task.get(task.id)
             if task.kind is TaskKind.SIMULATION:
@@ -337,8 +332,6 @@ def _check_invariants(
                 assert unscheduled[task.id].minutes == max(
                     _MIN_REMAINDER, estimate - settled[task.id]
                 )
-        elif task.kind is TaskKind.SIMULATION and settled[task.id] and not as_written:
-            assert not new_by_task.get(task.id)
         else:
             assert live_minutes >= estimate, f"task {task.id} has {live_minutes} of {estimate}"
             if new_by_task.get(task.id):
@@ -396,24 +389,11 @@ _PLANNERS: dict[str, Callable[[ReplanScenario], PlanResult]] = {
 @PROPERTY_SETTINGS
 @given(replan_scenarios())
 def test_replanning_keeps_the_invariants(scenario: ReplanScenario) -> None:
-    for planner in _PLANNERS.values():
-        _check_invariants(scenario, planner(scenario))
-
-
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "S08 Task 7 finding 1: rule 7 as written (L >= E for every covered todo task) "
-        "does not hold for a simulation covered by a shorter fixed block; the planner "
-        "treats any fixed block as covering a simulation (fixed._remainder, is_complete)"
-    ),
-)
-@PROPERTY_SETTINGS
-@given(replan_scenarios())
-@example(FINDING_1)
-def test_rule_7_as_written(scenario: ReplanScenario) -> None:
-    for planner in _PLANNERS.values():
-        _check_invariants(scenario, planner(scenario), as_written=True)
+    for name, planner in _PLANNERS.items():
+        try:
+            _check_invariants(scenario, planner(scenario))
+        except AssertionError as error:
+            raise AssertionError(f"{name}: {error}") from error
 
 
 @PROPERTY_SETTINGS
@@ -585,24 +565,36 @@ def _open(blocks: Iterable[SnapshotBlock], start: dt.datetime) -> set[SnapshotBl
     return {b for b in blocks if b.status is BlockStatus.PLANNED and b.interval.start >= start}
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "S08 Task 7 finding 3: undo drops a saved future block that overlapped a done or "
-        "running block already when the snapshot was taken (versions.undo, blocking), "
-        "so the plan before the change does not come back"
-    ),
-)
+_TAKES_TIME = (BlockStatus.PLANNED, BlockStatus.DONE)
+
+
+def _as_in_the_database(scenario: ReplanScenario) -> ReplanScenario:
+    """The scenario's board as the database could hold it: its exclusion constraint
+    forbids two planned or done blocks that overlap. The blocks are walked in the
+    scenario's input order; a planned or done block that overlaps a planned or done
+    block already kept is left out. Missed and skipped blocks always stay."""
+    kept: list[ExistingBlock] = []
+    for block in scenario.existing_blocks:
+        if block.status in _TAKES_TIME and any(
+            other.status in _TAKES_TIME and _overlaps(block.interval, other.interval)
+            for other in kept
+        ):
+            continue
+        kept.append(block)
+    return scenario._replace(existing_blocks=tuple(kept))
+
+
 @PROPERTY_SETTINGS
 @given(replan_scenarios())
 @example(FINDING_3)
 def test_undo_returns_the_plan_before_the_change(scenario: ReplanScenario) -> None:
-    now = scenario.now
+    board = _as_in_the_database(scenario)
+    now = board.now
     start = start_minute(now)
-    before = _numbered(scenario.existing_blocks)
+    before = _numbered(board.existing_blocks)
     saved = parse_snapshot(json.loads(json.dumps(snapshot(before, now))))
 
-    result = replan(*scenario)
+    result = replan(*board)
     numbering = {block.block_id: block for block in result.blocks if block.block_id is not None}
     after: list[SnapshotBlock] = []
     for block in before:

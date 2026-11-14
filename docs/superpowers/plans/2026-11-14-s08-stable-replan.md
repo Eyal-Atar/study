@@ -496,7 +496,7 @@ CREATE INDEX blocks_plan_version_idx ON app.blocks (plan_version_id)
   4. אין חפיפה בין שני בלוקים שנשארו, ולא בין בלוק שנשאר לקבוע.
   5. לכל `study_date` שיש בו בלוק חדש או בלוק שנשאר: סכום הדקות של כל הבלוקים החיים שמתחילים בו (קבועים, נשארים, חדשים) לכל היותר `daily_study_minutes`.
   6. לכל `study_date`: לכל היותר סימולציה אחת מבין החדשות והנשארות, ואף אחת כזו ביום שיש בו סימולציה קבועה.
-  7. לכל משימת `TODO`, עם `L` סכום הדקות החיות שלה ב-`blocks`, ‏`E = estimated_minutes`, ו-`K` הדקות של הקבועים והנשארים שלה: אם היא ב-`unscheduled` (פעם אחת), אין לה בלוק חדש, ו-`minutes == max(5, E − K)` (לסימולציה: `K == 0` ו-`minutes == E`). אחרת `L >= E`, ואם יש לה בלוק חדש: `L − E <= 4`. למשימה שאינה `TODO` אין בלוק ב-`blocks`, והיא לא ב-`unscheduled`.
+  7. לכל משימת `TODO`, עם `L` סכום הדקות החיות שלה ב-`blocks`, ‏`E = estimated_minutes`, ו-`K` הדקות של הקבועים והנשארים שלה: אם היא ב-`unscheduled` (פעם אחת), אין לה בלוק חדש, ו-`minutes == max(5, E − K)` (לסימולציה: `K == 0` ו-`minutes == E`). סימולציה עם בלוק קבוע או נשאר מכוסה: אין לה בלוק חדש והיא לא בדוח (החלטת המשתמש אחרי finding 1 של Task 7). אחרת `L >= E`, ואם יש לה בלוק חדש: `L − E <= 4`. למשימה שאינה `TODO` אין בלוק ב-`blocks`, והיא לא ב-`unscheduled`.
   8. המספור: הבלוקים של כל משימה ב-`blocks`, לפי זמן, הם `1..n` עם `part_count == n`.
   9. סימולציה חדשה היא בלוק אחד באורך `E`. משימה עם יותר מבלוק חדש אחד: כל חדש לפחות `MIN_PART_MINUTES`.
   10. תלויות: לכל `T` עם בלוק חדש או בלוק שנשאר, ועם דרישה מוקדמת `P` (מ-`resolve_dependencies(tasks)`): ‏`P` לא ב-`unscheduled`, וכל בלוק של `P` ב-`blocks` נגמר עד תחילת הבלוק הראשון של `T` שהוא חדש או נשאר. כשאחת מהן סימולציה: ה-`study_date` של כל בלוק של `P` מוקדם מזה של אותו בלוק של `T`.
@@ -510,7 +510,7 @@ CREATE INDEX blocks_plan_version_idx ON app.blocks (plan_version_id)
 
   `test_placing_one_task_touches_nothing_else`: מגרילים משימת `TODO` מהתרחיש (אם אין, `place_task` לא נקרא והבדיקה עוברת בלי `assume`) ומריצים `place_task(*s, task_id)`. בהצלחה: כל בלוק ב-`blocks` הוא של המשימה הזו; כל בלוק חי שלה נמצא שם עם ה-`interval` שלו; ‏`removed == ()`; החדשים עומדים ב-3, 5, 6, 9 ו-11 מול **כל** הבלוקים החיים; ואם יש לה דרישה מוקדמת עם בלוקים חיים, כולם נגמרים לפני הבלוק החדש הראשון. בכישלון: `blocks == ()`, ‏`removed == ()`, ו-`unscheduled` אחד, של המשימה.
 
-  `test_undo_returns_the_plan_before_the_change`: ‏`before` = הבלוקים של התרחיש כ-`SnapshotBlock`; ‏`saved = parse_snapshot(json.loads(json.dumps(snapshot(before, now))))`; ‏`after` = `before` אחרי החלת `replan` (מוחקים `removed`, מעדכנים מספור של קיימים, מוסיפים חדשים); ‏`u = undo(saved, after, now)`. אחרי החלת `u` על `after`, קבוצת הבלוקים שהם `PLANNED` ומתחילים ב-`start` או אחריו שווה לאותה קבוצה ב-`before`, וכל שאר הבלוקים של `after` לא השתנו. ‏`u.dropped` מכיל רק בלוקים שהתחילו לפני `start`.
+  `test_undo_returns_the_plan_before_the_change`: ‏`before` = הבלוקים של התרחיש כ-`SnapshotBlock`, אחרי נרמול כמו במסד: בלוק `planned` או `done` שחופף בלוק `planned`/`done` שכבר נשאר לא נכנס (החלטת המשתמש אחרי finding 3 של Task 7); ‏`saved = parse_snapshot(json.loads(json.dumps(snapshot(before, now))))`; ‏`after` = `before` אחרי החלת `replan` (מוחקים `removed`, מעדכנים מספור של קיימים, מוסיפים חדשים); ‏`u = undo(saved, after, now)`. אחרי החלת `u` על `after`, קבוצת הבלוקים שהם `PLANNED` ומתחילים ב-`start` או אחריו שווה לאותה קבוצה ב-`before`, וכל שאר הבלוקים של `after` לא השתנו. ‏`u.dropped` מכיל רק בלוקים שהתחילו לפני `start`.
 
   `test_same_scenario_same_output`: ‏`replan(*s) == replan(*s)`.
 - Produces, ב-`test_plan_properties.py` (ההשלמות של S07):
