@@ -241,12 +241,6 @@ def test_duplicate_block_ids_are_rejected() -> None:
         plan(make_profile(), [exam], [a], blocks, NOW)
 
 
-def test_keeping_valid_blocks_is_not_implemented_yet() -> None:
-    exam = make_exam(nov(5))
-    with pytest.raises(NotImplementedError):
-        plan(make_profile(), [exam], [], [], NOW, keep_valid=True)
-
-
 def test_an_over_budget_simulation_suggests_its_minutes() -> None:
     exam = make_exam(nov(5))
     simulation = make_task(exam, 300, TaskKind.SIMULATION)

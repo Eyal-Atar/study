@@ -26,6 +26,7 @@ from app.domain.planner.model import (
     UnscheduledReason,
 )
 from app.domain.planner.pack import pack_day
+from app.domain.planner.stability import valid_blocks
 
 # Suggested daily budgets go up in steps of half an hour.
 _BUDGET_STEP: Final = 30
@@ -46,15 +47,17 @@ def plan(
 
     Fixed blocks (done, pinned or running) stay where they are and come back in
     the blocks; only what they leave of each task is planned anew. Candidate
-    blocks (planned for later, not pinned) are all removed and planned again.
-    Blocks in the past do nothing.
+    blocks (planned for later, not pinned) are all removed and planned again;
+    with keep_valid, the valid ones (see `valid_blocks`) stay as if they were
+    fixed, and only the others are removed. Blocks in the past do nothing.
     """
-    if keep_valid:
-        raise NotImplementedError("keeping valid candidate blocks is not implemented yet")
     _check_blocks(existing_blocks)
     start = start_minute(now)
     roles = [(block, block_role(block, start)) for block in existing_blocks]
-    fixed = [block for block, role in roles if role is BlockRole.FIXED]
+    stays: set[UUID] = set()  # only tested for membership
+    if keep_valid:
+        stays = {block.id for block in valid_blocks(profile, exams, tasks, existing_blocks, now)}
+    fixed = [block for block, role in roles if role is BlockRole.FIXED or block.id in stays]
     state = fixed_state(profile, tasks, fixed, start)
     assignment = _assign(profile, exams, state, now)
     tasks_by_id = {task.id: task for task in state.tasks}
@@ -67,11 +70,37 @@ def plan(
     ]
     return PlanResult(
         blocks=_number_parts(tasks, fixed, placed),
-        removed=tuple(block.id for block, role in roles if role is BlockRole.CANDIDATE),
+        removed=tuple(
+            block.id
+            for block, role in roles
+            if role is BlockRole.CANDIDATE and block.id not in stays
+        ),
         unscheduled=assignment.unscheduled,
         warnings=assignment.warnings,
         shortfalls=_shortfalls(profile, exams, state, now, assignment),
     )
+
+
+def replan(
+    profile: Profile,
+    exams: Sequence[Exam],
+    tasks: Sequence[Task],
+    existing_blocks: Sequence[ExistingBlock],
+    now: dt.datetime,
+) -> PlanResult:
+    """The plan that keeps valid blocks in place, unless that leaves more minutes
+    unscheduled than planning everything afresh."""
+    stable = plan(profile, exams, tasks, existing_blocks, now, keep_valid=True)
+    if not stable.unscheduled:
+        return stable
+    fresh = plan(profile, exams, tasks, existing_blocks, now)
+    if _unscheduled_minutes(stable) <= _unscheduled_minutes(fresh):
+        return stable
+    return fresh
+
+
+def _unscheduled_minutes(result: PlanResult) -> int:
+    return sum(item.minutes for item in result.unscheduled)
 
 
 def _check_blocks(existing_blocks: Sequence[ExistingBlock]) -> None:

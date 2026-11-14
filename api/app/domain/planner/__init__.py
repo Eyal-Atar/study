@@ -47,7 +47,8 @@ from app.domain.planner.model import (
     WarningCode,
 )
 from app.domain.planner.pack import pack_day
-from app.domain.planner.plan import plan
+from app.domain.planner.plan import plan, replan
+from app.domain.planner.stability import is_complete, valid_blocks
 
 __all__ = [
     "BREAK_MINUTES",
@@ -87,11 +88,13 @@ __all__ = [
     "day_windows",
     "exam_cutoff",
     "fixed_state",
+    "is_complete",
     "last_study_day",
     "merge",
     "open_windows",
     "pack_day",
     "plan",
+    "replan",
     "resolve_dependencies",
     "room",
     "simulation_window",
@@ -99,4 +102,5 @@ __all__ = [
     "study_date",
     "study_days",
     "subtract",
+    "valid_blocks",
 ]
