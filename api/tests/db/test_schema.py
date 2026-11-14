@@ -60,7 +60,14 @@ def _count(db: psycopg.Connection, table: str) -> int:
 
 
 def test_core_tables_exist(db: psycopg.Connection) -> None:
-    assert _app_tables(db) == ["alembic_version", "blocks", "exams", "profiles", "tasks"]
+    assert _app_tables(db) == [
+        "alembic_version",
+        "blocks",
+        "exams",
+        "plan_versions",
+        "profiles",
+        "tasks",
+    ]
 
 
 def test_every_app_table_has_rls_and_an_owner_policy(db: psycopg.Connection) -> None:
@@ -109,6 +116,8 @@ def test_only_authenticated_has_table_privileges(db: psycopg.Connection) -> None
         "exams": {"SELECT", "INSERT", "UPDATE", "DELETE"},
         "tasks": {"SELECT", "INSERT", "UPDATE", "DELETE"},
         "blocks": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+        # UPDATE is granted on the undone_at column only, so it is not a table privilege.
+        "plan_versions": {"SELECT", "INSERT"},
     }
     for table in _app_tables(db):
         for role in ("anon", "studyflow_api", "service_role"):

@@ -18,6 +18,9 @@ $$;
 
 CREATE SCHEMA IF NOT EXISTS auth;
 
+-- Supabase keeps its extensions here; migrations create btree_gist in it.
+CREATE SCHEMA IF NOT EXISTS extensions;
+
 CREATE TABLE IF NOT EXISTS auth.users (
     id uuid PRIMARY KEY,
     email text

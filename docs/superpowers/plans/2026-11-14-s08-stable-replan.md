@@ -419,11 +419,12 @@ CREATE TABLE app.plan_versions (
     CONSTRAINT plan_versions_user_id_fkey FOREIGN KEY (user_id)
         REFERENCES auth.users (id) ON DELETE CASCADE,
     CONSTRAINT plan_versions_reason_format CHECK (reason ~ '^[a-z][a-z_]{0,39}$'),
-    CONSTRAINT plan_versions_snapshot_shape CHECK (
+    -- IS TRUE: a missing key makes jsonb_typeof NULL, and a CHECK passes on NULL.
+    CONSTRAINT plan_versions_snapshot_shape CHECK ((
         jsonb_typeof(snapshot) = 'object'
         AND jsonb_typeof(snapshot -> 'v') = 'number'
         AND jsonb_typeof(snapshot -> 'blocks') = 'array'
-    ),
+    ) IS TRUE),
     CONSTRAINT plan_versions_snapshot_size CHECK (pg_column_size(snapshot) <= 1048576),
     CONSTRAINT plan_versions_id_user_id_key UNIQUE (id, user_id)
 );

@@ -48,8 +48,11 @@ def test_both_occurrences_of_a_repeated_hour_are_kept_apart(
     second = datetime(2026, 10, 25, 1, 30, fold=1, tzinfo=JLM)
     with user_transaction(api_db, user) as conn:
         task_id = make_task(conn, user)
-        insert_block(conn, user, task_id, first, first + timedelta(minutes=30))
-        insert_block(conn, user, task_id, second, second + timedelta(minutes=30))
+        # Add the length in UTC: wall-clock arithmetic on first would end at 02:00 Jerusalem
+        # time, which is after the second occurrence has begun.
+        for start in (first, second):
+            end = start.astimezone(UTC) + timedelta(minutes=30)
+            insert_block(conn, user, task_id, start, end)
     with user_transaction(api_db, user) as conn:
         rows = conn.execute("SELECT starts_at FROM app.blocks ORDER BY starts_at").fetchall()
     starts = [row[0] for row in rows]
