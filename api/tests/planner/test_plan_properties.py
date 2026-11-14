@@ -275,3 +275,12 @@ def test_shortfalls_match_the_report(inputs: PlanInputs) -> None:
 @given(plan_inputs())
 def test_same_input_same_output(inputs: PlanInputs) -> None:
     assert plan(*inputs) == plan(*inputs)
+
+
+@PROPERTY_SETTINGS
+@given(plan_inputs())
+def test_the_report_holds_only_todo_tasks_of_the_input(inputs: PlanInputs) -> None:
+    todo = {task.id for task in inputs.tasks if task.status is TaskStatus.TODO}
+    reported = Counter(entry.task_id for entry in plan(*inputs).unscheduled)
+    assert reported.keys() <= todo
+    assert all(count == 1 for count in reported.values())

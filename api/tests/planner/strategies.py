@@ -6,18 +6,33 @@ UTC whole-minute intervals in the first 14 days of the horizon. The building
 blocks (exams_for, tasks_for, busy_for) take what they depend on, so a later
 scope can compose them into a larger input.
 
-The whole inputs are wide half the time and dense the other half. A wide input
+The whole inputs come in three kinds, a third of the time each. A wide input
 spreads up to MAX_EXAMS exams over MAX_DAYS_TO_EXAM days, so most of its tasks
 fit. A dense one crowds 10 to 30 tasks of an hour or so into the few days before
 one or two exams with a small daily budget, so days fill up to their capacity
 and tasks are reported for lack of time: that is where packing and the report
-are tested. The building blocks take the ranges as parameters, and the defaults
-are the wide ones.
+are tested. A tight-budget one is dense, but with a usual waking day, three or
+four study windows, a daily budget of 30 to 90 minutes and up to MAX_EXAMS exams
+4 to 10 days away, so the budget, not the windows or the days, is what runs out:
+that is where a suggested larger budget is tested. The building blocks take
+the ranges as parameters, and the defaults are the wide ones.
+
+`replan_scenarios` builds on these a calendar a few days into its life: the
+core input is planned at now0, the plan's blocks are stored (some pinned,
+some done, missed or skipped), a few blocks are pinned at random times, the
+clock moves forward up to three days, and up to three changes happen (a task
+added, deleted, finished or re-estimated, sometimes to a little more than it
+has done, an exam moved or added, the budget or the study windows changed).
+The changes come after the first plan, so its blocks may no longer fit them,
+which is what replanning is for.
 """
 
 import datetime as dt
 import os
 from collections.abc import Sequence
+from collections.abc import Set as AbstractSet
+from dataclasses import replace
+from enum import Enum
 from typing import Final, NamedTuple
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -36,8 +51,10 @@ from app.domain.planner import (
     TaskKind,
     TaskStatus,
     clip,
+    plan,
 )
 from app.domain.time import local_date, local_day_bounds, local_span
+from tests.planner.factories import as_existing
 
 # A fixed seed on CI, so a red build fails the same way on every run.
 PROPERTY_SETTINGS: Final = settings(max_examples=200, deadline=None, derandomize="CI" in os.environ)
@@ -84,6 +101,33 @@ DENSE_TASK_COUNT: Final = (10, 30)
 DENSE_TASK_MINUTES: Final = (30, 45, 60, 90, 120)
 DENSE_DAILY_MINUTES: Final = (60, 240)
 
+# The tight-budget input: dense, with three or four windows and a small budget. Its
+# exams are a few days further and there may be as many as in a wide input: an exam
+# with fewer study days is often short even at the largest budget, and every exam
+# is one more shortfall, so the suggestion is tested more often.
+TIGHT_DAILY_MINUTES: Final = (30, 90)
+TIGHT_MIN_WINDOWS: Final = 3
+TIGHT_MAX_EXAMS: Final = MAX_EXAMS
+TIGHT_DAYS_TO_EXAM: Final = (4, 10)
+
+# The replanning scenario.
+# Most stored blocks are still planned. sampled_from shrinks towards the first entry.
+BLOCK_STATUSES: Final = (BlockStatus.PLANNED,) * 5 + (
+    BlockStatus.DONE,
+    BlockStatus.MISSED,
+    BlockStatus.SKIPPED,
+)
+MAX_ELAPSED_MINUTES: Final = 72 * 60
+MAX_CHANGES: Final = 3
+MAX_EXAM_SHIFT_DAYS: Final = 3
+NEW_EXAM_DAYS: Final = (0, 14)
+NEW_EXAM_TASKS: Final = (1, 3)
+# How far a re-estimate moves a task besides a jump to any of TASK_MINUTES: small
+# changes leave remainders shorter than a part.
+MAX_ESTIMATE_NUDGE: Final = 30
+# A re-estimate may also leave a task this much more than its done and pinned blocks.
+ALMOST_DONE_MINUTES: Final = 10
+
 MAX_BUSY: Final = 3
 BUSY_DAYS: Final = 14
 MAX_BUSY_QUARTERS: Final = 8 * 4
@@ -112,6 +156,16 @@ class PlanInputs(NamedTuple):
     now: dt.datetime
 
 
+class ReplanScenario(NamedTuple):
+    """The arguments of replan, in its order: replan(*scenario)."""
+
+    profile: Profile
+    exams: tuple[Exam, ...]
+    tasks: tuple[Task, ...]
+    existing_blocks: tuple[ExistingBlock, ...]
+    now: dt.datetime
+
+
 def _quarter(index: int) -> dt.time:
     """The wall time of quarter hour `index` of the day (0 is 00:00, 95 is 23:45)."""
     return dt.time(index // 4, index % 4 * 15)
@@ -119,17 +173,23 @@ def _quarter(index: int) -> dt.time:
 
 @st.composite
 def profiles(
-    draw: st.DrawFn, min_daily_minutes: int = DAILY_MINUTES_STEP, max_daily_minutes: int = 960
+    draw: st.DrawFn,
+    min_daily_minutes: int = DAILY_MINUTES_STEP,
+    max_daily_minutes: int = 960,
+    *,
+    min_windows: int = 1,
+    usual_day: bool = False,
 ) -> Profile:
     """A valid profile in one of TIMEZONES, with a daily budget in steps of half an
-    hour between the two bounds.
+    hour between the two bounds and at least min_windows study windows.
 
-    The awake span is 15 minutes to 23:45 hours from wake_time, half the time a
-    usual 14 to 18 hours, so sleep_time differs from wake_time and often falls
-    after midnight.
+    The awake span is 15 minutes to 23:45 hours from wake_time, half the time (or
+    always, with usual_day) a usual 14 to 18 hours, so sleep_time differs from
+    wake_time and often falls after midnight.
     """
     wake = draw(st.integers(0, QUARTERS_PER_DAY - 1))
-    awake = draw(st.one_of(st.integers(14 * 4, 18 * 4), st.integers(1, QUARTERS_PER_DAY - 1)))
+    usual = st.integers(14 * 4, 18 * 4)
+    awake = draw(usual if usual_day else st.one_of(usual, st.integers(1, QUARTERS_PER_DAY - 1)))
     return Profile(
         timezone=ZoneInfo(draw(st.sampled_from(TIMEZONES))),
         wake_time=_quarter(wake),
@@ -140,7 +200,7 @@ def profiles(
             )
         )
         * DAILY_MINUTES_STEP,
-        study_windows=draw(st.frozensets(st.sampled_from(StudyWindow), min_size=1)),
+        study_windows=draw(st.frozensets(st.sampled_from(StudyWindow), min_size=min_windows)),
         rest_days_before_exam=draw(st.integers(0, MAX_REST_DAYS)),
         study_start_delay=draw(st.sampled_from(START_DELAY_MINUTES)) * _MINUTE,
     )
@@ -318,27 +378,45 @@ class _Core(NamedTuple):
     tasks: tuple[Task, ...]
 
 
+class _Kind(Enum):
+    WIDE = "wide"
+    DENSE = "dense"
+    TIGHT = "tight"  # dense, with a small budget and wide windows
+
+
 @st.composite
-def _core(draw: st.DrawFn, dense: bool) -> _Core:
+def _core(draw: st.DrawFn, kind: _Kind) -> _Core:
     """Everything but the busy time; the exams count from the local day of now."""
-    if dense:
-        profile = draw(profiles(*DENSE_DAILY_MINUTES))
-    else:
-        profile = draw(profiles())
+    match kind:
+        case _Kind.WIDE:
+            profile = draw(profiles())
+        case _Kind.DENSE:
+            profile = draw(profiles(*DENSE_DAILY_MINUTES))
+        case _Kind.TIGHT:
+            profile = draw(
+                profiles(*TIGHT_DAILY_MINUTES, min_windows=TIGHT_MIN_WINDOWS, usual_day=True)
+            )
     now = draw(nows())
     today = local_date(now, profile.timezone)
-    if dense:
-        exams = draw(exams_for(today, max_exams=DENSE_MAX_EXAMS, days_to_exam=DENSE_DAYS_TO_EXAM))
-        tasks = draw(tasks_for(exams, count_range=DENSE_TASK_COUNT, minutes=DENSE_TASK_MINUTES))
-    else:
+    if kind is _Kind.WIDE:
         exams = draw(exams_for(today))
         tasks = draw(tasks_for(exams))
+    else:
+        tight = kind is _Kind.TIGHT
+        exams = draw(
+            exams_for(
+                today,
+                max_exams=TIGHT_MAX_EXAMS if tight else DENSE_MAX_EXAMS,
+                days_to_exam=TIGHT_DAYS_TO_EXAM if tight else DENSE_DAYS_TO_EXAM,
+            )
+        )
+        tasks = draw(tasks_for(exams, count_range=DENSE_TASK_COUNT, minutes=DENSE_TASK_MINUTES))
     return _Core(profile, now, exams, tasks)
 
 
 def _cores() -> st.SearchStrategy[_Core]:
-    """A wide input half the time and a dense one the other half."""
-    return st.one_of(_core(dense=False), _core(dense=True))
+    """A wide, a dense or a tight-budget input, a third of the time each."""
+    return st.one_of(_core(_Kind.WIDE), _core(_Kind.DENSE), _core(_Kind.TIGHT))
 
 
 @st.composite
@@ -360,4 +438,151 @@ def plan_inputs(draw: st.DrawFn) -> PlanInputs:
         tasks=tasks,
         existing_blocks=draw(existing_blocks_for(profile, now, tasks)),
         now=now,
+    )
+
+
+def _rarely(draw: st.DrawFn) -> bool:
+    """True one time in four; it shrinks to False."""
+    return draw(st.integers(0, 3)) == 3
+
+
+def _fresh_ids(draw: st.DrawFn, taken: AbstractSet[UUID], count: int) -> list[UUID]:
+    """count distinct ids that are not in taken."""
+    return draw(
+        st.lists(
+            st.uuids().filter(lambda candidate: candidate not in taken),
+            min_size=count,
+            max_size=count,
+            unique=True,
+        )
+    )
+
+
+class _Change(Enum):
+    NEW_TASK = "new_task"
+    DELETE_TASK = "delete_task"
+    ESTIMATE = "estimate"
+    FINISH_TASK = "finish_task"
+    BUDGET = "budget"
+    MOVE_EXAM = "move_exam"
+    NEW_EXAM = "new_exam"
+    WINDOWS = "windows"
+
+
+class _Plans(NamedTuple):
+    profile: Profile
+    exams: tuple[Exam, ...]
+    tasks: tuple[Task, ...]
+
+
+@st.composite
+def _new_exam(draw: st.DrawFn, plans: _Plans, now: dt.datetime) -> _Plans:
+    """plans with one more exam, NEW_EXAM_DAYS after today, and its tasks."""
+    taken = {exam.id for exam in plans.exams} | {task.id for task in plans.tasks}
+    [exam_id] = _fresh_ids(draw, taken, 1)
+    today = local_date(now, plans.profile.timezone)
+    exam = Exam(
+        id=exam_id,
+        exam_date=today + draw(st.integers(*NEW_EXAM_DAYS)) * _ONE_DAY,
+        difficulty=draw(st.integers(1, 5)),
+    )
+    drawn = draw(tasks_for([exam], count_range=NEW_EXAM_TASKS))
+    # tasks_for keeps its ids apart from the exam's only: rename them apart from
+    # every id of the input, and from the deleted tasks they wait for.
+    waited = {task.depends_on for task in drawn if task.depends_on is not None}
+    ids = _fresh_ids(draw, taken | waited | {exam_id}, len(drawn))
+    renamed = {task.id: new_id for task, new_id in zip(drawn, ids, strict=True)}
+    added = tuple(
+        replace(
+            task,
+            id=renamed[task.id],
+            depends_on=(
+                None if task.depends_on is None else renamed.get(task.depends_on, task.depends_on)
+            ),
+        )
+        for task in drawn
+    )
+    return plans._replace(exams=(*plans.exams, exam), tasks=(*plans.tasks, *added))
+
+
+@st.composite
+def _changed(
+    draw: st.DrawFn, plans: _Plans, now: dt.datetime, blocks: Sequence[ExistingBlock]
+) -> _Plans:
+    """plans after 0 to MAX_CHANGES changes; one that has nothing to act on does nothing."""
+    for change in draw(st.lists(st.sampled_from(_Change), max_size=MAX_CHANGES)):
+        profile, exams, tasks = plans
+        match change:
+            case _Change.NEW_TASK:
+                taken = {exam.id for exam in exams} | {task.id for task in tasks}
+                [task_id] = _fresh_ids(draw, taken, 1)
+                prerequisites = [None, *(task.id for task in tasks)]
+                task = Task(
+                    id=task_id,
+                    exam_id=draw(st.sampled_from(exams)).id,
+                    kind=draw(st.sampled_from(TaskKind)),
+                    estimated_minutes=draw(st.sampled_from(TASK_MINUTES)),
+                    focus=draw(st.integers(1, 10)),
+                    depends_on=draw(st.sampled_from(prerequisites)),
+                )
+                plans = plans._replace(tasks=(*tasks, task))
+            case _Change.DELETE_TASK if tasks:
+                index = draw(st.integers(0, len(tasks) - 1))
+                plans = plans._replace(tasks=tasks[:index] + tasks[index + 1 :])
+            case _Change.ESTIMATE if tasks:
+                index = draw(st.integers(0, len(tasks) - 1))
+                old = tasks[index].estimated_minutes
+                nudged = st.integers(old - MAX_ESTIMATE_NUDGE, old + MAX_ESTIMATE_NUDGE)
+                # "Almost done": a little more than its done and pinned blocks hold.
+                settled = sum(
+                    block.interval.minutes
+                    for block in blocks
+                    if block.task_id == tasks[index].id
+                    and (block.status is BlockStatus.DONE or block.pinned)
+                )
+                almost = st.integers(settled + 1, settled + ALMOST_DONE_MINUTES)
+                minutes = draw(st.one_of(st.sampled_from(TASK_MINUTES), nudged, almost))
+                task = replace(tasks[index], estimated_minutes=min(600, max(5, minutes)))
+                plans = plans._replace(tasks=(*tasks[:index], task, *tasks[index + 1 :]))
+            case _Change.FINISH_TASK:
+                todo = [i for i, task in enumerate(tasks) if task.status is TaskStatus.TODO]
+                if todo:
+                    index = draw(st.sampled_from(todo))
+                    task = replace(tasks[index], status=TaskStatus.DONE)
+                    plans = plans._replace(tasks=(*tasks[:index], task, *tasks[index + 1 :]))
+            case _Change.BUDGET:
+                steps = draw(st.integers(1, 960 // DAILY_MINUTES_STEP))
+                profile = replace(profile, daily_study_minutes=steps * DAILY_MINUTES_STEP)
+                plans = plans._replace(profile=profile)
+            case _Change.MOVE_EXAM:
+                index = draw(st.integers(0, len(exams) - 1))
+                shift = draw(st.integers(-MAX_EXAM_SHIFT_DAYS, MAX_EXAM_SHIFT_DAYS))
+                exam = replace(exams[index], exam_date=exams[index].exam_date + shift * _ONE_DAY)
+                plans = plans._replace(exams=(*exams[:index], exam, *exams[index + 1 :]))
+            case _Change.NEW_EXAM:
+                plans = draw(_new_exam(plans, now))
+            case _Change.WINDOWS:
+                windows = draw(st.frozensets(st.sampled_from(StudyWindow), min_size=1))
+                plans = plans._replace(profile=replace(profile, study_windows=windows))
+    return plans
+
+
+@st.composite
+def replan_scenarios(draw: st.DrawFn) -> ReplanScenario:
+    """A calendar a few days after its first plan, with changes since (see the module)."""
+    profile, now0, exams, tasks = draw(_cores())
+    first = plan(profile, exams, tasks, (), now0)
+    stored = [
+        replace(block, status=draw(st.sampled_from(BLOCK_STATUSES)), pinned=_rarely(draw))
+        for block in as_existing(first)
+    ]
+    pinned = [
+        replace(block, status=draw(st.sampled_from(BLOCK_STATUSES)), pinned=True)
+        for block in draw(existing_blocks_for(profile, now0, tasks))
+    ]
+    blocks = draw(st.permutations([*stored, *pinned]))
+    now = now0 + draw(st.integers(0, MAX_ELAPSED_MINUTES)) * _MINUTE
+    profile, exams, tasks = draw(_changed(_Plans(profile, exams, tasks), now, blocks))
+    return ReplanScenario(
+        profile=profile, exams=exams, tasks=tasks, existing_blocks=tuple(blocks), now=now
     )
