@@ -51,7 +51,7 @@ def plan(
     with keep_valid, the valid ones (see `valid_blocks`) stay as if they were
     fixed, and only the others are removed. Blocks in the past do nothing.
     """
-    _check_blocks(existing_blocks)
+    check_blocks(existing_blocks)
     start = start_minute(now)
     roles = [(block, block_role(block, start)) for block in existing_blocks]
     stays: set[UUID] = set()  # only tested for membership
@@ -60,16 +60,9 @@ def plan(
     fixed = [block for block, role in roles if role is BlockRole.FIXED or block.id in stays]
     state = fixed_state(profile, tasks, fixed, start)
     assignment = _assign(profile, exams, state, now)
-    tasks_by_id = {task.id: task for task in state.tasks}
-    prerequisite = resolve_dependencies(state.tasks).prerequisite
-    placed = [
-        (task_id, interval)
-        for day_plan in assignment.days
-        if day_plan.items
-        for task_id, interval in pack_day(day_plan.day, day_plan.items, tasks_by_id, prerequisite)
-    ]
+    placed = pack_assignment(state.tasks, assignment)
     return PlanResult(
-        blocks=_number_parts(tasks, fixed, placed),
+        blocks=number_parts(tasks, fixed, placed),
         removed=tuple(
             block.id
             for block, role in roles
@@ -103,7 +96,7 @@ def _unscheduled_minutes(result: PlanResult) -> int:
     return sum(item.minutes for item in result.unscheduled)
 
 
-def _check_blocks(existing_blocks: Sequence[ExistingBlock]) -> None:
+def check_blocks(existing_blocks: Sequence[ExistingBlock]) -> None:
     seen: set[UUID] = set()
     for block in existing_blocks:
         if not isinstance(block, ExistingBlock):
@@ -129,7 +122,24 @@ def _assign(
     )
 
 
-def _number_parts(
+def pack_assignment(
+    tasks: Sequence[Task], assignment: DayAssignment
+) -> list[tuple[UUID, Interval]]:
+    """The assigned days packed into timed intervals, as (task_id, interval) in day order.
+
+    tasks are the tasks that were assigned (what the fixed blocks leave of them).
+    """
+    tasks_by_id = {task.id: task for task in tasks}
+    prerequisite = resolve_dependencies(tasks).prerequisite
+    return [
+        (task_id, interval)
+        for day_plan in assignment.days
+        if day_plan.items
+        for task_id, interval in pack_day(day_plan.day, day_plan.items, tasks_by_id, prerequisite)
+    ]
+
+
+def number_parts(
     tasks: Sequence[Task],
     fixed: Sequence[ExistingBlock],
     placed: Sequence[tuple[UUID, Interval]],

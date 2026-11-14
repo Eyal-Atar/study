@@ -47,6 +47,7 @@ from app.domain.planner.model import (
     WarningCode,
 )
 from app.domain.planner.pack import pack_day
+from app.domain.planner.place import place_task
 from app.domain.planner.plan import plan, replan
 from app.domain.planner.stability import is_complete, valid_blocks
 
@@ -93,6 +94,7 @@ __all__ = [
     "merge",
     "open_windows",
     "pack_day",
+    "place_task",
     "plan",
     "replan",
     "resolve_dependencies",
