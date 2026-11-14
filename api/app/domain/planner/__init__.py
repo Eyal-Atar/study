@@ -50,11 +50,21 @@ from app.domain.planner.pack import pack_day
 from app.domain.planner.place import place_task
 from app.domain.planner.plan import plan, replan
 from app.domain.planner.stability import is_complete, valid_blocks
+from app.domain.planner.versions import (
+    SNAPSHOT_VERSION,
+    SnapshotBlock,
+    SnapshotError,
+    UndoResult,
+    parse_snapshot,
+    snapshot,
+    undo,
+)
 
 __all__ = [
     "BREAK_MINUTES",
     "LONG_BREAK_MINUTES",
     "MIN_PART_MINUTES",
+    "SNAPSHOT_VERSION",
     "STUDY_WINDOW_HOURS",
     "WINDOW_EDGE_RESERVE_MINUTES",
     "BlockRole",
@@ -73,11 +83,14 @@ __all__ = [
     "PlannedBlock",
     "PlannerInputError",
     "Profile",
+    "SnapshotBlock",
+    "SnapshotError",
     "StudyDay",
     "StudyWindow",
     "Task",
     "TaskKind",
     "TaskStatus",
+    "UndoResult",
     "Unscheduled",
     "UnscheduledReason",
     "WarningCode",
@@ -94,15 +107,18 @@ __all__ = [
     "merge",
     "open_windows",
     "pack_day",
+    "parse_snapshot",
     "place_task",
     "plan",
     "replan",
     "resolve_dependencies",
     "room",
     "simulation_window",
+    "snapshot",
     "start_minute",
     "study_date",
     "study_days",
     "subtract",
+    "undo",
     "valid_blocks",
 ]
