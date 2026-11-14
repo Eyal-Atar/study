@@ -105,7 +105,10 @@ def _parse_instant(value: object, name: str) -> dt.datetime:
         raise SnapshotError(f"{name} is not an ISO timestamp") from error
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise SnapshotError(f"{name} must carry an offset")
-    utc = parsed.astimezone(dt.UTC)
+    try:
+        utc = parsed.astimezone(dt.UTC)
+    except OverflowError as error:
+        raise SnapshotError(f"{name} is out of range") from error
     if utc.second or utc.microsecond:
         raise SnapshotError(f"{name} must fall on a whole minute")
     return utc
@@ -154,7 +157,10 @@ def parse_snapshot(data: object) -> tuple[SnapshotBlock, ...]:
     blocks = data["blocks"]
     if not isinstance(blocks, list):
         raise SnapshotError("blocks must be a list")
-    return tuple(_parse_block(raw) for raw in blocks)
+    parsed = tuple(_parse_block(raw) for raw in blocks)
+    if len({block.id for block in parsed}) != len(parsed):
+        raise SnapshotError("two blocks share an id")
+    return parsed
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -178,6 +184,7 @@ def undo(
     Open blocks (PLANNED, not yet started) are the only ones undo may change. A saved
     block comes back if it has not started, was not closed since (same id) and does not
     overlap a closed PLANNED or DONE block; otherwise it is dropped.
+    `saved` is expected to come from parse_snapshot (unique ids).
     """
     start = start_minute(now)
     open_blocks: list[SnapshotBlock] = []

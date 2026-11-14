@@ -200,6 +200,15 @@ def _with(**changes: object) -> dict[str, Any]:
         {"v": 1, "blocks": [_with(id="nope")]},
         {"v": 1, "blocks": [_with(id=5)]},
         {"v": 1, "blocks": [_with(task_id=None)]},
+        {"v": 1, "blocks": [_with(starts_at="0001-01-01T00:00:00+05:00")]},
+        {"v": 1, "blocks": [_with(ends_at="9999-12-31T23:59:00-05:00")]},
+        {
+            "v": 1,
+            "blocks": [
+                _with(id="00000000-0000-0000-0000-000000000001"),
+                _with(id="00000000-0000-0000-0000-000000000001"),
+            ],
+        },
     ],
 )
 def test_parse_rejects_bad_snapshots(data: object) -> None:
@@ -294,3 +303,28 @@ def test_undo_orders_the_output() -> None:
     result = undo([second, first], [cur_a, cur_b], at(6))
     assert result.delete == (cur_a.id, cur_b.id)
     assert result.restore == (first, second)
+
+
+def test_undo_skips_a_block_that_is_now_missed() -> None:
+    saved = block(12, 13)
+    missed = moved(saved, 12, 13, status=BlockStatus.MISSED)
+    result = undo([saved], [missed], at(6))
+    assert result == UndoResult(delete=(), restore=(), dropped=(saved,))
+
+
+def test_undo_orders_dropped_by_start_then_id() -> None:
+    low, high = sorted([uuid4(), uuid4()])
+    late = block(9, 10)
+    a = block(8, 9, id=high)
+    b = block(8, 9, id=low)
+    result = undo([late, a, b], [], at(10))
+    assert result.dropped == (b, a, late)
+
+
+def test_undo_drops_a_started_saved_block_and_deletes_the_open_one_with_its_id() -> None:
+    saved = block(7, 8)
+    current = moved(saved, 12, 13)
+    result = undo([saved], [current], at(7, 30))
+    assert result.dropped == (saved,)
+    assert result.delete == (current.id,)
+    assert result.restore == ()
