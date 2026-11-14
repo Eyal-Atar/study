@@ -146,3 +146,15 @@ def test_a_simulation_without_a_window_raises() -> None:
     s = task(90, kind=TaskKind.SIMULATION)
     with pytest.raises(RuntimeError, match=str(s.id)):
         pack(day(iv((7, 0), (8, 0))), [s])
+
+
+def test_a_second_simulation_raises() -> None:
+    s1, s2 = task(60, kind=TaskKind.SIMULATION), task(60, kind=TaskKind.SIMULATION)
+    with pytest.raises(RuntimeError, match="2026-11-02"):
+        pack(day(iv((7, 0), (15, 0))), [s1, s2])
+
+
+def test_a_dependency_cycle_inside_the_day_raises() -> None:
+    a, b = task(60), task(60)
+    with pytest.raises(RuntimeError, match="cycle"):
+        pack(day(iv((7, 0), (15, 0))), [a, b], {a.id: b.id, b.id: a.id})

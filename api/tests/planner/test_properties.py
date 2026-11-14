@@ -21,7 +21,9 @@ from app.domain.planner import (
     day_fits,
     exam_cutoff,
     last_study_day,
+    open_windows,
     resolve_dependencies,
+    study_date,
     study_days,
 )
 from tests.planner.strategies import PROPERTY_SETTINGS, PlannerInputs, planner_inputs
@@ -242,3 +244,16 @@ def test_reported_tasks_did_not_fit(inputs: PlannerInputs) -> None:
 @given(planner_inputs())
 def test_same_input_same_output(inputs: PlannerInputs) -> None:
     assert assign_days(*inputs) == assign_days(*inputs)
+
+
+@PROPERTY_SETTINGS
+@given(planner_inputs())
+def test_every_window_belongs_to_its_study_day(inputs: PlannerInputs) -> None:
+    profile, exams, _, now, busy = inputs
+    one_minute = dt.timedelta(minutes=1)
+    pairs = [(day.date, day.windows) for day in study_days(profile, exams, now, busy)]
+    pairs += list(open_windows(profile, exams, now).items())
+    for date, windows in pairs:
+        for window in windows:
+            assert study_date(profile, window.start) == date
+            assert study_date(profile, window.end - one_minute) == date

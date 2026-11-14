@@ -55,6 +55,7 @@ def plan(
     ]
     return PlanResult(
         blocks=_number_parts(placed),
+        removed=(),
         unscheduled=assignment.unscheduled,
         warnings=assignment.warnings,
         shortfalls=_shortfalls(profile, exams, tasks, now, busy, assignment),

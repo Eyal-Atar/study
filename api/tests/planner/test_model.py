@@ -1,7 +1,7 @@
 from dataclasses import replace
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -179,7 +179,11 @@ def test_profile_is_immutable() -> None:
 
 def test_existing_block_accepts_valid_fields() -> None:
     block = ExistingBlock(
-        task_id=uuid4(), interval=iv((7,), (8,)), status=BlockStatus.DONE, pinned=False
+        id=uuid4(),
+        task_id=uuid4(),
+        interval=iv((7,), (8,)),
+        status=BlockStatus.DONE,
+        pinned=False,
     )
     assert block.status is BlockStatus.DONE
 
@@ -187,6 +191,7 @@ def test_existing_block_accepts_valid_fields() -> None:
 @pytest.mark.parametrize(
     "overrides",
     [
+        {"id": "x"},
         {"task_id": "x"},
         {"interval": (at(7), at(8))},
         {"status": "done"},
@@ -195,6 +200,7 @@ def test_existing_block_accepts_valid_fields() -> None:
 )
 def test_existing_block_rejects_bad_types(overrides: dict[str, Any]) -> None:
     fields: dict[str, Any] = {
+        "id": uuid4(),
         "task_id": uuid4(),
         "interval": iv((7,), (8,)),
         "status": BlockStatus.PLANNED,
@@ -202,6 +208,31 @@ def test_existing_block_rejects_bad_types(overrides: dict[str, Any]) -> None:
     }
     with pytest.raises(PlannerInputError):
         ExistingBlock(**{**fields, **overrides})
+
+
+def test_existing_block_needs_a_uuid_id() -> None:
+    with pytest.raises(PlannerInputError):
+        ExistingBlock(
+            id="x",  # type: ignore[arg-type]
+            task_id=uuid4(),
+            interval=iv((7,), (8,)),
+            status=BlockStatus.PLANNED,
+            pinned=False,
+        )
+
+
+def test_planned_block_id_is_a_uuid_or_none() -> None:
+    fields: dict[str, Any] = {
+        "task_id": uuid4(),
+        "interval": iv((7,), (8,)),
+        "part_index": 1,
+        "part_count": 1,
+    }
+    with pytest.raises(PlannerInputError):
+        PlannedBlock(**fields, block_id="x")  # type: ignore[arg-type]
+    assert PlannedBlock(**fields).block_id is None
+    assert PlannedBlock(**fields, block_id=None).block_id is None
+    assert isinstance(PlannedBlock(**fields, block_id=uuid4()).block_id, UUID)
 
 
 @pytest.mark.parametrize(

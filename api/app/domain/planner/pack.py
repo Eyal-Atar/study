@@ -103,7 +103,10 @@ def pack_day(
     """The day's blocks as (task_id, interval) in time order."""
     if not items:
         return ()
-    simulation = next((i for i in items if tasks[i.task_id].kind is TaskKind.SIMULATION), None)
+    simulations = [i for i in items if tasks[i.task_id].kind is TaskKind.SIMULATION]
+    if len(simulations) > 1:
+        raise RuntimeError(f"day {day.date}: more than one simulation")
+    simulation = simulations[0] if simulations else None
     rest = [i for i in items if i is not simulation]
     sim_index: int | None = None
     if simulation is not None:

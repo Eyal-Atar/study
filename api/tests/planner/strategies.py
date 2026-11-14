@@ -297,14 +297,17 @@ def existing_blocks_for(
     pinned or not. Each belongs to a task of the input, or to a deleted task when
     there are none."""
     task_ids = st.sampled_from([task.id for task in tasks]) if tasks else st.uuids()
+    intervals = draw(busy_for(profile, now))
+    ids = draw(st.lists(st.uuids(), min_size=len(intervals), max_size=len(intervals), unique=True))
     return tuple(
         ExistingBlock(
+            id=block_id,
             task_id=draw(task_ids),
             interval=interval,
             status=draw(st.sampled_from(BlockStatus)),
             pinned=draw(st.booleans()),
         )
-        for interval in draw(busy_for(profile, now))
+        for block_id, interval in zip(ids, intervals, strict=True)
     )
 
 

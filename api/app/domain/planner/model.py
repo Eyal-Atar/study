@@ -47,6 +47,7 @@ class UnscheduledReason(StrEnum):
     DEPENDENCY_NOT_SCHEDULED = "dependency_not_scheduled"
     DEPENDENCY_TOO_LATE = "dependency_too_late"
     LONGER_THAN_DAILY_MINUTES = "longer_than_daily_minutes"
+    DEPENDENT_TOO_EARLY = "dependent_too_early"
 
 
 class BlockStatus(StrEnum):
@@ -190,12 +191,14 @@ class DayAssignment:
 class ExistingBlock:
     """A block already in the calendar, as the planner is given it."""
 
+    id: UUID
     task_id: UUID
     interval: Interval
     status: BlockStatus
     pinned: bool
 
     def __post_init__(self) -> None:
+        _require(isinstance(self.id, UUID), "id must be a UUID")
         _require(isinstance(self.task_id, UUID), "task_id must be a UUID")
         _require(isinstance(self.interval, Interval), "interval must be an Interval")
         _require(isinstance(self.status, BlockStatus), "status must be a BlockStatus")
@@ -210,9 +213,15 @@ class PlannedBlock:
     interval: Interval
     part_index: int
     part_count: int
+    # None is a new block; otherwise the existing block that stays where it is.
+    block_id: UUID | None = None
 
     def __post_init__(self) -> None:
         _require(isinstance(self.task_id, UUID), "task_id must be a UUID")
+        _require(
+            self.block_id is None or isinstance(self.block_id, UUID),
+            "block_id must be a UUID or None",
+        )
         _require(isinstance(self.interval, Interval), "interval must be an Interval")
         _require(self.part_count >= 1, "part_count must be at least 1")
         _require(1 <= self.part_index <= self.part_count, "part_index must be 1-part_count")
@@ -231,6 +240,8 @@ class ExamShortfall:
 @dataclass(frozen=True, slots=True, kw_only=True)
 class PlanResult:
     blocks: tuple[PlannedBlock, ...]
+    # Ids of existing blocks that leave the calendar.
+    removed: tuple[UUID, ...]
     unscheduled: tuple[Unscheduled, ...]
     warnings: tuple[PlanWarning, ...]
     shortfalls: tuple[ExamShortfall, ...]

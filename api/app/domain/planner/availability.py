@@ -86,6 +86,70 @@ def _ceil_to_minute(instant: dt.datetime) -> dt.datetime:
     return floored if floored == instant else floored + dt.timedelta(minutes=1)
 
 
+def start_minute(now: dt.datetime) -> dt.datetime:
+    """now in UTC, rounded forward to a whole minute."""
+    return _ceil_to_minute(_utc(now))
+
+
+def study_date(profile: Profile, instant: dt.datetime) -> dt.date:
+    """The study day an instant belongs to.
+
+    The first of the local day before and the local day itself whose waking hours
+    (wake_time to sleep_time, without the start delay) hold the instant. An instant
+    in neither is asleep: it belongs to the local day if it is after that day's
+    wake-up, otherwise to the day before.
+    """
+    tz = profile.timezone
+    local = local_date(instant, tz)
+    for day in (local - _ONE_DAY, local):
+        start, end = local_span(day, profile.wake_time, profile.sleep_time, tz)
+        if start <= instant < end:
+            return day
+    wake = local_span(local, profile.wake_time, profile.sleep_time, tz)[0]
+    return local if instant >= wake else local - _ONE_DAY
+
+
+def _open_windows(
+    profile: Profile, exams: Sequence[Exam], now: dt.datetime
+) -> list[tuple[dt.date, list[Interval]]]:
+    """Per study day, its windows cut at now, at the previous day and at the cutoffs.
+
+    Neither busy time nor the 30-minute minimum is applied yet. now is a whole minute in UTC.
+    """
+    if not exams:
+        return []
+    tz = profile.timezone
+    first = local_date(now, tz) - _ONE_DAY
+    last = max(last_study_day(exam, profile) for exam in exams)
+    cutoffs = sorted(exam_cutoff(exam, profile) for exam in exams)
+
+    days: list[tuple[dt.date, list[Interval]]] = []
+    day = first
+    while day <= last:
+        awake_start, awake_end = local_span(day, profile.wake_time, profile.sleep_time, tz)
+        if awake_end > now:
+            windows = clip(day_windows(profile, day), start=now)
+            # A clock change can make the waking hours of two days overlap: a day
+            # starts where the previous day's waking hours end.
+            previous_end = local_span(day - _ONE_DAY, profile.wake_time, profile.sleep_time, tz)[1]
+            windows = clip(windows, start=previous_end)
+            for cutoff in cutoffs:
+                if awake_start < cutoff < awake_end:
+                    windows = clip(windows, end=cutoff)
+            days.append((day, windows))
+        day += _ONE_DAY
+    return days
+
+
+def open_windows(
+    profile: Profile, exams: Sequence[Exam], now: dt.datetime
+) -> dict[dt.date, tuple[Interval, ...]]:
+    """The windows of each study day without busy time and without the 30-minute minimum."""
+    return {
+        day: tuple(windows) for day, windows in _open_windows(profile, exams, start_minute(now))
+    }
+
+
 def study_days(
     profile: Profile,
     exams: Sequence[Exam],
@@ -93,29 +157,9 @@ def study_days(
     busy: Sequence[Interval] = (),
 ) -> tuple[StudyDay, ...]:
     """One StudyDay per local day from today (or last night) to the last study day."""
-    now = _ceil_to_minute(_utc(now))
-    if not exams:
-        return ()
-    tz = profile.timezone
-    first = local_date(now, tz) - _ONE_DAY
-    last = max(last_study_day(exam, profile) for exam in exams)
-    cutoffs = sorted(exam_cutoff(exam, profile) for exam in exams)
-
     days: list[StudyDay] = []
-    day = first
-    while day <= last:
-        awake_start, awake_end = local_span(day, profile.wake_time, profile.sleep_time, tz)
-        if awake_end > now:
-            windows = clip(day_windows(profile, day), start=now)
-            previous = day_windows(profile, day - _ONE_DAY)
-            if previous:
-                # A clock change can make the awake hours of two days overlap.
-                windows = clip(windows, start=previous[-1].end)
-            for cutoff in cutoffs:
-                if awake_start < cutoff < awake_end:
-                    windows = clip(windows, end=cutoff)
-            for taken in busy:
-                windows = subtract(windows, taken)
-            days.append(StudyDay(date=day, windows=tuple(_long_enough(windows))))
-        day += _ONE_DAY
+    for day, windows in _open_windows(profile, exams, start_minute(now)):
+        for taken in busy:
+            windows = subtract(windows, taken)
+        days.append(StudyDay(date=day, windows=tuple(_long_enough(windows))))
     return tuple(days)

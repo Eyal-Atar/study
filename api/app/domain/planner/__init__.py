@@ -7,6 +7,9 @@ from app.domain.planner.availability import (
     day_windows,
     exam_cutoff,
     last_study_day,
+    open_windows,
+    start_minute,
+    study_date,
     study_days,
 )
 from app.domain.planner.capacity import (
@@ -81,11 +84,14 @@ __all__ = [
     "exam_cutoff",
     "last_study_day",
     "merge",
+    "open_windows",
     "pack_day",
     "plan",
     "resolve_dependencies",
     "room",
     "simulation_window",
+    "start_minute",
+    "study_date",
     "study_days",
     "subtract",
 ]

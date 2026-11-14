@@ -52,15 +52,33 @@ def test_done_and_pinned_blocks_are_busy() -> None:
     a = make_task(exam, 120)
     other = uuid4()
     existing = [
-        ExistingBlock(task_id=other, interval=span(7, 9), status=BlockStatus.DONE, pinned=False),
         ExistingBlock(
-            task_id=other, interval=span(13, 15), status=BlockStatus.PLANNED, pinned=True
+            id=uuid4(),
+            task_id=other,
+            interval=span(7, 9),
+            status=BlockStatus.DONE,
+            pinned=False,
         ),
         ExistingBlock(
-            task_id=other, interval=span(9, 10), status=BlockStatus.PLANNED, pinned=False
+            id=uuid4(),
+            task_id=other,
+            interval=span(13, 15),
+            status=BlockStatus.PLANNED,
+            pinned=True,
         ),
         ExistingBlock(
-            task_id=other, interval=span(10, 11), status=BlockStatus.MISSED, pinned=False
+            id=uuid4(),
+            task_id=other,
+            interval=span(9, 10),
+            status=BlockStatus.PLANNED,
+            pinned=False,
+        ),
+        ExistingBlock(
+            id=uuid4(),
+            task_id=other,
+            interval=span(10, 11),
+            status=BlockStatus.MISSED,
+            pinned=False,
         ),
     ]
     result = plan(make_profile(), [exam], [a], existing, NOW)

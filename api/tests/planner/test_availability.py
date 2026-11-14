@@ -10,6 +10,9 @@ from app.domain.planner import (
     day_windows,
     exam_cutoff,
     last_study_day,
+    open_windows,
+    start_minute,
+    study_date,
     study_days,
 )
 from tests.planner.factories import NOW, NY, make_exam, make_profile
@@ -203,3 +206,45 @@ def test_no_exams_means_no_days() -> None:
 def test_naive_now_is_rejected() -> None:
     with pytest.raises(PlannerInputError, match="aware"):
         study_days(make_profile(), [EXAM], datetime(2026, 11, 1, 7))
+
+
+@pytest.mark.parametrize(
+    ("instant", "expected"),
+    [
+        (Z(2026, 11, 2, 8), date(2026, 11, 2)),  # 10:00 local on Nov 2
+        (Z(2026, 11, 2, 22, 30), date(2026, 11, 2)),  # 00:30 local on Nov 3
+        (Z(2026, 11, 3, 1), date(2026, 11, 2)),  # 03:00 local on Nov 3, asleep
+        (Z(2026, 11, 3, 6), date(2026, 11, 3)),  # 08:00 local on Nov 3
+    ],
+)
+def test_study_date_follows_waking_hours(instant: datetime, expected: date) -> None:
+    profile = make_profile(wake_time=time(8), sleep_time=time(1))
+    assert study_date(profile, instant) == expected
+
+
+def test_study_date_in_overlapping_waking_hours() -> None:
+    profile = make_profile(
+        timezone=ZoneInfo("America/Santiago"),
+        wake_time=time(1),
+        sleep_time=time(0, 30),
+        study_windows=frozenset({N}),
+        rest_days_before_exam=0,
+        study_start_delay=timedelta(0),
+    )
+    assert study_date(profile, Z(2026, 9, 6, 4, 15)) == date(2026, 9, 5)
+
+
+def test_open_windows_keep_short_pieces() -> None:
+    profile = make_profile()
+    exam = make_exam(date(2026, 11, 5))
+    now = Z(2026, 11, 2, 14, 40)  # 20 minutes before the 15:00Z end of the window
+    assert study_days(profile, [exam], now)[0].windows == ()
+    first = open_windows(profile, [exam], now)[date(2026, 11, 2)]
+    assert first == (iv(now, Z(2026, 11, 2, 15)),)
+
+
+def test_start_minute() -> None:
+    assert start_minute(Z(2026, 11, 2, 7) + timedelta(seconds=1)) == Z(2026, 11, 2, 7, 1)
+    assert start_minute(Z(2026, 11, 2, 7)) == Z(2026, 11, 2, 7)
+    with pytest.raises(PlannerInputError):
+        start_minute(datetime(2026, 11, 2, 7))
