@@ -7,11 +7,14 @@ materials or from the model reaches a log or an error message: only codes and ke
 """
 
 import datetime as dt
+import logging
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, field, replace
 from typing import Any, Final
 from uuid import UUID
+
+import psycopg
 
 from app.ai.client import AiError, AnalysisClient, AnalysisReply, Usage
 from app.ai.prompts import (
@@ -39,6 +42,8 @@ from app.domain.materials import IMAGE_MIMES, PDF_MIME, IngestStatus, MaterialKi
 from app.jobs.pdf_text import PdfUnreadable, pdf_subset
 from app.jobs.storage import FileMissing, FileTooLarge, Storage, StorageUnavailable
 from app.services.profiles import Conn, lock_user
+
+logger = logging.getLogger(__name__)
 
 MAX_ATTEMPTS: Final = 2
 
@@ -179,8 +184,8 @@ def _fetch(fetch: Callable[[MaterialInput], bytes], material: MaterialInput) -> 
     except StorageUnavailable:
         raise AnalysisFailed("storage_unavailable", retry=True) from None
     except FileMissing, FileTooLarge:
-        # FileTooLarge cannot happen for a material that ingested `ready` under the same
-        # limit: the stored file is not the one that was ingested, so it counts as missing.
+        # A ready material was ingested under the same size limit, so a file over it now
+        # is not the file that was ingested: it counts as missing.
         raise AnalysisFailed("file_missing") from None
 
 
@@ -358,7 +363,8 @@ def save_analysis(
 
     # A material deleted during the call loses its link, not the task built on it.
     rows = conn.execute(
-        "SELECT id FROM app.materials WHERE user_id = %s AND exam_id = %s AND id = ANY(%s)",
+        "SELECT id FROM app.materials WHERE user_id = %s AND exam_id = %s AND id = ANY(%s) "
+        "FOR KEY SHARE",
         (user_id, exam_id, list(material_ids.values())),
     ).fetchall()
     live = {row["id"] for row in rows}
@@ -394,6 +400,19 @@ def save_analysis(
         ).fetchone()
         task_ids[task.key] = _new_id(row)
     return SavedAnalysis(topic_ids=topic_ids, task_ids=task_ids)
+
+
+def _log_save_error(error: Exception) -> None:
+    if isinstance(error, psycopg.Error):
+        constraint = error.diag.constraint_name if error.diag is not None else None
+        logger.error(
+            "analysis save failed: %s sqlstate=%s constraint=%s",
+            type(error).__name__,
+            error.sqlstate,
+            constraint,
+        )
+    else:
+        logger.error("analysis save failed: %s", type(error).__name__)
 
 
 def _unique(items: Sequence[str]) -> tuple[str, ...]:
@@ -448,6 +467,11 @@ def analyze_exam(
     except AnalysisFailed as failed:
         # The call was paid for: the usage goes with the failure.
         raise AnalysisFailed(failed.code, retry=failed.retry, usage=draft.usage) from None
+    except Exception as error:
+        # The message (and a psycopg DETAIL) can quote model-written titles: log only the
+        # class, the SQLSTATE and the constraint. No retry: it would pay for a new analysis.
+        _log_save_error(error)
+        raise AnalysisFailed("internal_error", usage=draft.usage) from None
 
     warnings = [WARNING_MATERIALS_NOT_READY] if data.skipped > 0 else []
     warnings += scan_warnings + text_warnings + list(draft.warnings)

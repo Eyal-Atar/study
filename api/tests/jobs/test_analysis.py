@@ -3,6 +3,7 @@
 import base64
 import datetime as dt
 import json
+import logging
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import AbstractContextManager
 from typing import Any
@@ -14,6 +15,7 @@ import pytest
 from psycopg.rows import DictRow
 from psycopg.types.json import Jsonb
 
+import app.services.analysis as analysis_module
 from app.ai.client import AiError, AnalysisReply
 from app.auth import CurrentUser
 from app.config import Settings
@@ -23,9 +25,11 @@ from app.domain.analysis import (
     WARNING_TRIMMED,
     WARNING_UNDER_BUDGET,
 )
+from app.jobs.pdf_text import pdf_subset
 from app.jobs.storage import StorageUnavailable
 from app.services.analysis import AnalysisFailed, AnalysisOutcome, analyze_exam
 from app.services.board import load_board
+from app.services.profiles import lock_user
 from tests.ai.fake_client import FakeAnalysisClient, reply
 from tests.ai.samples import valid_output_dict
 from tests.api.factories import NOW, insert_exam
@@ -829,3 +833,129 @@ def test_tasks_reach_the_planner_in_model_order(
     keys = [task["key"] for task in valid_output_dict()["tasks"]]
     assert [task.id for task in board.tasks] == [outcome.task_ids[k] for k in keys]
     assert board.tasks[6].depends_on == outcome.task_ids["K6"]
+
+
+def test_forward_dependencies_are_saved_in_model_order(
+    analyze: Analyze, db: psycopg.Connection, exam: UUID, materials: dict[str, UUID]
+) -> None:
+    data = valid_output_dict()
+    by_key = {task["key"]: task for task in data["tasks"]}
+    by_key["K2"]["depends_on"] = "K3"  # a learn task that depends on a later one
+    order = ["K1", "K7", "K2", "K3", "K4", "K5", "K6"]  # the debrief before its simulation
+    data["tasks"] = [by_key[key] for key in order]
+    client = FakeAnalysisClient([reply(_json(data))])
+
+    outcome = analyze(client)
+
+    tasks = _rows(db, "tasks", exam)
+    assert [t["id"] for t in tasks] == [outcome.task_ids[k] for k in order]
+    assert [t["position"] for t in tasks] == list(range(1, 8))
+    saved = {k: t for k, t in zip(order, tasks, strict=True)}
+    assert saved["K7"]["depends_on_task_id"] == outcome.task_ids["K6"]
+    assert saved["K2"]["depends_on_task_id"] == outcome.task_ids["K3"]
+    for key in ("K1", "K3", "K4", "K5", "K6"):
+        assert saved[key]["depends_on_task_id"] is None
+
+
+SECRET_TITLE = "כותרת סודית של המודל"
+
+
+def test_unexpected_save_error_is_an_internal_error(
+    analyze: Analyze,
+    db: psycopg.Connection,
+    exam: UUID,
+    materials: dict[str, UUID],
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    real_lock = lock_user
+
+    def lock_then_fail(conn: Conn, user_id: UUID) -> Any:
+        row = real_lock(conn, user_id)
+        # A real constraint violation whose DETAIL quotes model-written text.
+        conn.execute(
+            "INSERT INTO app.topics (user_id, exam_id, name, weight, position) "
+            "VALUES (%s, %s, %s, 9, 1)",
+            (user_id, exam, SECRET_TITLE),
+        )
+        return row
+
+    monkeypatch.setattr(analysis_module, "lock_user", lock_then_fail)
+    client = FakeAnalysisClient([valid()])
+
+    with caplog.at_level(logging.ERROR), pytest.raises(AnalysisFailed) as info:
+        analyze(client)
+
+    assert (info.value.code, info.value.retry) == ("internal_error", False)
+    assert len(info.value.usage) == 1
+    assert info.value.__cause__ is None
+    assert info.value.__suppress_context__ is True
+    assert "CheckViolation" in caplog.text
+    assert "sqlstate=23514" in caplog.text
+    assert "topics_weight_range" in caplog.text
+    assert SECRET_TITLE not in caplog.text
+    assert_nothing_saved(db, exam)
+
+
+def test_unexpected_non_database_save_error_is_an_internal_error(
+    analyze: Analyze,
+    materials: dict[str, UUID],
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    def broken(tasks: Any) -> Any:
+        raise RuntimeError(SECRET_TITLE)
+
+    monkeypatch.setattr(analysis_module, "_topological", broken)
+
+    with caplog.at_level(logging.ERROR), pytest.raises(AnalysisFailed) as info:
+        analyze(FakeAnalysisClient([valid()]))
+
+    assert (info.value.code, info.value.retry) == ("internal_error", False)
+    assert "RuntimeError" in caplog.text
+    assert SECRET_TITLE not in caplog.text
+
+
+def test_exam_without_materials_gets_a_generic_simulation(
+    analyze: Analyze, db: psycopg.Connection, exam: UUID
+) -> None:
+    data = valid_output_dict()
+    data["topics"] = data["topics"][:1]
+    data["tasks"] = [task for task in data["tasks"] if task["key"] in ("K2", "K4", "K6", "K7")]
+    for task in data["tasks"]:
+        task["material_key"] = None
+    client = FakeAnalysisClient([reply(_json(data))])
+
+    outcome = analyze(client, budget_minutes=270)
+
+    assert "Materials: none" in _texts(client)
+    assert set(outcome.task_ids) == {"K2", "K4", "K6", "K7"}
+    tasks = {t["id"]: t for t in _rows(db, "tasks", exam)}
+    assert {t["material_id"] for t in tasks.values()} == {None}
+    assert tasks[outcome.task_ids["K6"]]["kind"] == "simulation"
+    assert tasks[outcome.task_ids["K7"]]["depends_on_task_id"] == outcome.task_ids["K6"]
+    assert outcome.warnings == ()
+
+
+def test_scan_byte_cap_skips_a_scan_with_a_warning(
+    analyze: Analyze,
+    add_material: AddMaterial,
+    user: CurrentUser,
+    exam: UUID,
+    settings: Settings,
+) -> None:
+    scanned = [{"page": 1, "text": "", "scanned": True}]
+    pdf = make_pdf([""])
+    add_material(user, exam, kind="syllabus", pages=scanned, data=pdf)
+    add_material(user, exam, kind="past_exam", pages=scanned, data=pdf)
+    one_scan = len(pdf_subset(pdf, [1]))
+    client = FakeAnalysisClient([valid()])
+    limited = settings.model_copy(update={"max_analysis_scan_bytes": one_scan})
+
+    outcome = analyze(client, settings=limited)
+
+    assert len(_blocks(client, "document")) == 1
+    text = _texts(client)
+    m2 = text[text.index('<material key="M2"') :]
+    assert "content not available" in m2
+    assert outcome.warnings == ("scanned_pages_skipped",)
