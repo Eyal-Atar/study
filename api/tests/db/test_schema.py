@@ -116,8 +116,9 @@ def test_only_authenticated_has_table_privileges(db: psycopg.Connection) -> None
         "exams": {"SELECT", "INSERT", "UPDATE", "DELETE"},
         "tasks": {"SELECT", "INSERT", "UPDATE", "DELETE"},
         "blocks": {"SELECT", "INSERT", "UPDATE", "DELETE"},
-        # UPDATE is granted on the undone_at column only, so it is not a table privilege.
-        "plan_versions": {"SELECT", "INSERT"},
+        # INSERT and UPDATE are granted on columns only (migration 0004), so they are not
+        # table privileges.
+        "plan_versions": {"SELECT"},
     }
     for table in _app_tables(db):
         for role in ("anon", "studyflow_api", "service_role"):
