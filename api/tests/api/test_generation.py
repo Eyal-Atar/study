@@ -61,11 +61,12 @@ def make_job(
     status: str = "done",
     created_at: dt.datetime = NOW,
     payload: dict[str, Any] | None = None,
+    error: str | None = None,
 ) -> UUID:
     row = db.execute(
-        "INSERT INTO app.jobs (user_id, kind, payload, status, created_at, run_at) "
-        "VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
-        (user_id, kind, Jsonb(payload or {}), status, created_at, created_at),
+        "INSERT INTO app.jobs (user_id, kind, payload, status, created_at, run_at, error) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
+        (user_id, kind, Jsonb(payload or {}), status, created_at, created_at, error),
     ).fetchone()
     assert row is not None
     return UUID(str(row[0]))
@@ -269,6 +270,16 @@ def test_failed_job_with_usage_counts(
     make_job(db, user.id)
     failed = make_job(db, user.id, status="failed")
     add_usage(db, user.id, failed)
+    assert_quota_exceeded(generate(api, user))
+
+
+def test_crashed_job_without_usage_counts(
+    api: TestClient, db: psycopg.Connection, user: ApiUser, exam: UUID
+) -> None:
+    # A worker that died inside the Claude call wrote no usage row, but may have spent money.
+    make_job(db, user.id)
+    make_job(db, user.id)
+    make_job(db, user.id, status="failed", error="worker_crashed")
     assert_quota_exceeded(generate(api, user))
 
 

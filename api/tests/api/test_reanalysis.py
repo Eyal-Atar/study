@@ -451,3 +451,49 @@ def test_undo_is_refused_when_a_new_task_is_not_todo(
     task, _ = _new_task_block(db, analysis)
     db.execute("UPDATE app.tasks SET status = 'done' WHERE id = %s", (task,))
     _assert_undo_refused(api, db, user, body["version_id"])
+
+
+def test_undo_is_refused_when_a_new_task_has_a_started_block(
+    api: TestClient,
+    db: psycopg.Connection,
+    user: ApiUser,
+    exam: UUID,
+    board: dict[str, UUID],
+    clock: FrozenClock,
+) -> None:
+    analysis = _draft(db, user.id, exam)
+    body = _apply_ok(api, user, analysis)
+    _, block = _new_task_block(db, analysis)
+    starts_at = scalar(db, "SELECT starts_at FROM app.blocks WHERE id = %s", block)
+    # The user is studying the block right now: undoing would delete it mid-study.
+    clock.set(starts_at + dt.timedelta(minutes=1))
+    _assert_undo_refused(api, db, user, body["version_id"])
+    assert scalar(db, "SELECT status FROM app.analyses WHERE id = %s", analysis) == "applied"
+
+
+def test_undo_deletes_the_topics_of_the_analysis(
+    api: TestClient, db: psycopg.Connection, user: ApiUser, exam: UUID, board: dict[str, UUID]
+) -> None:
+    older = scalar(
+        db,
+        "INSERT INTO app.topics (user_id, exam_id, name, weight, position) "
+        "VALUES (%s, %s, 'נושא ישן', 3, 1) RETURNING id",
+        user.id,
+        exam,
+    )
+    analysis = _draft(db, user.id, exam)
+    body = _apply_ok(api, user, analysis)
+    added = scalar(db, "SELECT count(*) FROM app.topics WHERE analysis_id = %s", analysis)
+    assert added > 0
+
+    response = api.post("/plan/undo", json={"version_id": body["version_id"]}, headers=user.headers)
+    assert response.status_code == 200, response.text
+
+    assert scalar(db, "SELECT count(*) FROM app.topics WHERE analysis_id = %s", analysis) == 0
+    remaining = [
+        row[0]
+        for row in db.execute(
+            "SELECT id FROM app.topics WHERE user_id = %s AND exam_id = %s", (user.id, exam)
+        ).fetchall()
+    ]
+    assert remaining == [older]

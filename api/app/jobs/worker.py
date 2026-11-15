@@ -185,13 +185,16 @@ class JobContext:
                 self._last_beat = now
 
         thread = threading.Thread(target=run, name=f"keepalive-{self.job.id}", daemon=True)
-        self._ticker_lost = lost
-        thread.start()
         try:
-            yield
+            # Set inside the try: a start that fails (no threads left) leaves nothing behind.
+            self._ticker_lost = lost
+            thread.start()
+            try:
+                yield
+            finally:
+                stop.set()
+                thread.join()
         finally:
-            stop.set()
-            thread.join()
             self._ticker_lost = None
         if lost.is_set():
             raise JobLost(str(self.job.id))

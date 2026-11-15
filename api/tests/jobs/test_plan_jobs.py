@@ -215,12 +215,17 @@ def test_progress_moves_forward(
     assert percents == sorted(percents)
     assert percents[0] == 2
     assert reported[-1] == ("planning", 88)
-    assert {stage for stage, _ in reported} <= {
+    # The analysis's own stages reach jobs.stage, each inside its exam's share.
+    assert {stage for stage, _ in reported} == {
         "reading_materials",
         "analyzing",
+        "validating",
         "saving",
         "planning",
     }
+    validating = [percent for stage, percent in reported if stage == "validating"]
+    assert len(validating) == 2
+    assert 5 <= validating[0] < 45 <= validating[1] < 85
     assert len(seen) == 2 and seen[0] < seen[1] < 88
     assert seen[1] >= 45  # the second exam reports in the second half
     assert job.percent == 100
@@ -681,6 +686,132 @@ def test_fit_result_leaves_a_small_result_alone() -> None:
     result = {"exams": [{"gaps": [{"topic": "א", "note": ""}]}], "plan": {"unscheduled": []}}
 
     assert plan_jobs.fit_result(result) == result
+
+
+# --- materials still being read ----------------------------------------------------------
+
+
+def test_generate_waits_for_materials_still_ingesting(
+    run: Callable[..., JobRow],
+    new_exam: Callable[..., UUID],
+    add_material: AddMaterial,
+    user: Any,
+    db: psycopg.Connection,
+) -> None:
+    a = new_exam(EXAM_A)
+    add_material(user, a, kind="past_exam", status="queued")
+    client = FakeAnalysisClient([valid()])
+
+    job = run(client, _generate(a))
+
+    assert job.status == "queued"
+    assert job.error == "materials_processing"
+    assert client.calls == []
+    assert _usage(db, job.id) == 0
+    assert _count(db, "SELECT count(*) FROM app.analyses") == 0
+
+
+def test_generate_waits_for_the_second_exams_materials(
+    run: Callable[..., JobRow],
+    new_exam: Callable[..., UUID],
+    add_material: AddMaterial,
+    user: Any,
+    db: psycopg.Connection,
+    clock: FrozenClock,
+) -> None:
+    a, b = new_exam(EXAM_A), new_exam(EXAM_B)
+    processing = add_material(user, b, kind="past_exam", status="processing")
+    client = FakeAnalysisClient([valid(), valid()])
+
+    first = run(client, _generate(a, b))
+    assert first.status == "queued"
+    assert first.error == "materials_processing"
+    assert len(client.calls) == 1  # A only
+    assert _ai_tasks(db, a) == 7
+
+    db.execute("DELETE FROM app.materials WHERE id = %s", (processing,))
+    _retry(clock)
+    second = run(client, {}, job_id=first.id)
+
+    assert second.status == "done", second.error
+    assert len(client.calls) == 2  # A was not asked again
+    assert second.result is not None
+    assert [e["status"] for e in second.result["exams"]] == ["analyzed", "analyzed"]
+
+
+def test_generate_on_the_last_attempt_analyzes_without_the_materials(
+    run: Callable[..., JobRow],
+    new_exam: Callable[..., UUID],
+    add_material: AddMaterial,
+    make_job: MakeJob,
+    user: Any,
+) -> None:
+    a = new_exam(EXAM_A)
+    add_material(user, a, kind="past_exam", status="processing")
+    job_id = make_job(user, JOB_GENERATE_PLAN, _generate(a), attempts=2)
+    client = FakeAnalysisClient([valid()])
+
+    job = run(client, {}, job_id=job_id)
+
+    assert job.status == "done", job.error
+    assert len(client.calls) == 1
+    assert job.result is not None
+    exam = job.result["exams"][0]
+    assert exam["status"] == "analyzed"
+    assert "materials_not_ready" in exam["warnings"]
+
+
+def test_reanalyze_waits_for_materials_still_ingesting(
+    run: Callable[..., JobRow],
+    new_exam: Callable[..., UUID],
+    add_material: AddMaterial,
+    user: Any,
+    db: psycopg.Connection,
+) -> None:
+    a = new_exam(EXAM_A)
+    add_material(user, a, kind="past_exam", status="queued")
+    client = FakeAnalysisClient([valid()])
+
+    job = run(client, {"exam_id": str(a)}, kind=JOB_REANALYZE_EXAM)
+
+    assert job.status == "queued"
+    assert job.error == "materials_processing"
+    assert client.calls == []
+    assert _usage(db, job.id) == 0
+
+
+def test_reanalyze_on_the_last_attempt_analyzes_without_the_materials(
+    run: Callable[..., JobRow],
+    new_exam: Callable[..., UUID],
+    add_material: AddMaterial,
+    make_job: MakeJob,
+    user: Any,
+) -> None:
+    a = new_exam(EXAM_A)
+    add_material(user, a, kind="past_exam", status="queued")
+    job_id = make_job(user, JOB_REANALYZE_EXAM, {"exam_id": str(a)}, attempts=2)
+    client = FakeAnalysisClient([valid()])
+
+    job = run(client, {}, job_id=job_id)
+
+    assert job.status == "done", job.error
+    assert len(client.calls) == 1
+    assert job.result is not None
+    assert "materials_not_ready" in job.result["warnings"]
+
+
+def test_failed_materials_do_not_hold_the_job(
+    run: Callable[..., JobRow],
+    new_exam: Callable[..., UUID],
+    add_material: AddMaterial,
+    user: Any,
+) -> None:
+    a = new_exam(EXAM_A)
+    add_material(user, a, kind="past_exam", status="failed")
+
+    job = run(FakeAnalysisClient([valid()]), _generate(a))
+
+    assert job.status == "done", job.error
 
 
 # --- reanalysis ---------------------------------------------------------------------------

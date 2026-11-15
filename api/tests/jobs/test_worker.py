@@ -1037,3 +1037,33 @@ def test_keeping_alive_blocks_do_not_nest(
 
     assert make_worker({"k": handler}).run_once() is True
     assert read_job(job_id).status == "done", read_job(job_id).error
+
+
+def test_keeping_alive_that_fails_to_start_leaves_no_state(
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    job_id = make_job(make_user())
+    real_start = threading.Thread.start
+
+    def failing_start(self: threading.Thread) -> None:
+        if self.name.startswith("keepalive-"):
+            raise RuntimeError("can't start new thread")
+        real_start(self)
+
+    def handler(ctx: JobContext) -> None:
+        with monkeypatch.context() as patch:
+            patch.setattr(threading.Thread, "start", failing_start)
+            with pytest.raises(RuntimeError, match="can't start new thread"):
+                with ctx.keeping_alive(interval=TICK):
+                    pass
+        # Nothing was left behind: a new block starts, and keepalive is not a no-op.
+        with ctx.keeping_alive(interval=TICK):
+            assert len(_keepalive_threads()) == 1
+        assert _keepalive_threads() == []
+
+    assert make_worker({"k": handler}).run_once() is True
+    assert read_job(job_id).status == "done", read_job(job_id).error

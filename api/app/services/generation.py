@@ -4,7 +4,9 @@ A request is one job that calls Claude: `generate_plan` or `reanalyze_exam`. The
 the user's jobs of those kinds created since midnight of the quota day, in
 `settings.ai_quota_timezone` and not in the profile's timezone (a profile timezone is the
 user's to change, and would move their midnight). A job that failed without spending
-anything (no `ai_usage` row) does not count; a queued or running one does.
+anything (no `ai_usage` row) does not count; a queued or running one does. A job failed as
+`worker_crashed` counts even without a usage row: a worker that died inside a Claude call
+may have spent money it never recorded.
 
 Everything runs under the per-user lock (the profile row), so the active-job check, the
 count and the INSERT are one step: parallel requests cannot all pass at the limit.
@@ -56,6 +58,7 @@ def ai_requests_today(conn: Conn, user_id: UUID, now: dt.datetime, settings: Set
           AND j.created_at >= %(start)s
           AND NOT (
               j.status = 'failed'
+              AND j.error IS DISTINCT FROM 'worker_crashed'
               AND NOT EXISTS (
                   SELECT 1 FROM app.ai_usage AS u
                   WHERE u.user_id = %(user_id)s AND u.job_id = j.id

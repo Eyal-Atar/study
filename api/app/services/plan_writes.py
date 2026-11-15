@@ -362,11 +362,13 @@ def _restore_task(conn: Conn, user_id: UUID, task_id: UUID, before: Any) -> None
     )
 
 
-def _check_no_progress(conn: Conn, user_id: UUID, analysis_id: UUID) -> None:
+def _check_no_progress(conn: Conn, user_id: UUID, analysis_id: UUID, now: dt.datetime) -> None:
     """Refuse to undo an analysis once any of its tasks has progress (invalid_state).
 
-    Completing a block writes no version, so the reanalysis can still be the latest
-    version after the user studied one of its tasks; undoing it would delete that work.
+    Progress is a task that is not todo, a done block, or a planned block that has started
+    (starts_at < now < ends_at: the user is studying it). Completing a block writes no
+    version, so the reanalysis can still be the latest version after the user studied one
+    of its tasks; undoing it would delete that work.
     """
     row = conn.execute(
         """
@@ -378,12 +380,21 @@ def _check_no_progress(conn: Conn, user_id: UUID, analysis_id: UUID) -> None:
                   t.status <> 'todo'
                   OR EXISTS (
                       SELECT 1 FROM app.blocks AS b
-                      WHERE b.user_id = %(user_id)s AND b.task_id = t.id AND b.status = 'done'
+                      WHERE b.user_id = %(user_id)s
+                        AND b.task_id = t.id
+                        AND (
+                            b.status = 'done'
+                            OR (
+                                b.status = 'planned'
+                                AND b.starts_at < %(now)s
+                                AND b.ends_at > %(now)s
+                            )
+                        )
                   )
               )
         ) AS found
         """,
-        {"user_id": user_id, "analysis_id": analysis_id},
+        {"user_id": user_id, "analysis_id": analysis_id, "now": now},
     ).fetchone()
     if row is not None and row["found"]:
         raise ApiError("invalid_state")
@@ -392,9 +403,10 @@ def _check_no_progress(conn: Conn, user_id: UUID, analysis_id: UUID) -> None:
 def _undo_side_effect(conn: Conn, user_id: UUID, version: VersionRow, now: dt.datetime) -> None:
     """Bring back a deleted exam or task or a changed task's fields, or delete an added task.
 
-    An exam_reanalyzed version deletes the tasks its analysis added, brings back the tasks
-    it replaced, and marks the analysis undone (it does not become a draft again). It is
-    refused (invalid_state, nothing written) once any task of the analysis has progress.
+    An exam_reanalyzed version deletes the tasks its analysis added and the topics it wrote,
+    brings back the tasks it replaced, and marks the analysis undone (it does not become a
+    draft again). It is refused (invalid_state, nothing written) once any task of the
+    analysis has progress (see _check_no_progress).
     """
     if version.reason == VersionReason.EXAM_DELETED and version.exam_id is not None:
         conn.execute(
@@ -419,11 +431,16 @@ def _undo_side_effect(conn: Conn, user_id: UUID, version: VersionRow, now: dt.da
     ):
         _restore_task(conn, user_id, version.task_id, version.task_before)
     elif version.reason == VersionReason.EXAM_REANALYZED and version.analysis_id is not None:
-        _check_no_progress(conn, user_id, version.analysis_id)
+        _check_no_progress(conn, user_id, version.analysis_id, now)
         conn.execute(
             "UPDATE app.tasks SET deleted_at = %s "
             "WHERE user_id = %s AND analysis_id = %s AND deleted_at IS NULL",
             (now, user_id, version.analysis_id),
+        )
+        # Only the analysis's own (now deleted) tasks point at its topics; older topics stay.
+        conn.execute(
+            "DELETE FROM app.topics WHERE user_id = %s AND analysis_id = %s",
+            (user_id, version.analysis_id),
         )
         conn.execute(
             "UPDATE app.tasks SET deleted_at = NULL "

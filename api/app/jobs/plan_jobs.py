@@ -12,6 +12,10 @@ as a `plan_generated` version. Failures fall in three groups:
   paid twice. On the last attempt it is recorded as that exam's failure;
 - the exam's (everything else): recorded as a `failed` analysis, and the job goes on.
 
+Before an exam's first Claude call, an exam whose materials are still being read (`queued`
+or `processing`) retries the job as `materials_processing`, without a call; on the last
+attempt it is analyzed without them (the analysis warns `materials_not_ready`).
+
 If no exam ends analyzed or skipped, the job fails with the first exam's failure code: a
 "done" with an empty board would hide that the AI failed.
 
@@ -42,6 +46,7 @@ import psycopg
 
 from app.ai.client import AiError, AnalysisClient, AnalysisReply
 from app.ai.schema import GapOut
+from app.domain.materials import IngestStatus
 from app.domain.planner import PlanResult, exam_budgets, replan
 from app.domain.time import local_date
 from app.jobs.worker import KEEPALIVE_SECONDS, JobContext, JobFailed, JobLost
@@ -62,6 +67,8 @@ logger = logging.getLogger(__name__)
 
 ACCOUNT_CODES: Final = frozenset({"ai_not_configured", "ai_no_credit"})
 EXAM_MISSING: Final = "exam_missing"
+MATERIALS_PROCESSING: Final = "materials_processing"
+_INGESTING: Final = (IngestStatus.QUEUED.value, IngestStatus.PROCESSING.value)
 # Skipped as a success: the exam got AI tasks, or was deleted, while this job ran.
 SKIP_CODES: Final = frozenset({"already_analyzed", EXAM_MISSING})
 
@@ -200,15 +207,40 @@ def _earlier(
     }
 
 
+def _ingesting(conn: Conn, user_id: UUID, exam_id: UUID) -> bool:
+    """Whether a material of the exam is still being read (queued or processing)."""
+    row = conn.execute(
+        "SELECT EXISTS (SELECT 1 FROM app.materials WHERE user_id = %s AND exam_id = %s "
+        "AND ingest_status = ANY(%s)) AS found",
+        (user_id, exam_id, list(_INGESTING)),
+    ).fetchone()
+    return row is not None and bool(row["found"])
+
+
+def _wait_for_materials(ctx: JobContext, exam_id: UUID) -> None:
+    """Retry the job (no call, nothing paid) while the exam's materials are being read.
+
+    On the last attempt the exam is analyzed without them, and the analysis warns.
+    """
+    if ctx.last_attempt:
+        return
+    with ctx.user_transaction() as conn:
+        ingesting = _ingesting(conn, ctx.job.user_id, exam_id)
+    if ingesting:
+        logger.info("job %s exam %s waits for its materials", ctx.job.id, exam_id)
+        raise JobFailed(MATERIALS_PROCESSING, retry=True)
+
+
 def _exam_progress(ctx: JobContext, index: int, count: int) -> Callable[[str, int], None]:
-    """The analysis's own progress (0..100), mapped into this exam's share of 5..85."""
+    """The analysis's own progress (0..100), mapped into this exam's share of 5..85.
+
+    Its stage (reading_materials, analyzing, validating, saving) is reported as it is.
+    """
     start = EXAMS_START + EXAMS_SPAN * index / count
     span = EXAMS_SPAN / count
 
     def report(stage: str, percent: int) -> None:
-        ctx.progress(
-            "saving" if stage == "saving" else "analyzing", int(start + span * percent / 100)
-        )
+        ctx.progress(stage, int(start + span * percent / 100))
 
     return report
 
@@ -344,6 +376,7 @@ def generate_plan(ctx: JobContext) -> dict[str, Any]:
         if analyzed:  # analyzed by another job meanwhile
             exams.append(_empty(exam_id, "skipped", budget))
             continue
+        _wait_for_materials(ctx, exam_id)
         if client is None:
             client = _client(ctx)
         exams.append(
@@ -377,6 +410,7 @@ def reanalyze_exam(ctx: JobContext) -> dict[str, Any]:
         budgets, today = _budgets(conn, user_id, ctx.now)
     if exam_id not in budgets:  # deleted, past, or not this user's
         raise JobFailed(EXAM_MISSING)
+    _wait_for_materials(ctx, exam_id)
     client = _client(ctx)
     client.exam_id = exam_id
     try:
