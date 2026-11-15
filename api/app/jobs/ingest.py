@@ -34,6 +34,8 @@ from app.jobs.worker import CrashHandler, Handler, JobContext, JobFailed
 logger = logging.getLogger(__name__)
 
 _MATERIAL_MISSING: Final = "material_missing"
+# app.materials.page_count is CHECK (page_count BETWEEN 0 AND 10000).
+MAX_PAGE_COUNT: Final = 10_000
 
 
 def _result(
@@ -89,20 +91,29 @@ def _download(ctx: JobContext, path: str) -> bytes:
 
 def _extract(ctx: JobContext, data: bytes, registered_mime: str) -> ExtractedText:
     detected = sniff_mime(data)
-    if detected == PDF_MIME and registered_mime == PDF_MIME:
-        try:
-            return extract_pdf(
-                data,
-                max_pages=ctx.settings.max_material_pages,
-                scanned_max_chars=ctx.settings.scanned_page_max_chars,
-                max_chars_per_page=ctx.settings.max_chars_per_page,
-            )
-        except PdfUnreadable:
-            raise JobFailed("pdf_unreadable") from None
-    if detected in IMAGE_MIMES and registered_mime in IMAGE_MIMES:
+    # The stored mime is what later scopes send on, so the file must be exactly that type.
+    if detected != registered_mime:
+        # Not a supported file, or registered as another type (a PDF as an image, a JPEG as
+        # a PNG, ...).
+        raise JobFailed("unsupported_file")
+    if detected in IMAGE_MIMES:
         return image_as_pages()
-    # Not a supported file, or a PDF registered as an image (or the other way round).
-    raise JobFailed("unsupported_file")
+    if detected != PDF_MIME:
+        raise JobFailed("unsupported_file")
+    try:
+        extracted = extract_pdf(
+            data,
+            max_pages=ctx.settings.max_material_pages,
+            scanned_max_chars=ctx.settings.scanned_page_max_chars,
+            max_chars_per_page=ctx.settings.max_chars_per_page,
+        )
+    except PdfUnreadable:
+        raise JobFailed("pdf_unreadable") from None
+    # page_count is the real count and the column allows at most MAX_PAGE_COUNT; checking
+    # here fails such a file once, instead of three attempts that each hit the CHECK.
+    if extracted.page_count > MAX_PAGE_COUNT:
+        raise JobFailed("unsupported_file")
+    return extracted
 
 
 def _save(ctx: JobContext, material_id: UUID, extracted: ExtractedText) -> None:
@@ -179,7 +190,12 @@ def ingest_material(ctx: JobContext) -> Mapping[str, Any]:
 
 
 def ingest_material_crashed(ctx: JobContext) -> None:
-    """The worker died on the last attempt: fail a material it left in `processing`."""
+    """The worker died on the last attempt: fail a material it left unfinished.
+
+    Unfinished is `processing`, or `queued` when the worker died between claiming this last
+    attempt and starting it (an earlier attempt's retry had put the material back to queued).
+    A `ready` or `failed` material is left alone.
+    """
     try:
         material_id = _material_id(ctx)
     except JobFailed:
@@ -187,8 +203,14 @@ def ingest_material_crashed(ctx: JobContext) -> None:
     with ctx.user_transaction() as conn:
         conn.execute(
             "UPDATE app.materials SET ingest_status = %s, ingest_error = 'worker_crashed' "
-            "WHERE user_id = %s AND id = %s AND ingest_status = %s",
-            (IngestStatus.FAILED, ctx.job.user_id, material_id, IngestStatus.PROCESSING),
+            "WHERE user_id = %s AND id = %s AND ingest_status IN (%s, %s)",
+            (
+                IngestStatus.FAILED,
+                ctx.job.user_id,
+                material_id,
+                IngestStatus.QUEUED,
+                IngestStatus.PROCESSING,
+            ),
         )
 
 
@@ -206,7 +228,8 @@ def delete_material_file(ctx: JobContext) -> Mapping[str, Any]:
         ctx.storage.delete(path)
     except StorageUnavailable:
         raise JobFailed("storage_unavailable", retry=True) from None
-    return {"storage_path": path}
+    # Nothing back: GET /jobs/{id} exposes the result, and responses never carry a path.
+    return {}
 
 
 HANDLERS: Final[Mapping[str, Handler]] = {

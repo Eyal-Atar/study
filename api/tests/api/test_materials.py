@@ -245,6 +245,8 @@ def test_concurrent_registrations_stop_at_the_limit(
         holder.commit()
     for thread in threads:
         thread.join(20)
+    # Without both requests blocked at once the test would pass serially, proving nothing.
+    assert waiting >= 2
     assert not any(thread.is_alive() for thread in threads)
     assert errors == []
     assert sorted(response.status_code for response in results) == [201, 422]

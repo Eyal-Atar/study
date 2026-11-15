@@ -2,11 +2,13 @@
 
 Explicit SQL, written by hand.
 
-`authenticated` gets column-level INSERT and UPDATE grants only. On `materials` a user may
-register a file (id, owner, exam, path, name, kind, mime, size) but may not set the ingest
-result columns on INSERT, so a client cannot create a row that already claims to be `ready`
-or carries text it never uploaded. The UPDATE grant covers just the result columns, so the
-registration fields (filename, storage_path, ...) are frozen after creation. On `jobs` a user
+`authenticated` gets column-level INSERT and UPDATE grants only. They fix who may change
+each group of columns on `materials`: the registration columns (id, owner, exam, path, name,
+kind, mime, size) are set once by the client on INSERT and are frozen after that; the ingest
+result columns are not insertable and are written by the worker, which updates them under
+the user's own RLS session (hence their UPDATE grant); queue state lives in `jobs` and
+belongs to the worker only. They do not limit what a user could write into the result
+columns of their own row through a future endpoint that updated them. On `jobs` a user
 may only enqueue (user_id, kind, payload) and read their own rows: no UPDATE and no DELETE,
 so nobody can mark a job done, reset its attempts or erase its error. The worker, which runs
 as the owner role, is the only writer of status, attempts, locks and results.

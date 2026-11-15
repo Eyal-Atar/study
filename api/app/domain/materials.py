@@ -45,12 +45,14 @@ _BLANK_RUN: Final = re.compile(r"\n{3,}")
 
 def sniff_mime(data: bytes) -> str | None:
     """The MIME type by file signature, or None when it is not a supported file."""
-    if _PDF_SIGNATURE in data[:_PDF_SIGNATURE_WINDOW]:
-        return PDF_MIME
-    if data.startswith(_JPEG_SIGNATURE):
-        return "image/jpeg"
+    # The exact offset-0 image signatures first: an image whose bytes happen to contain
+    # "%PDF-" is still an image.
     if data.startswith(_PNG_SIGNATURE):
         return "image/png"
+    if data.startswith(_JPEG_SIGNATURE):
+        return "image/jpeg"
+    if _PDF_SIGNATURE in data[:_PDF_SIGNATURE_WINDOW]:
+        return PDF_MIME
     return None
 
 

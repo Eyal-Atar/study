@@ -20,6 +20,7 @@ _PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
         (b"junk" * 100 + b"%PDF-1.4", "application/pdf"),
         (b"\xff\xd8\xff\xe0" + b"\x00" * 8, "image/jpeg"),
         (_PNG, "image/png"),
+        (_PNG + b"%PDF-1.4", "image/png"),
         (b"PK\x03\x04", None),
         (b"", None),
     ],

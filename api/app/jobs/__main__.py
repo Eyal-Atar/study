@@ -17,6 +17,8 @@ from app.jobs.worker import Worker
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
+    # httpx2 logs every request URL at INFO, and Storage URLs carry the file's path.
+    logging.getLogger("httpx2").setLevel(logging.WARNING)
     settings = Settings()
     if settings.worker_database_url is None or settings.supabase_secret_key is None:
         raise SystemExit("WORKER_DATABASE_URL and SUPABASE_SECRET_KEY are required")

@@ -40,7 +40,6 @@ class Settings(BaseSettings):
     scanned_page_max_chars: int = Field(default=40, ge=0)
     worker_poll_seconds: float = Field(default=2.0, gt=0)
     job_lock_timeout_seconds: int = Field(default=600, gt=0)
-    job_max_attempts: int = Field(default=3, gt=0)
 
     @field_validator("database_url", "worker_database_url", "supabase_secret_key", mode="before")
     @classmethod

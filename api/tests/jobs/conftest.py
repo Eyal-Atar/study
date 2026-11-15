@@ -27,7 +27,6 @@ def worker_settings(settings: Settings) -> Settings:
         update={
             "worker_poll_seconds": 2.0,
             "job_lock_timeout_seconds": 600,
-            "job_max_attempts": 3,
         }
     )
 

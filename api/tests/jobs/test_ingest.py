@@ -9,9 +9,15 @@ from psycopg.rows import DictRow
 from psycopg.types.json import Jsonb
 
 import app.jobs.__main__ as worker_main
+import app.jobs.ingest as ingest_module
 from app.auth import CurrentUser
 from app.config import Settings
-from app.domain.materials import JOB_DELETE_MATERIAL_FILE, JOB_INGEST_MATERIAL
+from app.domain.materials import (
+    JOB_DELETE_MATERIAL_FILE,
+    JOB_INGEST_MATERIAL,
+    ExtractedText,
+    PageText,
+)
 from app.jobs.ingest import HANDLERS, ON_CRASHED
 from app.jobs.queue import JobRow
 from app.jobs.storage import StorageUnavailable
@@ -25,6 +31,7 @@ type Conn = psycopg.Connection[DictRow]
 type MakeWorker = Callable[..., Worker]
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 32
 FIRST = "The first page has enough words to count as real text."
 THIRD = "The third page also has enough words to count as real text."
 ZIP = b"PK\x03\x04" + b"\x00" * 64
@@ -213,6 +220,7 @@ def test_missing_upload_fails_visibly(
         pytest.param("application/pdf", ZIP, None, "unsupported_file", id="zip-as-pdf"),
         pytest.param("application/pdf", PNG, None, "unsupported_file", id="png-as-pdf"),
         pytest.param("image/png", make_pdf(["x"]), None, "unsupported_file", id="pdf-as-png"),
+        pytest.param("image/png", JPEG, None, "unsupported_file", id="jpeg-as-png"),
         pytest.param("application/pdf", GARBAGE_PDF, None, "pdf_unreadable", id="garbage-pdf"),
         pytest.param("application/pdf", make_pdf(["x"]), 100, "file_too_large", id="too-large"),
     ],
@@ -510,6 +518,112 @@ def test_worker_crash_on_the_last_attempt_fails_the_material(
     )
 
 
+def test_pdf_over_the_page_limit_fails_once_as_unsupported(
+    worker: Worker,
+    register: Register,
+    make_user: Callable[[], CurrentUser],
+    make_exam: Callable[[CurrentUser], UUID],
+    owner_db: Conn,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def huge(data: bytes, **_: object) -> ExtractedText:
+        page = PageText(page=1, text="enough words on the first page to be real", scanned=False)
+        return ExtractedText(pages=(page,), page_count=10_001, warnings=("pages_truncated",))
+
+    monkeypatch.setattr(ingest_module, "extract_pdf", huge)
+    user = make_user()
+    material_id, job_id = register(user, make_exam(user))
+
+    assert worker.run_once() is True
+
+    material = _material(owner_db, material_id)
+    assert (material["ingest_status"], material["ingest_error"]) == ("failed", "unsupported_file")
+    assert material["text_by_page"] is None
+    assert material["page_count"] is None
+    job = read_job(job_id)
+    assert (job.status, job.error, job.attempts) == ("failed", "unsupported_file", 1)
+    clock.advance(hours=1)
+    assert worker.run_once() is False
+
+
+def test_crash_on_the_last_attempt_fails_a_queued_material(
+    worker: Worker,
+    make_user: Callable[[], CurrentUser],
+    make_exam: Callable[[CurrentUser], UUID],
+    make_job: MakeJob,
+    owner_db: Conn,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+) -> None:
+    # Attempt 2 failed transiently and put the material back to queued; the worker then died
+    # after claiming attempt 3 and before marking the material processing.
+    user = make_user()
+    exam = make_exam(user)
+    queued = _insert_material(owner_db, user, exam, mime="application/pdf", size=1)
+    stale = clock.now - timedelta(hours=1)
+    job_id = make_job(
+        user,
+        JOB_INGEST_MATERIAL,
+        {"material_id": str(queued)},
+        status="running",
+        attempts=3,
+        max_attempts=3,
+        locked_at=stale,
+    )
+
+    assert worker.run_once() is True
+
+    material = _material(owner_db, queued)
+    assert (material["ingest_status"], material["ingest_error"]) == ("failed", "worker_crashed")
+    assert (read_job(job_id).status, read_job(job_id).error) == ("failed", "worker_crashed")
+
+
+@pytest.mark.parametrize(
+    ("status", "error"), [("ready", None), ("failed", "file_missing")], ids=["ready", "failed"]
+)
+def test_crash_callback_leaves_a_finished_material_alone(
+    status: str,
+    error: str | None,
+    worker: Worker,
+    make_user: Callable[[], CurrentUser],
+    make_exam: Callable[[CurrentUser], UUID],
+    make_job: MakeJob,
+    owner_db: Conn,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+) -> None:
+    user = make_user()
+    material_id = _insert_material(owner_db, user, make_exam(user), mime="image/png", size=1)
+    if status == "ready":
+        owner_db.execute(
+            "UPDATE app.materials SET ingest_status = 'ready', page_count = 1, scanned_pages = 1, "
+            "text_by_page = %s, ingested_at = %s WHERE id = %s",
+            (Jsonb([{"page": 1, "text": "", "scanned": True}]), clock.now, material_id),
+        )
+    else:
+        owner_db.execute(
+            "UPDATE app.materials SET ingest_status = 'failed', ingest_error = %s WHERE id = %s",
+            (error, material_id),
+        )
+    job_id = make_job(
+        user,
+        JOB_INGEST_MATERIAL,
+        {"material_id": str(material_id)},
+        status="running",
+        attempts=3,
+        max_attempts=3,
+        locked_at=clock.now - timedelta(hours=1),
+    )
+
+    assert worker.run_once() is True
+
+    material = _material(owner_db, material_id)
+    assert (material["ingest_status"], material["ingest_error"]) == (status, error)
+    assert read_job(job_id).error == "worker_crashed"
+
+
 @pytest.mark.parametrize("payload", [{}, {"material_id": "not-a-uuid"}])
 def test_crash_callback_ignores_a_bad_payload(
     payload: dict[str, Any],
@@ -562,7 +676,7 @@ def test_delete_material_file_removes_from_storage(
 
     job = read_job(job_id)
     assert job.status == "done"
-    assert job.result == {"storage_path": own_path}
+    assert job.result == {}
     assert storage.deleted == [own_path]
 
 

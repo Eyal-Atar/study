@@ -1,3 +1,4 @@
+import logging
 import threading
 from collections.abc import Callable, Mapping
 from datetime import timedelta
@@ -112,6 +113,30 @@ def test_retryable_failure_backs_off_then_fails(
     assert job.finished_at == clock.now
     assert calls == [1, 2, 3]
     assert worker.run_once() is False
+
+
+def test_database_error_is_logged_without_its_message(
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    job_id = make_job(make_user())
+    sentinel = "SENTINEL-extracted-text-7f3a"
+
+    def handler(ctx: JobContext) -> None:
+        raise psycopg.errors.CheckViolation(f"DETAIL: Failing row contains ({sentinel}, ...)")
+
+    worker = make_worker({"k": handler})
+    with caplog.at_level(logging.DEBUG):
+        assert worker.run_once() is True
+
+    assert "CheckViolation" in caplog.text
+    assert sentinel not in caplog.text
+    assert all(record.exc_info is None for record in caplog.records)
+    job = read_job(job_id)
+    assert (job.status, job.error, job.attempts) == ("queued", "internal_error", 1)
 
 
 def test_crashed_job_past_its_attempts_is_failed_as_worker_crashed(

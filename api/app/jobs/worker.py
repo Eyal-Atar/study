@@ -149,6 +149,18 @@ class Worker:
             result = handler(context)
         except JobFailed as exc:
             code, retry = exc.code, exc.retry
+        except psycopg.Error as exc:
+            # No traceback and no message: a psycopg message can quote the failing row
+            # ("DETAIL: Failing row contains ..."), extracted text included.
+            logger.error(
+                "job %s (%s) raised a database error: %s sqlstate=%s constraint=%s",
+                job.id,
+                job.kind,
+                type(exc).__name__,
+                exc.sqlstate,
+                exc.diag.constraint_name,
+            )
+            code, retry = "internal_error", True
         except Exception:
             # The traceback goes to the log; jobs.error gets only the fixed code.
             logger.exception("job %s (%s) raised an unexpected error", job.id, job.kind)

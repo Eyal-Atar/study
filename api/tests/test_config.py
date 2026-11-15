@@ -114,7 +114,9 @@ def test_secret_key_is_hidden_from_repr(monkeypatch: pytest.MonkeyPatch) -> None
     assert "sb_secret_abc" not in repr(settings)
 
 
-@pytest.mark.parametrize("name", ["JOB_MAX_ATTEMPTS", "WORKER_POLL_SECONDS", "MAX_MATERIAL_BYTES"])
+@pytest.mark.parametrize(
+    "name", ["JOB_LOCK_TIMEOUT_SECONDS", "WORKER_POLL_SECONDS", "MAX_MATERIAL_BYTES"]
+)
 def test_worker_limits_must_be_positive(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
     monkeypatch.setenv(name, "0")
     with pytest.raises(ValidationError):
