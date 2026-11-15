@@ -55,6 +55,14 @@ def _log(error: Exception, status: int | None, request_id: str | None) -> None:
     )
 
 
+def _error_field(body: object, name: str) -> object:
+    """A field of body["error"], or None when the body is not shaped like an API error."""
+    if not isinstance(body, dict):
+        return None
+    inner = body.get("error")
+    return inner.get(name) if isinstance(inner, dict) else None
+
+
 def _is_no_credit(error: anthropic.APIStatusError, status: int, error_type: object) -> bool:
     if isinstance(
         error, (anthropic.EnforcedSpendLimitReachedError, anthropic.OrganizationOnHoldError)
@@ -62,8 +70,8 @@ def _is_no_credit(error: anthropic.APIStatusError, status: int, error_type: obje
         return True
     if status == 402 or error_type == "billing_error":
         return True
-    if status == 400 and isinstance(error.body, dict):
-        message = error.body.get("error", {}).get("message")
+    if status == 400:
+        message = _error_field(error.body, "message")
         return isinstance(message, str) and "credit balance" in message.lower()
     return False
 
@@ -137,8 +145,7 @@ class AnthropicAnalysisClient:
             raise AiError("ai_not_configured") from None
         except anthropic.APIStatusError as error:
             status = error.status_code
-            body = error.body
-            error_type = body.get("error", {}).get("type") if isinstance(body, dict) else None
+            error_type = _error_field(error.body, "type")
             if _is_no_credit(error, status, error_type):
                 # Not the student's fault and not temporary: whoever runs the service must see it.
                 logger.error(

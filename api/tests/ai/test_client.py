@@ -248,7 +248,8 @@ def test_other_400_is_still_rejected() -> None:
     assert info.value.code == "ai_rejected"
 
 
-def test_spend_limit_and_org_on_hold_are_no_credit() -> None:
+def test_spend_limit_and_org_on_hold_are_no_credit(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.ERROR)
     for status, kind, code in (
         (429, "rate_limit_error", "enforced_spend_limit_reached"),
         (400, "invalid_request_error", "organization_on_hold"),
@@ -263,6 +264,11 @@ def test_spend_limit_and_org_on_hold_are_no_credit() -> None:
         with pytest.raises(AiError) as info:
             _call(client)
         assert info.value.code == "ai_no_credit", code
+        assert any(
+            r.levelno == logging.ERROR and f"status={status}" in r.getMessage()
+            for r in caplog.records
+        ), code
+        caplog.clear()
         assert info.value.retry is False
 
 
@@ -302,3 +308,35 @@ def test_from_settings_passes_max_retries() -> None:
     settings = _settings(KEY, "test-model").model_copy(update={"ai_max_retries": 4})
     client = AnthropicAnalysisClient.from_settings(settings)
     assert client._client.max_retries == 4
+
+
+class _Stop(BaseException):
+    pass
+
+
+class _Boom(Exception):
+    pass
+
+
+@pytest.mark.parametrize("exc", [_Stop, _Boom])
+def test_keepalive_exception_escapes_unchanged(exc: type[BaseException]) -> None:
+    def keepalive() -> None:
+        raise exc
+
+    client = _client(_stream_transport(_sse()))
+    with pytest.raises(exc):
+        client.complete(
+            system="sys",
+            messages=[{"role": "user", "content": "hi"}],
+            schema=SCHEMA,
+            keepalive=keepalive,
+        )
+
+
+def test_malformed_error_body_never_raises_attribute_error() -> None:
+    transport = httpx2.MockTransport(
+        lambda r: httpx2.Response(400, json={"type": "error", "error": "boom"})
+    )
+    with pytest.raises(AiError) as info:
+        _call(_client(transport))
+    assert info.value.code == "ai_rejected"
