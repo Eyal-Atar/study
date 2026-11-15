@@ -12,7 +12,8 @@ the analysis would be asked for. No network, no database, and no title or other 
 What it measures, item by item (the thresholds are the ones of the S12 plan, task 9):
 - runtime of plan() and replan() (three days later, past blocks done or missed), the
   daily_minutes sweep included;
-- the rerun rule of assign_days, against an oracle that tries dropping every started task; also
+- the rerun rule of assign_days, against an oracle that tries dropping each started multi-day
+  task, one step ahead (so its gain is a lower bound); also
   on stress boards whose focused tasks stretch up to 600 minutes, since real ones (30-90) never
   span days;
 - the 70-minute window reserve, against the same board with a reserve of 0, of 35, and one
@@ -22,7 +23,7 @@ What it measures, item by item (the thresholds are the ones of the S12 plan, tas
   as it is and with a 30-minute padding around live blocks (a proposed fix).
 
 The smaller reserves, the padding and the counters are patched in with unittest.mock, only in
-this script. The default of 600 boards takes about a minute.
+this script. 100 boards take about 10 seconds, the default of 600 about a minute.
 """
 
 import argparse
@@ -357,8 +358,10 @@ def _default_drop(context: Any, progress: Any, excluded: frozenset[uuid.UUID]) -
 def rerun_oracle(board: Board, tasks: Sequence[Task]) -> tuple[int, int, int]:
     """(minutes left with the rule, minutes left with the oracle, reruns) on a fresh board.
 
-    At every drop the oracle tries each started task, finishes that run with the rule, and
-    keeps the drop that leaves the fewest minutes (the rule's drop on a tie).
+    At every drop the oracle tries each started task (only multi-day tasks can be started),
+    finishes that run with the rule, and keeps the drop that leaves the fewest minutes (the
+    rule's drop on a tie). It looks one step ahead, not at every order of drops, so what it
+    gains is a lower bound on what a better drop rule could gain.
     """
     profile, exams = board.profile, board.exams
     study = assign_module.study_days(profile, exams, NOW, ())
@@ -711,12 +714,15 @@ def _pct(part: int, whole: int) -> float:
     return 100.0 * part / whole if whole else 0.0
 
 
-def _verdict(passes: bool) -> str:
+# The fewest cases a verdict stands on: below it the line says "no evidence".
+MIN_EVIDENCE = 30
+
+
+def _verdict(passes: bool, evidence: int | None = None) -> str:
+    """The verdict, or "no evidence (n=...)" when it stands on fewer than MIN_EVIDENCE cases."""
+    if evidence is not None and evidence < MIN_EVIDENCE:
+        return f"no evidence (n={evidence})"
     return "passes threshold" if passes else "does not pass threshold"
-
-
-def _row(label: str, value: str) -> tuple[str, str]:
-    return label, value
 
 
 def _share(part: int, whole: int) -> str:
@@ -729,101 +735,101 @@ def _timing(values: Sequence[float]) -> str:
 
 def _place_rows(name: str, place: PlaceStats) -> list[tuple[str, str]]:
     return [
-        _row(f"{name}: calls / failed", f"{place.calls} / {place.failed}"),
-        _row(f"{name}: days with new blocks", f"{place.days}"),
-        _row(f"{name}: long break missing", _share(place.broken, place.days)),
-        _row(
+        (f"{name}: calls / failed", f"{place.calls} / {place.failed}"),
+        (f"{name}: days with new blocks", f"{place.days}"),
+        (f"{name}: long break missing", _share(place.broken, place.days)),
+        (
             f"{name}: days that had blocks / long break missing",
             f"{place.had_blocks} / {place.had_blocks_broken}",
         ),
-        _row(f"{name}: stretch over half the minutes", _share(place.stretch, place.days)),
+        (f"{name}: stretch over half the minutes", _share(place.stretch, place.days)),
     ]
 
 
 def report(stats: Stats, seconds: float) -> None:
     n = stats.boards
     rows = [
-        _row("boards", f"{n}"),
-        _row(
+        ("boards", f"{n}"),
+        (
             "tasks per board (median / max)",
             f"{statistics.median(stats.tasks):.0f} / {max(stats.tasks)}",
         ),
-        _row("boards with unscheduled minutes", _share(stats.unscheduled_boards, n)),
-        _row(
+        ("boards with unscheduled minutes", _share(stats.unscheduled_boards, n)),
+        (
             "unscheduled minutes / task minutes",
             f"{stats.unscheduled_minutes} / {stats.planned_minutes} "
             f"({_pct(stats.unscheduled_minutes, stats.planned_minutes):.2f}%)",
         ),
         *(
-            _row(f"unscheduled minutes: {reason}", f"{minutes}")
+            (f"unscheduled minutes: {reason}", f"{minutes}")
             for reason, minutes in sorted(stats.reasons.items())
         ),
         *(
-            _row(
+            (
                 f"unscheduled share at {daily} minutes a day",
                 f"{_pct(minutes[0], minutes[1]):.2f}%",
             )
             for daily, minutes in sorted(stats.by_daily.items())
         ),
-        _row("plan() seconds (median / p95 / max)", _timing(stats.plan_seconds)),
-        _row(
+        ("plan() seconds (median / p95 / max)", _timing(stats.plan_seconds)),
+        (
             "plan() assign_days runs (median / max)",
             f"{statistics.median(stats.plan_assign_calls):.0f} / {max(stats.plan_assign_calls)}",
         ),
-        _row("replan() seconds (median / p95 / max)", _timing(stats.replan_seconds)),
-        _row(
+        ("replan() seconds (median / p95 / max)", _timing(stats.replan_seconds)),
+        (
             "replan() assign_days runs (median / max)",
             f"{statistics.median(stats.replan_assign_calls):.0f} / "
             f"{max(stats.replan_assign_calls)}",
         ),
-        _row("place_task() seconds (median / p95 / max)", _timing(stats.place.seconds)),
-        _row("rerun: boards with a rerun", _share(stats.rerun_boards, n)),
-        _row("rerun: reruns in all", f"{stats.reruns}"),
-        _row("rerun: replica differs from assign_days", f"{stats.replica_mismatch}"),
-        _row("rerun: oracle places more (boards)", _share(stats.oracle_better_boards, n)),
-        _row("rerun: oracle places more (minutes)", f"{stats.oracle_gain_minutes}"),
-        _row("rerun stress: boards with a rerun", _share(stats.stress_rerun_boards, n)),
-        _row("rerun stress: reruns in all", f"{stats.stress_reruns}"),
-        _row(
+        ("place_task() seconds (median / p95 / max)", _timing(stats.place.seconds)),
+        ("rerun: boards with a rerun", _share(stats.rerun_boards, n)),
+        ("rerun: reruns in all", f"{stats.reruns}"),
+        ("rerun: replica differs from assign_days", f"{stats.replica_mismatch}"),
+        ("rerun: oracle places more (boards)", _share(stats.oracle_better_boards, n)),
+        ("rerun: oracle places more (minutes)", f"{stats.oracle_gain_minutes}"),
+        ("rerun stress: boards with a rerun", _share(stats.stress_rerun_boards, n)),
+        ("rerun stress: reruns in all", f"{stats.stress_reruns}"),
+        (
             "rerun stress: oracle places more (boards)",
             _share(stats.stress_oracle_better_boards, n),
         ),
-        _row("rerun stress: oracle places more (minutes)", f"{stats.stress_oracle_gain_minutes}"),
+        ("rerun stress: oracle places more (minutes)", f"{stats.stress_oracle_gain_minutes}"),
     ]
     for reserve in SMALLER_RESERVES:
         rows += [
-            _row(
+            (
                 f"reserve {reserve}: places more and packs (boards)",
                 _share(stats.reserve_gain_boards.get(reserve, 0), n),
             ),
-            _row(
+            (
                 f"reserve {reserve}: places more and packs (minutes)",
                 f"{stats.reserve_gain_minutes.get(reserve, 0)}",
             ),
-            _row(
+            (
                 f"reserve {reserve}: places more, a day does not pack (boards)",
                 f"{stats.reserve_unpacked_boards.get(reserve, 0)}",
             ),
-            _row(
+            (
                 f"reserve {reserve}: days that do not pack",
                 f"{stats.reserve_unpacked_days.get(reserve, 0)}",
             ),
         ]
     rows += [
-        _row("simulation: reserved days", f"{stats.reserved_days}"),
-        _row("simulation: reserved days without their simulation", f"{stats.reserved_missed}"),
-        _row("simulation: of those, placed on a later day", f"{stats.reserved_later}"),
-        _row("simulation: of those, a reported task could use", f"{stats.reserved_wasted}"),
-        _row("simulation: boards with such a day", _share(stats.reserved_wasted_boards, n)),
+        ("simulation: reserved days", f"{stats.reserved_days}"),
+        ("simulation: reserved days without their simulation", f"{stats.reserved_missed}"),
+        ("simulation: of those, placed on a later day", f"{stats.reserved_later}"),
+        ("simulation: of those, a reported task could use", f"{stats.reserved_wasted}"),
+        ("simulation: boards with such a day", _share(stats.reserved_wasted_boards, n)),
         *_place_rows("place_task", stats.place),
         *_place_rows("place_task padded 30", stats.place_padded),
-        _row("plan(): days with blocks", f"{stats.baseline_days}"),
-        _row("plan(): long break missing", f"{stats.baseline_broken}"),
-        _row(
+        ("plan(): days with blocks", f"{stats.baseline_days}"),
+        ("plan(): long break missing", f"{stats.baseline_broken}"),
+        (
             "plan(): stretch over half the minutes",
             _share(stats.baseline_stretch, stats.baseline_days),
         ),
-        _row("script seconds", f"{seconds:.1f}"),
+        ("script seconds", f"{seconds:.1f}"),
     ]
     width = max(len(label) for label, _ in rows)
     for label, value in rows:
@@ -837,13 +843,19 @@ def report(stats: Stats, seconds: float) -> None:
         f"runtime: {_verdict(timing)} (plan p95 {plan_p95:.3f}s max {plan_max:.3f}s, "
         f"replan p95 {replan_p95:.3f}s max {replan_max:.3f}s; limits p95 2s, max 10s)"
     )
-    for name, better, gain in (
-        ("rerun rule", stats.oracle_better_boards, stats.oracle_gain_minutes),
-        ("rerun rule, stress", stats.stress_oracle_better_boards, stats.stress_oracle_gain_minutes),
+    for name, better, gain, reruns in (
+        ("rerun rule", stats.oracle_better_boards, stats.oracle_gain_minutes, stats.reruns),
+        (
+            "rerun rule, stress",
+            stats.stress_oracle_better_boards,
+            stats.stress_oracle_gain_minutes,
+            stats.stress_reruns,
+        ),
     ):
         print(
-            f"{name}: {_verdict(_pct(better, n) <= 1)} (oracle places more on {better}/{n} "
-            f"boards = {_pct(better, n):.1f}%, {gain} minutes; limit 1%)"
+            f"{name}: {_verdict(_pct(better, n) <= 1, reruns)} ({reruns} reruns; the oracle, "
+            f"one step over the started multi-day tasks, so a lower bound, places more on "
+            f"{better}/{n} boards = {_pct(better, n):.1f}%, {gain} minutes; limit 1%)"
         )
     for reserve in SMALLER_RESERVES:
         gain = stats.reserve_gain_boards.get(reserve, 0)
@@ -855,13 +867,15 @@ def report(stats: Stats, seconds: float) -> None:
         )
     wasted = _pct(stats.reserved_wasted_boards, n)
     print(
-        f"simulation day: {_verdict(wasted <= 5)} ({stats.reserved_wasted} reserved days on "
+        f"simulation day: {_verdict(wasted <= 5, stats.reserved_missed)} "
+        f"({stats.reserved_missed} reserved days without their simulation; "
+        f"{stats.reserved_wasted} of them usable by a reported task, on "
         f"{stats.reserved_wasted_boards}/{n} boards = {wasted:.1f}%; limit 5%)"
     )
     for name, place in (("place_task in a row", stats.place), ("padded 30", stats.place_padded)):
         broken = _pct(place.broken, place.days)
         print(
-            f"{name}: {_verdict(broken <= 50)} ({place.broken}/{place.days} days = "
+            f"{name}: {_verdict(broken <= 50, place.days)} ({place.broken}/{place.days} days = "
             f"{broken:.1f}% without the long break; limit 50%)"
         )
 
