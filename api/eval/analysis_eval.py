@@ -32,6 +32,7 @@ import pypdfium2 as pdfium  # noqa: E402
 from app.ai.client import AnthropicAnalysisClient, Usage  # noqa: E402
 from app.ai.prompts import AnalysisRequest, ExamInfo, MaterialInput, build_request  # noqa: E402
 from app.config import Settings  # noqa: E402
+from app.domain.analysis import minimum_budget  # noqa: E402
 from app.domain.materials import (  # noqa: E402
     PDF_MIME,
     MaterialKind,
@@ -211,7 +212,9 @@ def prepare(case: dict[str, Any], settings: Settings) -> Prepared:
     scans, scan_warnings = load_scans(materials, lambda m: files[m.key], settings)
     limited, text_warnings = limit_text(materials, settings.max_analysis_text_chars)
     exam = case["exam"]
+    # The same cap and floor as analyze_exam.
     budget = min(int(case["budget_minutes"]), settings.max_analysis_minutes)
+    budget = max(budget, minimum_budget({m.key: m.kind for m in materials}))
     request = build_request(
         ExamInfo(
             name=exam["name"],
