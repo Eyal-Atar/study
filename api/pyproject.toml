@@ -45,6 +45,10 @@ strict = true
 plugins = ["pydantic.mypy"]
 files = ["app", "tests", "migrations"]
 
+[[tool.mypy.overrides]]
+module = ["pypdfium2", "pypdfium2.*"]
+ignore_missing_imports = true
+
 [dependency-groups]
 dev = [
     "hypothesis>=6.170.9",
