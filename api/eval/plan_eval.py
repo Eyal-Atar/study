@@ -20,7 +20,7 @@ What it measures, item by item (the thresholds are the ones of the S12 plan, tas
   worked out per day from its items; a day that then does not pack is counted apart;
 - reserved simulation days whose simulation did not go in, while a reported task could use them;
 - five user tasks placed one after the other with place_task: days whose long break is gone,
-  as it is and with a 30-minute padding around live blocks (a proposed fix).
+  as it is (with the S12 padding of the long break) and before S12 (no extra padding).
 
 The smaller reserves, the padding and the counters are patched in with unittest.mock, only in
 this script. 100 boards take about 10 seconds, the default of 600 about a minute.
@@ -73,7 +73,7 @@ from app.domain.planner import (  # noqa: E402
 assign_module: Any = importlib.import_module("app.domain.planner.assign")
 capacity_module: Any = importlib.import_module("app.domain.planner.capacity")
 plan_module: Any = importlib.import_module("app.domain.planner.plan")
-fixed_module: Any = importlib.import_module("app.domain.planner.fixed")
+place_module: Any = importlib.import_module("app.domain.planner.place")
 
 EVAL_DIR = Path(__file__).resolve().parent
 RESULTS_DIR = EVAL_DIR / "results"
@@ -183,9 +183,9 @@ class Stats:
     reserved_wasted: int = 0
     reserved_wasted_boards: int = 0
     reserved_later: int = 0  # missed days whose simulation went on a later day
-    # place_task, as it is and with the proposed 30-minute padding
+    # place_task, as it is and before S12 (no extra padding around live blocks)
     place: PlaceStats = field(default_factory=PlaceStats)
-    place_padded: PlaceStats = field(default_factory=PlaceStats)
+    place_before: PlaceStats = field(default_factory=PlaceStats)
     baseline_days: int = 0
     baseline_broken: int = 0
     baseline_stretch: int = 0
@@ -583,8 +583,8 @@ def place_in_a_row(
 ) -> None:
     """Five user tasks placed one after the other from the start of a real planned day.
 
-    The same sequence runs again with the proposed fix patched in: place_task keeps the
-    long break (30 minutes, not 10) around every live block.
+    The same sequence runs again as place_task was before S12: _LONG_BREAK_EXTRA patched to 0,
+    so live blocks keep only the 10-minute break around them.
     """
     profile = board.profile
     blocks = _existing(result.blocks, board_no)
@@ -610,8 +610,8 @@ def place_in_a_row(
         for number in range(USER_TASKS)
     ]
     _place_sequence(board, list(blocks), start, user_tasks, stats.place, board_no)
-    with mock.patch.object(fixed_module, "_BREAK", dt.timedelta(minutes=LONG_BREAK)):
-        _place_sequence(board, list(blocks), start, user_tasks, stats.place_padded, board_no)
+    with mock.patch.object(place_module, "_LONG_BREAK_EXTRA", dt.timedelta(0)):
+        _place_sequence(board, list(blocks), start, user_tasks, stats.place_before, board_no)
 
 
 # --- one board -------------------------------------------------------------------------------
@@ -822,7 +822,7 @@ def report(stats: Stats, seconds: float) -> None:
         ("simulation: of those, a reported task could use", f"{stats.reserved_wasted}"),
         ("simulation: boards with such a day", _share(stats.reserved_wasted_boards, n)),
         *_place_rows("place_task", stats.place),
-        *_place_rows("place_task padded 30", stats.place_padded),
+        *_place_rows("place_task before S12 (no extra pad)", stats.place_before),
         ("plan(): days with blocks", f"{stats.baseline_days}"),
         ("plan(): long break missing", f"{stats.baseline_broken}"),
         (
@@ -872,7 +872,10 @@ def report(stats: Stats, seconds: float) -> None:
         f"{stats.reserved_wasted} of them usable by a reported task, on "
         f"{stats.reserved_wasted_boards}/{n} boards = {wasted:.1f}%; limit 5%)"
     )
-    for name, place in (("place_task in a row", stats.place), ("padded 30", stats.place_padded)):
+    for name, place in (
+        ("place_task in a row", stats.place),
+        ("place_task before S12 (no extra pad)", stats.place_before),
+    ):
         broken = _pct(place.broken, place.days)
         print(
             f"{name}: {_verdict(broken <= 50, place.days)} ({place.broken}/{place.days} days = "
