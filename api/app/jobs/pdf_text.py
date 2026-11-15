@@ -75,6 +75,8 @@ def extract_pdf(
 
 def pdf_subset(data: bytes, pages: Sequence[int]) -> bytes:
     """A new PDF made of the given 1-based pages, in the given order."""
+    if not pages:
+        raise PdfUnreadable("No pages were requested")
     try:
         src = pdfium.PdfDocument(data)
     except pdfium.PdfiumError as exc:

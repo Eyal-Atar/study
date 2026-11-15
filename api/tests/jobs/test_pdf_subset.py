@@ -28,3 +28,8 @@ def test_page_outside_the_document_is_unreadable() -> None:
 def test_garbage_is_unreadable() -> None:
     with pytest.raises(PdfUnreadable):
         pdf_subset(GARBAGE_PDF, [1])
+
+
+def test_empty_page_list_is_unreadable() -> None:
+    with pytest.raises(PdfUnreadable):
+        pdf_subset(make_pdf(["a"]), [])

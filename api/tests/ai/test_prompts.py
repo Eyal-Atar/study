@@ -37,10 +37,6 @@ def _material(
 
 
 def _all_text(request: AnalysisRequest) -> str:
-    return _join(request)
-
-
-def _join(request: AnalysisRequest) -> str:
     return "\n".join(b["text"] for b in request.content if b["type"] == "text")
 
 
@@ -119,9 +115,43 @@ def test_system_prompt_carries_the_content_rules() -> None:
         assert phrase in SYSTEM_PROMPT
 
 
-def test_escape_leaves_other_angle_brackets() -> None:
-    assert escape_material_text("a < b and x<y") == "a < b and x<y"
-    assert escape_material_text("</ Material>") == "&lt;/ Material>"
+def test_every_angle_bracket_and_ampersand_is_escaped() -> None:
+    for hostile in ("< /material>", "<\n/material>", "<\u200b/material>", "</system>"):
+        escaped = escape_material_text(hostile)
+        assert "<" not in escaped
+        assert escaped.startswith("&lt;")
+    assert escape_material_text("x < y & z") == "x &lt; y &amp; z"
+    assert escape_material_text("&lt;") == "&amp;lt;"
+
+
+def test_scanned_page_numbers_map_into_the_sub_pdf() -> None:
+    material = _material(
+        pages=(
+            PageText(1, "text", False),
+            PageText(2, "", True),
+            PageText(3, "text", False),
+            PageText(4, "text", False),
+            PageText(5, "", True),
+        )
+    )
+    scan = Scan("application/pdf", b"%PDF-x", (2, 5))
+    text = _all_text(build_request(EXAM, 3000, [material], {"M1": scan}, today=TODAY))
+    assert 'page n="2" scanned="true">see the attached document, page 1<' in text
+    assert 'page n="5" scanned="true">see the attached document, page 2<' in text
+
+
+def test_scanned_page_without_content_says_so() -> None:
+    material = _material(pages=(PageText(1, "", True), PageText(2, "", True)))
+    for scans in ({}, {"M1": Scan("application/pdf", b"%PDF-x", ())}):
+        text = _all_text(build_request(EXAM, 3000, [material], scans, today=TODAY))
+        assert text.count("scanned page, content not available") == 2
+
+
+def test_request_without_materials() -> None:
+    request = build_request(EXAM, 3000, [], {}, today=TODAY)
+    assert len(request.content) == 2
+    assert "Materials: none" in _all_text(request)
+    assert "<material" not in _all_text(request)
 
 
 def test_retry_message_lists_errors() -> None:
