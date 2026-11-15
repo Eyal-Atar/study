@@ -9,10 +9,12 @@ finds, and the whole placement is all-or-nothing: a failure changes nothing.
 
 import datetime as dt
 from collections.abc import Collection, Sequence
+from typing import Final
 from uuid import UUID
 
 from app.domain.planner.assign import assign_days
 from app.domain.planner.availability import start_minute, study_date
+from app.domain.planner.capacity import BREAK_MINUTES, LONG_BREAK_MINUTES
 from app.domain.planner.fixed import BlockRole, block_role, check_blocks, fixed_state
 from app.domain.planner.intervals import Interval
 from app.domain.planner.model import (
@@ -32,6 +34,12 @@ from app.domain.planner.model import (
 )
 from app.domain.planner.plan import number_parts, pack_assignment
 from app.domain.planner.stability import is_complete
+
+# fixed_state pads each live block with a short break on both sides; place_task
+# widens that to a long break. It packs only the new task, so a block set ten
+# minutes from an existing run would lengthen the run and leave the long break
+# after the wrong block (S12 measured 60-64% of such days without one).
+_LONG_BREAK_EXTRA: Final = dt.timedelta(minutes=LONG_BREAK_MINUTES - BREAK_MINUTES)
 
 
 def place_task(
@@ -70,6 +78,10 @@ def place_task(
     # simulation days and the day the task must wait past. Only what is left of the
     # task itself comes from the single-task state.
     board = fixed_state(profile, tasks, live, start)
+    busy = tuple(
+        Interval(interval.start - _LONG_BREAK_EXTRA, interval.end + _LONG_BREAK_EXTRA)
+        for interval in board.busy
+    )
     left = fixed_state(profile, [task], live, start).tasks
     remaining = left[0].estimated_minutes if left else task.estimated_minutes
     todo = {t.id: t for t in tasks if t.status is TaskStatus.TODO}
@@ -109,7 +121,7 @@ def place_task(
             exams,
             left,
             earliest,
-            board.busy,
+            busy,
             used=board.used,
             simulation_days=board.simulation_days,
             after=after,

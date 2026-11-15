@@ -45,7 +45,7 @@ def test_a_new_task_takes_the_next_free_slot() -> None:
     result = place_task(profile, [exam], [a, b, c], existing, c.id, NOW)
     assert [
         (blk.task_id, blk.interval, blk.part_index, blk.part_count) for blk in result.blocks
-    ] == [(c.id, at(10, 40, 11, 40), 1, 1)]
+    ] == [(c.id, at(11, 0, 12, 0), 1, 1)]  # a long break after the run, not a short one
     assert result.removed == ()
     assert result.unscheduled == ()
     assert result.shortfalls == ()
@@ -185,7 +185,8 @@ def test_a_task_spans_the_days_after_its_prerequisite() -> None:
     ]
     result = place_task(profile, [exam], [p, t, x], blocks, t.id, NOW)
     assert result.unscheduled == ()
-    assert intervals(result, t) == [(1, 2, at(8, 50, 11, 10, 2)), (2, 2, at(8, 50, 9, 50, 3))]
+    # Each part keeps a long break after the pinned block of its day.
+    assert intervals(result, t) == [(1, 2, at(9, 10, 11, 30, 2)), (2, 2, at(9, 10, 10, 10, 3))]
 
 
 def test_a_dependent_that_comes_first_fails_the_placement() -> None:
@@ -332,3 +333,22 @@ def test_the_first_dependent_in_input_order_is_reported() -> None:
     assert [(u.task_id, u.reason, u.blocked_by) for u in result.unscheduled] == [
         (t.id, UnscheduledReason.DEPENDENT_TOO_EARLY, d2.id)
     ]
+
+
+def test_a_new_block_keeps_a_long_break_from_the_blocks_around_it() -> None:
+    # A run of blocks with a gap: the old 10-minute padding put the new block at
+    # 08:10, ten minutes after the first block, so the long break moved off the
+    # block that passes half the day. place_task keeps 30 minutes on both sides.
+    profile = make_profile()
+    exam = make_exam(nov(5))
+    a, b, c = make_task(exam, 60), make_task(exam, 60), make_task(exam, 60)
+    existing = [
+        make_block(a, Z(2026, 11, 1, 7), Z(2026, 11, 1, 8)),
+        make_block(b, Z(2026, 11, 1, 10), Z(2026, 11, 1, 11)),
+    ]
+    result = place_task(profile, [exam], [a, b, c], existing, c.id, NOW)
+    assert intervals(result, c) == [(1, 1, at(8, 30, 9, 30))]
+    new = result.blocks[0].interval
+    for block in existing:
+        gap = max(block.interval.start - new.end, new.start - block.interval.end)
+        assert gap.total_seconds() >= 30 * 60
