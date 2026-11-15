@@ -69,8 +69,13 @@ class JobFailed(Exception):
         self.retry = retry
 
 
-class JobLost(Exception):
-    """The job was claimed again by another worker; this one must stop and write nothing."""
+class JobLost(BaseException):
+    """The job was claimed again by another worker; this one must stop and write nothing.
+
+    A BaseException, like KeyboardInterrupt, so that a handler's or a client's broad
+    `except Exception` cannot swallow it and keep working (and paying for Claude) on a job
+    that is no longer this worker's. Only the worker loop catches it.
+    """
 
 
 @dataclass
@@ -107,12 +112,14 @@ class JobContext:
     def _check_progress(stage: str, percent: int) -> None:
         if STAGE_PATTERN.fullmatch(stage) is None:
             raise ValueError(f"not a job stage: {stage!r}")
-        if not 0 <= percent <= 100:
+        # bool is an int in Python; True would be stored as 1.
+        if isinstance(percent, bool) or not isinstance(percent, int) or not 0 <= percent <= 100:
             raise ValueError(f"percent out of range: {percent}")
 
     def progress(self, stage: str, percent: int) -> None:
         """Report progress; it also renews the job's lock. JobLost if the claim was lost."""
         self._check_progress(stage, percent)
+        self._require_idle("progress")
         self._beat(stage=stage, percent=percent)
 
     def keepalive(self) -> None:
@@ -121,8 +128,62 @@ class JobContext:
         Cheap to call often (on every streamed event of a Claude call): between beats it
         only reads the clock.
         """
+        self._require_idle("keepalive")
         if self._clock() - self._last_beat >= timedelta(seconds=KEEPALIVE_SECONDS):
             self._beat()
+
+    def keeping_alive(self, *, interval: float = KEEPALIVE_SECONDS) -> AbstractContextManager[None]:
+        """Renew the lock from a daemon thread every `interval` seconds while the block runs.
+
+        For a long call that sends nothing back for minutes (the SDK drops the API's `ping`
+        events, so a long thinking phase never reaches `keepalive`). The wait is wall-clock;
+        the heartbeat's time still comes from the injected clock.
+
+        Only around a call that holds no transaction: entering with one open raises
+        RuntimeError, and a beat that finds one open skips. The thread shares the worker's
+        connection (psycopg serializes on its lock), so the block itself must not use the
+        connection. On exit the thread is stopped and joined. An exception from the block
+        propagates unchanged; otherwise, if a beat found the claim lost, exit raises JobLost.
+        """
+        return self._keeping_alive(interval)
+
+    @contextmanager
+    def _keeping_alive(self, interval: float) -> Iterator[None]:
+        self._require_idle("keeping_alive")
+        stop = threading.Event()
+        lost = threading.Event()
+
+        def run() -> None:
+            while not stop.wait(interval):
+                if self._conn.info.transaction_status != TransactionStatus.IDLE:
+                    continue
+                now = self._clock()
+                try:
+                    alive = heartbeat(self._conn, self.job.id, self.job.attempts, now)
+                except psycopg.Error as exc:
+                    # No message: the end write will meet the same database and report it.
+                    logger.warning("job %s keepalive failed: %s", self.job.id, type(exc).__name__)
+                    continue
+                if not alive:
+                    lost.set()
+                    return
+                self._last_beat = now
+
+        thread = threading.Thread(target=run, name=f"keepalive-{self.job.id}", daemon=True)
+        thread.start()
+        try:
+            yield
+        finally:
+            stop.set()
+            thread.join()
+        if lost.is_set():
+            raise JobLost(str(self.job.id))
+
+    def _require_idle(self, name: str) -> None:
+        # Inside user_transaction the heartbeat would run as `authenticated`, and commit or
+        # roll back with the user's writes instead of renewing the lock at once.
+        if self._conn.info.transaction_status != TransactionStatus.IDLE:
+            raise RuntimeError(f"{name} needs a connection that is not in a transaction")
 
     def _beat(self, *, stage: str | None = None, percent: int | None = None) -> None:
         now = self._clock()
@@ -144,8 +205,9 @@ class JobContext:
         Never inside user_transaction: the row would run as `authenticated` (no INSERT) and
         roll back with the user's writes, losing the record of money already spent.
         """
-        if self._conn.info.transaction_status != TransactionStatus.IDLE:
-            raise RuntimeError("record_usage needs a connection that is not in a transaction")
+        # Not fenced on the claim: the money was spent even if the claim is lost; on the
+        # autocommit connection each row commits as it is written.
+        self._require_idle("record_usage")
         if not usage:
             return
         now = self._clock()
@@ -242,6 +304,9 @@ class Worker:
             if crashed is not None:
                 try:
                     crashed(context)
+                except JobLost:
+                    self._log_lost(job)
+                    return True
                 except Exception:
                     logger.exception("job %s (%s) crash callback failed", job.id, job.kind)
             self._fail(conn, job, "worker_crashed")
@@ -254,7 +319,7 @@ class Worker:
         try:
             result = handler(context)
         except JobLost:
-            logger.info("job %s (%s) lost its claim; leaving it", job.id, job.kind)
+            self._log_lost(job)
             return True
         except JobFailed as exc:
             code, retry = exc.code, exc.retry
@@ -309,6 +374,9 @@ class Worker:
         else:
             self._claim_lost(job)
 
+    def _log_lost(self, job: JobRow) -> None:
+        logger.info("job %s (%s) lost its claim; leaving it", job.id, job.kind)
+
     def _claim_lost(self, job: JobRow) -> None:
         logger.warning("job %s (%s) claim lost; its end was not written", job.id, job.kind)
 
@@ -321,6 +389,10 @@ class Worker:
                 if self._conn is None:
                     self.connect()
                 worked = self.run_once()
+            except JobLost:
+                # run_once already catches it; a stray one must not end the loop either.
+                logger.info("worker iteration lost its claim")
+                worked = True
             except psycopg.OperationalError as exc:
                 logger.warning("worker lost the database: %s", type(exc).__name__)
                 self.close()

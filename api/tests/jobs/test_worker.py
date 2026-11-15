@@ -444,7 +444,15 @@ def test_progress_rejects_a_bad_stage_or_percent(
     def handler(ctx: JobContext) -> None:
         claimed = read_job(job_id)
         clock.advance(seconds=31)
-        for stage, percent in [("Analyzing", 10), ("a1", 10), ("saving", 101), ("saving", -1)]:
+        bad: list[tuple[str, Any]] = [
+            ("Analyzing", 10),
+            ("a1", 10),
+            ("saving", 101),
+            ("saving", -1),
+            ("saving", True),
+            ("saving", 5.0),
+        ]
+        for stage, percent in bad:
             with pytest.raises(ValueError) as info:
                 ctx.progress(stage, percent)
             errors.append(str(info.value))
@@ -452,7 +460,7 @@ def test_progress_rejects_a_bad_stage_or_percent(
         seen.append(claimed)
 
     assert make_worker({"k": handler}).run_once() is True
-    assert len(errors) == 4
+    assert len(errors) == 6
     assert len(seen) == 1
     assert read_job(job_id).status == "done"
 
@@ -660,3 +668,253 @@ def test_default_ai_client_needs_the_settings(
 
     assert make_worker({"k": handler}).run_once() is True
     assert read_job(job_id).error == "ai_not_configured"
+
+
+@pytest.mark.parametrize("call", ["progress", "keepalive"])
+def test_heartbeat_refuses_inside_a_user_transaction(
+    call: str,
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+) -> None:
+    job_id = make_job(make_user())
+    refused: list[bool] = []
+
+    def handler(ctx: JobContext) -> None:
+        claimed = read_job(job_id)
+        clock.advance(seconds=31)
+        with ctx.user_transaction():
+            with pytest.raises(RuntimeError):
+                if call == "progress":
+                    ctx.progress("saving", 90)
+                else:
+                    ctx.keepalive()
+        assert read_job(job_id) == claimed
+        refused.append(True)
+
+    assert make_worker({"k": handler}).run_once() is True
+    assert refused == [True]
+    assert read_job(job_id).status == "done"
+
+
+def test_job_lost_cannot_be_swallowed_by_except_exception(
+    owner_db: Conn,
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+) -> None:
+    job_id = make_job(make_user())
+    after_reclaim: list[JobRow] = []
+    went_on: list[bool] = []
+
+    def handler(ctx: JobContext) -> Mapping[str, Any]:
+        _reclaim(owner_db, job_id, clock)
+        after_reclaim.append(read_job(job_id))
+        try:
+            ctx.progress("saving", 90)
+        except Exception:  # noqa: S110 - the point of the test
+            pass
+        went_on.append(True)
+        return {"must": "not be written"}
+
+    assert make_worker({"k": handler}).run_once() is True
+    assert went_on == []
+    assert read_job(job_id) == after_reclaim[0]
+
+
+def test_run_forever_survives_a_lost_claim(
+    owner_db: Conn,
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    worker_settings: Settings,
+    clock: FrozenClock,
+) -> None:
+    fast = worker_settings.model_copy(update={"worker_poll_seconds": 0.05})
+    lost = make_job(make_user(), kind="lose")
+    done = threading.Event()
+
+    def lose(ctx: JobContext) -> None:
+        _reclaim(owner_db, lost, clock)
+        ctx.progress("saving", 90)
+
+    def ok(ctx: JobContext) -> None:
+        done.set()
+
+    worker = make_worker({"lose": lose, "k": ok}, settings=fast)
+    stop = threading.Event()
+    thread = threading.Thread(target=worker.run_forever, kwargs={"stop": stop})
+    thread.start()
+    try:
+        job_id = make_job(make_user())
+        assert done.wait(5)
+        for _ in range(100):
+            if read_job(job_id).status == "done":
+                break
+            threading.Event().wait(0.02)
+        assert read_job(job_id).status == "done"
+        assert thread.is_alive()
+    finally:
+        stop.set()
+        thread.join(1)
+    assert not thread.is_alive()
+    assert read_job(lost).stage == "reclaimed"
+
+
+def test_crash_callback_that_lost_its_claim_writes_nothing(
+    owner_db: Conn,
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+) -> None:
+    job_id = make_job(
+        make_user(), status="running", attempts=3, locked_at=clock.now - timedelta(hours=1)
+    )
+    after_reclaim: list[JobRow] = []
+
+    def crashed(ctx: JobContext) -> None:
+        _reclaim(owner_db, job_id, clock)
+        after_reclaim.append(read_job(job_id))
+        ctx.progress("saving", 90)
+
+    worker = make_worker({"k": lambda ctx: None}, on_crashed={"k": crashed})
+    assert worker.run_once() is True
+    assert read_job(job_id) == after_reclaim[0]
+
+
+TICK = 0.02
+
+
+def _keepalive_threads() -> list[threading.Thread]:
+    return [t for t in threading.enumerate() if t.name.startswith("keepalive-")]
+
+
+def test_keeping_alive_renews_the_lock_while_the_block_runs(
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+) -> None:
+    job_id = make_job(make_user())
+    claimed_at = clock.now
+    seen: list[JobRow] = []
+
+    def handler(ctx: JobContext) -> None:
+        clock.advance(seconds=5)
+        with ctx.keeping_alive(interval=TICK):
+            threading.Event().wait(TICK * 3.5)
+            assert _keepalive_threads()
+        seen.append(read_job(job_id))
+        assert _keepalive_threads() == []
+
+    assert make_worker({"k": handler}).run_once() is True
+    assert seen[0].locked_at == claimed_at + timedelta(seconds=5)
+    assert (seen[0].stage, seen[0].percent) == (None, None)
+    assert read_job(job_id).status == "done"
+
+
+def test_keeping_alive_raises_job_lost_on_exit(
+    owner_db: Conn,
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+) -> None:
+    job_id = make_job(make_user())
+    after_reclaim: list[JobRow] = []
+    block_finished: list[bool] = []
+    raised: list[BaseException] = []
+
+    def handler(ctx: JobContext) -> None:
+        try:
+            with ctx.keeping_alive(interval=TICK):
+                _reclaim(owner_db, job_id, clock)
+                after_reclaim.append(read_job(job_id))
+                clock.advance(seconds=5)
+                threading.Event().wait(TICK * 3.5)
+                block_finished.append(True)
+        except JobLost as exc:
+            raised.append(exc)
+            raise
+        finally:
+            assert _keepalive_threads() == []
+
+    assert make_worker({"k": handler}).run_once() is True
+    assert block_finished == [True]
+    assert len(raised) == 1
+    assert read_job(job_id) == after_reclaim[0]
+
+
+def test_keeping_alive_lets_the_block_error_through(
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+) -> None:
+    job_id = make_job(make_user())
+
+    def handler(ctx: JobContext) -> None:
+        try:
+            with ctx.keeping_alive(interval=TICK):
+                raise JobFailed("ai_unavailable")
+        finally:
+            assert _keepalive_threads() == []
+
+    assert make_worker({"k": handler}).run_once() is True
+    assert (read_job(job_id).status, read_job(job_id).error) == ("failed", "ai_unavailable")
+
+
+def test_keeping_alive_refuses_inside_a_user_transaction(
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+) -> None:
+    job_id = make_job(make_user())
+    refused: list[bool] = []
+
+    def handler(ctx: JobContext) -> None:
+        with ctx.user_transaction():
+            with pytest.raises(RuntimeError):
+                with ctx.keeping_alive(interval=TICK):
+                    pass
+        assert _keepalive_threads() == []
+        refused.append(True)
+
+    assert make_worker({"k": handler}).run_once() is True
+    assert refused == [True]
+    assert read_job(job_id).status == "done"
+
+
+def test_keeping_alive_skips_a_beat_while_a_transaction_is_open(
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+) -> None:
+    # Breaking the documented rule (the block uses the connection) must not make a beat
+    # write inside the user's transaction, nor kill the thread.
+    job_id = make_job(make_user())
+    claimed_at = clock.now
+    seen: list[JobRow] = []
+
+    def handler(ctx: JobContext) -> None:
+        clock.advance(seconds=5)
+        with ctx.keeping_alive(interval=TICK):
+            with ctx.user_transaction():
+                threading.Event().wait(TICK * 3.5)
+                seen.append(read_job(job_id))
+
+    assert make_worker({"k": handler}).run_once() is True
+    assert seen[0].locked_at == claimed_at
+    assert read_job(job_id).status == "done"
