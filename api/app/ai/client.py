@@ -3,7 +3,7 @@
 import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 import anthropic
 import httpx2
@@ -100,11 +100,14 @@ class AnthropicAnalysisClient:
                 model=self._model,
                 max_tokens=self._max_tokens,
                 system=system,
-                messages=list(messages),  # type: ignore[arg-type]
-                output_config={  # type: ignore[arg-type]
-                    "effort": self._effort,
-                    "format": {"type": "json_schema", "schema": dict(schema)},
-                },
+                messages=cast("list[anthropic.types.MessageParam]", list(messages)),
+                output_config=cast(
+                    "anthropic.types.OutputConfigParam",
+                    {
+                        "effort": self._effort,
+                        "format": {"type": "json_schema", "schema": dict(schema)},
+                    },
+                ),
             ) as stream:
                 message = stream.get_final_message()
                 request_id = stream.request_id
@@ -114,12 +117,23 @@ class AnthropicAnalysisClient:
         except anthropic.APIStatusError as error:
             _log(error, error.status_code, error.request_id)
             status = error.status_code
-            if status == 429 or status >= 500:
+            body = error.body
+            error_type = body.get("error", {}).get("type") if isinstance(body, dict) else None
+            # An error event inside a stream arrives as a 200 response.
+            if (
+                status == 429
+                or status >= 500
+                or status < 400
+                or error_type in ("overloaded_error", "api_error", "rate_limit_error")
+            ):
                 raise AiError("ai_unavailable", retry=True) from None
             raise AiError("ai_rejected") from None
         except anthropic.APIConnectionError as error:  # includes APITimeoutError
             _log(error, None, None)
             raise AiError("ai_unavailable", retry=True) from None
+        except anthropic.APIError as error:
+            _log(error, None, None)
+            raise AiError("ai_rejected") from None
 
         text = next((block.text for block in message.content if block.type == "text"), None)
         usage = message.usage
