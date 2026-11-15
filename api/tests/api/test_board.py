@@ -39,12 +39,13 @@ def _task(
     created_at: str = "2026-11-01 00:00Z",
     depends_on: UUID | None = None,
     deleted: bool = False,
+    position: int | None = None,
 ) -> UUID:
     row = db.execute(
         "INSERT INTO app.tasks (user_id, exam_id, title, kind, estimated_minutes, source, "
-        "depends_on_task_id, created_at, deleted_at) "
-        "VALUES (%s, %s, 'T', 'learn', 60, 'user', %s, %s, %s) RETURNING id",
-        (user.id, exam_id, depends_on, created_at, NOW if deleted else None),
+        "depends_on_task_id, created_at, deleted_at, position) "
+        "VALUES (%s, %s, 'T', 'learn', 60, 'user', %s, %s, %s, %s) RETURNING id",
+        (user.id, exam_id, depends_on, created_at, NOW if deleted else None, position),
     ).fetchone()
     assert row is not None
     return UUID(str(row[0]))
@@ -102,6 +103,19 @@ def test_tasks_keep_creation_order_and_drop_dangling_dependencies(
     board = _board(database, user)
     assert [task.id for task in board.tasks] == [first, second, third]
     assert [task.depends_on for task in board.tasks] == [None, first, None]
+
+
+def test_tasks_are_ordered_by_position_then_creation(
+    database: Database, make_user: MakeUser, db: psycopg.Connection
+) -> None:
+    user = make_user()
+    exam = _exam(db, user, "2026-12-20")
+    unplaced = _task(db, user, exam, created_at="2026-11-01 00:00Z")
+    second = _task(db, user, exam, created_at="2026-11-02 00:00Z", position=2)
+    first = _task(db, user, exam, created_at="2026-11-03 00:00Z", position=1)
+    later = _task(db, user, exam, created_at="2026-11-04 00:00Z")
+    board = _board(database, user)
+    assert [task.id for task in board.tasks] == [first, second, unplaced, later]
 
 
 def test_blocks_window_and_statuses(

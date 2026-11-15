@@ -128,7 +128,7 @@ def load_board(conn: Conn, user_id: UUID, now: dt.datetime, *, lock: bool = Fals
         "SELECT id, exam_id, kind, estimated_minutes, focus, depends_on_task_id, status "
         "FROM app.tasks "
         "WHERE user_id = %s AND deleted_at IS NULL AND exam_id = ANY(%s) "
-        "ORDER BY created_at, id",
+        "ORDER BY position NULLS LAST, created_at, id",
         (user_id, [exam.id for exam in exams]),
     ).fetchall()
     task_ids = {row["id"] for row in task_rows}

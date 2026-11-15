@@ -383,3 +383,19 @@ def test_patch_title_with_a_nul_character_is_422(
     assert response.status_code == 422
     assert response.json()["code"] == "validation_error"
     assert response.json()["errors"][0]["loc"][:2] == ["body", "title"]
+
+
+def test_tasks_are_listed_by_position_then_creation(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    unplaced = insert_task(db, user.id, exam, title="ללא סדר")
+    second = insert_task(db, user.id, exam, title="שנייה")
+    first = insert_task(db, user.id, exam, title="ראשונה")
+    db.execute("UPDATE app.tasks SET position = 2 WHERE id = %s", (second,))
+    db.execute("UPDATE app.tasks SET position = 1 WHERE id = %s", (first,))
+    assert [task["id"] for task in _tasks(api, user, exam)] == [
+        str(first),
+        str(second),
+        str(unplaced),
+    ]

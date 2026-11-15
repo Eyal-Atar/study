@@ -69,6 +69,7 @@ def test_core_tables_exist(db: psycopg.Connection) -> None:
         "plan_versions",
         "profiles",
         "tasks",
+        "topics",
     ]
 
 
@@ -124,6 +125,7 @@ def test_only_authenticated_has_table_privileges(db: psycopg.Connection) -> None
         # INSERT and UPDATE are granted on columns only (migration 0005).
         "materials": {"SELECT", "DELETE"},
         "jobs": {"SELECT"},
+        "topics": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     }
     for table in _app_tables(db):
         for role in ("anon", "studyflow_api", "service_role"):

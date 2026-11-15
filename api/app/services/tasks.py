@@ -51,7 +51,8 @@ def list_tasks(conn: Conn, user_id: UUID, exam_id: UUID) -> Sequence[Row]:
         raise ApiError("not_found")
     return conn.execute(
         f"SELECT {TASK_COLUMNS} FROM app.tasks "  # noqa: S608 - a constant column list
-        "WHERE user_id = %s AND exam_id = %s AND deleted_at IS NULL ORDER BY created_at, id",
+        "WHERE user_id = %s AND exam_id = %s AND deleted_at IS NULL "
+        "ORDER BY position NULLS LAST, created_at, id",
         (user_id, exam_id),
     ).fetchall()
 
