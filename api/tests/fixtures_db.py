@@ -1,5 +1,6 @@
 """Database fixtures shared by tests/db and tests/api (registered in tests/conftest.py)."""
 
+import os
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -29,12 +30,15 @@ from tests.tokens import StaticKeys, TokenFactory, bearer
 @pytest.fixture(scope="session")
 def migrated_database_url() -> Iterator[str]:
     admin_url = admin_database_url()
-    url = create_database(admin_url, "studyflow_test")
+    # STUDYFLOW_TEST_DB lets two test runs share the local cluster without dropping
+    # each other's database (tests/db/test_migrations.py still must not run alongside them).
+    name = os.environ.get("STUDYFLOW_TEST_DB", "studyflow_test")
+    url = create_database(admin_url, name)
     try:
         command.upgrade(alembic_config(url), "head")
         yield url
     finally:
-        drop_database(admin_url, "studyflow_test")
+        drop_database(admin_url, name)
 
 
 @pytest.fixture

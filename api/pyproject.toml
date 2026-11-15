@@ -6,10 +6,12 @@ requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.20.1",
     "fastapi>=0.143.3",
+    "httpx2>=2.16.0",
     "psycopg[binary,pool]>=3.3.6",
     "pydantic>=2.14.1",
     "pydantic-settings>=2.16.0",
     "pyjwt[crypto]>=2.15.1",
+    "pypdfium2>=5.15.0",
     "tzdata>=2026.5",
     "uvicorn[standard]>=0.54.0",
 ]
@@ -45,7 +47,6 @@ files = ["app", "tests", "migrations"]
 
 [dependency-groups]
 dev = [
-    "httpx2>=2.13.1",
     "hypothesis>=6.170.9",
     "mypy>=2.4.0",
     "pytest>=9.1.1",
