@@ -12,7 +12,12 @@ from app.domain.planner import BlockStatus, TaskStatus, place_task, start_minute
 from app.domain.time import local_date
 from app.errors import ApiError
 from app.services.board import Board, load_board
-from app.services.plan_writes import VersionReason, apply_result, delete_open_blocks
+from app.services.plan_writes import (
+    VersionReason,
+    apply_result,
+    delete_open_blocks,
+    task_before,
+)
 from app.services.profiles import Conn
 
 TASK_COLUMNS: Final = (
@@ -51,10 +56,15 @@ def list_tasks(conn: Conn, user_id: UUID, exam_id: UUID) -> Sequence[Row]:
     ).fetchall()
 
 
+_TASK_COLUMNS_OF_T: Final = ", ".join(f"t.{column.strip()}" for column in TASK_COLUMNS.split(","))
+
+
 def _live_task(conn: Conn, user_id: UUID, task_id: UUID) -> Row:
+    """The task, if neither it nor its exam is deleted; else not_found."""
     row = conn.execute(
-        f"SELECT {TASK_COLUMNS} FROM app.tasks "  # noqa: S608 - a constant column list
-        "WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
+        f"SELECT {_TASK_COLUMNS_OF_T} FROM app.tasks t "  # noqa: S608 - a constant column list
+        "JOIN app.exams e ON e.id = t.exam_id AND e.user_id = t.user_id "
+        "WHERE t.user_id = %s AND t.id = %s AND t.deleted_at IS NULL AND e.deleted_at IS NULL",
         (user_id, task_id),
     ).fetchone()
     if row is None:
@@ -79,7 +89,12 @@ def _check_cycle(conn: Conn, user_id: UUID, task_id: UUID, target: UUID) -> None
 
 
 def _place(
-    conn: Conn, user_id: UUID, now: dt.datetime, task_id: UUID, reason: VersionReason
+    conn: Conn,
+    user_id: UUID,
+    now: dt.datetime,
+    task_id: UUID,
+    reason: VersionReason,
+    before: Row | None = None,
 ) -> tuple[PlacementOutcome | None, UUID | None]:
     """Place the task on a fresh board, releasing its candidate blocks; None if not on it."""
     board: Board = load_board(conn, user_id, now, lock=True)
@@ -101,7 +116,15 @@ def _place(
     if result.unscheduled:
         failure = result.unscheduled[0]
         return PlacementOutcome(False, failure.reason.value, failure.blocked_by), None
-    version_id = apply_result(conn, user_id, board, result, reason, task_id=task_id)
+    version_id = apply_result(
+        conn,
+        user_id,
+        board,
+        result,
+        reason,
+        task_id=task_id,
+        before=None if before is None else task_before(before),
+    )
     return PlacementOutcome(True, None, None), version_id
 
 
@@ -148,7 +171,7 @@ def update_task(
     if unknown:
         raise ValueError(f"Not updatable: {sorted(unknown)}")
     board = load_board(conn, user_id, now, lock=True)
-    _live_task(conn, user_id, task_id)
+    before = _live_task(conn, user_id, task_id)
     target = changes.get("depends_on_task_id")
     if target is not None:
         _live_task(conn, user_id, target)
@@ -165,14 +188,24 @@ def update_task(
     if row is None:
         raise RuntimeError("the task vanished while it was locked")
 
-    status = changes.get("status")
-    if status in ("done", "skipped"):
+    # Only a value that differs from the row moves the task: a PATCH that sends the
+    # current focus (say) leaves the board as it is.
+    moved = {field for field in _PLACEMENT_FIELDS & changes.keys() if before[field] != row[field]}
+    if "status" in moved and row["status"] in ("done", "skipped"):
         version_id = delete_open_blocks(
-            conn, user_id, board, [task_id], VersionReason.TASK_CHANGED, task_id=task_id
+            conn,
+            user_id,
+            board,
+            [task_id],
+            VersionReason.TASK_CHANGED,
+            task_id=task_id,
+            before=task_before(before),
         )
         return row, None, version_id
-    if _PLACEMENT_FIELDS & changes.keys():
-        outcome, version_id = _place(conn, user_id, now, task_id, VersionReason.TASK_CHANGED)
+    if moved:
+        outcome, version_id = _place(
+            conn, user_id, now, task_id, VersionReason.TASK_CHANGED, before
+        )
         return row, outcome, version_id
     return row, None, None
 
@@ -185,5 +218,11 @@ def delete_task(conn: Conn, user_id: UUID, now: dt.datetime, task_id: UUID) -> U
         (now, user_id, task_id),
     )
     return delete_open_blocks(
-        conn, user_id, board, [task_id], VersionReason.TASK_DELETED, task_id=task_id
+        conn,
+        user_id,
+        board,
+        [task_id],
+        VersionReason.TASK_DELETED,
+        task_id=task_id,
+        always_version=True,
     )

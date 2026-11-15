@@ -5,8 +5,11 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from app.domain.planner import TaskKind
+from app.schemas.text import NoNul
 
-TaskTitle = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+TaskTitle = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200), NoNul
+]
 Minutes = Annotated[int, Field(ge=5, le=600)]
 Focus = Annotated[int, Field(ge=1, le=10)]
 TaskStatusName = Literal["todo", "done", "skipped"]

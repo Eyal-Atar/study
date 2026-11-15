@@ -169,7 +169,14 @@ def load_board(conn: Conn, user_id: UUID, now: dt.datetime, *, lock: bool = Fals
 
 
 def fingerprint(board: Board) -> str:
-    """SHA-256 of the planner's input (everything but `now`), for detecting a stale preview."""
+    """SHA-256 of the planner's input (everything but `now`), for detecting a stale preview.
+
+    The board's blocks are those ending after now - 48h (and older done blocks of its
+    tasks), so a block that leaves that window between a preview and its apply changes
+    the fingerprint with nothing else changed: the apply then fails with stale_plan. That
+    is rare (a preview held open across a block's end + 48h) and safe (nothing is
+    written; the client previews again).
+    """
     profile = board.profile
     payload = {
         "profile": {

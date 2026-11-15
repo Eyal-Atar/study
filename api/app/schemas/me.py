@@ -14,6 +14,7 @@ from pydantic import (
 
 from app.domain.planner import StudyWindow
 from app.domain.time import InvalidTimezoneError, parse_timezone
+from app.schemas.text import NoNul
 from app.services.profiles import ProfileRow
 
 
@@ -64,7 +65,9 @@ class MePatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     display_name: (
-        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+        Annotated[
+            str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100), NoNul
+        ]
         | None
     ) = None
     timezone: str | None = None
@@ -88,12 +91,14 @@ class MePatch(BaseModel):
     @field_validator("timezone")
     @classmethod
     def _known_timezone(cls, value: str | None) -> str | None:
-        if value is not None:
-            try:
-                parse_timezone(value)
-            except InvalidTimezoneError as error:
-                raise ValueError("unknown timezone") from error
-        return value
+        # parse_timezone accepts only exact zoneinfo names, so the key is the name sent;
+        # storing the key keeps the stored value canonical should that ever change.
+        if value is None:
+            return None
+        try:
+            return parse_timezone(value).key
+        except InvalidTimezoneError as error:
+            raise ValueError("unknown timezone") from error
 
     @field_validator("study_windows")
     @classmethod

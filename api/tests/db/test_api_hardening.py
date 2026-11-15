@@ -169,6 +169,21 @@ def test_version_links_to_own_exam_and_task_only(
     ]
 
 
+def test_version_keeps_the_task_as_it_was(
+    api_db: psycopg.Connection, db: psycopg.Connection, make_user: MakeUser
+) -> None:
+    user = make_user()
+    before = {"title": "Chapter 1", "estimated_minutes": 60, "status": "todo"}
+    with user_transaction(api_db, user) as conn:
+        task = _task(conn, user, _exam(conn, user))
+        conn.execute(
+            "INSERT INTO app.plan_versions (user_id, reason, snapshot, task_id, task_before) "
+            "VALUES (%s, 'task_changed', %s, %s, %s)",
+            (user.id, _SNAPSHOT, task, Jsonb(before)),
+        )
+    assert db.execute("SELECT task_before FROM app.plan_versions").fetchall() == [(before,)]
+
+
 def test_downgrade_and_upgrade_again() -> None:
     admin_url = admin_database_url()
     name = "studyflow_api_hardening_test"
@@ -180,7 +195,8 @@ def test_downgrade_and_upgrade_again() -> None:
         with psycopg.connect(url, autocommit=True) as conn:
             assert conn.execute(
                 "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'app' "
-                "AND table_name = 'plan_versions' AND column_name IN ('exam_id', 'task_id')"
+                "AND table_name = 'plan_versions' "
+                "AND column_name IN ('exam_id', 'task_id', 'task_before')"
             ).fetchone() == (0,)
             assert conn.execute(
                 "SELECT count(*) FROM pg_constraint WHERE conname = 'blocks_whole_minutes'"

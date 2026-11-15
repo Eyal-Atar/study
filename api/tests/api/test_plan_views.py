@@ -105,6 +105,36 @@ def test_plan_range_by_study_date(api: TestClient, user: ApiUser, db: psycopg.Co
 
 
 @pytest.mark.parametrize(
+    ("query", "field"),
+    [
+        ("from=0001-01-01", "from"),
+        ("from=0001-01-01&to=0001-01-02", "from"),
+        ("from=9999-12-31", "from"),
+        ("from=2026-11-16&to=9999-12-31", "to"),
+        ("to=9999-12-31", "to"),
+        ("from=2021-11-15&to=2021-11-20", "from"),
+        ("from=2031-11-17", "from"),
+    ],
+)
+def test_plan_range_must_be_within_five_years(
+    api: TestClient, user: ApiUser, query: str, field: str
+) -> None:
+    response = api.get(f"/plan?{query}", headers=user.headers)
+    assert response.status_code == 422, response.text
+    body = response.json()
+    assert body["code"] == "validation_error"
+    assert [error["loc"] for error in body["errors"]] == [["query", field]]
+
+
+def test_plan_range_edges_are_allowed(api: TestClient, user: ApiUser) -> None:
+    # Local today is 2026-11-16 (UTC); 1826 days either side.
+    first = api.get("/plan?from=2021-11-16&to=2021-11-20", headers=user.headers)
+    assert first.status_code == 200, first.text
+    last = api.get("/plan?from=2031-11-10&to=2031-11-16", headers=user.headers)
+    assert last.status_code == 200, last.text
+
+
+@pytest.mark.parametrize(
     ("timezone", "date"), [("Asia/Jerusalem", "2026-11-17"), ("UTC", "2026-11-16")]
 )
 def test_today_follows_the_profile_timezone(

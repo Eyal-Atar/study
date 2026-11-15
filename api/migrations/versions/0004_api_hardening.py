@@ -8,7 +8,10 @@ it to now(), so a client cannot back-date an undo or undo twice. It is OF undone
 the SET NULL of a deleted exam or task updates the row too and must pass. `exam_id` and
 `task_id` record which exam or task a version was taken for (the undo of a delete needs
 them); the composite foreign keys keep them inside the owner's own rows, and a hard delete
-of the exam or task only nulls that column, the version stays.
+of the exam or task only nulls that column, the version stays. `task_before` holds, for a
+`task_changed` version, the task's editable fields as they were before the change (title,
+kind, estimated_minutes, focus, depends_on_task_id, status), so undo can put the task back
+and not only its blocks.
 
 `created_at` defaults to clock_timestamp() rather than now(): now() is the start of the
 transaction, so a request that started first but took the user lock second would get the
@@ -41,6 +44,7 @@ def upgrade() -> None:
         ALTER TABLE app.plan_versions
             ADD COLUMN exam_id uuid,
             ADD COLUMN task_id uuid,
+            ADD COLUMN task_before jsonb,
             ADD CONSTRAINT plan_versions_exam_fkey FOREIGN KEY (exam_id, user_id)
                 REFERENCES app.exams (id, user_id) ON DELETE SET NULL (exam_id),
             ADD CONSTRAINT plan_versions_task_fkey FOREIGN KEY (task_id, user_id)
@@ -52,7 +56,7 @@ def upgrade() -> None:
     )
     op.execute("REVOKE INSERT ON app.plan_versions FROM authenticated")
     op.execute("""
-        GRANT INSERT (user_id, reason, snapshot, exam_id, task_id)
+        GRANT INSERT (user_id, reason, snapshot, exam_id, task_id, task_before)
         ON app.plan_versions TO authenticated
     """)
 
@@ -82,7 +86,7 @@ def downgrade() -> None:
     op.execute("DROP TRIGGER plan_versions_undo_once ON app.plan_versions")
     op.execute("DROP FUNCTION app.plan_versions_undo_once()")
     op.execute("""
-        REVOKE INSERT (user_id, reason, snapshot, exam_id, task_id)
+        REVOKE INSERT (user_id, reason, snapshot, exam_id, task_id, task_before)
         ON app.plan_versions FROM authenticated
     """)
     op.execute("""
@@ -90,7 +94,8 @@ def downgrade() -> None:
             DROP CONSTRAINT plan_versions_exam_fkey,
             DROP CONSTRAINT plan_versions_task_fkey,
             DROP COLUMN exam_id,
-            DROP COLUMN task_id
+            DROP COLUMN task_id,
+            DROP COLUMN task_before
     """)
     op.execute("GRANT INSERT ON app.plan_versions TO authenticated")
     op.execute("ALTER TABLE app.plan_versions ALTER COLUMN created_at SET DEFAULT now()")

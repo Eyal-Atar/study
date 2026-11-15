@@ -150,3 +150,17 @@ def test_replan_places_only_what_old_done_blocks_leave(
     )
     assert added == 60
     assert body["unscheduled"] == []
+
+
+def test_apply_returns_the_basis_of_the_board_it_wrote(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    insert_task(db, user.id, exam, minutes=120)
+    previewed = replan_preview(api, user)
+    applied = replan_apply(api, user, previewed["basis"])
+    assert applied["changed"] is True
+    assert applied["basis"] != previewed["basis"]
+    assert replan_preview(api, user)["basis"] == applied["basis"]
+    again = replan_apply(api, user, applied["basis"])
+    assert again["changed"] is False

@@ -199,7 +199,7 @@ def test_onboarding_to_undo_to_defer(api: TestClient, user: ApiUser, clock: Froz
 
     preview = replan_preview(api, user)
     applied = replan_apply(api, user, preview["basis"])
-    assert applied["basis"] == preview["basis"]
+    assert applied["basis"] == replan_preview(api, user)["basis"]  # the board after the write
     plan = check_consistent(api, user, NOW, first, last)
     assert plan["unplaced"] == [], "five small tasks fit in a week"
     blocks = sorted(plan["blocks"], key=lambda b: b["starts_at"])

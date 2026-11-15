@@ -195,7 +195,8 @@ def test_defer_a_started_block_releases_it_whole(
     assert response.status_code == 200, response.text
     future = _task_blocks(db, task)
     assert sum((end - start).total_seconds() / 60 for _, start, end in future) == 60
-    assert all(start >= Z(2026, 11, 16, 9, 30) for _, start, _ in future)
+    assert future
+    assert all(start >= Z(2026, 11, 16, 10, 0) for _, start, _ in future)
 
 
 def test_defer_a_past_block_is_409(api: TestClient, user: ApiUser, db: psycopg.Connection) -> None:

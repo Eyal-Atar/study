@@ -74,6 +74,13 @@ def test_settings_do_not_leak_between_transactions(
                     "select current_setting('request.jwt.claim.sub', true)"
                 ).fetchone()
                 assert leaked == {"current_setting": ""} or leaked == {"current_setting": None}
+                state = conn.execute(
+                    "select current_user as role, "
+                    "current_setting('request.jwt.claims', true) as claims"
+                ).fetchone()
+                assert state is not None
+                assert state["role"] == "studyflow_api"
+                assert state["claims"] in ("", None)
     finally:
         single.close()
 

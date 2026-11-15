@@ -35,7 +35,7 @@ def _run(board: Board) -> PlanResult:
 
 
 def _outcome(
-    board: Board,
+    basis: str,
     result: PlanResult,
     *,
     changed: bool,
@@ -43,7 +43,7 @@ def _outcome(
     removed: tuple[BlockView, ...],
 ) -> ReplanOutcome:
     return ReplanOutcome(
-        basis=fingerprint(board),
+        basis=basis,
         changed=changed,
         version_id=version_id,
         added=tuple(block for block in result.blocks if block.block_id is None),
@@ -60,7 +60,7 @@ def preview_replan(conn: Conn, user_id: UUID, now: dt.datetime) -> ReplanOutcome
     result = _run(board)
     removed = blocks_by_id(conn, user_id, result.removed, board.profile, now)
     return _outcome(
-        board,
+        fingerprint(board),
         result,
         changed=has_changes(board, result),
         version_id=None,
@@ -69,7 +69,11 @@ def preview_replan(conn: Conn, user_id: UUID, now: dt.datetime) -> ReplanOutcome
 
 
 def apply_replan(conn: Conn, user_id: UUID, now: dt.datetime, basis: str) -> ReplanOutcome:
-    """Replan again with the current time and write it, if the board is still the one previewed."""
+    """Replan again with the current time and write it, if the board is still the one previewed.
+
+    The returned basis is the board after the write (reloaded), so a client can preview
+    or apply again from it.
+    """
     board = load_board(conn, user_id, now, lock=True)
     if fingerprint(board) != basis:
         raise ApiError("stale_plan")
@@ -77,8 +81,9 @@ def apply_replan(conn: Conn, user_id: UUID, now: dt.datetime, basis: str) -> Rep
     # Read before apply_result deletes them.
     removed = blocks_by_id(conn, user_id, result.removed, board.profile, now)
     version_id = apply_result(conn, user_id, board, result, VersionReason.REPLAN)
+    after = board if version_id is None else load_board(conn, user_id, now)
     return _outcome(
-        board,
+        fingerprint(after),
         result,
         changed=version_id is not None,
         version_id=version_id,

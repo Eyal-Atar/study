@@ -2,7 +2,7 @@ import datetime as dt
 import threading
 import time
 from collections.abc import Callable
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import psycopg
 
@@ -83,6 +83,11 @@ def test_deleted_and_past_exams_are_left_out(
     board = _board(database, user)
     assert {exam.id for exam in board.exams} == {today, future}
     assert {task.id for task in board.tasks} == set(kept)
+    # 23:30 UTC on the 14th is already 01:30 on the 15th in Jerusalem (the default
+    # timezone): the exam of the 14th is past by the local date, not the UTC one.
+    late = _board(database, user, dt.datetime(2026, 11, 14, 23, 30, tzinfo=UTC))
+    assert {exam.id for exam in late.exams} == {today, future}
+    assert {task.id for task in late.tasks} == set(kept)
 
 
 def test_tasks_keep_creation_order_and_drop_dangling_dependencies(
@@ -154,7 +159,6 @@ def test_lock_serializes_two_transactions(
     for thread in threads:
         thread.join()
     assert time.monotonic() - started >= 0.6
-    assert uuid4()
 
 
 def test_done_blocks_of_loaded_tasks_count_whatever_their_age(

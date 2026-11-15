@@ -1,3 +1,4 @@
+import datetime as dt
 from collections.abc import Callable
 from typing import Any
 
@@ -121,3 +122,52 @@ def test_delete_exam_removes_future_blocks_and_undo_brings_them_back(
         "SELECT starts_at, ends_at FROM app.blocks WHERE status = 'planned' ORDER BY starts_at"
     ).fetchall()
     assert rows == [first, second]
+
+
+def _too_far(response: Any) -> None:
+    assert response.status_code == 422, response.text
+    body = response.json()
+    assert body["code"] == "validation_error"
+    assert [error["loc"] for error in body["errors"]] == [["body", "exam_date"]]
+
+
+def test_exam_date_is_at_most_two_years_ahead(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    last = (NOW.date() + dt.timedelta(days=730)).isoformat()
+    after = (NOW.date() + dt.timedelta(days=731)).isoformat()
+    for date in (after, "9999-12-31"):
+        _too_far(api.post("/exams", json={"name": "רחוק", "exam_date": date}, headers=user.headers))
+    assert scalar(db, "SELECT count(*) FROM app.exams") == 0
+    created = api.post("/exams", json={"name": "רחוק", "exam_date": last}, headers=user.headers)
+    assert created.status_code == 201, created.text
+
+    exam = created.json()["exam"]["id"]
+    for date in (after, "9999-12-31"):
+        _too_far(api.patch(f"/exams/{exam}", json={"exam_date": date}, headers=user.headers))
+    assert str(scalar(db, "SELECT exam_date FROM app.exams WHERE id = %s", exam)) == last
+
+
+def test_today_follows_the_profile_timezone_for_the_upper_bound(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, clock: FrozenClock
+) -> None:
+    set_profile(db, user.id, timezone="Asia/Jerusalem")
+    clock.set(Z(2026, 11, 15, 23, 30))  # 01:30 on 2026-11-16 in Jerusalem
+    last = (dt.date(2026, 11, 16) + dt.timedelta(days=730)).isoformat()
+    created = api.post("/exams", json={"name": "רחוק", "exam_date": last}, headers=user.headers)
+    assert created.status_code == 201, created.text
+
+
+@pytest.mark.parametrize("method", ["post", "patch"])
+def test_exam_name_with_a_nul_character_is_422(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, method: str
+) -> None:
+    body = {"name": "a\u0000b", "exam_date": "2026-11-20"}
+    if method == "post":
+        response = api.post("/exams", json=body, headers=user.headers)
+    else:
+        exam = insert_exam(db, user.id, exam_date="2026-11-20")
+        response = api.patch(f"/exams/{exam}", json={"name": body["name"]}, headers=user.headers)
+    assert response.status_code == 422
+    assert response.json()["code"] == "validation_error"
+    assert response.json()["errors"][0]["loc"][:2] == ["body", "name"]

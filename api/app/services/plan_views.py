@@ -18,12 +18,16 @@ from app.domain.planner import (
     start_minute,
     study_date,
 )
+from app.domain.time import local_date
 from app.errors import ApiError
 from app.services.board import BLOCK_COLUMNS, BlockRow, load_board, to_block_row
 from app.services.plan_writes import VersionRow, latest_version
 from app.services.profiles import Conn, ensure_profile, to_planner_profile
 
 MAX_RANGE_DAYS: Final = 62
+# How far from local today a requested from/to may be (five years): past it the date
+# arithmetic below overflows (0001-01-01, 9999-12-31).
+MAX_DAYS_FROM_TODAY: Final = 1826
 DEFAULT_RANGE_DAYS: Final = 7
 # A study day starts at most a day before or after its local date (a wake-up after
 # midnight, a sleep time after midnight), so a margin of two days catches every block.
@@ -191,6 +195,11 @@ def plan_view(
 ) -> PlanView:
     """The blocks of study days from_date..to_date (default: today and the next six)."""
     profile = to_planner_profile(ensure_profile(conn, user_id))
+    today = local_date(now, profile.timezone)
+    reach = dt.timedelta(days=MAX_DAYS_FROM_TODAY)
+    for field, value in (("from", from_date), ("to", to_date)):
+        if value is not None and not today - reach <= value <= today + reach:
+            raise _invalid_range(field, "out_of_range")
     first = from_date if from_date is not None else study_date(profile, now)
     last = to_date if to_date is not None else first + dt.timedelta(days=DEFAULT_RANGE_DAYS - 1)
     if last < first:

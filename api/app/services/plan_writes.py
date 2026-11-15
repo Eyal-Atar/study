@@ -3,7 +3,8 @@
 Every change to the board goes through `apply_result` (a planner result) or
 `delete_open_blocks` (blocks of tasks that left the plan). Each saves the board as it
 was before the change (a snapshot of the future planned blocks) in plan_versions, so
-`undo_version` can bring it back.
+`undo_version` can bring it back. A `task_changed` version also keeps the task's
+editable fields as they were (`task_before`), so undo puts the task back too.
 """
 
 import datetime as dt
@@ -18,6 +19,7 @@ from psycopg.types.json import Jsonb
 
 from app.domain.planner import (
     BlockStatus,
+    Interval,
     PlannedBlock,
     PlanResult,
     SnapshotBlock,
@@ -61,6 +63,26 @@ class VersionRow:
     exam_id: UUID | None
     task_id: UUID | None
     snapshot: Any
+    task_before: Any = None
+
+
+# The task fields a task_changed version keeps, as they were before the change.
+TASK_BEFORE_FIELDS = (
+    "title",
+    "kind",
+    "estimated_minutes",
+    "focus",
+    "depends_on_task_id",
+    "status",
+)
+
+
+def task_before(row: Mapping[str, Any]) -> dict[str, Any]:
+    """The fields of a task row that a task_changed version keeps, as JSON values."""
+    values = {field: row[field] for field in TASK_BEFORE_FIELDS}
+    depends_on = values["depends_on_task_id"]
+    values["depends_on_task_id"] = None if depends_on is None else str(depends_on)
+    return values
 
 
 @dataclass(frozen=True)
@@ -111,16 +133,18 @@ def _create_version(
     reason: VersionReason,
     exam_id: UUID | None,
     task_id: UUID | None,
+    before: Mapping[str, Any] | None,
 ) -> UUID:
     row = conn.execute(
-        "INSERT INTO app.plan_versions (user_id, reason, snapshot, exam_id, task_id) "
-        "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+        "INSERT INTO app.plan_versions (user_id, reason, snapshot, exam_id, task_id, "
+        "task_before) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
         (
             user_id,
             reason.value,
             Jsonb(snapshot(board.snapshot_blocks, board.now)),
             exam_id,
             task_id,
+            None if before is None else Jsonb(dict(before)),
         ),
     ).fetchone()
     if row is None:
@@ -180,8 +204,12 @@ def apply_result(
     *,
     exam_id: UUID | None = None,
     task_id: UUID | None = None,
+    before: Mapping[str, Any] | None = None,
 ) -> UUID | None:
     """Write a planner result computed from `board`, with a version; None if it changes nothing.
+
+    `before` is the changed task's fields as they were (task_before), for a task_changed
+    version.
 
     The caller holds the user lock: `board` was loaded with load_board(lock=True) in this
     same transaction, so nothing changed between the board and this write.
@@ -189,7 +217,7 @@ def apply_result(
     changes = _changes(board, result)
     if not changes:
         return None
-    version_id = _create_version(conn, user_id, board, reason, exam_id, task_id)
+    version_id = _create_version(conn, user_id, board, reason, exam_id, task_id, before)
     _write_changes(conn, user_id, changes, version_id)
     return version_id
 
@@ -203,9 +231,13 @@ def delete_open_blocks(
     *,
     exam_id: UUID | None = None,
     task_id: UUID | None = None,
+    before: Mapping[str, Any] | None = None,
+    always_version: bool = False,
 ) -> UUID | None:
     """Delete the tasks' planned blocks that have not started (pinned too), with a version.
 
+    The version is written when blocks are deleted, or always with `always_version` (a
+    delete of an exam or task, which undo must bring back even when it had no blocks).
     The caller holds the user lock: `board` was loaded with load_board(lock=True) in this
     same transaction, so its blocks are the ones in the database.
     """
@@ -219,8 +251,8 @@ def delete_open_blocks(
         and block.starts_at >= start
     ]
     version_id = None
-    if open_ids:
-        version_id = _create_version(conn, user_id, board, reason, exam_id, task_id)
+    if open_ids or always_version:
+        version_id = _create_version(conn, user_id, board, reason, exam_id, task_id, before)
         _delete_planned(conn, user_id, open_ids)
     renumber(conn, user_id, board.now)
     return version_id
@@ -259,13 +291,15 @@ def _version_row(row: Mapping[str, Any]) -> VersionRow:
         exam_id=row["exam_id"],
         task_id=row["task_id"],
         snapshot=row["snapshot"],
+        task_before=row["task_before"],
     )
 
 
 def latest_version(conn: Conn, user_id: UUID) -> VersionRow | None:
     """The newest version that was not undone."""
     row = conn.execute(
-        "SELECT id, reason, created_at, exam_id, task_id, snapshot FROM app.plan_versions "
+        "SELECT id, reason, created_at, exam_id, task_id, snapshot, task_before "
+        "FROM app.plan_versions "
         "WHERE user_id = %s AND undone_at IS NULL "
         "ORDER BY created_at DESC, id DESC LIMIT 1",
         (user_id,),
@@ -273,8 +307,54 @@ def latest_version(conn: Conn, user_id: UUID) -> VersionRow | None:
     return None if row is None else _version_row(row)
 
 
+def _restorable_dependency(conn: Conn, user_id: UUID, task_id: UUID, target: object) -> UUID | None:
+    """The saved dependency if its task is still live and it would make no cycle, else None."""
+    if target is None:
+        return None
+    current: UUID | None = UUID(str(target))
+    dependency = current
+    seen: set[UUID] = set()
+    while current is not None and current not in seen:
+        if current == task_id:
+            return None
+        seen.add(current)
+        row = conn.execute(
+            "SELECT depends_on_task_id FROM app.tasks "
+            "WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
+            (user_id, current),
+        ).fetchone()
+        if row is None:
+            return None if current == dependency else dependency
+        current = row["depends_on_task_id"]
+    return dependency
+
+
+def _restore_task(conn: Conn, user_id: UUID, task_id: UUID, before: Any) -> None:
+    """Put a changed task's fields back as they were, if the task is still live."""
+    try:
+        values = {field: before[field] for field in TASK_BEFORE_FIELDS}
+        dependency = _restorable_dependency(conn, user_id, task_id, values["depends_on_task_id"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise SnapshotError(f"invalid task_before: {error}") from error
+    conn.execute(
+        "UPDATE app.tasks SET title = %s, kind = %s, estimated_minutes = %s, focus = %s, "
+        "depends_on_task_id = %s, status = %s "
+        "WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
+        (
+            values["title"],
+            values["kind"],
+            values["estimated_minutes"],
+            values["focus"],
+            dependency,
+            values["status"],
+            user_id,
+            task_id,
+        ),
+    )
+
+
 def _undo_side_effect(conn: Conn, user_id: UUID, version: VersionRow, now: dt.datetime) -> None:
-    """Bring back a deleted exam or task, or delete a task that was added."""
+    """Bring back a deleted exam or task or a changed task's fields, or delete an added task."""
     if version.reason == VersionReason.EXAM_DELETED and version.exam_id is not None:
         conn.execute(
             "UPDATE app.exams SET deleted_at = NULL WHERE user_id = %s AND id = %s",
@@ -291,6 +371,12 @@ def _undo_side_effect(conn: Conn, user_id: UUID, version: VersionRow, now: dt.da
             "WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
             (now, user_id, version.task_id),
         )
+    elif (
+        version.reason == VersionReason.TASK_CHANGED
+        and version.task_id is not None
+        and version.task_before is not None
+    ):
+        _restore_task(conn, user_id, version.task_id, version.task_before)
 
 
 def _current_blocks(
@@ -309,6 +395,10 @@ def _sort_key(block: SnapshotBlock) -> tuple[dt.datetime, UUID]:
     return (block.interval.start, block.id)
 
 
+def _identity(block: SnapshotBlock) -> tuple[UUID, UUID, Interval, BlockStatus]:
+    return (block.id, block.task_id, block.interval, block.status)
+
+
 def undo_version(conn: Conn, user_id: UUID, version_id: UUID, now: dt.datetime) -> UndoOutcome:
     """Undo the latest version that was not undone, as 7.6 step 6 describes."""
     lock_user(conn, user_id)
@@ -318,21 +408,28 @@ def undo_version(conn: Conn, user_id: UUID, version_id: UUID, now: dt.datetime) 
     if version.id != version_id:
         raise ApiError("stale_plan")
 
-    _undo_side_effect(conn, user_id, version, now)
-    board = load_board(conn, user_id, now)
     try:
+        _undo_side_effect(conn, user_id, version, now)
         saved = parse_snapshot(version.snapshot)
     except SnapshotError as error:
         logger.error("Plan version %s has an invalid snapshot: %s", version.id, error)
         raise ApiError("invalid_state") from error
+    board = load_board(conn, user_id, now)
 
-    result = undo(saved, _current_blocks(conn, user_id, now, saved), now)
+    current = _current_blocks(conn, user_id, now, saved)
+    result = undo(saved, current, now)
     # Only blocks of a todo task that is still in the plan come back (a done, deleted
     # or vanished task would fail the foreign key or plan what needs no time).
     todo = {task.id for task in board.tasks if task.status is TaskStatus.TODO}
     restore = [block for block in result.restore if block.task_id in todo]
+    # A saved block that is still there unchanged (it has only started since) is where
+    # it was: its task needs no new place for it.
+    present = {_identity(block) for block in current}
     dropped = sorted(
-        [*result.dropped, *(block for block in result.restore if block.task_id not in todo)],
+        [
+            *(block for block in result.dropped if _identity(block) not in present),
+            *(block for block in result.restore if block.task_id not in todo),
+        ],
         key=_sort_key,
     )
 

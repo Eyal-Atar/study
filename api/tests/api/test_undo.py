@@ -307,3 +307,162 @@ def test_the_latest_version_is_the_last_written_not_the_first_started(
         latest = latest_version(conn, user.id)
     assert latest is not None
     assert latest.id == late[0]
+
+
+def _task_row(db: psycopg.Connection, task: UUID) -> tuple[Any, ...]:
+    row = db.execute(
+        "SELECT title, kind, estimated_minutes, focus, depends_on_task_id, status "
+        "FROM app.tasks WHERE id = %s",
+        (task,),
+    ).fetchone()
+    assert row is not None
+    return tuple(row)
+
+
+def _block_rows(db: psycopg.Connection, task: UUID) -> list[tuple[Any, ...]]:
+    return [
+        tuple(row)
+        for row in db.execute(
+            "SELECT id, starts_at, ends_at, part_index, part_count, status FROM app.blocks "
+            "WHERE task_id = %s ORDER BY starts_at",
+            (task,),
+        ).fetchall()
+    ]
+
+
+def _unplaced(api: TestClient, user: ApiUser) -> list[Any]:
+    response = api.get("/plan", headers=user.headers)
+    assert response.status_code == 200, response.text
+    unplaced: list[Any] = response.json()["unplaced"]
+    return unplaced
+
+
+def test_undo_of_marking_a_task_done_brings_the_task_and_its_block_back(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    task = insert_task(db, user.id, exam, minutes=60)
+    insert_block(db, user.id, task, Z(2026, 11, 16, 9), Z(2026, 11, 16, 10))
+    task_before, blocks_before = _task_row(db, task), _block_rows(db, task)
+
+    done = api.patch(f"/tasks/{task}", json={"status": "done"}, headers=user.headers)
+    assert done.status_code == 200, done.text
+    assert done.json()["version_id"] is not None
+    assert _block_rows(db, task) == []
+
+    response = _undo(api, user, done.json()["version_id"])
+    assert response.status_code == 200, response.text
+    assert response.json()["restored"] == 1
+    assert _task_row(db, task) == task_before
+    assert _block_rows(db, task) == blocks_before
+    assert _unplaced(api, user) == []
+
+
+def test_undo_of_a_longer_estimate_brings_the_estimate_and_its_block_back(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    task = insert_task(db, user.id, exam, minutes=60)
+    insert_block(db, user.id, task, Z(2026, 11, 16, 9), Z(2026, 11, 16, 10))
+    task_before, blocks_before = _task_row(db, task), _block_rows(db, task)
+
+    longer = api.patch(f"/tasks/{task}", json={"estimated_minutes": 180}, headers=user.headers)
+    assert longer.status_code == 200, longer.text
+    assert longer.json()["version_id"] is not None
+
+    response = _undo(api, user, longer.json()["version_id"])
+    assert response.status_code == 200, response.text
+    assert _task_row(db, task) == task_before
+    assert _block_rows(db, task) == blocks_before
+    assert _unplaced(api, user) == []
+
+
+def test_undo_of_a_task_change_drops_a_dependency_that_is_gone(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    first = insert_task(db, user.id, exam, minutes=60, title="קודמת")
+    task = insert_task(db, user.id, exam, minutes=60, depends_on=first)
+    insert_block(db, user.id, first, Z(2026, 11, 16, 9), Z(2026, 11, 16, 10))
+    insert_block(db, user.id, task, Z(2026, 11, 16, 10, 30), Z(2026, 11, 16, 11, 30))
+
+    changed = api.patch(
+        f"/tasks/{task}", json={"depends_on_task_id": None, "focus": 8}, headers=user.headers
+    )
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["version_id"] is not None
+    db.execute("UPDATE app.tasks SET deleted_at = now() WHERE id = %s", (first,))
+
+    response = _undo(api, user, changed.json()["version_id"])
+    assert response.status_code == 200, response.text
+    assert _task_row(db, task)[3:] == (5, None, "todo")
+
+
+def test_delete_of_an_exam_without_blocks_can_be_undone(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    deleted = api.delete(f"/exams/{exam}", headers=user.headers)
+    assert deleted.status_code == 200, deleted.text
+    version = deleted.json()["version_id"]
+    assert version is not None
+    assert scalar(db, "SELECT reason FROM app.plan_versions WHERE id = %s", version) == (
+        "exam_deleted"
+    )
+
+    response = _undo(api, user, version)
+    assert response.status_code == 200, response.text
+    assert scalar(db, "SELECT deleted_at FROM app.exams WHERE id = %s", exam) is None
+
+
+def test_deletes_without_blocks_undo_one_after_the_other(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    task = insert_task(db, user.id, exam, status="done")
+    task_deleted = api.delete(f"/tasks/{task}", headers=user.headers)
+    assert task_deleted.status_code == 200, task_deleted.text
+    assert task_deleted.json()["version_id"] is not None
+    exam_deleted = api.delete(f"/exams/{exam}", headers=user.headers)
+    assert exam_deleted.status_code == 200, exam_deleted.text
+
+    assert _undo(api, user, exam_deleted.json()["version_id"]).status_code == 200
+    assert scalar(db, "SELECT deleted_at FROM app.exams WHERE id = %s", exam) is None
+    assert _undo(api, user, task_deleted.json()["version_id"]).status_code == 200
+    assert scalar(db, "SELECT deleted_at FROM app.tasks WHERE id = %s", task) is None
+
+
+def test_a_task_of_a_deleted_exam_cannot_be_deleted_so_undo_of_the_exam_keeps_it(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    task = insert_task(db, user.id, exam, status="done")
+    exam_deleted = api.delete(f"/exams/{exam}", headers=user.headers)
+    assert exam_deleted.status_code == 200, exam_deleted.text
+    assert api.delete(f"/tasks/{task}", headers=user.headers).status_code == 404
+
+    assert _undo(api, user, exam_deleted.json()["version_id"]).status_code == 200
+    assert scalar(db, "SELECT deleted_at FROM app.exams WHERE id = %s", exam) is None
+    assert scalar(db, "SELECT deleted_at FROM app.tasks WHERE id = %s", task) is None
+
+
+def test_undo_leaves_a_started_block_that_is_unchanged_where_it_is(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, clock: FrozenClock
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    first = insert_task(db, user.id, exam, minutes=120)
+    insert_block(db, user.id, first, Z(2026, 11, 16, 9), Z(2026, 11, 16, 10))
+    before = _block_rows(db, first)
+    added = api.post(
+        "/tasks",
+        json={"exam_id": str(exam), "title": "נוספת", "kind": "learn", "estimated_minutes": 60},
+        headers=user.headers,
+    )
+    assert added.status_code == 201, added.text
+    assert _block_rows(db, first) == before
+    clock.set(Z(2026, 11, 16, 9, 30))  # the block of `first` has started
+
+    response = _undo(api, user, added.json()["version_id"])
+    assert response.status_code == 200, response.text
+    assert response.json()["replaced"] == []
+    assert _block_rows(db, first) == before

@@ -217,6 +217,7 @@ def test_title_is_stored_as_text(api: TestClient, user: ApiUser, db: psycopg.Con
         {"kind": "lecture"},
         {"title": "  "},
         {"title": "x" * 201},
+        {"title": "a\u0000b"},
         {"unknown": 1},
     ],
 )
@@ -237,3 +238,148 @@ def test_task_exam_must_be_live_and_not_past(
     assert response.status_code == 422
     assert response.json()["code"] == "exam_in_past"
     assert api.get(f"/exams/{deleted}/tasks", headers=user.headers).status_code == 404
+
+
+def _blocks(db: psycopg.Connection, task: Any) -> list[tuple[Any, ...]]:
+    return [
+        tuple(row)
+        for row in db.execute(
+            "SELECT id, starts_at, ends_at, status, pinned FROM app.blocks "
+            "WHERE task_id = %s ORDER BY starts_at",
+            (task,),
+        ).fetchall()
+    ]
+
+
+def _patch(api: TestClient, user: ApiUser, task: Any, **fields: Any) -> dict[str, Any]:
+    response = api.patch(f"/tasks/{task}", json=fields, headers=user.headers)
+    assert response.status_code == 200, response.text
+    body: dict[str, Any] = response.json()
+    return body
+
+
+@pytest.mark.parametrize("fields", [{"focus": 5}, {"kind": "learn"}, {"status": "todo"}])
+def test_patch_with_unchanged_placement_values_leaves_the_board(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, fields: dict[str, Any]
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    task = insert_task(db, user.id, exam, focus=5, kind="learn")
+    insert_block(db, user.id, task, Z(2026, 11, 18, 9), Z(2026, 11, 18, 10))
+    before = _blocks(db, task)
+    body = _patch(api, user, task, **fields)
+    assert body["placement"] is None
+    assert body["version_id"] is None
+    assert _blocks(db, task) == before
+    assert scalar(db, "SELECT count(*) FROM app.plan_versions") == 0
+
+
+def test_patch_minutes_keeps_pinned_done_and_started_blocks(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, clock: FrozenClock
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    task = insert_task(db, user.id, exam, minutes=240)
+    done = insert_block(db, user.id, task, Z(2026, 11, 15, 9), Z(2026, 11, 15, 10), status="done")
+    started = insert_block(db, user.id, task, Z(2026, 11, 16, 9), Z(2026, 11, 16, 10))
+    pinned = insert_block(db, user.id, task, Z(2026, 11, 17, 9), Z(2026, 11, 17, 10), pinned=True)
+    free = insert_block(db, user.id, task, Z(2026, 11, 18, 9), Z(2026, 11, 18, 10))
+    clock.set(Z(2026, 11, 16, 9, 30))
+    kept = {row[0]: row for row in _blocks(db, task) if row[0] in (done, started, pinned)}
+
+    body = _patch(api, user, task, estimated_minutes=300)
+    assert body["placement"]["placed"] is True
+    assert body["version_id"] is not None
+    after = {row[0]: row for row in _blocks(db, task)}
+    for block_id, row in kept.items():
+        assert after[block_id] == row
+    assert free not in after
+    assert sum((row[2] - row[1]).total_seconds() / 60 for row in after.values()) == 300
+
+
+@pytest.mark.parametrize(
+    "fields", [{"kind": "practice"}, {"focus": 9}, {"depends_on_task_id": "other"}]
+)
+def test_patch_that_changes_a_placement_field_places_again(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, fields: dict[str, Any]
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    other = insert_task(db, user.id, exam, title="אחרת")
+    insert_block(db, user.id, other, Z(2026, 11, 16, 6), Z(2026, 11, 16, 7))
+    task = insert_task(db, user.id, exam, focus=5, kind="learn")
+    block = insert_block(db, user.id, task, Z(2026, 11, 18, 9), Z(2026, 11, 18, 10))
+    if fields.get("depends_on_task_id") == "other":
+        fields = {"depends_on_task_id": str(other)}
+    body = _patch(api, user, task, **fields)
+    assert body["placement"]["placed"] is True
+    assert body["version_id"] is not None
+    assert scalar(db, "SELECT reason FROM app.plan_versions WHERE id = %s", body["version_id"]) == (
+        "task_changed"
+    )
+    assert block not in [row[0] for row in _blocks(db, task)]
+
+
+def test_patch_status_back_to_todo_places_the_task(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    task = insert_task(db, user.id, exam, minutes=90, status="done")
+    body = _patch(api, user, task, status="todo")
+    assert body["placement"]["placed"] is True
+    assert body["version_id"] is not None
+    rows = _blocks(db, task)
+    assert sum((row[2] - row[1]).total_seconds() / 60 for row in rows) == 90
+
+
+def test_patch_status_skipped_frees_its_open_blocks(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, clock: FrozenClock
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    task = insert_task(db, user.id, exam, minutes=180)
+    done = insert_block(db, user.id, task, Z(2026, 11, 15, 9), Z(2026, 11, 15, 10), status="done")
+    insert_block(db, user.id, task, Z(2026, 11, 16, 9), Z(2026, 11, 16, 10))
+    insert_block(db, user.id, task, Z(2026, 11, 17, 9), Z(2026, 11, 17, 10), pinned=True)
+    body = _patch(api, user, task, status="skipped")
+    assert body["placement"] is None
+    assert body["version_id"] is not None
+    assert [row[0] for row in _blocks(db, task)] == [done]
+
+
+def test_patch_a_task_of_a_past_exam_does_not_place_it(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-15")
+    task = insert_task(db, user.id, exam, minutes=60)
+    body = _patch(api, user, task, estimated_minutes=120)
+    assert body["placement"] is None
+    assert body["version_id"] is None
+    assert body["task"]["estimated_minutes"] == 120
+    assert scalar(db, "SELECT count(*) FROM app.blocks") == 0
+
+
+def test_a_task_of_a_deleted_exam_is_not_found(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20", deleted=True)
+    task = insert_task(db, user.id, exam)
+    live = insert_exam(db, user.id, exam_date="2026-11-20")
+    patched = api.patch(f"/tasks/{task}", json={"title": "חדש"}, headers=user.headers)
+    assert patched.status_code == 404
+    assert api.delete(f"/tasks/{task}", headers=user.headers).status_code == 404
+    assert _post(api, user, live, depends_on_task_id=str(task)).status_code == 404
+    mine = insert_task(db, user.id, live)
+    target = api.patch(
+        f"/tasks/{mine}", json={"depends_on_task_id": str(task)}, headers=user.headers
+    )
+    assert target.status_code == 404
+    assert scalar(db, "SELECT title FROM app.tasks WHERE id = %s", task) == "משימה"
+    assert scalar(db, "SELECT deleted_at FROM app.tasks WHERE id = %s", task) is None
+
+
+def test_patch_title_with_a_nul_character_is_422(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    task = insert_task(db, user.id, exam)
+    response = api.patch(f"/tasks/{task}", json={"title": "a\u0000b"}, headers=user.headers)
+    assert response.status_code == 422
+    assert response.json()["code"] == "validation_error"
+    assert response.json()["errors"][0]["loc"][:2] == ["body", "title"]

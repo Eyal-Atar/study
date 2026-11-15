@@ -16,6 +16,9 @@ from app.services.profiles import Conn, ensure_profile, to_planner_profile
 EXAM_COLUMNS: Final = "id, name, exam_date, difficulty, created_at"
 _UPDATABLE: Final = frozenset({"name", "exam_date", "difficulty"})
 _PLAN_FIELDS: Final = ("exam_date", "difficulty")
+# How far ahead an exam may be: the planner works day by day up to the exam, so a date
+# years away (or 9999-12-31) would cost seconds of CPU or overflow its date arithmetic.
+MAX_DAYS_AHEAD: Final = 730
 
 type Row = Mapping[str, Any]
 
@@ -23,6 +26,16 @@ type Row = Mapping[str, Any]
 def _today(conn: Conn, user_id: UUID, now: dt.datetime) -> dt.date:
     profile = to_planner_profile(ensure_profile(conn, user_id))
     return local_date(now, profile.timezone)
+
+
+def _check_date(exam_date: dt.date, today: dt.date) -> None:
+    if exam_date < today:
+        raise ApiError("exam_in_past")
+    if exam_date > today + dt.timedelta(days=MAX_DAYS_AHEAD):
+        raise ApiError(
+            "validation_error",
+            extra={"errors": [{"loc": ["body", "exam_date"], "type": "too_far_ahead"}]},
+        )
 
 
 def list_exams(conn: Conn, user_id: UUID) -> Sequence[Row]:
@@ -52,8 +65,7 @@ def create_exam(
     exam_date: dt.date,
     difficulty: int,
 ) -> Row:
-    if exam_date < _today(conn, user_id, now):
-        raise ApiError("exam_in_past")
+    _check_date(exam_date, _today(conn, user_id, now))
     row = conn.execute(
         "INSERT INTO app.exams (user_id, name, exam_date, difficulty) VALUES (%s, %s, %s, %s) "  # noqa: S608
         f"RETURNING {EXAM_COLUMNS}",
@@ -72,8 +84,8 @@ def update_exam(
         raise ValueError(f"Not updatable: {sorted(unknown)}")
     board = load_board(conn, user_id, now, lock=True)
     before = _live_exam(conn, user_id, exam_id)
-    if "exam_date" in changes and changes["exam_date"] < local_date(now, board.profile.timezone):
-        raise ApiError("exam_in_past")
+    if "exam_date" in changes:
+        _check_date(changes["exam_date"], local_date(now, board.profile.timezone))
     assignments = sql.SQL(", ").join(
         sql.SQL("{} = {}").format(sql.Identifier(column), sql.Placeholder()) for column in changes
     )
@@ -104,5 +116,11 @@ def delete_exam(conn: Conn, user_id: UUID, now: dt.datetime, exam_id: UUID) -> U
         ).fetchall()
     ]
     return delete_open_blocks(
-        conn, user_id, board, task_ids, VersionReason.EXAM_DELETED, exam_id=exam_id
+        conn,
+        user_id,
+        board,
+        task_ids,
+        VersionReason.EXAM_DELETED,
+        exam_id=exam_id,
+        always_version=True,
     )

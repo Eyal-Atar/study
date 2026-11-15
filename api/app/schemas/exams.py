@@ -5,7 +5,11 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
-ExamName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+from app.schemas.text import NoNul
+
+ExamName = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200), NoNul
+]
 Difficulty = Annotated[int, Field(ge=1, le=5)]
 
 

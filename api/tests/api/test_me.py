@@ -88,6 +88,8 @@ def test_patch_windows_are_canonical_and_a_reorder_is_not_a_change(
     "body",
     [
         {"timezone": "asia/jerusalem"},
+        {"timezone": "Asia/Jerusalem "},
+        {"timezone": "ASIA/JERUSALEM"},
         {"daily_study_minutes": 20},
         {"study_windows": []},
         {"study_windows": ["morning", "morning"]},
@@ -95,6 +97,7 @@ def test_patch_windows_are_canonical_and_a_reorder_is_not_a_change(
         {"wake_time": "23:00"},
         {"display_name": "   "},
         {"display_name": None},
+        {"display_name": "a\u0000b"},
         {"unknown_field": 1},
         {},
     ],
