@@ -31,6 +31,7 @@
 | מיגרציות על פרויקט ה-dev | `uv run alembic upgrade head` (קורא את `MIGRATION_DATABASE_URL` מ-`api/.env`) |
 | מיגרציה חדשה | `uv run alembic revision --rev-id <NNNN> -m "<name>"`, עם SQL מפורש ב-`op.execute` |
 | eval ניתוח הקורס | `uv run python eval/analysis_eval.py` (הערכת עלות בלי רשת); `--run --max-usd 5` להרצה אמיתית (דורש `ANTHROPIC_API_KEY` ב-`api/.env`) |
+| eval מחומר ועד לוח | `uv run python eval/generate_eval.py` (הערכת עלות בלי רשת ובלי מסד); `--run --max-usd 1.5 [--reanalyze]` להרצה אמיתית על המסד המקומי `studyflow_eval` (נמחק ונוצר מחדש בכל ריצה; דורש `ANTHROPIC_API_KEY` ב-`api/.env`) |
 
 `api/eval/materials/` מקומית בלבד ומוגנת ב-`.gitignore` (רק ה-README שלה נכנס ל-git): יש בה קבצים אמיתיים לבדיקות, ולא שמים בה קבצים שצריכים להיכנס ל-git. בדיקת העשן: `uv run python eval/pdf_smoke.py eval/materials`.
 

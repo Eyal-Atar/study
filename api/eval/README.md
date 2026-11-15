@@ -75,3 +75,21 @@ uv run python eval/plan_eval.py [--seed N] [--boards N]
 פריט שנשען על פחות מ-30 מקרים (למשל 0 הרצות חוזרות על המשימות האמיתיות) מקבל `no evidence (n=…)` במקום פסק דין.
 
 השינויים לצורך המדידה (רזרבה, ריווח, מונים) נעשים עם `unittest.mock.patch` בתוך הסקריפט בלבד. ‏100 לוחות לוקחים כ-10 שניות, וברירת המחדל, 600 לוחות, כדקה.
+
+## `generate_eval.py`: מחומר ועד לוח, מקצה לקצה
+
+מריץ את כל הדרך האמיתית של S12 על Postgres המקומי: חומרים מ-`materials/` → `ingest_material` → `request_generation` (כמו ה-API) → ה-`Worker` עם `HANDLERS` ו-`AnthropicAnalysisClient.from_settings` → ניתוח של כל מבחן ושיבוץ הלוח. משתמש אחד עם פרופיל ריאלי: `Asia/Jerusalem`, ‏240 דקות ביום, חלונות ערב ולילה, יום מנוחה אחד לפני מבחן. מבחן לכל מקרה מ-`analysis_cases.json` (ברירת מחדל: `calculus_scanned` ו-`exam2025a_three_moeds`), 3, 5, 7, … שבועות אחרי היום. התקציב של כל מבחן הוא מה ש-`exam_budgets` נותן לו על הלוח הזה, ולא המספר שבקובץ המקרים.
+
+```bash
+cd api
+# הערכת עלות בלבד: בלי רשת, בלי מפתח ובלי מסד
+uv run python eval/generate_eval.py [--cases a,b] [--reanalyze]
+# הרצה אמיתית עם תקרה בדולרים
+uv run python eval/generate_eval.py --run --max-usd 1.5 [--reanalyze]
+```
+
+- **הערכה:** אותה הערכה של `analysis_eval.py` (אותה `prepare`), לכל מבחן ולניתוח החוזר, למודל `--model` או `AI_MODEL_ANALYSIS` מ-`api/.env` (ואם אין, `claude-sonnet-5-5`). ב-15.11 עם שני מקרי ברירת המחדל: ‏0.386$ (‏0.849$ אחרי × 2.2), ועם `--reanalyze`: ‏0.558$ (‏1.227$).
+- **`--run`:** מוחק ויוצר מחדש את המסד `studyflow_eval` ב-Postgres המקומי (‏`TEST_DATABASE_URL`, מקומי בלבד כמו בבדיקות, עם המיגרציות וה-shim של `tests/db/support.py`), ומשאיר אותו אחרי הריצה לעיון. ה-Storage הוא מקומי: הוא מגיש כל `storage_path` מהקובץ שבדיסק. דורש `ANTHROPIC_API_KEY` ב-`api/.env`, ונעצר לפני כל קריאה אם `הערכה × 2.2` עוברת את `--max-usd`. הניתוח החוזר (`--reanalyze`) נבדק שוב מול `מה שהוצא + הערכה × 2.2`.
+- **מה מודפס:** מצב ה-ingest; ה-job (סטטוס, קוד שגיאה, ניסיונות, שניות); לכל מבחן סטטוס, נושאים, משימות, פערים, דקות מול התקציב, אזהרות, שניות ועלות; מדדי הלוח (בלוקים, דקות משובצות מול דקות המשימות, כולל ולכל מבחן, `unscheduled` לפי סיבה, ‏`shortfalls`, ימי לימוד עם בלוקים, זמן ה-`replan` בתוך ה-job וזמן `preview_replan` אחריו); עם `--reanalyze` גם הניתוח החוזר של המבחן הראשון והספירות של `preview_analysis`. בסוף העלות בפועל מ-`app.ai_usage` לפי `models.json`.
+- **פרטיות:** על המסך רק מזהי מקרים, קודים ומספרים. התוצאות המלאות, כולל כותרות המשימות והנושאים, ב-`eval/results/<זמן UTC>-generate.json` (מוגן ב-`.gitignore`). המפתח לא מודפס.
+- הזמנים לכל מבחן וזמן ה-`replan` נמדדים בעטיפה של `analyze_exam` ו-`replan` בתוך `plan_jobs` עם `unittest.mock.patch`, בסקריפט בלבד.
