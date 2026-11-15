@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Any
 
 import anthropic
@@ -209,3 +210,95 @@ def test_error_event_mid_stream_is_ai_unavailable() -> None:
         _call(_client(transport))
     assert info.value.code == "ai_unavailable"
     assert info.value.retry is True
+
+
+def _message_error(status: int, kind: str, message: str) -> AnthropicAnalysisClient:
+    body = {"type": "error", "error": {"type": kind, "message": message}}
+    return _client(httpx2.MockTransport(lambda request: httpx2.Response(status, json=body)))
+
+
+def test_billing_error_is_no_credit(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.ERROR), pytest.raises(AiError) as info:
+        _call(_error_client(402, "billing_error"))
+    assert info.value.code == "ai_no_credit"
+    assert info.value.retry is False
+    assert any(
+        r.levelno == logging.ERROR and "status=402" in r.getMessage() for r in caplog.records
+    )
+
+
+def test_billing_error_type_on_another_status_is_no_credit() -> None:
+    with pytest.raises(AiError) as info:
+        _call(_error_client(400, "billing_error"))
+    assert info.value.code == "ai_no_credit"
+
+
+def test_credit_balance_400_is_no_credit(caplog: pytest.LogCaptureFixture) -> None:
+    message = "Your credit balance is too low to access the Anthropic API."
+    with caplog.at_level(logging.DEBUG), pytest.raises(AiError) as info:
+        _call(_message_error(400, "invalid_request_error", message))
+    assert info.value.code == "ai_no_credit"
+    assert info.value.retry is False
+    assert "credit balance" not in caplog.text.lower()
+
+
+def test_other_400_is_still_rejected() -> None:
+    with pytest.raises(AiError) as info:
+        _call(_message_error(400, "invalid_request_error", "messages: bad"))
+    assert info.value.code == "ai_rejected"
+
+
+def test_spend_limit_and_org_on_hold_are_no_credit() -> None:
+    for status, kind, code in (
+        (429, "rate_limit_error", "enforced_spend_limit_reached"),
+        (400, "invalid_request_error", "organization_on_hold"),
+    ):
+        body = {
+            "type": "error",
+            "error": {"type": kind, "message": "x", "details": {"error_code": code}},
+        }
+        client = _client(
+            httpx2.MockTransport(lambda r, s=status, b=body: httpx2.Response(s, json=b))
+        )
+        with pytest.raises(AiError) as info:
+            _call(client)
+        assert info.value.code == "ai_no_credit", code
+        assert info.value.retry is False
+
+
+def _stream_transport(content: bytes) -> httpx2.MockTransport:
+    return httpx2.MockTransport(
+        lambda request: httpx2.Response(
+            200, headers={"content-type": "text/event-stream"}, content=content
+        )
+    )
+
+
+def _keepalive_count(content: bytes) -> tuple[int, Any]:
+    calls: list[int] = []
+    result = _client(_stream_transport(content)).complete(
+        system="sys",
+        messages=[{"role": "user", "content": "hi"}],
+        schema=SCHEMA,
+        keepalive=lambda: calls.append(1),
+    )
+    return len(calls), result
+
+
+def test_keepalive_runs_on_stream_events() -> None:
+    plain = _sse()
+    ping = ("event: ping\ndata: " + json.dumps({"type": "ping"}) + "\n\n").encode()
+    with_pings = plain.replace(b"event: message_stop", ping * 3 + b"event: message_stop")
+    base, result = _keepalive_count(plain)
+    assert result.text == '{"a":"b"}'
+    assert base >= 6  # at least one call per event of the stream
+    # The SDK drops ping events before the iterator, so they parse fine but do not call keepalive.
+    pinged, pinged_result = _keepalive_count(with_pings)
+    assert pinged_result.text == '{"a":"b"}'
+    assert pinged >= 6
+
+
+def test_from_settings_passes_max_retries() -> None:
+    settings = _settings(KEY, "test-model").model_copy(update={"ai_max_retries": 4})
+    client = AnthropicAnalysisClient.from_settings(settings)
+    assert client._client.max_retries == 4

@@ -1,7 +1,7 @@
 """The Claude client behind a Protocol. The API key and the prompt never reach logs or errors."""
 
 import logging
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol, cast
 
@@ -45,6 +45,7 @@ class AnalysisClient(Protocol):
         system: str,
         messages: Sequence[Mapping[str, Any]],
         schema: Mapping[str, Any],
+        keepalive: Callable[[], None] | None = None,
     ) -> AnalysisReply: ...
 
 
@@ -52,6 +53,19 @@ def _log(error: Exception, status: int | None, request_id: str | None) -> None:
     logger.warning(
         "claude call failed: %s status=%s request_id=%s", type(error).__name__, status, request_id
     )
+
+
+def _is_no_credit(error: anthropic.APIStatusError, status: int, error_type: object) -> bool:
+    if isinstance(
+        error, (anthropic.EnforcedSpendLimitReachedError, anthropic.OrganizationOnHoldError)
+    ):
+        return True
+    if status == 402 or error_type == "billing_error":
+        return True
+    if status == 400 and isinstance(error.body, dict):
+        message = error.body.get("error", {}).get("message")
+        return isinstance(message, str) and "credit balance" in message.lower()
+    return False
 
 
 class AnthropicAnalysisClient:
@@ -86,6 +100,7 @@ class AnthropicAnalysisClient:
             effort=settings.ai_analysis_effort,
             max_tokens=settings.ai_analysis_max_tokens,
             timeout=settings.ai_timeout_seconds,
+            max_retries=settings.ai_max_retries,
         )
 
     def complete(
@@ -94,6 +109,7 @@ class AnthropicAnalysisClient:
         system: str,
         messages: Sequence[Mapping[str, Any]],
         schema: Mapping[str, Any],
+        keepalive: Callable[[], None] | None = None,
     ) -> AnalysisReply:
         try:
             with self._client.messages.stream(
@@ -109,16 +125,30 @@ class AnthropicAnalysisClient:
                     },
                 ),
             ) as stream:
+                # The API sends ping events during long thinking, so a live request keeps
+                # calling keepalive.
+                for _event in stream:
+                    if keepalive is not None:
+                        keepalive()
                 message = stream.get_final_message()
                 request_id = stream.request_id
         except (anthropic.AuthenticationError, anthropic.PermissionDeniedError) as error:
             _log(error, error.status_code, error.request_id)
             raise AiError("ai_not_configured") from None
         except anthropic.APIStatusError as error:
-            _log(error, error.status_code, error.request_id)
             status = error.status_code
             body = error.body
             error_type = body.get("error", {}).get("type") if isinstance(body, dict) else None
+            if _is_no_credit(error, status, error_type):
+                # Not the student's fault and not temporary: whoever runs the service must see it.
+                logger.error(
+                    "claude account has no credit: %s status=%s request_id=%s",
+                    type(error).__name__,
+                    status,
+                    error.request_id,
+                )
+                raise AiError("ai_no_credit") from None
+            _log(error, status, error.request_id)
             # An error event inside a stream arrives as a 200 response.
             if (
                 status == 429

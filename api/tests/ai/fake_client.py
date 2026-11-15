@@ -1,4 +1,4 @@
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 from app.ai.client import AiError, AnalysisReply, Usage
@@ -37,10 +37,13 @@ class FakeAnalysisClient:
         system: str,
         messages: Sequence[Mapping[str, Any]],
         schema: Mapping[str, Any],
+        keepalive: Callable[[], None] | None = None,
     ) -> AnalysisReply:
         self.calls.append({"system": system, "messages": list(messages), "schema": schema})
         if len(self.calls) > len(self._replies):
             raise AssertionError("FakeAnalysisClient was called more often than it has replies")
+        if keepalive is not None:
+            keepalive()
         item = self._replies[len(self.calls) - 1]
         if isinstance(item, AiError):
             raise item

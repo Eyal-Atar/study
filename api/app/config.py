@@ -1,8 +1,10 @@
 from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, HttpUrl, SecretStr, field_validator
+from pydantic import Field, HttpUrl, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.domain.time import InvalidTimezoneError, parse_timezone
 
 # The port a browser leaves out of the Origin header, per scheme.
 _DEFAULT_PORTS = {"http": 80, "https": 443}
@@ -48,7 +50,12 @@ class Settings(BaseSettings):
     ai_analysis_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
     # Streaming, so a long answer does not time out; the limit includes the thinking.
     ai_analysis_max_tokens: int = Field(default=64000, gt=0)
-    ai_timeout_seconds: float = Field(default=600.0, gt=0)
+    # The SDK's timeout applies to each read from the network, not to the whole request.
+    ai_timeout_seconds: float = Field(default=180.0, gt=0)
+    ai_max_retries: int = Field(default=2, ge=0, le=5)
+    # Plan generation: attempts per local day, where the day is in ai_quota_timezone.
+    ai_daily_generation_limit: int = Field(default=3, ge=0)
+    ai_quota_timezone: str = "Asia/Jerusalem"
     max_analysis_minutes: int = Field(default=6000, gt=0)
     max_analysis_scanned_pages: int = Field(default=100, ge=0)
     max_analysis_text_chars: int = Field(default=300_000, gt=0)
@@ -68,6 +75,28 @@ class Settings(BaseSettings):
     @classmethod
     def _empty_string_is_none(cls, value: object) -> object:
         return None if isinstance(value, str) and not value.strip() else value
+
+    @field_validator("ai_quota_timezone")
+    @classmethod
+    def _must_be_an_iana_timezone(cls, value: str) -> str:
+        try:
+            parse_timezone(value)
+        except InvalidTimezoneError:
+            raise ValueError(
+                f"AI_QUOTA_TIMEZONE must be an IANA timezone name (got {value!r})"
+            ) from None
+        return value
+
+    @model_validator(mode="after")
+    def _a_claude_call_must_end_before_the_job_lock_expires(self) -> Settings:
+        worst_case = self.ai_timeout_seconds * (self.ai_max_retries + 1)
+        if worst_case >= self.job_lock_timeout_seconds:
+            raise ValueError(
+                f"AI_TIMEOUT_SECONDS x (AI_MAX_RETRIES + 1) = {worst_case:g} must be below "
+                f"JOB_LOCK_TIMEOUT_SECONDS = {self.job_lock_timeout_seconds}, or a stuck call "
+                "outlives the job lock and a second worker takes the job"
+            )
+        return self
 
     @field_validator("supabase_url")
     @classmethod

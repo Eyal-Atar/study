@@ -132,7 +132,7 @@ def test_ai_settings_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.ai_model_light is None
     assert settings.ai_analysis_effort == "medium"
     assert settings.ai_analysis_max_tokens == 64000
-    assert settings.ai_timeout_seconds == 600.0
+    assert settings.ai_timeout_seconds == 180.0
     assert settings.max_analysis_minutes == 6000
     assert settings.max_analysis_scanned_pages == 100
     assert settings.max_analysis_text_chars == 300_000
@@ -153,3 +153,26 @@ def test_anthropic_key_is_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "sk-ant-secret" not in repr(settings)
     assert settings.anthropic_api_key is not None
     assert settings.anthropic_api_key.get_secret_value() == "sk-ant-secret"
+
+
+def test_settings_reject_a_timeout_longer_than_the_lock(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AI_TIMEOUT_SECONDS", "300")
+    monkeypatch.setenv("AI_MAX_RETRIES", "2")
+    monkeypatch.setenv("JOB_LOCK_TIMEOUT_SECONDS", "600")
+    with pytest.raises(ValidationError, match="JOB_LOCK_TIMEOUT_SECONDS"):
+        Settings(supabase_url="https://test-ref.supabase.co", _env_file=None)
+
+
+def test_quota_settings_defaults() -> None:
+    settings = Settings(supabase_url="https://test-ref.supabase.co", _env_file=None)
+    assert settings.ai_daily_generation_limit == 3
+    assert settings.ai_quota_timezone == "Asia/Jerusalem"
+    assert settings.ai_max_retries == 2
+    with pytest.raises(ValidationError, match="ai_quota_timezone"):
+        Settings(
+            supabase_url="https://test-ref.supabase.co",
+            ai_quota_timezone="Mars/Base",
+            _env_file=None,
+        )
+    with pytest.raises(ValidationError):
+        Settings(supabase_url="https://test-ref.supabase.co", ai_max_retries=6, _env_file=None)
