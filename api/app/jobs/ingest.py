@@ -20,7 +20,9 @@ from psycopg.types.json import Jsonb
 from app.domain.materials import (
     IMAGE_MIMES,
     JOB_DELETE_MATERIAL_FILE,
+    JOB_GENERATE_PLAN,
     JOB_INGEST_MATERIAL,
+    JOB_REANALYZE_EXAM,
     PDF_MIME,
     ExtractedText,
     IngestStatus,
@@ -28,6 +30,7 @@ from app.domain.materials import (
     sniff_mime,
 )
 from app.jobs.pdf_text import PdfUnreadable, extract_pdf
+from app.jobs.plan_jobs import generate_plan, reanalyze_exam
 from app.jobs.storage import FileMissing, FileTooLarge, StorageUnavailable
 from app.jobs.worker import CrashHandler, Handler, JobContext, JobFailed
 
@@ -235,6 +238,11 @@ def delete_material_file(ctx: JobContext) -> Mapping[str, Any]:
 HANDLERS: Final[Mapping[str, Handler]] = {
     JOB_INGEST_MATERIAL: ingest_material,
     JOB_DELETE_MATERIAL_FILE: delete_material_file,
+    JOB_GENERATE_PLAN: generate_plan,
+    JOB_REANALYZE_EXAM: reanalyze_exam,
 }
+
+# generate_plan and reanalyze_exam need no crash callback: they leave no row in an
+# in-between state, so failing the job as worker_crashed is all there is to do.
 
 ON_CRASHED: Final[Mapping[str, CrashHandler]] = {JOB_INGEST_MATERIAL: ingest_material_crashed}

@@ -53,6 +53,8 @@ class VersionReason(StrEnum):
     TASK_CHANGED = "task_changed"
     TASK_DELETED = "task_deleted"
     EXAM_DELETED = "exam_deleted"
+    PLAN_GENERATED = "plan_generated"
+    EXAM_REANALYZED = "exam_reanalyzed"
 
 
 @dataclass(frozen=True)
@@ -134,10 +136,11 @@ def _create_version(
     exam_id: UUID | None,
     task_id: UUID | None,
     before: Mapping[str, Any] | None,
+    analysis_id: UUID | None = None,
 ) -> UUID:
     row = conn.execute(
         "INSERT INTO app.plan_versions (user_id, reason, snapshot, exam_id, task_id, "
-        "task_before) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+        "task_before, analysis_id) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
         (
             user_id,
             reason.value,
@@ -145,6 +148,7 @@ def _create_version(
             exam_id,
             task_id,
             None if before is None else Jsonb(dict(before)),
+            analysis_id,
         ),
     ).fetchone()
     if row is None:
@@ -205,11 +209,12 @@ def apply_result(
     exam_id: UUID | None = None,
     task_id: UUID | None = None,
     before: Mapping[str, Any] | None = None,
+    analysis_id: UUID | None = None,
 ) -> UUID | None:
     """Write a planner result computed from `board`, with a version; None if it changes nothing.
 
     `before` is the changed task's fields as they were (task_before), for a task_changed
-    version.
+    version; `analysis_id` is the analysis an exam_reanalyzed version applied.
 
     The caller holds the user lock: `board` was loaded with load_board(lock=True) in this
     same transaction, so nothing changed between the board and this write.
@@ -217,7 +222,9 @@ def apply_result(
     changes = _changes(board, result)
     if not changes:
         return None
-    version_id = _create_version(conn, user_id, board, reason, exam_id, task_id, before)
+    version_id = _create_version(
+        conn, user_id, board, reason, exam_id, task_id, before, analysis_id
+    )
     _write_changes(conn, user_id, changes, version_id)
     return version_id
 
