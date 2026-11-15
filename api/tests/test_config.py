@@ -131,12 +131,12 @@ def test_ai_settings_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.ai_model_analysis is None
     assert settings.ai_model_light is None
     assert settings.ai_analysis_effort == "medium"
-    assert settings.ai_analysis_max_tokens == 32000
+    assert settings.ai_analysis_max_tokens == 64000
     assert settings.ai_timeout_seconds == 600.0
     assert settings.max_analysis_minutes == 6000
     assert settings.max_analysis_scanned_pages == 100
     assert settings.max_analysis_text_chars == 300_000
-    assert settings.max_analysis_scan_bytes == 25_165_824
+    assert settings.max_analysis_scan_bytes == 20_971_520
 
 
 def test_empty_anthropic_key_is_none(monkeypatch: pytest.MonkeyPatch) -> None:

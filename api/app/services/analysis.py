@@ -28,6 +28,7 @@ from app.ai.prompts import (
 from app.ai.schema import AnalysisOutput, GapOut, TaskOut, parse_output
 from app.config import Settings
 from app.domain.analysis import (
+    WARNING_BUDGET_RAISED,
     WARNING_MATERIALS_NOT_READY,
     WARNING_SCANNED_PAGES_SKIPPED,
     WARNING_TEXT_TRUNCATED,
@@ -35,6 +36,7 @@ from app.domain.analysis import (
     WARNING_UNDER_BUDGET,
     TrimResult,
     budget_range,
+    minimum_budget,
     trim_to_budget,
     validate_analysis,
 )
@@ -46,6 +48,10 @@ from app.services.profiles import Conn, lock_user
 logger = logging.getLogger(__name__)
 
 MAX_ATTEMPTS: Final = 2
+
+# The API's limit for one image block (5 MB). A larger image would fail the whole request
+# (ai_rejected), so it is skipped like any scan that does not fit.
+MAX_IMAGE_BYTES: Final = 5 * 1024 * 1024
 
 # The order materials are listed in, and get their keys M1, M2, ... in: the syllabus
 # defines the topics, so it comes first; what is cut first (from the end) is notes and other.
@@ -211,7 +217,7 @@ def load_scans(
                 skipped = True
                 continue
             data = _fetch(fetch, material)
-            if len(data) > bytes_left:
+            if len(data) > MAX_IMAGE_BYTES or len(data) > bytes_left:
                 skipped = True
                 continue
             scans[material.key] = Scan(media_type=material.mime, data=data, pages=(1,))
@@ -447,6 +453,14 @@ def analyze_exam(
 
     scans, scan_warnings = load_scans(data.materials, fetch, settings)
     materials, text_warnings = limit_text(data.materials, settings.max_analysis_text_chars)
+    kinds = {m.key: m.kind for m in materials}
+    # A budget too small for the required tasks would fail validation twice (a paid
+    # call each): plan with the least time they need, and say so.
+    floor = minimum_budget(kinds)
+    budget_warnings = []
+    if budget < floor:
+        budget = floor
+        budget_warnings.append(WARNING_BUDGET_RAISED)
     request = build_request(data.exam, budget, materials, scans, today=today)
 
     if progress is not None:
@@ -454,7 +468,7 @@ def analyze_exam(
     draft = run_analysis(
         client,
         request,
-        materials={m.key: m.kind for m in materials},
+        materials=kinds,
         budget=budget,
         progress=progress,
     )
@@ -474,7 +488,7 @@ def analyze_exam(
         raise AnalysisFailed("internal_error", usage=draft.usage) from None
 
     warnings = [WARNING_MATERIALS_NOT_READY] if data.skipped > 0 else []
-    warnings += scan_warnings + text_warnings + list(draft.warnings)
+    warnings += budget_warnings + scan_warnings + text_warnings + list(draft.warnings)
     return AnalysisOutcome(
         topic_ids=saved.topic_ids,
         task_ids=saved.task_ids,

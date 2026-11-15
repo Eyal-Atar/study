@@ -20,6 +20,25 @@ AiTaskKind = Literal["learn", "practice", "review", "simulation", "simulation_re
 
 MAX_REPORTED_ERRORS: Final = 20
 
+# The output's limits. The JSON schema sent to the API cannot carry them (output_schema
+# strips ranges and lengths), so the system prompt states them from these same constants.
+MAX_TOPICS: Final = 40
+MIN_TASKS: Final = 1
+MAX_TASKS: Final = 150
+MAX_GAPS: Final = 20
+MIN_WEIGHT: Final = 1
+MAX_WEIGHT: Final = 5
+MIN_FOCUS: Final = 1
+MAX_FOCUS: Final = 10
+MIN_TASK_MINUTES: Final = 5
+MAX_TASK_MINUTES: Final = 600
+MAX_NAME_CHARS: Final = 120
+MAX_TITLE_CHARS: Final = 200
+MAX_EVIDENCE_CHARS: Final = 500
+MAX_REASON_CHARS: Final = 300
+MAX_GAP_TOPIC_CHARS: Final = 120
+MAX_GAP_NOTE_CHARS: Final = 300
+
 # Keys the structured-outputs JSON schema does not accept (or that only add noise).
 _UNSUPPORTED_KEYS: Final = frozenset(
     {
@@ -64,32 +83,32 @@ class _Model(BaseModel):
 
 class TopicOut(_Model):
     key: _TopicKey
-    name: Annotated[str, Field(min_length=1, max_length=120)]
-    weight: Annotated[int, Field(ge=1, le=5)]
-    evidence: Annotated[str, Field(max_length=500)]
+    name: Annotated[str, Field(min_length=1, max_length=MAX_NAME_CHARS)]
+    weight: Annotated[int, Field(ge=MIN_WEIGHT, le=MAX_WEIGHT)]
+    evidence: Annotated[str, Field(max_length=MAX_EVIDENCE_CHARS)]
 
 
 class TaskOut(_Model):
     key: _TaskKey
-    title: Annotated[str, Field(min_length=1, max_length=200)]
+    title: Annotated[str, Field(min_length=1, max_length=MAX_TITLE_CHARS)]
     kind: AiTaskKind
     topic_key: _TopicKey | None
-    minutes: Annotated[int, Field(ge=5, le=600)]
-    focus: Annotated[int, Field(ge=1, le=10)]
+    minutes: Annotated[int, Field(ge=MIN_TASK_MINUTES, le=MAX_TASK_MINUTES)]
+    focus: Annotated[int, Field(ge=MIN_FOCUS, le=MAX_FOCUS)]
     depends_on: _TaskKey | None
     material_key: _MaterialKey | None
-    reason: Annotated[str, Field(max_length=300)]
+    reason: Annotated[str, Field(max_length=MAX_REASON_CHARS)]
 
 
 class GapOut(_Model):
-    topic: Annotated[str, Field(min_length=1, max_length=120)]
-    note: Annotated[str, Field(max_length=300)]
+    topic: Annotated[str, Field(min_length=1, max_length=MAX_GAP_TOPIC_CHARS)]
+    note: Annotated[str, Field(max_length=MAX_GAP_NOTE_CHARS)]
 
 
 class AnalysisOutput(_Model):
-    topics: Annotated[list[TopicOut], Field(max_length=40)]
-    tasks: Annotated[list[TaskOut], Field(min_length=1, max_length=150)]
-    gaps: Annotated[list[GapOut], Field(max_length=20)]
+    topics: Annotated[list[TopicOut], Field(max_length=MAX_TOPICS)]
+    tasks: Annotated[list[TaskOut], Field(min_length=MIN_TASKS, max_length=MAX_TASKS)]
+    gaps: Annotated[list[GapOut], Field(max_length=MAX_GAPS)]
 
 
 def _clean_schema(node: Any, *, in_properties: bool = False) -> Any:

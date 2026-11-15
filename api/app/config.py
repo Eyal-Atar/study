@@ -46,12 +46,15 @@ class Settings(BaseSettings):
     ai_model_analysis: str | None = None
     ai_model_light: str | None = None
     ai_analysis_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
-    ai_analysis_max_tokens: int = Field(default=32000, gt=0)
+    # Streaming, so a long answer does not time out; the limit includes the thinking.
+    ai_analysis_max_tokens: int = Field(default=64000, gt=0)
     ai_timeout_seconds: float = Field(default=600.0, gt=0)
     max_analysis_minutes: int = Field(default=6000, gt=0)
     max_analysis_scanned_pages: int = Field(default=100, ge=0)
     max_analysis_text_chars: int = Field(default=300_000, gt=0)
-    max_analysis_scan_bytes: int = Field(default=25_165_824, gt=0)
+    # 20 MiB of scans: base64 adds a third (about 26.7 MiB), and with the text the
+    # request stays under the API's 32 MB limit.
+    max_analysis_scan_bytes: int = Field(default=20_971_520, gt=0)
 
     @field_validator(
         "database_url",

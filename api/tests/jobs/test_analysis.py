@@ -21,6 +21,7 @@ from app.auth import CurrentUser
 from app.config import Settings
 from app.db.session import user_transaction
 from app.domain.analysis import (
+    WARNING_BUDGET_RAISED,
     WARNING_MATERIALS_NOT_READY,
     WARNING_TRIMMED,
     WARNING_UNDER_BUDGET,
@@ -434,6 +435,33 @@ def test_zero_budget_does_not_call_claude(analyze: Analyze, materials: dict[str,
 
     assert info.value.code == "no_study_time"
     assert client.calls == []
+
+
+def test_budget_below_the_required_tasks_is_raised_to_the_minimum(
+    analyze: Analyze, db: psycopg.Connection, exam: UUID, materials: dict[str, UUID]
+) -> None:
+    # A syllabus and a past exam: review (30) + simulation (30) + its debrief (30) = 90.
+    data = valid_output_dict()
+    data["tasks"] = [t for t in data["tasks"] if t["key"] in ("K1", "K6", "K7")]
+    for task in data["tasks"]:
+        task["minutes"] = 30
+    client = FakeAnalysisClient([reply(_json(data))])
+
+    outcome = analyze(client, budget_minutes=60)
+
+    assert "study time budget: 90 minutes" in _texts(client)
+    assert outcome.budget_minutes == 90
+    assert outcome.total_minutes == 90
+    assert outcome.warnings == (WARNING_BUDGET_RAISED,)
+    assert len(_rows(db, "tasks", exam)) == 3
+
+
+def test_budget_at_the_minimum_is_not_raised(analyze: Analyze, materials: dict[str, UUID]) -> None:
+    client = FakeAnalysisClient([valid()])
+
+    outcome = analyze(client, budget_minutes=420)
+
+    assert WARNING_BUDGET_RAISED not in outcome.warnings
 
 
 # --- scanned pages, images and the text in the request -------------------------------------
@@ -958,4 +986,21 @@ def test_scan_byte_cap_skips_a_scan_with_a_warning(
     text = _texts(client)
     m2 = text[text.index('<material key="M2"') :]
     assert "content not available" in m2
+    assert outcome.warnings == ("scanned_pages_skipped",)
+
+
+def test_image_over_the_api_limit_is_skipped_with_a_warning(
+    analyze: Analyze, add_material: AddMaterial, user: CurrentUser, exam: UUID
+) -> None:
+    big = b"\x89PNG\r\n\x1a\n" + b"\x00" * (6 * 1024 * 1024)
+    scanned = [{"page": 1, "text": "", "scanned": True}]
+    add_material(user, exam, kind="syllabus", mime="image/png", pages=scanned, data=big)
+    add_material(user, exam, kind="past_exam")
+    client = FakeAnalysisClient([valid()])
+
+    outcome = analyze(client)
+
+    assert len(client.calls) == 1
+    assert _blocks(client, "image") == []
+    assert "content not available" in _texts(client)
     assert outcome.warnings == ("scanned_pages_skipped",)

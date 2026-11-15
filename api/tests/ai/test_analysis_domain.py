@@ -7,6 +7,7 @@ from app.ai.schema import AnalysisOutput
 from app.domain.analysis import (
     TrimResult,
     budget_range,
+    minimum_budget,
     trim_to_budget,
     validate_analysis,
 )
@@ -250,3 +251,24 @@ def test_trim_reconsiders_after_each_drop() -> None:
 
 def test_still_over_budget_is_an_error() -> None:
     assert trim_to_budget(valid_output(), 100) == ["over_budget:330>110"]
+
+
+# --- the budget floor ----------------------------------------------------------------------
+
+S, P, N = MaterialKind.SYLLABUS, MaterialKind.PAST_EXAM, MaterialKind.NOTES
+
+
+@pytest.mark.parametrize(
+    ("materials", "floor"),
+    [
+        ({}, 60),  # the generic simulation and its debrief
+        ({"M1": N}, 60),
+        ({"M1": S}, 90),  # the review task and the generic pair
+        ({"M1": MaterialKind.SUMMARY, "M2": S}, 90),  # one review task, not one per material
+        ({"M1": P}, 60),
+        ({"M1": S, "M2": P}, 90),
+        ({"M1": S, "M2": P, "M3": P, "M4": P}, 210),
+    ],
+)
+def test_minimum_budget(materials: dict[str, MaterialKind], floor: int) -> None:
+    assert minimum_budget(materials) == floor

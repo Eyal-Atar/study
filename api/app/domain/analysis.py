@@ -20,6 +20,7 @@ WARNING_TRIMMED: Final = "trimmed_to_budget"
 WARNING_MATERIALS_NOT_READY: Final = "materials_not_ready"
 WARNING_SCANNED_PAGES_SKIPPED: Final = "scanned_pages_skipped"
 WARNING_TEXT_TRUNCATED: Final = _SHARED_TEXT_TRUNCATED
+WARNING_BUDGET_RAISED: Final = "budget_raised_to_minimum"
 
 _HEBREW: Final = re.compile("[֐-׿]")
 _TOPIC_REQUIRED: Final = frozenset({"learn", "practice"})
@@ -29,6 +30,19 @@ def budget_range(budget: int) -> tuple[int, int]:
     # Integer arithmetic: 420 * 1.1 is 462.00000000000006 in floats.
     tenths = round(BUDGET_TOLERANCE * 10)
     return (budget * (10 - tenths) // 10, -(-budget * (10 + tenths) // 10))
+
+
+def minimum_budget(materials: Mapping[str, MaterialKind]) -> int:
+    """The least time the required tasks take, each at its shortest.
+
+    A review task when there is a syllabus or a summary, and a simulation with its debrief
+    for each past exam, or one generic pair when there is none. A budget below this cannot
+    hold the tasks validate_analysis requires.
+    """
+    kinds = list(materials.values())
+    review = 1 if {MaterialKind.SYLLABUS, MaterialKind.SUMMARY} & set(kinds) else 0
+    pairs = max(1, kinds.count(MaterialKind.PAST_EXAM))
+    return (review + 2 * pairs) * MIN_FOCUSED_MINUTES
 
 
 def _minutes_ok(task: TaskOut) -> bool:

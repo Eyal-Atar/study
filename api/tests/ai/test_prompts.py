@@ -12,6 +12,24 @@ from app.ai.prompts import (
     escape_material_text,
     retry_message,
 )
+from app.ai.schema import (
+    MAX_EVIDENCE_CHARS,
+    MAX_FOCUS,
+    MAX_GAP_NOTE_CHARS,
+    MAX_GAP_TOPIC_CHARS,
+    MAX_GAPS,
+    MAX_NAME_CHARS,
+    MAX_REASON_CHARS,
+    MAX_TASK_MINUTES,
+    MAX_TASKS,
+    MAX_TITLE_CHARS,
+    MAX_TOPICS,
+    MAX_WEIGHT,
+    MIN_FOCUS,
+    MIN_TASK_MINUTES,
+    MIN_TASKS,
+    MIN_WEIGHT,
+)
 from app.domain.materials import MaterialKind, PageText
 
 TODAY = dt.date(2026, 11, 15)
@@ -113,6 +131,34 @@ def test_system_prompt_is_constant_and_names_no_model() -> None:
 def test_system_prompt_carries_the_content_rules() -> None:
     for phrase in ("סקירה ראשונית", "סימולציה מלאה", "תחקור סימולציה", "30-90", "30-300"):
         assert phrase in SYSTEM_PROMPT
+
+
+def test_system_prompt_states_the_field_limits() -> None:
+    # The JSON schema sent to the API carries no ranges, so the prompt must state them,
+    # and from the same constants the Pydantic models check.
+    limits = SYSTEM_PROMPT[SYSTEM_PROMPT.index("Field limits") :]
+    expected = [
+        f"at most {MAX_TOPICS} topics",
+        f"{MIN_TASKS}-{MAX_TASKS} tasks",
+        f"at most {MAX_GAPS} gaps",
+        f"weight is {MIN_WEIGHT}-{MAX_WEIGHT}",
+        f"focus is {MIN_FOCUS}-{MAX_FOCUS}",
+        f"minutes is {MIN_TASK_MINUTES}-{MAX_TASK_MINUTES}",
+        f"name: at most {MAX_NAME_CHARS} characters",
+        f"title: at most {MAX_TITLE_CHARS} characters, one line",
+        f"evidence: at most {MAX_EVIDENCE_CHARS} characters",
+        f"reason: at most {MAX_REASON_CHARS} characters",
+        f"gap topic: at most {MAX_GAP_TOPIC_CHARS} characters",
+        f"gap note: at most {MAX_GAP_NOTE_CHARS} characters",
+        "T1-T999",
+        "K1-K999",
+        "M1-M99",
+    ]
+    for phrase in expected:
+        assert phrase in limits, phrase
+    values = (40, 1, 150, 20, 5, 10, 600, 120, 200, 500, 300)
+    for value in values:
+        assert str(value) in limits
 
 
 def test_every_angle_bracket_and_ampersand_is_escaped() -> None:
