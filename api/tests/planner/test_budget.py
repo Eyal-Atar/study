@@ -48,7 +48,7 @@ def test_days_after_the_first_exam_go_to_the_later_one() -> None:
 def test_windows_shorter_than_the_daily_minutes_cap_the_day() -> None:
     # The morning window is 06:00-12:00, but the study start delay (1 hour after
     # waking) applies on every day, not only the first, so each day has 07:00-12:00
-    # = 300 minutes... wait: 07:00-12:00 is 5 hours = 300 minutes.
+    # = 300 minutes.
     exam = make_exam(THU)
     budgets = exam_budgets(
         profile(daily_study_minutes=600, study_windows=frozenset({StudyWindow.MORNING})),
