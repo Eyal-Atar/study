@@ -93,6 +93,8 @@ class JobContext:
     )
     _ai_client: AnalysisClient | None = field(repr=False, default=None, init=False)
     _last_beat: datetime = field(repr=False, init=False)
+    # Set while a keeping_alive ticker runs: the ticker's "claim lost" flag.
+    _ticker_lost: threading.Event | None = field(repr=False, default=None, init=False)
 
     def __post_init__(self) -> None:
         # The claim itself set locked_at to `now`.
@@ -126,8 +128,13 @@ class JobContext:
         """Renew the lock, at most every KEEPALIVE_SECONDS; JobLost if the claim was lost.
 
         Cheap to call often (on every streamed event of a Claude call): between beats it
-        only reads the clock.
+        only reads the clock. Inside a `keeping_alive` block the ticker owns the beats (and
+        the connection), so this only raises JobLost once the ticker found the claim lost.
         """
+        if self._ticker_lost is not None:
+            if self._ticker_lost.is_set():
+                raise JobLost(str(self.job.id))
+            return
         self._require_idle("keepalive")
         if self._clock() - self._last_beat >= timedelta(seconds=KEEPALIVE_SECONDS):
             self._beat()
@@ -142,26 +149,30 @@ class JobContext:
         Only around a call that holds no transaction: entering with one open raises
         RuntimeError, and a beat that finds one open skips. The thread shares the worker's
         connection (psycopg serializes on its lock), so the block itself must not use the
-        connection. On exit the thread is stopped and joined. An exception from the block
+        connection (`keepalive` inside the block is a no-op that only reports a lost claim;
+        blocks do not nest). On exit the thread is stopped and joined. An exception from the block
         propagates unchanged; otherwise, if a beat found the claim lost, exit raises JobLost.
         """
         return self._keeping_alive(interval)
 
     @contextmanager
     def _keeping_alive(self, interval: float) -> Iterator[None]:
+        if self._ticker_lost is not None:
+            raise RuntimeError("keeping_alive blocks do not nest")
         self._require_idle("keeping_alive")
         stop = threading.Event()
         lost = threading.Event()
 
         def run() -> None:
             while not stop.wait(interval):
-                if self._conn.info.transaction_status != TransactionStatus.IDLE:
-                    continue
-                now = self._clock()
                 try:
+                    if self._conn.info.transaction_status != TransactionStatus.IDLE:
+                        continue
+                    now = self._clock()
                     alive = heartbeat(self._conn, self.job.id, self.job.attempts, now)
-                except psycopg.Error as exc:
-                    # No message: the end write will meet the same database and report it.
+                except Exception as exc:
+                    # Class name only (a psycopg message can quote row data); the end write
+                    # meets the same database and reports it. The thread keeps beating.
                     logger.warning("job %s keepalive failed: %s", self.job.id, type(exc).__name__)
                     continue
                 if not alive:
@@ -170,12 +181,14 @@ class JobContext:
                 self._last_beat = now
 
         thread = threading.Thread(target=run, name=f"keepalive-{self.job.id}", daemon=True)
+        self._ticker_lost = lost
         thread.start()
         try:
             yield
         finally:
             stop.set()
             thread.join()
+            self._ticker_lost = None
         if lost.is_set():
             raise JobLost(str(self.job.id))
 

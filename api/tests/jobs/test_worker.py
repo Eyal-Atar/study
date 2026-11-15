@@ -1,5 +1,6 @@
 import logging
 import threading
+import time
 from collections.abc import Callable, Mapping
 from datetime import timedelta
 from typing import Any
@@ -918,3 +919,121 @@ def test_keeping_alive_skips_a_beat_while_a_transaction_is_open(
     assert make_worker({"k": handler}).run_once() is True
     assert seen[0].locked_at == claimed_at
     assert read_job(job_id).status == "done"
+
+
+def test_keepalive_inside_keeping_alive_is_a_no_op(
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+) -> None:
+    # The client calls ctx.keepalive on every stream event while the ticker beats on the
+    # same connection; the ticker's UPDATE must never make keepalive see a busy connection.
+    job_id = make_job(make_user())
+    calls: list[int] = []
+
+    def handler(ctx: JobContext) -> None:
+        clock.advance(seconds=31)
+        with ctx.keeping_alive(interval=0.001):
+            deadline = time.monotonic() + 0.3
+            while time.monotonic() < deadline:
+                ctx.keepalive()
+                calls.append(1)
+        # Outside the block keepalive works again.
+        clock.advance(seconds=31)
+        ctx.keepalive()
+        assert read_job(job_id).locked_at == clock.now
+
+    assert make_worker({"k": handler}).run_once() is True
+    assert len(calls) > 100
+    assert read_job(job_id).status == "done", read_job(job_id).error
+
+
+def test_keepalive_inside_keeping_alive_raises_once_the_ticker_lost_the_claim(
+    owner_db: Conn,
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+) -> None:
+    job_id = make_job(make_user())
+    after_reclaim: list[JobRow] = []
+    raised_inside: list[bool] = []
+
+    def handler(ctx: JobContext) -> None:
+        with ctx.keeping_alive(interval=TICK):
+            _reclaim(owner_db, job_id, clock)
+            after_reclaim.append(read_job(job_id))
+            deadline = time.monotonic() + 5
+            try:
+                while time.monotonic() < deadline:
+                    ctx.keepalive()
+                    threading.Event().wait(TICK / 4)
+            except JobLost:
+                raised_inside.append(True)
+                raise
+
+    assert make_worker({"k": handler}).run_once() is True
+    assert raised_inside == [True]
+    assert read_job(job_id) == after_reclaim[0]
+    assert _keepalive_threads() == []
+
+
+def test_keeping_alive_survives_any_error_in_a_beat(
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    job_id = make_job(make_user())
+    claimed_at = clock.now
+    ticks: list[int] = []
+    seen: list[JobRow] = []
+
+    def flaky_clock() -> Any:
+        ticks.append(1)
+        if len(ticks) == 1:
+            raise ArithmeticError("boom")
+        return clock.now
+
+    def handler(ctx: JobContext) -> None:
+        ctx._clock = flaky_clock
+        clock.advance(seconds=5)
+        with ctx.keeping_alive(interval=TICK):
+            threading.Event().wait(TICK * 5)
+            assert _keepalive_threads()
+        seen.append(read_job(job_id))
+        ctx._clock = clock
+
+    with caplog.at_level(logging.WARNING):
+        assert make_worker({"k": handler}).run_once() is True
+    assert "ArithmeticError" in caplog.text
+    assert "boom" not in caplog.text
+    # The first beat failed; a later one still renewed the lock.
+    assert len(ticks) >= 2
+    assert seen[0].locked_at == claimed_at + timedelta(seconds=5)
+    assert read_job(job_id).status == "done", read_job(job_id).error
+
+
+def test_keeping_alive_blocks_do_not_nest(
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+) -> None:
+    job_id = make_job(make_user())
+
+    def handler(ctx: JobContext) -> None:
+        with ctx.keeping_alive(interval=TICK):
+            with pytest.raises(RuntimeError):
+                with ctx.keeping_alive(interval=TICK):
+                    pass
+            assert len(_keepalive_threads()) == 1
+        assert _keepalive_threads() == []
+
+    assert make_worker({"k": handler}).run_once() is True
+    assert read_job(job_id).status == "done", read_job(job_id).error
