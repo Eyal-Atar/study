@@ -1,10 +1,12 @@
 """The one place that writes planner results and plan versions, and undoes a version.
 
-Every change to the board goes through `apply_result` (a planner result) or
-`delete_open_blocks` (blocks of tasks that left the plan). Each saves the board as it
-was before the change (a snapshot of the future planned blocks) in plan_versions, so
-`undo_version` can bring it back. A `task_changed` version also keeps the task's
-editable fields as they were (`task_before`), so undo puts the task back too.
+Every change to the board goes through `apply_result` (a planner result),
+`delete_open_blocks` (blocks of tasks that left the plan), or `apply_analysis` in
+app/services/analyses.py (a reanalysis, built from `create_version` and `write_changes`).
+Each saves the board as it was before the change (a snapshot of the future planned
+blocks) in plan_versions, so `undo_version` can bring it back. A `task_changed` version
+also keeps the task's editable fields as they were (`task_before`), so undo puts the task
+back too.
 """
 
 import datetime as dt
@@ -97,7 +99,7 @@ class UndoOutcome:
 
 
 @dataclass(frozen=True)
-class _Changes:
+class Changes:
     """What a planner result changes on the board it was computed from."""
 
     removed: tuple[UUID, ...]
@@ -108,7 +110,7 @@ class _Changes:
         return bool(self.removed or self.added or self.renumbered)
 
 
-def _changes(board: Board, result: PlanResult) -> _Changes:
+def changes(board: Board, result: PlanResult) -> Changes:
     rows = {block.id: block for block in board.blocks}
     renumbered: list[PlannedBlock] = []
     for block in result.blocks:
@@ -117,7 +119,7 @@ def _changes(board: Board, result: PlanResult) -> _Changes:
         row = rows[block.block_id]
         if (row.part_index, row.part_count) != (block.part_index, block.part_count):
             renumbered.append(block)
-    return _Changes(
+    return Changes(
         removed=result.removed,
         added=tuple(block for block in result.blocks if block.block_id is None),
         renumbered=tuple(renumbered),
@@ -126,10 +128,10 @@ def _changes(board: Board, result: PlanResult) -> _Changes:
 
 def has_changes(board: Board, result: PlanResult) -> bool:
     """Whether apply_result would write anything for this result."""
-    return bool(_changes(board, result))
+    return bool(changes(board, result))
 
 
-def _create_version(
+def create_version(
     conn: Conn,
     user_id: UUID,
     board: Board,
@@ -158,7 +160,7 @@ def _create_version(
     return version_id
 
 
-def _delete_planned(conn: Conn, user_id: UUID, ids: Collection[UUID]) -> None:
+def delete_planned(conn: Conn, user_id: UUID, ids: Collection[UUID]) -> None:
     """Delete the user's blocks with these ids that are still planned."""
     if ids:
         conn.execute(
@@ -167,11 +169,11 @@ def _delete_planned(conn: Conn, user_id: UUID, ids: Collection[UUID]) -> None:
         )
 
 
-def _write_changes(conn: Conn, user_id: UUID, changes: _Changes, version_id: UUID | None) -> None:
+def write_changes(conn: Conn, user_id: UUID, diff: Changes, version_id: UUID | None) -> None:
     """Delete, insert and renumber; written blocks get version_id (None keeps theirs)."""
-    _delete_planned(conn, user_id, changes.removed)
+    delete_planned(conn, user_id, diff.removed)
     with conn.cursor() as cursor:
-        if changes.added:
+        if diff.added:
             cursor.executemany(
                 "INSERT INTO app.blocks (user_id, task_id, starts_at, ends_at, part_index, "
                 "part_count, plan_version_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
@@ -185,17 +187,17 @@ def _write_changes(conn: Conn, user_id: UUID, changes: _Changes, version_id: UUI
                         block.part_count,
                         version_id,
                     )
-                    for block in changes.added
+                    for block in diff.added
                 ],
             )
-        if changes.renumbered:
+        if diff.renumbered:
             cursor.executemany(
                 "UPDATE app.blocks SET part_index = %s, part_count = %s, "
                 "plan_version_id = coalesce(%s::uuid, plan_version_id) "
                 "WHERE user_id = %s AND id = %s",
                 [
                     (block.part_index, block.part_count, version_id, user_id, block.block_id)
-                    for block in changes.renumbered
+                    for block in diff.renumbered
                 ],
             )
 
@@ -220,13 +222,11 @@ def apply_result(
     The caller holds the user lock: `board` was loaded with load_board(lock=True) in this
     same transaction, so nothing changed between the board and this write.
     """
-    changes = _changes(board, result)
-    if not changes:
+    diff = changes(board, result)
+    if not diff:
         return None
-    version_id = _create_version(
-        conn, user_id, board, reason, exam_id, task_id, before, analysis_id
-    )
-    _write_changes(conn, user_id, changes, version_id)
+    version_id = create_version(conn, user_id, board, reason, exam_id, task_id, before, analysis_id)
+    write_changes(conn, user_id, diff, version_id)
     return version_id
 
 
@@ -260,8 +260,8 @@ def delete_open_blocks(
     ]
     version_id = None
     if open_ids or always_version:
-        version_id = _create_version(conn, user_id, board, reason, exam_id, task_id, before)
-        _delete_planned(conn, user_id, open_ids)
+        version_id = create_version(conn, user_id, board, reason, exam_id, task_id, before)
+        delete_planned(conn, user_id, open_ids)
     renumber(conn, user_id, board.now)
     return version_id
 
@@ -362,11 +362,39 @@ def _restore_task(conn: Conn, user_id: UUID, task_id: UUID, before: Any) -> None
     )
 
 
+def _check_no_progress(conn: Conn, user_id: UUID, analysis_id: UUID) -> None:
+    """Refuse to undo an analysis once any of its tasks has progress (invalid_state).
+
+    Completing a block writes no version, so the reanalysis can still be the latest
+    version after the user studied one of its tasks; undoing it would delete that work.
+    """
+    row = conn.execute(
+        """
+        SELECT EXISTS (
+            SELECT 1 FROM app.tasks AS t
+            WHERE t.user_id = %(user_id)s
+              AND t.analysis_id = %(analysis_id)s
+              AND (
+                  t.status <> 'todo'
+                  OR EXISTS (
+                      SELECT 1 FROM app.blocks AS b
+                      WHERE b.user_id = %(user_id)s AND b.task_id = t.id AND b.status = 'done'
+                  )
+              )
+        ) AS found
+        """,
+        {"user_id": user_id, "analysis_id": analysis_id},
+    ).fetchone()
+    if row is not None and row["found"]:
+        raise ApiError("invalid_state")
+
+
 def _undo_side_effect(conn: Conn, user_id: UUID, version: VersionRow, now: dt.datetime) -> None:
     """Bring back a deleted exam or task or a changed task's fields, or delete an added task.
 
     An exam_reanalyzed version deletes the tasks its analysis added, brings back the tasks
-    it replaced, and marks the analysis undone (it does not become a draft again).
+    it replaced, and marks the analysis undone (it does not become a draft again). It is
+    refused (invalid_state, nothing written) once any task of the analysis has progress.
     """
     if version.reason == VersionReason.EXAM_DELETED and version.exam_id is not None:
         conn.execute(
@@ -391,6 +419,7 @@ def _undo_side_effect(conn: Conn, user_id: UUID, version: VersionRow, now: dt.da
     ):
         _restore_task(conn, user_id, version.task_id, version.task_before)
     elif version.reason == VersionReason.EXAM_REANALYZED and version.analysis_id is not None:
+        _check_no_progress(conn, user_id, version.analysis_id)
         conn.execute(
             "UPDATE app.tasks SET deleted_at = %s "
             "WHERE user_id = %s AND analysis_id = %s AND deleted_at IS NULL",
@@ -463,7 +492,7 @@ def undo_version(conn: Conn, user_id: UUID, version_id: UUID, now: dt.datetime) 
         key=_sort_key,
     )
 
-    _delete_planned(conn, user_id, result.delete)
+    delete_planned(conn, user_id, result.delete)
     if restore:
         with conn.cursor() as cursor:
             cursor.executemany(
@@ -497,9 +526,9 @@ def undo_version(conn: Conn, user_id: UUID, version_id: UUID, now: dt.datetime) 
         if placement.unscheduled:
             unplaced.extend(placement.unscheduled)
             continue
-        changes = _changes(board, placement)
-        if changes:  # nothing to write when the task's live blocks already cover it
-            _write_changes(conn, user_id, changes, None)
+        diff = changes(board, placement)
+        if diff:  # nothing to write when the task's live blocks already cover it
+            write_changes(conn, user_id, diff, None)
             replaced.append(task_id)
 
     conn.execute(

@@ -33,11 +33,11 @@ from app.services.board import fingerprint, load_board
 from app.services.plan_views import BlockView, blocks_by_id
 from app.services.plan_writes import (
     VersionReason,
-    _changes,
-    _create_version,
-    _delete_planned,
-    _write_changes,
+    changes,
+    create_version,
+    delete_planned,
     renumber,
+    write_changes,
 )
 from app.services.profiles import Conn
 
@@ -146,7 +146,7 @@ def apply_analysis(
     replaced_ids = [task.id for task in replaced]
     kept = _live_task_count(conn, user_id, exam_id) - len(replaced)
 
-    version_id = _create_version(
+    version_id = create_version(
         conn,
         user_id,
         board,
@@ -167,7 +167,7 @@ def apply_analysis(
         and block.starts_at >= start
     ]
     removed_open = blocks_by_id(conn, user_id, open_ids, board.profile, now)
-    _delete_planned(conn, user_id, open_ids)
+    delete_planned(conn, user_id, open_ids)
     if replaced_ids:
         conn.execute(
             "UPDATE app.tasks SET deleted_at = %s WHERE user_id = %s AND id = ANY(%s)",
@@ -185,10 +185,10 @@ def apply_analysis(
 
     after = load_board(conn, user_id, now)
     result = replan(after.profile, after.exams, after.tasks, after.existing, now)
-    # Read before _write_changes deletes them.
+    # Read before write_changes deletes them.
     removed_planned = blocks_by_id(conn, user_id, result.removed, after.profile, now)
-    changes = _changes(after, result)
-    _write_changes(conn, user_id, changes, version_id)
+    diff = changes(after, result)
+    write_changes(conn, user_id, diff, version_id)
     renumber(conn, user_id, now)
 
     removed = sorted(
@@ -207,7 +207,7 @@ def apply_analysis(
             )
             for task in output.tasks
         ),
-        added_blocks=changes.added,
+        added_blocks=diff.added,
         removed_blocks=tuple(removed),
         unscheduled=result.unscheduled,
         shortfalls=result.shortfalls,

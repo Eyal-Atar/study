@@ -405,3 +405,49 @@ def test_deleted_material_loses_its_link(
         ).fetchall()
     }
     assert links == {"review": syllabus, "simulation": None}
+
+
+def _new_task_block(db: psycopg.Connection, analysis: UUID) -> tuple[UUID, UUID]:
+    """A planned block of a task the analysis added: (task, block)."""
+    row = db.execute(
+        "SELECT t.id, b.id FROM app.tasks AS t JOIN app.blocks AS b ON b.task_id = t.id "
+        "WHERE t.analysis_id = %s AND b.status = 'planned' ORDER BY b.starts_at LIMIT 1",
+        (analysis,),
+    ).fetchone()
+    assert row is not None
+    return row[0], row[1]
+
+
+def _assert_undo_refused(
+    api: TestClient, db: psycopg.Connection, user: ApiUser, version_id: str
+) -> None:
+    before = _dump(db, user.id)
+    response = api.post("/plan/undo", json={"version_id": version_id}, headers=user.headers)
+    assert response.status_code == 409, response.text
+    assert response.json()["code"] == "invalid_state"
+    assert _dump(db, user.id) == before
+
+
+def test_undo_is_refused_when_a_new_task_has_a_done_block(
+    api: TestClient, db: psycopg.Connection, user: ApiUser, exam: UUID, board: dict[str, UUID]
+) -> None:
+    analysis = _draft(db, user.id, exam)
+    body = _apply_ok(api, user, analysis)
+    _, block = _new_task_block(db, analysis)
+    # Completing a block writes no version: the reanalysis is still the one to undo.
+    completed = api.post(f"/blocks/{block}/complete", headers=user.headers)
+    assert completed.status_code == 200, completed.text
+    plan = api.get("/plan", headers=user.headers)
+    assert plan.json()["undo"]["version_id"] == body["version_id"]
+    _assert_undo_refused(api, db, user, body["version_id"])
+    assert scalar(db, "SELECT status FROM app.analyses WHERE id = %s", analysis) == "applied"
+
+
+def test_undo_is_refused_when_a_new_task_is_not_todo(
+    api: TestClient, db: psycopg.Connection, user: ApiUser, exam: UUID, board: dict[str, UUID]
+) -> None:
+    analysis = _draft(db, user.id, exam)
+    body = _apply_ok(api, user, analysis)
+    task, _ = _new_task_block(db, analysis)
+    db.execute("UPDATE app.tasks SET status = 'done' WHERE id = %s", (task,))
+    _assert_undo_refused(api, db, user, body["version_id"])
