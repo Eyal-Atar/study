@@ -17,6 +17,8 @@ from app.domain.planner import (
     StudyWindow,
     Task,
     TaskKind,
+    Unscheduled,
+    UnscheduledReason,
     clip,
     merge,
     subtract,
@@ -271,3 +273,98 @@ def test_exam_shortfall_needs_minutes() -> None:
     with pytest.raises(PlannerInputError):
         ExamShortfall(exam_id=uuid4(), minutes=0, daily_minutes=None)
     assert ExamShortfall(exam_id=uuid4(), minutes=1, daily_minutes=None).minutes == 1
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        pytest.param({"study_windows": None}, id="windows-none"),
+        pytest.param({"study_windows": ["morning"]}, id="windows-list"),
+        pytest.param({"daily_study_minutes": True}, id="minutes-bool"),
+        pytest.param({"daily_study_minutes": None}, id="minutes-none"),
+        pytest.param({"daily_study_minutes": 240.0}, id="minutes-float"),
+        pytest.param({"rest_days_before_exam": True}, id="rest-bool"),
+        pytest.param({"rest_days_before_exam": "1"}, id="rest-str"),
+        pytest.param({"wake_time": "08:00"}, id="wake-str"),
+        pytest.param({"sleep_time": "23:00"}, id="sleep-str"),
+        pytest.param({"study_start_delay": 3600}, id="delay-int"),
+    ],
+)
+def test_profile_checks_types_before_comparing(overrides: dict[str, Any]) -> None:
+    with pytest.raises(PlannerInputError):
+        make_profile(**overrides)
+
+
+def test_exam_date_must_be_a_date_not_a_datetime() -> None:
+    with pytest.raises(PlannerInputError):
+        Exam(id=uuid4(), exam_date=datetime(2026, 11, 20, 9), difficulty=3)
+
+
+@pytest.mark.parametrize("difficulty", [2.0, True, None])
+def test_exam_difficulty_must_be_an_int(difficulty: Any) -> None:
+    with pytest.raises(PlannerInputError):
+        Exam(id=uuid4(), exam_date=date(2026, 12, 1), difficulty=difficulty)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        pytest.param({"estimated_minutes": "60"}, id="minutes-str"),
+        pytest.param({"estimated_minutes": None}, id="minutes-none"),
+        pytest.param({"estimated_minutes": True}, id="minutes-bool"),
+        pytest.param({"focus": True}, id="focus-bool"),
+        pytest.param({"focus": 2.0}, id="focus-float"),
+        pytest.param({"focus": None}, id="focus-none"),
+    ],
+)
+def test_task_checks_int_fields_before_comparing(overrides: dict[str, Any]) -> None:
+    exam = make_exam(date(2026, 12, 1))
+    with pytest.raises(PlannerInputError):
+        make_task(exam, 60, **overrides)
+
+
+def test_unscheduled_minutes_must_be_an_int() -> None:
+    with pytest.raises(PlannerInputError):
+        Unscheduled(
+            task_id=uuid4(),
+            minutes="60",  # type: ignore[arg-type]
+            reason=UnscheduledReason.NOT_ENOUGH_TIME,
+        )
+    with pytest.raises(PlannerInputError):
+        Unscheduled(task_id=uuid4(), minutes=True, reason=UnscheduledReason.NOT_ENOUGH_TIME)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        pytest.param({"part_index": True}, id="index-bool"),
+        pytest.param({"part_count": True}, id="count-bool"),
+        pytest.param({"part_index": 1.0}, id="index-float"),
+        pytest.param({"part_count": "1"}, id="count-str"),
+    ],
+)
+def test_planned_block_part_fields_must_be_ints(overrides: dict[str, Any]) -> None:
+    fields: dict[str, Any] = {
+        "task_id": uuid4(),
+        "interval": iv((7,), (8,)),
+        "part_index": 1,
+        "part_count": 1,
+    }
+    with pytest.raises(PlannerInputError):
+        PlannedBlock(**{**fields, **overrides})
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        pytest.param({"minutes": 1.5}, id="minutes-float"),
+        pytest.param({"minutes": True}, id="minutes-bool"),
+        pytest.param({"daily_minutes": True}, id="daily-bool"),
+        pytest.param({"daily_minutes": 1.5}, id="daily-float"),
+    ],
+)
+def test_exam_shortfall_minutes_must_be_ints(overrides: dict[str, Any]) -> None:
+    fields: dict[str, Any] = {"exam_id": uuid4(), "minutes": 5, "daily_minutes": None}
+    with pytest.raises(PlannerInputError):
+        ExamShortfall(**{**fields, **overrides})
+    assert ExamShortfall(exam_id=uuid4(), minutes=5, daily_minutes=30).daily_minutes == 30

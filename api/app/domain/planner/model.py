@@ -70,7 +70,13 @@ def _require(condition: bool, message: str) -> None:
         raise PlannerInputError(message)
 
 
+def _is_int(value: object) -> bool:
+    # type() rather than isinstance(): bool is a subclass of int.
+    return type(value) is int
+
+
 def _check_wall_time(name: str, value: dt.time) -> None:
+    _require(isinstance(value, dt.time), f"{name} must be a time")
     _require(value.tzinfo is None, f"{name} must not have a tzinfo")
     _require(value.second == 0 and value.microsecond == 0, f"{name} must be a whole minute")
 
@@ -88,6 +94,7 @@ class Profile:
 
     def __post_init__(self) -> None:
         _require(isinstance(self.timezone, ZoneInfo), "timezone must be a ZoneInfo")
+        _require(isinstance(self.study_windows, frozenset), "study_windows must be a frozenset")
         _require(
             all(isinstance(window, StudyWindow) for window in self.study_windows),
             "study_windows must hold StudyWindow members",
@@ -95,9 +102,15 @@ class Profile:
         _check_wall_time("wake_time", self.wake_time)
         _check_wall_time("sleep_time", self.sleep_time)
         _require(self.wake_time != self.sleep_time, "wake_time must differ from sleep_time")
+        _require(_is_int(self.daily_study_minutes), "daily_study_minutes must be an int")
         _require(30 <= self.daily_study_minutes <= 960, "daily_study_minutes must be 30-960")
         _require(1 <= len(self.study_windows) <= 4, "study_windows must hold 1-4 windows")
+        _require(_is_int(self.rest_days_before_exam), "rest_days_before_exam must be an int")
         _require(0 <= self.rest_days_before_exam <= 14, "rest_days_before_exam must be 0-14")
+        _require(
+            isinstance(self.study_start_delay, dt.timedelta),
+            "study_start_delay must be a timedelta",
+        )
         _require(
             dt.timedelta(0) <= self.study_start_delay <= dt.timedelta(hours=6),
             "study_start_delay must be between 0 and 6 hours",
@@ -116,6 +129,8 @@ class Exam:
 
     def __post_init__(self) -> None:
         _require(isinstance(self.id, UUID), "id must be a UUID")
+        _require(type(self.exam_date) is dt.date, "exam_date must be a date")
+        _require(_is_int(self.difficulty), "difficulty must be an int")
         _require(1 <= self.difficulty <= 5, "difficulty must be 1-5")
 
 
@@ -138,6 +153,8 @@ class Task:
             self.depends_on is None or isinstance(self.depends_on, UUID),
             "depends_on must be a UUID or None",
         )
+        _require(_is_int(self.estimated_minutes), "estimated_minutes must be an int")
+        _require(_is_int(self.focus), "focus must be an int")
         _require(5 <= self.estimated_minutes <= 600, "estimated_minutes must be 5-600")
         _require(1 <= self.focus <= 10, "focus must be 1-10")
         _require(self.depends_on != self.id, "a task cannot depend on itself")
@@ -173,6 +190,9 @@ class Unscheduled:
     minutes: int
     reason: UnscheduledReason
     blocked_by: UUID | None = None
+
+    def __post_init__(self) -> None:
+        _require(_is_int(self.minutes), "minutes must be an int")
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -223,6 +243,8 @@ class PlannedBlock:
             "block_id must be a UUID or None",
         )
         _require(isinstance(self.interval, Interval), "interval must be an Interval")
+        _require(_is_int(self.part_index), "part_index must be an int")
+        _require(_is_int(self.part_count), "part_count must be an int")
         _require(self.part_count >= 1, "part_count must be at least 1")
         _require(1 <= self.part_index <= self.part_count, "part_index must be 1-part_count")
 
@@ -234,7 +256,12 @@ class ExamShortfall:
     daily_minutes: int | None
 
     def __post_init__(self) -> None:
+        _require(_is_int(self.minutes), "minutes must be an int")
         _require(self.minutes > 0, "minutes must be positive")
+        _require(
+            self.daily_minutes is None or _is_int(self.daily_minutes),
+            "daily_minutes must be an int or None",
+        )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
