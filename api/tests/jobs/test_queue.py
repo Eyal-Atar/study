@@ -153,15 +153,15 @@ def test_heartbeat_finish_requeue_fail_write_the_right_columns(
     assert job.id == first
 
     clock.advance(seconds=5)
-    heartbeat(owner_db, first, clock.now, stage="downloading", percent=10)
+    assert heartbeat(owner_db, first, 1, clock.now, stage="downloading", percent=10) is True
     beat = read_job(first)
     assert beat.locked_at == clock.now
     assert (beat.stage, beat.percent) == ("downloading", 10)
-    heartbeat(owner_db, first, clock.now)
+    assert heartbeat(owner_db, first, 1, clock.now) is True
     assert (read_job(first).stage, read_job(first).percent) == ("downloading", 10)
 
     clock.advance(seconds=5)
-    finish(owner_db, first, clock.now, {"a": 1})
+    assert finish(owner_db, first, 1, clock.now, {"a": 1}) is True
     done = read_job(first)
     assert done.status == "done"
     assert done.finished_at == clock.now
@@ -173,19 +173,78 @@ def test_heartbeat_finish_requeue_fail_write_the_right_columns(
     second = make_job(user)
     assert claim(owner_db, clock.now, lock_timeout=LOCK) is not None
     retry_at = clock.now + timedelta(seconds=30)
-    requeue(owner_db, second, run_at=retry_at, error="storage_unavailable")
+    assert requeue(owner_db, second, 1, run_at=retry_at, error="storage_unavailable") is True
     queued = read_job(second)
     assert queued.status == "queued"
     assert queued.run_at == retry_at
     assert queued.locked_at is None
     assert queued.error == "storage_unavailable"
 
-    fail(owner_db, second, clock.now, "file_missing")
+    # A queued job is not running: nothing claims it, so nothing may fail it.
+    assert fail(owner_db, second, 1, clock.now, "file_missing") is False
+    assert read_job(second).status == "queued"
+    clock.advance(seconds=30)
+    again = claim(owner_db, clock.now, lock_timeout=LOCK)
+    assert again is not None
+    assert again.attempts == 2
+    assert fail(owner_db, second, 2, clock.now, "file_missing") is True
     failed = read_job(second)
     assert failed.status == "failed"
     assert failed.finished_at == clock.now
     assert failed.locked_at is None
     assert failed.error == "file_missing"
+
+
+def _reclaimed(
+    owner_db: Conn, make_user: Callable[[], CurrentUser], make_job: MakeJob, clock: FrozenClock
+) -> UUID:
+    """A job claimed once (attempts=1), whose lock then expired and was claimed again (2)."""
+    job_id = make_job(make_user())
+    first = claim(owner_db, clock.now, lock_timeout=LOCK)
+    assert first is not None
+    assert (first.id, first.attempts) == (job_id, 1)
+    clock.advance(minutes=11)
+    second = claim(owner_db, clock.now, lock_timeout=LOCK)
+    assert second is not None
+    assert (second.id, second.attempts) == (job_id, 2)
+    return job_id
+
+
+def test_stale_attempt_cannot_finish(
+    owner_db: Conn,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    clock: FrozenClock,
+    read_job: Callable[[UUID], JobRow],
+) -> None:
+    job_id = _reclaimed(owner_db, make_user, make_job, clock)
+    before = read_job(job_id)
+    clock.advance(seconds=5)
+
+    assert finish(owner_db, job_id, 1, clock.now, {"stale": True}) is False
+
+    assert read_job(job_id) == before
+
+
+def test_stale_attempt_cannot_fail_or_requeue_or_heartbeat(
+    owner_db: Conn,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    clock: FrozenClock,
+    read_job: Callable[[UUID], JobRow],
+) -> None:
+    job_id = _reclaimed(owner_db, make_user, make_job, clock)
+    before = read_job(job_id)
+    clock.advance(seconds=5)
+
+    assert fail(owner_db, job_id, 1, clock.now, "file_missing") is False
+    assert requeue(owner_db, job_id, 1, run_at=clock.now, error="storage_unavailable") is False
+    assert heartbeat(owner_db, job_id, 1, clock.now, stage="saving", percent=90) is False
+    assert heartbeat(owner_db, job_id, 1, clock.now) is False
+
+    assert read_job(job_id) == before
+    # The current attempt still owns it.
+    assert heartbeat(owner_db, job_id, 2, clock.now) is True
 
 
 def test_backoff() -> None:

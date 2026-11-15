@@ -3,17 +3,19 @@ import threading
 from collections.abc import Callable, Mapping
 from datetime import timedelta
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import psycopg
 import pytest
 from psycopg.pq import TransactionStatus
 from psycopg.rows import DictRow
 
+from app.ai.client import AiError, AnalysisClient, Usage
 from app.auth import CurrentUser
 from app.config import Settings
 from app.jobs.queue import JobRow
-from app.jobs.worker import Handler, JobContext, JobFailed, Worker
+from app.jobs.worker import Handler, JobContext, JobFailed, JobLost, Worker
+from tests.ai.fake_client import FakeAnalysisClient
 from tests.fixtures_db import FrozenClock
 from tests.jobs.conftest import MakeJob
 
@@ -343,3 +345,318 @@ def test_run_forever_reconnects_after_losing_the_connection(
         thread.join(1)
     assert not thread.is_alive()
     assert read_job(job_id).status == "done"
+
+
+def _reclaim(owner_db: Conn, job_id: UUID, clock: FrozenClock) -> None:
+    """What another worker's claim of an expired lock does to the row."""
+    owner_db.execute(
+        "UPDATE app.jobs SET attempts = attempts + 1, locked_at = %s, stage = 'reclaimed', "
+        "percent = 7 WHERE id = %s",
+        (clock.now, job_id),
+    )
+
+
+@pytest.mark.parametrize("call", ["progress", "keepalive"])
+def test_handler_that_lost_its_claim_writes_nothing(
+    call: str,
+    owner_db: Conn,
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    job_id = make_job(make_user())
+    raised: list[BaseException] = []
+    after_reclaim: list[JobRow] = []
+
+    def handler(ctx: JobContext) -> Mapping[str, Any]:
+        clock.advance(seconds=31)
+        _reclaim(owner_db, job_id, clock)
+        after_reclaim.append(read_job(job_id))
+        clock.advance(seconds=31)
+        try:
+            if call == "progress":
+                ctx.progress("saving", 90)
+            else:
+                ctx.keepalive()
+        except JobLost as exc:
+            raised.append(exc)
+            raise
+        return {"must": "not be written"}
+
+    with caplog.at_level(logging.INFO):
+        assert make_worker({"k": handler}).run_once() is True
+
+    assert len(raised) == 1
+    assert read_job(job_id) == after_reclaim[0]
+    assert read_job(job_id).status == "running"
+    assert read_job(job_id).attempts == 2
+    lost = [r for r in caplog.records if "lost" in r.getMessage()]
+    assert lost
+    assert all(r.levelno == logging.INFO for r in lost)
+    assert all(r.exc_info is None for r in caplog.records)
+
+
+@pytest.mark.parametrize("outcome", ["return", "fail", "retry"])
+def test_an_end_write_after_a_lost_claim_only_warns(
+    outcome: str,
+    owner_db: Conn,
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    job_id = make_job(make_user())
+    after_reclaim: list[JobRow] = []
+
+    def handler(ctx: JobContext) -> Mapping[str, Any]:
+        _reclaim(owner_db, job_id, clock)
+        after_reclaim.append(read_job(job_id))
+        if outcome == "fail":
+            raise JobFailed("file_missing")
+        if outcome == "retry":
+            raise JobFailed("storage_unavailable", retry=True)
+        return {"stale": True}
+
+    with caplog.at_level(logging.INFO):
+        assert make_worker({"k": handler}).run_once() is True
+
+    assert read_job(job_id) == after_reclaim[0]
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert any("claim lost" in r.getMessage() for r in warnings)
+
+
+def test_progress_rejects_a_bad_stage_or_percent(
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+) -> None:
+    job_id = make_job(make_user())
+    errors: list[str] = []
+    seen: list[JobRow] = []
+
+    def handler(ctx: JobContext) -> None:
+        claimed = read_job(job_id)
+        clock.advance(seconds=31)
+        for stage, percent in [("Analyzing", 10), ("a1", 10), ("saving", 101), ("saving", -1)]:
+            with pytest.raises(ValueError) as info:
+                ctx.progress(stage, percent)
+            errors.append(str(info.value))
+        assert read_job(job_id) == claimed
+        seen.append(claimed)
+
+    assert make_worker({"k": handler}).run_once() is True
+    assert len(errors) == 4
+    assert len(seen) == 1
+    assert read_job(job_id).status == "done"
+
+
+def test_progress_accepts_the_bounds() -> None:
+    # Validation runs before any SQL, so a context without a usable connection is enough.
+    for stage, percent in [("a", 0), ("a" + "_" * 39, 100)]:
+        JobContext._check_progress(stage, percent)
+    with pytest.raises(ValueError):
+        JobContext._check_progress("a" * 41, 50)
+
+
+def test_job_failed_rejects_a_bad_code() -> None:
+    with pytest.raises(ValueError):
+        JobFailed("Bad Code")
+    with pytest.raises(ValueError):
+        JobFailed("")
+    with pytest.raises(ValueError):
+        JobFailed("a" * 61)
+    assert JobFailed("a" * 60).code == "a" * 60
+    assert JobFailed("ai_not_configured", retry=True).retry is True
+
+
+def test_keepalive_writes_at_most_every_30_seconds(
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+) -> None:
+    job_id = make_job(make_user())
+    claimed_at = clock.now
+
+    def handler(ctx: JobContext) -> None:
+        ctx.keepalive()
+        ctx.keepalive()
+        assert read_job(job_id).locked_at == claimed_at
+
+        clock.advance(seconds=29)
+        ctx.keepalive()
+        assert read_job(job_id).locked_at == claimed_at
+
+        clock.advance(seconds=2)
+        ctx.keepalive()
+        assert read_job(job_id).locked_at == clock.now
+        assert (read_job(job_id).stage, read_job(job_id).percent) == (None, None)
+
+        # progress renews the lock too, and restarts the 30 seconds.
+        clock.advance(seconds=31)
+        ctx.progress("analyzing", 40)
+        beat = clock.now
+        clock.advance(seconds=20)
+        ctx.keepalive()
+        assert read_job(job_id).locked_at == beat
+        clock.advance(seconds=10)
+        ctx.keepalive()
+        job = read_job(job_id)
+        assert job.locked_at == clock.now
+        assert (job.stage, job.percent) == ("analyzing", 40)
+
+    assert make_worker({"k": handler}).run_once() is True
+    job = read_job(job_id)
+    assert job.status == "done", job.error
+
+
+def test_record_usage_writes_rows_as_the_owner(
+    owner_db: Conn,
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+) -> None:
+    user = make_user()
+    job_id = make_job(user)
+    exam_id = uuid4()
+    usage = [
+        Usage("test-model", 1000, 500, 200, 0),
+        Usage("test-model", 1100, 600, 0, 200),
+    ]
+
+    def handler(ctx: JobContext) -> None:
+        ctx.record_usage(usage, exam_id=exam_id)
+        ctx.record_usage([], exam_id=None)
+
+    assert make_worker({"k": handler}).run_once() is True
+
+    assert read_job(job_id).status == "done"
+    rows = owner_db.execute(
+        "SELECT user_id, job_id, exam_id, model, input_tokens, output_tokens, "
+        "cache_creation_input_tokens, cache_read_input_tokens, created_at "
+        "FROM app.ai_usage ORDER BY input_tokens"
+    ).fetchall()
+    assert len(rows) == 2
+    assert all(
+        (row["user_id"], row["job_id"], row["exam_id"]) == (user.id, job_id, exam_id)
+        for row in rows
+    )
+    assert [
+        Usage(
+            row["model"],
+            row["input_tokens"],
+            row["output_tokens"],
+            row["cache_creation_input_tokens"],
+            row["cache_read_input_tokens"],
+        )
+        for row in rows
+    ] == usage
+    assert all(row["created_at"] == clock.now for row in rows)
+
+
+def test_record_usage_refuses_inside_a_user_transaction(
+    owner_db: Conn,
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+) -> None:
+    job_id = make_job(make_user())
+    refused: list[bool] = []
+
+    def handler(ctx: JobContext) -> None:
+        with ctx.user_transaction():
+            with pytest.raises(RuntimeError):
+                ctx.record_usage([Usage("test-model", 1, 1, 0, 0)], exam_id=None)
+            refused.append(True)
+
+    assert make_worker({"k": handler}).run_once() is True
+
+    assert refused == [True]
+    assert read_job(job_id).status == "done"
+    count = owner_db.execute("SELECT count(*) AS n FROM app.ai_usage").fetchone()
+    assert count is not None
+    assert count["n"] == 0
+
+
+def test_ai_client_is_built_once(
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    worker_settings: Settings,
+) -> None:
+    make_job(make_user())
+    make_job(make_user())
+    built: list[Settings] = []
+    clients: list[AnalysisClient] = []
+
+    def factory(settings: Settings) -> AnalysisClient:
+        built.append(settings)
+        return FakeAnalysisClient([])
+
+    def handler(ctx: JobContext) -> None:
+        clients.append(ctx.ai_client())
+        clients.append(ctx.ai_client())
+
+    worker = make_worker({"k": handler}, ai_client_factory=factory)
+    assert worker.run_once() is True
+    assert built == [worker_settings]
+    assert clients[0] is clients[1]
+
+    # Each job builds its own.
+    assert worker.run_once() is True
+    assert len(built) == 2
+    assert clients[2] is not clients[0]
+
+
+def test_ai_client_error_reaches_the_handler(
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+) -> None:
+    job_id = make_job(make_user())
+
+    def factory(settings: Settings) -> AnalysisClient:
+        raise AiError("ai_not_configured")
+
+    def handler(ctx: JobContext) -> None:
+        try:
+            ctx.ai_client()
+        except AiError as exc:
+            raise JobFailed(exc.code) from None
+
+    assert make_worker({"k": handler}, ai_client_factory=factory).run_once() is True
+    job = read_job(job_id)
+    assert (job.status, job.error) == ("failed", "ai_not_configured")
+
+
+def test_default_ai_client_needs_the_settings(
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+) -> None:
+    # The default factory is AnthropicAnalysisClient.from_settings; the test settings have
+    # no key, so it refuses without touching the network.
+    job_id = make_job(make_user())
+
+    def handler(ctx: JobContext) -> None:
+        try:
+            ctx.ai_client()
+        except AiError as exc:
+            raise JobFailed(exc.code) from None
+
+    assert make_worker({"k": handler}).run_once() is True
+    assert read_job(job_id).error == "ai_not_configured"

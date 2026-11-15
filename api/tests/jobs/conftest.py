@@ -12,6 +12,7 @@ from psycopg.conninfo import make_conninfo
 from psycopg.rows import DictRow, dict_row
 from psycopg.types.json import Jsonb
 
+from app.ai.client import AnalysisClient
 from app.auth import CurrentUser
 from app.config import Settings
 from app.jobs.ingest import HANDLERS, ON_CRASHED
@@ -69,6 +70,7 @@ def make_worker(
         *,
         settings: Settings | None = None,
         on_crashed: Mapping[str, CrashHandler] | None = None,
+        ai_client_factory: Callable[[Settings], AnalysisClient] | None = None,
     ) -> Worker:
         worker = Worker(
             migrated_database_url,
@@ -77,6 +79,7 @@ def make_worker(
             handlers=handlers,
             clock=clock,
             on_crashed=on_crashed,
+            ai_client_factory=ai_client_factory,
         )
         worker.connect()
         workers.append(worker)

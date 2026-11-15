@@ -6,8 +6,10 @@ Every time comparison uses the `now` the caller passes in, never the database cl
 worker runs on its injected clock and tests can freeze it.
 
 A job that stays `running` past the lock timeout belongs to a worker that died; `claim` takes
-it again and counts the attempt. The payload is an opaque JSON object and the kind a string,
-so any job type can share the queue.
+it again and counts the attempt. `heartbeat`, `finish`, `requeue` and `fail` are fenced on the
+claim (the same `attempts`, still `running`) and return whether they wrote, so a worker that
+lost its claim cannot overwrite the new owner's work. The payload is an opaque JSON object
+and the kind a string, so any job type can share the queue.
 """
 
 from collections.abc import Mapping
@@ -121,45 +123,66 @@ def claim(conn: Conn, now: datetime, *, lock_timeout: timedelta) -> JobRow | Non
     return None if row is None else row_to_job(row)
 
 
+# Every write after the claim is fenced on it: the job must still be running under the
+# attempt this worker claimed. A worker whose lock expired and whose job was claimed again
+# (attempts went up) updates nothing, and learns it from the False return.
+_FENCE: Final = sql.SQL(" WHERE id = %s AND attempts = %s AND status = 'running'")
+
+
 def heartbeat(
     conn: Conn,
     job_id: UUID,
+    attempts: int,
     now: datetime,
     *,
     stage: str | None = None,
     percent: int | None = None,
-) -> None:
+) -> bool:
     """Renew the lock, and record progress; a None stage or percent keeps the current value."""
-    conn.execute(
-        "UPDATE app.jobs SET locked_at = %s, stage = coalesce(%s, stage), "
-        "percent = coalesce(%s, percent) WHERE id = %s AND status = 'running'",
-        (now, stage, percent, job_id),
+    cursor = conn.execute(
+        sql.SQL(
+            "UPDATE app.jobs SET locked_at = %s, stage = coalesce(%s, stage), "
+            "percent = coalesce(%s, percent)"
+        )
+        + _FENCE,
+        (now, stage, percent, job_id, attempts),
     )
+    return cursor.rowcount == 1
 
 
-def finish(conn: Conn, job_id: UUID, now: datetime, result: Mapping[str, Any] | None) -> None:
-    conn.execute(
-        "UPDATE app.jobs SET status = 'done', finished_at = %s, locked_at = NULL, error = NULL, "
-        "percent = 100, result = %s WHERE id = %s",
-        (now, None if result is None else Jsonb(dict(result)), job_id),
+def finish(
+    conn: Conn, job_id: UUID, attempts: int, now: datetime, result: Mapping[str, Any] | None
+) -> bool:
+    cursor = conn.execute(
+        sql.SQL(
+            "UPDATE app.jobs SET status = 'done', finished_at = %s, locked_at = NULL, "
+            "error = NULL, percent = 100, result = %s"
+        )
+        + _FENCE,
+        (now, None if result is None else Jsonb(dict(result)), job_id, attempts),
     )
+    return cursor.rowcount == 1
 
 
-def requeue(conn: Conn, job_id: UUID, *, run_at: datetime, error: str) -> None:
+def requeue(conn: Conn, job_id: UUID, attempts: int, *, run_at: datetime, error: str) -> bool:
     """Put the job back for a later attempt; the last failure's code stays visible."""
-    conn.execute(
-        "UPDATE app.jobs SET status = 'queued', locked_at = NULL, run_at = %s, error = %s "
-        "WHERE id = %s",
-        (run_at, error, job_id),
+    cursor = conn.execute(
+        sql.SQL("UPDATE app.jobs SET status = 'queued', locked_at = NULL, run_at = %s, error = %s")
+        + _FENCE,
+        (run_at, error, job_id, attempts),
     )
+    return cursor.rowcount == 1
 
 
-def fail(conn: Conn, job_id: UUID, now: datetime, error: str) -> None:
-    conn.execute(
-        "UPDATE app.jobs SET status = 'failed', finished_at = %s, locked_at = NULL, error = %s "
-        "WHERE id = %s",
-        (now, error, job_id),
+def fail(conn: Conn, job_id: UUID, attempts: int, now: datetime, error: str) -> bool:
+    cursor = conn.execute(
+        sql.SQL(
+            "UPDATE app.jobs SET status = 'failed', finished_at = %s, locked_at = NULL, error = %s"
+        )
+        + _FENCE,
+        (now, error, job_id, attempts),
     )
+    return cursor.rowcount == 1
 
 
 def backoff(attempt: int) -> timedelta:
