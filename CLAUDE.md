@@ -30,6 +30,7 @@
 | Postgres מקומי לבדיקות | `brew services start postgresql@17` (פעם אחת; הבדיקות יוצרות את `studyflow_test` לבד) |
 | מיגרציות על פרויקט ה-dev | `uv run alembic upgrade head` (קורא את `MIGRATION_DATABASE_URL` מ-`api/.env`) |
 | מיגרציה חדשה | `uv run alembic revision --rev-id <NNNN> -m "<name>"`, עם SQL מפורש ב-`op.execute` |
+| eval ניתוח הקורס | `uv run python eval/analysis_eval.py` (הערכת עלות בלי רשת); `--run --max-usd 5` להרצה אמיתית (דורש `ANTHROPIC_API_KEY` ב-`api/.env`) |
 
 `api/eval/materials/` מקומית בלבד ומוגנת ב-`.gitignore` (רק ה-README שלה נכנס ל-git): יש בה קבצים אמיתיים לבדיקות, ולא שמים בה קבצים שצריכים להיכנס ל-git. בדיקת העשן: `uv run python eval/pdf_smoke.py eval/materials`.
 
