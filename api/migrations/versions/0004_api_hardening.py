@@ -10,6 +10,12 @@ the SET NULL of a deleted exam or task updates the row too and must pass. `exam_
 them); the composite foreign keys keep them inside the owner's own rows, and a hard delete
 of the exam or task only nulls that column, the version stays.
 
+`created_at` defaults to clock_timestamp() rather than now(): now() is the start of the
+transaction, so a request that started first but took the user lock second would get the
+earlier time for the later version, and undo (the newest version by created_at) would pick
+the wrong one; two versions in one transaction would tie. The API inserts a version only
+after taking the user lock, so the insert time follows the lock order.
+
 Block times are stored as whole minutes: the planner works in minutes, and a block at
 10:00:30 would silently drift from its snapshot.
 """
@@ -41,6 +47,9 @@ def upgrade() -> None:
                 REFERENCES app.tasks (id, user_id) ON DELETE SET NULL (task_id)
     """)
 
+    op.execute(
+        "ALTER TABLE app.plan_versions ALTER COLUMN created_at SET DEFAULT clock_timestamp()"
+    )
     op.execute("REVOKE INSERT ON app.plan_versions FROM authenticated")
     op.execute("""
         GRANT INSERT (user_id, reason, snapshot, exam_id, task_id)
@@ -84,4 +93,5 @@ def downgrade() -> None:
             DROP COLUMN task_id
     """)
     op.execute("GRANT INSERT ON app.plan_versions TO authenticated")
+    op.execute("ALTER TABLE app.plan_versions ALTER COLUMN created_at SET DEFAULT now()")
     op.execute("ALTER TABLE app.blocks DROP CONSTRAINT blocks_whole_minutes")

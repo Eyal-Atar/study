@@ -1,4 +1,5 @@
 import datetime as dt
+import threading
 from collections.abc import Callable
 from typing import Any
 from uuid import UUID, uuid4
@@ -8,10 +9,16 @@ import pytest
 from fastapi.testclient import TestClient
 from psycopg.types.json import Jsonb
 
+from app.auth import CurrentUser
+from app.db.pool import Database
+from app.domain.planner import Interval, PlannedBlock, PlanResult
+from app.services.board import load_board
+from app.services.plan_writes import VersionReason, apply_result, latest_version
 from tests.api.factories import (
     NOW,
     TEST_PROFILE,
     Z,
+    insert_block,
     insert_exam,
     insert_task,
     replan_apply,
@@ -146,3 +153,157 @@ def test_undo_skips_blocks_of_finished_tasks_and_replaces_dropped(
     assert by_task[kept] == Z(2026, 11, 16, 12, 0)
     assert by_task[late] >= Z(2026, 11, 16, 8, 0)
     assert scalar(db, "SELECT undone_at FROM app.plan_versions WHERE id = %s", version)
+
+
+def _version(
+    db: psycopg.Connection,
+    user: ApiUser,
+    reason: str,
+    snapshot: dict[str, Any],
+    *,
+    exam_id: UUID | None = None,
+    task_id: UUID | None = None,
+) -> UUID:
+    version: UUID = scalar(
+        db,
+        "INSERT INTO app.plan_versions (user_id, reason, snapshot, exam_id, task_id) "
+        "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+        user.id,
+        reason,
+        Jsonb(snapshot),
+        exam_id,
+        task_id,
+    )
+    return version
+
+
+def _planned(db: psycopg.Connection, task: UUID) -> list[dt.datetime]:
+    return [
+        row[0]
+        for row in db.execute(
+            "SELECT starts_at FROM app.blocks WHERE task_id = %s AND status = 'planned' "
+            "ORDER BY starts_at",
+            (task,),
+        ).fetchall()
+    ]
+
+
+def test_undo_of_exam_deleted_brings_the_exam_and_its_blocks_back(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20", deleted=True)
+    task = insert_task(db, user.id, exam)
+    start = Z(2026, 11, 16, 8, 0)
+    snapshot = {"v": 1, "blocks": [_snapshot_block(task, start, Z(2026, 11, 16, 9, 0))]}
+    version = _version(db, user, "exam_deleted", snapshot, exam_id=exam)
+    response = _undo(api, user, version)
+    assert response.status_code == 200, response.text
+    assert response.json()["restored"] == 1
+    assert scalar(db, "SELECT deleted_at FROM app.exams WHERE id = %s", exam) is None
+    assert _planned(db, task) == [start]
+
+
+def test_undo_of_task_deleted_brings_the_task_and_its_blocks_back(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    task = insert_task(db, user.id, exam)
+    db.execute("UPDATE app.tasks SET deleted_at = now() WHERE id = %s", (task,))
+    start = Z(2026, 11, 16, 8, 0)
+    snapshot = {"v": 1, "blocks": [_snapshot_block(task, start, Z(2026, 11, 16, 9, 0))]}
+    version = _version(db, user, "task_deleted", snapshot, task_id=task)
+    response = _undo(api, user, version)
+    assert response.status_code == 200, response.text
+    assert scalar(db, "SELECT deleted_at FROM app.tasks WHERE id = %s", task) is None
+    assert _planned(db, task) == [start]
+
+
+def test_undo_of_task_added_deletes_the_task_and_its_blocks(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    task = insert_task(db, user.id, exam)
+    insert_block(db, user.id, task, Z(2026, 11, 16, 8, 0), Z(2026, 11, 16, 9, 0))
+    version = _version(db, user, "task_added", {"v": 1, "blocks": []}, task_id=task)
+    response = _undo(api, user, version)
+    assert response.status_code == 200, response.text
+    assert response.json()["deleted"] == 1
+    assert scalar(db, "SELECT deleted_at FROM app.tasks WHERE id = %s", task) is not None
+    assert _planned(db, task) == []
+
+
+def test_undo_of_a_corrupted_snapshot_is_409_and_changes_nothing(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    task = insert_task(db, user.id, exam)
+    db.execute("UPDATE app.tasks SET deleted_at = now() WHERE id = %s", (task,))
+    version = _version(db, user, "task_deleted", {"v": 1, "blocks": [{"id": 1}]}, task_id=task)
+    response = _undo(api, user, version)
+    assert response.status_code == 409
+    assert response.json()["code"] == "invalid_state"
+    assert scalar(db, "SELECT deleted_at FROM app.tasks WHERE id = %s", task) is not None
+    assert scalar(db, "SELECT undone_at FROM app.plan_versions WHERE id = %s", version) is None
+
+
+def _add_block(database: Database, user: CurrentUser, task: UUID, start: dt.datetime) -> UUID:
+    with database.transaction(user) as conn:
+        board = load_board(conn, user.id, NOW, lock=True)
+        return _apply_one(conn, user, board, task, start)
+
+
+def _apply_one(conn: Any, user: CurrentUser, board: Any, task: UUID, start: dt.datetime) -> UUID:
+    result = PlanResult(
+        blocks=(
+            PlannedBlock(
+                task_id=task,
+                interval=Interval(start, start + dt.timedelta(hours=1)),
+                part_index=1,
+                part_count=1,
+            ),
+        ),
+        removed=(),
+        unscheduled=(),
+        warnings=(),
+        shortfalls=(),
+    )
+    version = apply_result(conn, user.id, board, result, VersionReason.REPLAN)
+    assert version is not None
+    return version
+
+
+def test_the_latest_version_is_the_last_written_not_the_first_started(
+    database: Database, make_user: Callable[[], CurrentUser], db: psycopg.Connection
+) -> None:
+    user = make_user()
+    set_profile(db, user.id, **TEST_PROFILE)
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    first_task = insert_task(db, user.id, exam)
+    second_task = insert_task(db, user.id, exam)
+    started = threading.Event()
+    other_done = threading.Event()
+    late: list[UUID] = []
+    errors: list[BaseException] = []
+
+    def slow() -> None:
+        try:
+            with database.transaction(user) as conn:
+                started.set()  # the transaction (and its now()) has begun
+                assert other_done.wait(5)
+                board = load_board(conn, user.id, NOW, lock=True)
+                late.append(_apply_one(conn, user, board, first_task, Z(2026, 11, 16, 8, 0)))
+        except BaseException as error:  # reported to the test thread
+            errors.append(error)
+
+    thread = threading.Thread(target=slow)
+    thread.start()
+    assert started.wait(5)
+    _add_block(database, user, second_task, Z(2026, 11, 16, 10, 0))
+    other_done.set()
+    thread.join(5)
+    assert not thread.is_alive()
+    assert errors == []
+    with database.transaction(user) as conn:
+        latest = latest_version(conn, user.id)
+    assert latest is not None
+    assert latest.id == late[0]

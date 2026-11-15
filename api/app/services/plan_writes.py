@@ -129,13 +129,18 @@ def _create_version(
     return version_id
 
 
-def _write_changes(conn: Conn, user_id: UUID, changes: _Changes, version_id: UUID | None) -> None:
-    """Delete, insert and renumber; written blocks get version_id (None keeps theirs)."""
-    if changes.removed:
+def _delete_planned(conn: Conn, user_id: UUID, ids: Collection[UUID]) -> None:
+    """Delete the user's blocks with these ids that are still planned."""
+    if ids:
         conn.execute(
             "DELETE FROM app.blocks WHERE user_id = %s AND id = ANY(%s) AND status = 'planned'",
-            (user_id, list(changes.removed)),
+            (user_id, list(ids)),
         )
+
+
+def _write_changes(conn: Conn, user_id: UUID, changes: _Changes, version_id: UUID | None) -> None:
+    """Delete, insert and renumber; written blocks get version_id (None keeps theirs)."""
+    _delete_planned(conn, user_id, changes.removed)
     with conn.cursor() as cursor:
         if changes.added:
             cursor.executemany(
@@ -176,7 +181,11 @@ def apply_result(
     exam_id: UUID | None = None,
     task_id: UUID | None = None,
 ) -> UUID | None:
-    """Write a planner result computed from `board`, with a version; None if it changes nothing."""
+    """Write a planner result computed from `board`, with a version; None if it changes nothing.
+
+    The caller holds the user lock: `board` was loaded with load_board(lock=True) in this
+    same transaction, so nothing changed between the board and this write.
+    """
     changes = _changes(board, result)
     if not changes:
         return None
@@ -195,7 +204,11 @@ def delete_open_blocks(
     exam_id: UUID | None = None,
     task_id: UUID | None = None,
 ) -> UUID | None:
-    """Delete the tasks' planned blocks that have not started (pinned too), with a version."""
+    """Delete the tasks' planned blocks that have not started (pinned too), with a version.
+
+    The caller holds the user lock: `board` was loaded with load_board(lock=True) in this
+    same transaction, so its blocks are the ones in the database.
+    """
     start = start_minute(board.now)
     wanted = frozenset(task_ids)
     open_ids = [
@@ -208,10 +221,7 @@ def delete_open_blocks(
     version_id = None
     if open_ids:
         version_id = _create_version(conn, user_id, board, reason, exam_id, task_id)
-        conn.execute(
-            "DELETE FROM app.blocks WHERE user_id = %s AND id = ANY(%s)",
-            (user_id, open_ids),
-        )
+        _delete_planned(conn, user_id, open_ids)
     renumber(conn, user_id, board.now)
     return version_id
 
@@ -326,11 +336,7 @@ def undo_version(conn: Conn, user_id: UUID, version_id: UUID, now: dt.datetime) 
         key=_sort_key,
     )
 
-    if result.delete:
-        conn.execute(
-            "DELETE FROM app.blocks WHERE user_id = %s AND id = ANY(%s) AND status = 'planned'",
-            (user_id, list(result.delete)),
-        )
+    _delete_planned(conn, user_id, result.delete)
     if restore:
         with conn.cursor() as cursor:
             cursor.executemany(

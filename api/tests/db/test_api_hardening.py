@@ -122,6 +122,26 @@ def test_undone_at_is_set_once_to_now(api_db: psycopg.Connection, make_user: Mak
             conn.execute("UPDATE app.plan_versions SET undone_at = NULL WHERE id = %s", (fresh,))
 
 
+def test_versions_in_one_transaction_get_increasing_created_at(
+    api_db: psycopg.Connection, make_user: MakeUser
+) -> None:
+    # created_at is the insert time, not the transaction start: versions are ordered by
+    # when they were written (after the user lock), which is what undo relies on.
+    user = make_user()
+    with user_transaction(api_db, user) as conn:
+        first = _version(conn, user)
+        second = _version(conn, user)
+        rows = dict(
+            conn.execute(
+                "SELECT id, created_at FROM app.plan_versions WHERE id = ANY(%s)",
+                ([first, second],),
+            ).fetchall()
+        )
+        started = conn.execute("SELECT now()").fetchone()
+    assert started is not None
+    assert started[0] < rows[first] < rows[second]
+
+
 def test_version_links_to_own_exam_and_task_only(
     api_db: psycopg.Connection, db: psycopg.Connection, make_user: MakeUser
 ) -> None:
@@ -171,6 +191,11 @@ def test_downgrade_and_upgrade_again() -> None:
             assert conn.execute(
                 "SELECT has_table_privilege('authenticated', 'app.plan_versions', 'INSERT')"
             ).fetchone() == (True,)
+            assert conn.execute(
+                "SELECT column_default FROM information_schema.columns "
+                "WHERE table_schema = 'app' AND table_name = 'plan_versions' "
+                "AND column_name = 'created_at'"
+            ).fetchone() == ("now()",)
         command.upgrade(config, "head")
         with psycopg.connect(url, autocommit=True) as conn:
             assert conn.execute(
