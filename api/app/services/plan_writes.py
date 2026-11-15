@@ -66,6 +66,7 @@ class VersionRow:
     task_id: UUID | None
     snapshot: Any
     task_before: Any = None
+    analysis_id: UUID | None = None
 
 
 # The task fields a task_changed version keeps, as they were before the change.
@@ -299,13 +300,14 @@ def _version_row(row: Mapping[str, Any]) -> VersionRow:
         task_id=row["task_id"],
         snapshot=row["snapshot"],
         task_before=row["task_before"],
+        analysis_id=row["analysis_id"],
     )
 
 
 def latest_version(conn: Conn, user_id: UUID) -> VersionRow | None:
     """The newest version that was not undone."""
     row = conn.execute(
-        "SELECT id, reason, created_at, exam_id, task_id, snapshot, task_before "
+        "SELECT id, reason, created_at, exam_id, task_id, snapshot, task_before, analysis_id "
         "FROM app.plan_versions "
         "WHERE user_id = %s AND undone_at IS NULL "
         "ORDER BY created_at DESC, id DESC LIMIT 1",
@@ -361,7 +363,11 @@ def _restore_task(conn: Conn, user_id: UUID, task_id: UUID, before: Any) -> None
 
 
 def _undo_side_effect(conn: Conn, user_id: UUID, version: VersionRow, now: dt.datetime) -> None:
-    """Bring back a deleted exam or task or a changed task's fields, or delete an added task."""
+    """Bring back a deleted exam or task or a changed task's fields, or delete an added task.
+
+    An exam_reanalyzed version deletes the tasks its analysis added, brings back the tasks
+    it replaced, and marks the analysis undone (it does not become a draft again).
+    """
     if version.reason == VersionReason.EXAM_DELETED and version.exam_id is not None:
         conn.execute(
             "UPDATE app.exams SET deleted_at = NULL WHERE user_id = %s AND id = %s",
@@ -384,6 +390,23 @@ def _undo_side_effect(conn: Conn, user_id: UUID, version: VersionRow, now: dt.da
         and version.task_before is not None
     ):
         _restore_task(conn, user_id, version.task_id, version.task_before)
+    elif version.reason == VersionReason.EXAM_REANALYZED and version.analysis_id is not None:
+        conn.execute(
+            "UPDATE app.tasks SET deleted_at = %s "
+            "WHERE user_id = %s AND analysis_id = %s AND deleted_at IS NULL",
+            (now, user_id, version.analysis_id),
+        )
+        conn.execute(
+            "UPDATE app.tasks SET deleted_at = NULL "
+            "WHERE user_id = %s AND id = ANY("
+            "SELECT unnest(replaced_task_ids) FROM app.analyses WHERE user_id = %s AND id = %s)",
+            (user_id, user_id, version.analysis_id),
+        )
+        conn.execute(
+            "UPDATE app.analyses SET status = 'undone', undone_at = %s "
+            "WHERE user_id = %s AND id = %s",
+            (now, user_id, version.analysis_id),
+        )
 
 
 def _current_blocks(

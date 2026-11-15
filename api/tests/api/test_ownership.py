@@ -1,9 +1,9 @@
 """Ownership between users on every endpoint (spec section 10: B gets 404 on A's rows).
 
-A owns an exam, tasks, blocks, a plan version, a material and a job. B calls every
-endpoint that takes an id (in the path or in the body) with A's ids: the answer is 404
-not_found, and every row of A is exactly what it was. The endpoints without an id are
-checked to show only B's own rows. A route that is in neither list fails
+A owns an exam, tasks, blocks, a plan version, a material, a job and an analysis draft.
+B calls every endpoint that takes an id (in the path or in the body) with A's ids: the
+answer is 404 not_found, and every row of A is exactly what it was. The endpoints without
+an id are checked to show only B's own rows. A route that is in neither list fails
 test_every_route_is_covered.
 """
 
@@ -19,9 +19,11 @@ import pytest
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
+from psycopg.types.json import Jsonb
 
 from app.config import Settings
 from app.main import create_app
+from tests.ai.samples import valid_output_dict
 from tests.api.factories import (
     NOW,
     TEST_PROFILE,
@@ -53,6 +55,7 @@ class Ids:
     a_version: UUID
     a_material: UUID
     a_job: UUID
+    a_analysis: UUID
     b_exam: UUID
     b_task: UUID
 
@@ -209,6 +212,20 @@ CASES: tuple[Case, ...] = (
         lambda i: {"exam_id": i.a_exam},
         _none,
     ),
+    Case(
+        "apply_a_analysis_preview",
+        "POST",
+        "/analyses/{analysis_id}/apply",
+        lambda i: {"analysis_id": i.a_analysis},
+        lambda _: {"preview": True},
+    ),
+    Case(
+        "apply_a_analysis",
+        "POST",
+        "/analyses/{analysis_id}/apply",
+        lambda i: {"analysis_id": i.a_analysis},
+        lambda _: {"preview": False, "basis": "0" * 64},
+    ),
 )
 
 # Endpoints without an id of a row: test_lists_show_only_own_rows covers them.
@@ -275,6 +292,8 @@ def dump(db: psycopg.Connection, user_id: UUID) -> Dump:
         ("profiles", "id"),
         ("materials", "user_id"),
         ("jobs", "user_id"),
+        ("topics", "user_id"),
+        ("analyses", "user_id"),
     ):
         out[table] = [
             tuple(row)
@@ -284,6 +303,22 @@ def dump(db: psycopg.Connection, user_id: UUID) -> Dump:
             ).fetchall()
         ]
     return out
+
+
+def _draft(db: psycopg.Connection, user_id: UUID, exam_id: UUID) -> UUID:
+    """A reanalysis draft of the exam, written as the owner."""
+    return UUID(
+        str(
+            scalar(
+                db,
+                "INSERT INTO app.analyses (user_id, exam_id, status, output) "
+                "VALUES (%s, %s, 'draft', %s) RETURNING id",
+                user_id,
+                exam_id,
+                Jsonb(valid_output_dict()),
+            )
+        )
+    )
 
 
 def _new_user(make_api_user: MakeApiUser, api: TestClient) -> ApiUser:
@@ -347,6 +382,7 @@ def world(
     )
     a_version = UUID(a_other["version_id"])
     a_registered = register_material(api, a, a_exam)
+    a_analysis = _draft(db, a.id, a_exam)
 
     b_exam = _post_exam(api, b, "מבחן של ב")
     b_task = _post_task(api, b, b_exam)
@@ -359,6 +395,7 @@ def world(
         a_version=a_version,
         a_material=UUID(a_registered["material"]["id"]),
         a_job=UUID(a_registered["job_id"]),
+        a_analysis=a_analysis,
         b_exam=b_exam,
         b_task=UUID(b_task["task"]["id"]),
     )
@@ -509,7 +546,12 @@ def test_unauthenticated_everywhere(
 ) -> None:
     rows_before = scalar(db, "SELECT count(*) FROM app.profiles")
     url = path.format(
-        exam_id=uuid4(), task_id=uuid4(), block_id=uuid4(), material_id=uuid4(), job_id=uuid4()
+        exam_id=uuid4(),
+        task_id=uuid4(),
+        block_id=uuid4(),
+        material_id=uuid4(),
+        job_id=uuid4(),
+        analysis_id=uuid4(),
     )
     for headers in ({}, {"Authorization": "Bearer not-a-token"}):
         response = api.request(method, url, headers=headers)
