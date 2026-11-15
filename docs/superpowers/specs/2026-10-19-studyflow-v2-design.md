@@ -135,7 +135,7 @@ flowchart RL
 
 מפתחות זרים בין טבלאות האפליקציה כוללים את `user_id`, ולכן אי אפשר לקשר שורה לשורה של משתמש אחר.
 
-כל טבלה נוצרת במיגרציה של ה-scope שצריך אותה. S05 יוצר את `profiles`, `exams`, `tasks` ו-`blocks`, בלי `exams.status`, `tasks.topic_id`, `tasks.material_id`, `blocks.plan_version_id` ו-`blocks.notified_at`. אחר כך: `plan_versions`, ‏`blocks.plan_version_id` וההגנה מפני חפיפת בלוקים ב-S08, `materials` ו-`jobs` ב-S10, `topics` ב-S11, `ai_usage` ב-S12, `push_subscriptions` ב-S16, `xp_events` ו-`badges` ב-S19.
+כל טבלה נוצרת במיגרציה של ה-scope שצריך אותה. S05 יוצר את `profiles`, `exams`, `tasks` ו-`blocks`, בלי `exams.status`, `tasks.topic_id`, `tasks.material_id`, `blocks.plan_version_id` ו-`blocks.notified_at`. אחר כך: `plan_versions`, ‏`blocks.plan_version_id` וההגנה מפני חפיפת בלוקים ב-S08, `materials` ו-`jobs` ב-S10, `topics` ב-S11, `ai_usage` ו-`analyses` ב-S12, `push_subscriptions` ב-S16, `xp_events` ו-`badges` ב-S19.
 
 | טבלה | שדות עיקריים | הערות |
 |---|---|---|
@@ -150,7 +150,8 @@ flowchart RL
 | `push_subscriptions` | `id`, `user_id`, `endpoint` (unique), `p256dh`, `auth`, `user_agent`, `last_success_at`, `failure_count` | |
 | `xp_events` | `id`, `user_id`, `block_id` (unique), `xp`, `created_at` | יומן XP; הרמה והסכום מחושבים ממנו. ה-unique מונע XP כפול |
 | `badges` | `user_id`, `badge_key`, `earned_at` | |
-| `ai_usage` | `id`, `user_id`, `job_id`, `model`, `input_tokens`, `output_tokens`, `created_at` | מכסות ומעקב עלויות |
+| `ai_usage` | `id`, `user_id`, `job_id`, `model`, `input_tokens`, `output_tokens`, `created_at` | מכסות ומעקב עלויות. **(החלטות של מי שבונה, S12):** גם `exam_id` (בלי FK, כדי שמחיקה קשה של מבחן לא תמחק את הרישום) ו-`cache_creation_input_tokens`, ‏`cache_read_input_tokens`. שורה לכל קריאה ל-Claude, גם כשהניתוח נכשל. ה-worker כותב אותה בתור בעל הסכמה, על החיבור שלו ומחוץ לטרנזקציה של המשתמש, כך ש-rollback של כתיבה שנכשלה לא מוחק כסף שהוצא; ל-`authenticated` יש רק SELECT. בלי עמודת דולרים: המחיר מחושב מהמודל והטוקנים |
+| `analyses` | `id`, `user_id`, `exam_id`, `job_id`, `status` (draft / applied / failed / superseded / undone), `error`, `output`, `material_keys`, `warnings`, `dropped`, `total_minutes`, `budget_minutes`, `replaced_task_ids`, `created_at`, `applied_at`, `undone_at` | **(החלטה של מי שבונה, S12):** כל ניתוח של מבחן הוא שורה. ‏`output` הוא הפלט שעבר ולידציה וקיצוץ (כולל `reason` לכל משימה ו-`gaps`), ו-`material_keys` ממפה `M1` למזהה החומר. ניתוח ראשון נכתב `applied` עם המשימות שלו; ניתוח חוזר נשמר `draft` עד אישור, וטיוטה חדשה של אותו מבחן מסמנת את הקודמת `superseded`; כשל קבוע נכתב `failed` עם קוד, כדי שניסיון חוזר של העבודה לא ישלם עליו שוב. ‏`tasks.analysis_id`, ‏`topics.analysis_id` ו-`plan_versions.analysis_id` מצביעים על הניתוח (FK עם `user_id`, ‏`ON DELETE SET NULL`). ל-`authenticated`: ‏SELECT, ‏INSERT, ו-UPDATE רק ל-`status`, ‏`applied_at`, ‏`undone_at`, ‏`replaced_task_ids` |
 
 - מחיקה של מבחן או משימה היא מחיקה רכה (`deleted_at`) עם אפשרות ביטול; מחיקה סופית רצה בעבודת ניקוי. מחיקת חשבון מוחקת הכל, כולל הקבצים ב-Storage.
   - **מה מחיקה רכה עושה בפועל (S09):** הבלוקים `planned` של המשימות שמתחילים מ"עכשיו" והלאה (גם נעולים) נמחקים, ובלוק שכבר התחיל נשאר. כל מחיקה יוצרת גרסה, גם בלי בלוקים, וביטול שלה מחזיר את `deleted_at` ל-NULL ואת הבלוקים. מבחן מחוק, מבחן שתאריכו עבר ומשימה מחוקה לא נכנסים למתכנן; בלוק `done` של משימה מחוקה עדיין תופס את הזמן שלו.
@@ -199,6 +200,13 @@ flowchart RL
 - **כתיבה:** טרנזקציה אחת עם `lock_user`, נושאים ואז משימות בסדר טופולוגי (כדי שה-FK של התלות יתקיים), עם `position` לפי הסדר של המודל ו-`source = 'ai'`. ‏`reason` ו-`gaps` לא נשמרים, וחוזרים ב-`AnalysisOutcome`.
 - **הגנה מהוראות בחומרים:** כל `&` ו-`<` בטקסט ובשמות החומרים מוברחים (`&amp;`, ‏`&lt;`), כך שקובץ לא יכול לסגור את התג `<material>` שלו; ה-system prompt אומר שהתוכן הוא נתונים; והפלט עובר את כל הוולידציה, שהיא מה שבאמת מגביל נזק.
 - **הגדרות:** `ANTHROPIC_API_KEY` (רק ב-worker וב-eval), ‏`AI_MODEL_ANALYSIS`, ‏`AI_MODEL_LIGHT` (בלי ברירת מחדל בקוד; ‏Sonnet 5.5 לניתוח, לפי ה-eval, ו-Haiku 5.5 ל-`AI_MODEL_LIGHT`), ‏`AI_ANALYSIS_EFFORT` (‏`medium`), ‏`AI_ANALYSIS_MAX_TOKENS` (‏64000, ב-streaming, כולל thinking), ‏`AI_TIMEOUT_SECONDS` (‏600). בלי `thinking`, ‏`temperature` ו-prompt caching (קריאה אחת למבחן; המטמון משתלם רק בניסיון החוזר). ‏refusal fallbacks לא מופעלים, כי Haiku לא תומך בהם; ‏refusal הוא `ai_refused`.
+
+**(החלטות של מי שבונה, S12):**
+- **רישום:** כל קריאה ל-Claude נרשמת ב-`ai_usage` מיד כשהיא חוזרת, ב-wrapper של הלקוח בתוך העבודה, גם כשהניתוח נכשל וגם כשהעבודה איבדה את ה-claim בזמן הקריאה. פער ידוע: קריאה שה-worker מת באמצעה, או שה-claim אבד באמצע ה-stream, לא נרשמת.
+- **מכסה:** `AI_DAILY_GENERATION_LIMIT` = 3 בקשות AI למשתמש ביום. בקשה = `POST /plans/generate` או `POST /exams/{id}/reanalyze` שיצרו עבודה. נספרות העבודות מהסוגים `generate_plan` ו-`reanalyze_exam` שנוצרו מחצות של היום, חוץ מעבודה `failed` שאין לה שורה ב-`ai_usage` (כשל שלא עלה כסף לא אוכל ניסיון). עבודה בתור או רצה נספרת. ניסיון חוזר של התור הוא אותה עבודה. "יום" הוא יום מקומי ב-`AI_QUOTA_TIMEZONE` = `Asia/Jerusalem`, ולא אזור הזמן של הפרופיל, כדי ששינוי אזור ב-`PATCH /me` לא יזיז את החצות. הספירה רצה תחת `lock_user`, באותה טרנזקציה של ה-INSERT.
+- **חשבון בלי קרדיט:** `ai_no_credit` (‏402 ‏`billing_error`, ‏400 עם "credit balance", ‏`EnforcedSpendLimitReachedError`, ‏`OrganizationOnHoldError`), בלי ניסיון חוזר, ונכתב ללוג ב-ERROR. ‏`ai_not_configured` ו-`ai_no_credit` הם כשלים של החשבון: העבודה נכשלת מיד.
+- **קריאה ארוכה:** ה-SDK לא מעביר אירועי `ping`, ולכן בזמן thinking ארוך אין אירועים. הקריאה עטופה ב-`JobContext.keeping_alive()`, ‏thread שמחדש את הנעילה כל 30 שניות כל עוד הקריאה רצה (ולא נוגע בחיבור כשטרנזקציה פתוחה), ובנוסף כל אירוע של ה-stream קורא ל-`keepalive`. ‏`AI_TIMEOUT_SECONDS` = 180 ו-`AI_MAX_RETRIES` = 2, ו-`Settings` מחייב `timeout × (retries + 1) < JOB_LOCK_TIMEOUT_SECONDS`, כך שגם קריאה תקועה נגמרת לפני שהנעילה פגה.
+- **ניתוח חוזר:** מחליף משימות `ai` שהן `todo`, לא מחוקות ובלי אף בלוק `done`. משימות `done` ו-`skipped`, משימות `ai` שהתחילו ללמוד, ומשימות של המשתמש נשארות. נושאים ישנים לא נמחקים. ראו 7.7.
 
 **שלב ג — שיבוץ:** בקוד דטרמיניסטי, בלי LLM (סעיף 7.6).
 
@@ -284,7 +292,7 @@ flowchart RL
 | פרופיל והעדפות | `GET /me`, `PATCH /me` | S09 |
 | מבחנים | `GET/POST /exams`, `PATCH/DELETE /exams/{id}` | S09 |
 | חומרים | `GET /exams/{id}/materials`, `POST /exams/{id}/materials` (רישום קובץ שהועלה), `DELETE /materials/{id}` | S10 |
-| יצירת תוכנית | `POST /plans/generate` → מזהה עבודה (S12); `GET /jobs/{id}` (S10) | S10/S12 |
+| יצירת תוכנית | `POST /plans/generate` → מזהה עבודה (S12); `GET /jobs/{id}` (S10); ‏`POST /exams/{id}/reanalyze`, ‏`POST /analyses/{id}/apply` (S12) | S10/S12 |
 | קריאת התוכנית | `GET /plan?from=&to=`, `GET /today` | S09 |
 | בלוקים | `POST /blocks/{id}/complete`, `POST /blocks/{id}/uncomplete`, `POST /blocks/{id}/defer`, `PATCH /blocks/{id}` | S09 (ב-`PATCH` רק `pinned`; הזזה ב-S18) |
 | משימות | `GET /exams/{id}/tasks`, `POST /tasks`, `PATCH /tasks/{id}`, `DELETE /tasks/{id}` | S09 |
@@ -305,6 +313,13 @@ flowchart RL
   - **ביטול:** `POST /plan/undo {"version_id"}` מבטל רק את הגרסה האחרונה שלא בוטלה, ולא יוצר גרסה. ביטול נוסף הולך לגרסה שלפניה. ביטול של מחיקה מחזיר את הישות, של משימה שנוספה מוחק אותה, ושל עריכת משימה (כולל `done` או `skipped`) מחזיר את השדות שלה מ-`task_before`.
   - **קריאה:** `GET /plan` לפי תאריכים מקומיים (ברירת מחדל שבוע, עד 62 ימים), עם `state` נגזר לכל בלוק (`upcoming`, ‏`in_progress`, ‏`overdue`, ‏`done`, ‏`missed`, ‏`skipped`), ‏`unplaced` (הדקות שחסרות למשימות) ו-`undo` (הגרסה שאפשר לבטל). הסיבות של "לא נכנס" באות מהתצוגה המקדימה, כי GET לא מריץ מתכנן.
   - **המיפוי למתכנן:** מבחנים בלי `deleted_at` ושתאריכם לא עבר; משימות שלהם לפי `(created_at, id)`, ותלות במשימה שלא נכנסה מתבטלת; בלוקים `planned` ו-`done` מ-48 השעות האחרונות והלאה, ובנוסף כל בלוקי ה-`done` של המשימות שנכנסו, כדי שהדקות שכבר נלמדו יירדו מהמשימה.
+- **החלטות של מי שבונה, S12 (יצירת תוכנית):**
+  - **`POST /plans/generate`** (בלי גוף) → 202 ‏`{"job_id", "created"}`. העבודה מנתחת כל מבחן חי שתאריכו לא עבר ושאין לו משימות `ai` חיות (הרשימה נקבעת בבקשה, ב-`payload.exam_ids`), ואז משבצת את כל הלוח. אין מבחן כזה → 409 ‏`nothing_to_analyze` (ה-web מציע `POST /plan/replan`). עבודה `generate_plan` פעילה → 202 עם המזהה שלה ו-`created: false`, בלי לספור במכסה. מכסה מלאה → 429 ‏`ai_quota_exceeded` עם `limit` ו-`resets_at`.
+  - **`POST /exams/{id}/reanalyze`** → 202 אותו דבר. מבחן של אחר או מחוק → 404; תאריך עבר → 422 ‏`exam_in_past`. העבודה `reanalyze_exam` שומרת טיוטה בלבד, ו-`jobs.result.analysis_id` מפנה אליה.
+  - **`POST /analyses/{id}/apply`** עם `{"preview": true}` (ברירת המחדל) או `{"preview": false, "basis"}`, כמו `POST /plan/replan`. התשובה: `replaced` (מזהה וכותרת), `kept`, `added` (`task_id`, כותרת, סוג, דקות; בתצוגה המקדימה המזהה קיים רק בתוך התשובה), ‏`added_blocks`, ‏`removed_blocks`, ‏`unscheduled`, ‏`shortfalls`, ‏`version_id` (null בתצוגה) ו-`basis`. התצוגה המקדימה מריצה את אותה כתיבה בתוך `force_rollback`, כך שמה שמוצג הוא מה שהאישור כותב. טיוטה שכבר הוחלה, הוחלפה או בוטלה → 409 ‏`invalid_state`; לוח שהשתנה → 409 ‏`stale_plan`. הסדר: נעילה, בעלות (404), מצב הטיוטה, `basis`.
+  - **האישור** כותב גרסה אחת, `exam_reanalyzed`, עם snapshot של הלוח לפני הכל ו-`analysis_id`: מוחק את הבלוקים הפתוחים של המשימות המוחלפות (כמו מחיקת משימה), מוחק אותן רך, כותב את המשימות והנושאים של הטיוטה, ומריץ `replan` יציב על כל הלוח.
+  - **ביטול של `exam_reanalyzed`** מוחק רך את המשימות של הניתוח, מחזיר את `replaced_task_ids`, מסמן את הניתוח `undone`, וה-snapshot מחזיר את הבלוקים. אם למשימה של הניתוח יש בלוק `done` או סטטוס שאינו `todo`, הביטול נדחה (409 ‏`invalid_state`), כי `complete` לא יוצר גרסה וביטול היה מוחק התקדמות.
+  - **ביטול של `plan_generated`** מחזיר את הבלוקים בלבד; המשימות נשארות.
 - **החלטות של מי שבונה, S10 (חומרים ועבודות):**
   - **מי קובע את `material_id`:** הדפדפן מייצר UUID v4, מעלה ישירות ל-`materials/{user_id}/{exam_id}/{material_id}`, ואז שולח `POST /exams/{id}/materials` עם `id`, ‏`filename`, ‏`kind`, ‏`mime` (PDF, JPEG או PNG) ו-`size_bytes`. ה-API בונה את `storage_path` בעצמו; הדפדפן לא שולח נתיב. ‏`id` תפוס → 409 ‏`already_exists`.
   - **מה הרישום בודק:** המבחן של המשתמש ולא מחוק (אחרת 404); ‏`size_bytes` עד המגבלה (אחרת 422 ‏`file_too_large` עם `limit_bytes`); מספר החומרים במבחן (אחרת 422 ‏`too_many_materials` עם `limit`). הרישום והעבודה `ingest_material` נכתבים באותה טרנזקציה, והתשובה (201) כוללת את החומר ואת `job_id`.
@@ -317,11 +332,18 @@ flowchart RL
 |---|---|---|
 | `ingest_material` | אחרי רישום קובץ | חילוץ טקסט וסימון עמודים סרוקים (S10) |
 | `delete_material_file` | אחרי `DELETE /materials/{id}` | מוחק את הקובץ מ-Storage; מסרב לנתיב שלא מתחיל ב-`user_id` של העבודה (S10) |
-| `generate_plan` | אחרי אונבורדינג, או לפי בקשה | ניתוח לכל מבחן ואז שיבוץ; מעדכן `jobs.stage` ו-`percent` בכל שלב |
+| `generate_plan` | אחרי אונבורדינג, או לפי בקשה | ניתוח לכל מבחן ואז שיבוץ; מעדכן `jobs.stage` ו-`percent` בכל שלב. **(S12):** פירוט בהמשך |
+| `reanalyze_exam` | אחרי `POST /exams/{id}/reanalyze` | ניתוח של מבחן אחד לטיוטה, בלי לגעת במשימות (S12) |
 | `send_due_notifications` | כל דקה | "תופס" כל בלוק עם `UPDATE … WHERE notified_at IS NULL RETURNING`, כך שאין שליחה כפולה גם עם כמה workers |
 | `cleanup` | פעם ביום | קבצים יתומים, מחיקות רכות ישנות, מנויי Push שנכשלו |
 
 **התור (החלטות של מי שבונה, S10):** טבלה משלנו, ‏`app.jobs`, בלי procrastinate: טבלה אחת היא גם התור וגם הסטטוס ש-`GET /jobs/{id}` מראה דרך RLS. ה-worker (‏`uv run python -m app.jobs`, תהליך נפרד) מתחבר עם `WORKER_DATABASE_URL` בתור בעל הסכמה, תופס עבודה ב-`UPDATE … WHERE id = (SELECT … FOR UPDATE SKIP LOCKED LIMIT 1)`, ואת העבודה על נתוני המשתמש עושה **בתוך `user_transaction` של המשתמש של העבודה**, כך ש-RLS חל גם עליו, ובנוסף כל שאילתה מסננת `user_id`. בתור בעל הסכמה הוא נוגע רק ב-`app.jobs`. ניסיונות: ‏`max_attempts` = 3; כישלון זמני חוזר ל-`queued` עם `run_at = now + 30s · 2^(attempts−1)`; כישלון קבוע → `failed` מיד. עבודה `running` שה-`locked_at` שלה ישן מ-10 דקות נתפסת מחדש (ואם כבר אין לה ניסיונות: `failed` עם `worker_crashed`, ולפני כן רץ callback של `on_crashed` לפי סוג העבודה, שמסמן חומר `queued` או `processing` כ-`failed` עם אותו קוד, כדי שלא יישאר תקוע בלי הסבר). ‏`jobs.error` יכול להיות גם `unknown_kind` (סוג עבודה בלי handler); ‏`progress(stage, percent)` מרענן את `locked_at`, ולכן עבודה ארוכה (‏`generate_plan`) חייבת לדווח התקדמות. handler חדש נרשם במילון `HANDLERS` ב-`app/jobs/ingest.py`, בלי מיגרציה. פולינג כל 2 שניות, בלי `LISTEN/NOTIFY`. הזמן מגיע משעון מוזרק, כמו ב-API.
+
+**(החלטות של מי שבונה, S12):**
+- **גדר על ה-claim:** `heartbeat`, ‏`finish`, ‏`requeue` ו-`fail` מסננים `id`, ‏`attempts` ו-`status = 'running'`, ומחזירים אם עדכנו. ‏heartbeat שנכשל זורק `JobLost` (‏`BaseException`, כדי ש-`except Exception` לא יבלע אותו), וה-worker עוזב את העבודה בלי לכתוב. ‏`progress` בודק slug ו-`0–100` לפני ה-SQL, ומסרב לרוץ כשטרנזקציה של המשתמש פתוחה (אחרת ה-UPDATE היה רץ בתור `authenticated`). ‏`statement_timeout` של ה-worker נשאר 5 שניות: הוא לכל פקודה, והכתיבה הגדולה היא INSERT-ים נפרדים.
+- **`generate_plan`:** תקציב לכל מבחן מ-`exam_budgets` על **כל** המבחנים החיים, גם אלה שכבר נותחו, כי מבחן חדש מתחרה על אותם ימים. מבחן שנותח, נמחק, עבר, או שיש לו שורת `failed` של העבודה הזו, מדולג (כך ניסיון חוזר לא משלם פעמיים). כשלים: של החשבון → העבודה נכשלת מיד; זמניים (`ai_unavailable`, ‏`storage_unavailable`) → ניסיון חוזר כל עוד יש; אחרים → המבחן נרשם `failed` והעבודה ממשיכה. אם אף מבחן לא הצליח, העבודה `failed` עם הקוד הראשון (אסור "הצלחה" עם לוח ריק). השיבוץ: `load_board(lock=True)` → `replan` → `apply_result(plan_generated)` בטרנזקציה אחת, עם שעון עדכני (`JobContext.clock()`) ולא עם זמן התפיסה. לקוח Claude נבנה רק כשיש מבחן שצריך קריאה.
+- **`jobs.result` של `generate_plan`:** `{"exams": [{"exam_id", "status": analyzed/failed/skipped, "error"?, "analysis_id"?, "topics", "tasks", "gaps", "warnings", "dropped", "total_minutes", "budget_minutes"}], "plan": {"version_id", "blocks", "unscheduled" (עד 200), "unscheduled_count", "shortfalls", "warnings"}}`, מקוצץ אם הוא מתקרב ל-64KB. ה-`reason` של כל משימה נשאר ב-`analyses.output`.
+- **השלבים:** `reading_materials` (2), ולכל מבחן `analyzing`/`validating`/`saving` בתוך החלק שלו בטווח 5–85, ואז `planning` (88).
 
 ### 7.9 Frontend
 
@@ -414,6 +436,9 @@ flowchart RL
   - בדיקה ידנית של איכות הכותרות.
   - **(S11):** ‏`api/eval/analysis_eval.py` מריץ את אותה ליבה של השירות (`load_scans`, ‏`limit_text`, ‏`build_request`, ‏`run_analysis`) על קבצים מ-`api/eval/materials/`. בלי `--run` הוא מעריך טוקנים ועלות בלי רשת; עם `--run --max-usd N` הוא עוצר לפני קריאה שהעלות הצפויה שלה (×2.2) תעבור את התקרה, וכותב תוצאות מלאות ל-`api/eval/results/` (מוגן ב-`.gitignore`). שישה מקרים ב-`api/eval/analysis_cases.json`: חדו"א עם מועדים סרוקים, שלושה מועדים של אותו מבחן, פתרון סרוק בלי מבחן, תמונה של עמוד סרוק, ניסיון הזרקת הוראות ומבחן בלי חומרים. ההערכה לפני הרצה: ‏Haiku 5.5 כ-0.03$, ‏Sonnet 5.5 כ-0.65$, ‏Opus 5.5 כ-1.29$. יש בריפו רק כ-8 קבצים שונים, אז שאר הסטים יגיעו מחומרים שבעל המוצר יאסוף.
   - **תוצאות ההרצה הראשונה (S11, ‏2026-11-15):** כל 18 ההרצות (6 מקרים × Haiku 5.5, ‏Sonnet 5.5, ‏Opus 5.5) עברו את הוולידציה, ואף מודל לא ציית להוראת ההזרקה. עלות בפועל: Haiku ‏0.029$, ‏Sonnet ‏0.388$, ‏Opus ‏0.969$ לששת המקרים, ובסך הכול 1.46$ כולל אבחון. ניסיון חוזר אחד בכל מודל, תמיד בסימולציה מקובץ פתרון; הכלל תוקן (סעיף 7.5). ‏Sonnet ו-Opus מעוגנים בסוגי השאלות, ו-Haiku כללי. **המודל לניתוח: `claude-sonnet-5-5`** — איכות קרובה ל-Opus בכ-40% מהעלות (כ-0.065$ לניתוח). הטבלה המלאה ב-`api/eval/README.md`.
+- **(S12):** `api/eval/generate_eval.py` מריץ את כל הדרך על Postgres מקומי: חומרים אמיתיים → `ingest_material` → `request_generation` → ה-worker עם Claude → לוח, ואופציונלית ניתוח חוזר עם תצוגה מקדימה; עם תקרת דולרים לפני כל קריאה. `api/eval/plan_eval.py` מודד את המתכנן על המשימות האמיתיות מה-eval של S11, בלי עלות. בדיקה אוטומטית (`tests/jobs/test_onboarding_flow.py`) מריצה אונבורדינג מלא דרך ה-API עם לקוח מזויף: מכסה, `ai_no_credit`, ‏`analysis_invalid` עם `ai_usage`, ניתוח חוזר עם תצוגה מקדימה, וביטול.
+- **תוצאות ההרצה מקצה לקצה (S12, ‏2026-11-15):** שני מבחנים אמיתיים (חדו"א עם מועדים סרוקים, ושלושה מועדים של `exam2025a`), ‏`claude-sonnet-5-5`, ‏240 דקות ביום: העבודה הסתיימה בניסיון אחד ב-59 שניות; 22 ו-35 משימות; לוח של 57 בלוקים, כל 4,555 הדקות משובצות, 0 בדוח; ‏`replan` של 13ms; ניתוח חוזר עם תצוגה מקדימה (22 מוחלפות, 23 נוספות). **העלות: 0.266$** לשלוש קריאות. ‏Sonnet מילא 81% ו-48% מהתקציב (`under_budget`). הפירוט ב-`api/eval/README.md`.
+- **מדידת המתכנן (S12):** על 600 לוחות מהמשימות האמיתיות: ‏p95 של `plan()` ‏0.05–0.10 שניות ושל `replan()` ‏0.10–0.13 (מקסימום 0.75); כלל ה-rerun לא רץ אף פעם על משימות אמיתיות; הרזרבה של 70 דקות ויום הסימולציה השמור בתוך הסף; ‏`place_task` ברצף השאיר 63% מהימים בלי הפסקה ארוכה, ותוקן (7.6 שלב 7) ל-3.6%. בפרופיל של 120 דקות ביום כרבע מהדקות לא נכנסות, כי סימולציות של 150–180 דקות ארוכות מהיום (`longer_than_daily_minutes`).
 - **E2E (Playwright):** אונבורדינג → תוכנית → סימון ביצוע → ביטול → דחייה.
 - **כל הבאגים מהמיפוי מקבלים בדיקת רגרסיה:**
   - מחיקת חלק ממשימה מפוצלת
@@ -449,7 +474,7 @@ flowchart RL
 - הספריות בתוך הסטאק: רכיבי ה-UI ומנהל החבילות נקבעו ב-S04 (סעיף 7.9). ספריית התור נקבעה ב-S10: טבלה משלנו עם `FOR UPDATE SKIP LOCKED`, בלי procrastinate (סעיף 7.8). ספריית ה-PDF נקבעה ב-S10: pypdfium2 (סעיף 7.5). המיגרציות, הגישה למסד ומודל הזמן נקבעו ב-S05: Alembic עם SQL מפורש, psycopg 3, ו-`zoneinfo` עם החבילה `tzdata` במקום ספריית תאריכים. ספריית הבדיקות ה-property-based נקבעה ב-S06: hypothesis.
 - ספקי האירוח של ה-API ושל ה-web, בתנאי שהם מנוהלים, זולים וקרובים לישראל.
 - המודלים של Claude לכל שלב, לפי תוצאות ה-eval. לניתוח הקורס נבחר `claude-sonnet-5-5` (S11, סעיף 10). ה-SDK נקבע ב-S11: `anthropic` (Apache-2.0), עם structured outputs (סעיף 7.5).
-- המספרים המדויקים של המכסות והמגבלות.
+- המספרים המדויקים של המכסות והמגבלות. **(S12):** 3 יצירות תוכנית או ניתוחים חוזרים ביום למשתמש (`AI_DAILY_GENERATION_LIMIT`), לפי יום בירושלים (7.5).
 - העיצוב הוויזואלי, בתוך הכללים שבסעיף 7.9.
 
 ## 13. שאלות פתוחות
