@@ -1,0 +1,143 @@
+{
+  "$defs": {
+    "GapOut": {
+      "additionalProperties": false,
+      "properties": {
+        "topic": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "topic",
+        "note"
+      ],
+      "type": "object"
+    },
+    "TaskOut": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "learn",
+            "practice",
+            "review",
+            "simulation",
+            "simulation_review"
+          ],
+          "type": "string"
+        },
+        "topic_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "minutes": {
+          "type": "integer"
+        },
+        "focus": {
+          "type": "integer"
+        },
+        "depends_on": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "material_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "title",
+        "kind",
+        "topic_key",
+        "minutes",
+        "focus",
+        "depends_on",
+        "material_key",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "TopicOut": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "integer"
+        },
+        "evidence": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "name",
+        "weight",
+        "evidence"
+      ],
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "topics": {
+      "items": {
+        "$ref": "#/$defs/TopicOut"
+      },
+      "type": "array"
+    },
+    "tasks": {
+      "items": {
+        "$ref": "#/$defs/TaskOut"
+      },
+      "type": "array"
+    },
+    "gaps": {
+      "items": {
+        "$ref": "#/$defs/GapOut"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "topics",
+    "tasks",
+    "gaps"
+  ],
+  "type": "object"
+}
