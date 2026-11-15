@@ -9,7 +9,7 @@ from app.auth import SigningKeySource, TokenVerifier, jwks_client
 from app.config import Settings
 from app.db.pool import Database
 from app.errors import CatchAllMiddleware, register_error_handlers
-from app.routers import blocks, exams, health, jobs, materials, me, plan, tasks
+from app.routers import blocks, exams, generation, health, jobs, materials, me, plan, tasks
 
 
 def _utc_now() -> datetime:
@@ -64,4 +64,5 @@ def create_app(
     app.include_router(plan.router)
     app.include_router(materials.router)
     app.include_router(jobs.router)
+    app.include_router(generation.router)
     return app

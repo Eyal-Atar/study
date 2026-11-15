@@ -202,6 +202,13 @@ CASES: tuple[Case, ...] = (
         _none,
     ),
     Case("get_job", "GET", "/jobs/{job_id}", lambda i: {"job_id": i.a_job}, _none),
+    Case(
+        "reanalyze_a_exam",
+        "POST",
+        "/exams/{exam_id}/reanalyze",
+        lambda i: {"exam_id": i.a_exam},
+        _none,
+    ),
 )
 
 # Endpoints without an id of a row: test_lists_show_only_own_rows covers them.
@@ -214,6 +221,7 @@ WITHOUT_ID = frozenset(
         ("GET", "/plan"),
         ("GET", "/today"),
         ("POST", "/plan/replan"),
+        ("POST", "/plans/generate"),
     }
 )
 
@@ -439,6 +447,20 @@ def test_lists_show_only_own_rows(
         headers=b.headers,
     )
     assert_clean(applied)
+    assert dump(db, a.id) == a_rows
+    # B's generation takes B's exams only: every one of them, and none of A's.
+    generated = api.post("/plans/generate", headers=b.headers)
+    assert generated.status_code == 202, generated.text
+    assert not {value for value in forbidden if value in generated.text}
+    payload = scalar(db, "SELECT payload FROM app.jobs WHERE id = %s", generated.json()["job_id"])
+    b_exams = {
+        str(row[0])
+        for row in db.execute(
+            "SELECT id FROM app.exams WHERE user_id = %s AND deleted_at IS NULL", (b.id,)
+        ).fetchall()
+    }
+    assert set(payload["exam_ids"]) == b_exams
+    assert str(ids.b_exam) in b_exams
     assert dump(db, a.id) == a_rows
 
 
