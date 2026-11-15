@@ -30,6 +30,7 @@ import dataclasses
 import datetime as dt
 import importlib
 import json
+import re
 import sys
 import time
 from collections import Counter
@@ -60,7 +61,13 @@ from analysis_eval import (  # noqa: E402
 from psycopg.conninfo import make_conninfo  # noqa: E402
 from psycopg.rows import DictRow, dict_row  # noqa: E402
 
-from app.ai.client import AnalysisClient, AnalysisReply, Usage  # noqa: E402
+from app.ai.client import (  # noqa: E402
+    AiError,
+    AnalysisClient,
+    AnalysisReply,
+    AnthropicAnalysisClient,
+    Usage,
+)
 from app.auth import CurrentUser  # noqa: E402
 from app.config import Settings  # noqa: E402
 from app.db.session import user_transaction  # noqa: E402
@@ -75,7 +82,12 @@ from app.services.generation import request_generation, request_reanalysis  # no
 from app.services.materials import register_material  # noqa: E402
 from app.services.profiles import update_profile  # noqa: E402
 from app.services.replans import preview_replan  # noqa: E402
-from tests.db.support import admin_database_url, alembic_config, create_database  # noqa: E402
+from tests.db.support import (  # noqa: E402
+    admin_database_url,
+    alembic_config,
+    create_database,
+    require_local_database_url,
+)
 
 # The module itself, to patch the names it imported (timing only, in this script).
 plan_jobs: Any = importlib.import_module("app.jobs.plan_jobs")
@@ -98,6 +110,8 @@ FIRST_EXAM_WEEKS = 3
 WEEKS_BETWEEN_EXAMS = 2
 JOB_TIMEOUT_SECONDS = 1800
 POLL_SECONDS = 1.0
+# Each call is checked before it is made: spent + its estimate x CALL_SAFETY <= max_usd.
+CALL_SAFETY = 1.5
 
 type Conn = psycopg.Connection[DictRow]
 
@@ -281,6 +295,77 @@ class S11Client:
             content=[{"type": "text", "text": text}],
             request_id="req_fake",
         )
+
+
+SLUG = re.compile(r"[a-z][a-z_]{0,59}")
+
+
+def code(value: object) -> str:
+    """A job or ingest error code for the screen: a slug, '-' for none, else '<invalid>'."""
+    if value is None or value == "":
+        return "-"
+    return str(value) if isinstance(value, str) and SLUG.fullmatch(value) else "<invalid>"
+
+
+class CappedClient:
+    """Wraps the worker's client: before each call, spent + its estimate x CALL_SAFETY must
+    stay within max_usd, or the call is refused with AiError (no retry) and nothing is paid.
+
+    Spent is this process's running sum of the replies' usage, priced by models.json.
+    """
+
+    def __init__(
+        self,
+        inner: AnalysisClient,
+        planned: Sequence[Planned],
+        prices: Mapping[str, dict[str, float]],
+        model: str,
+        max_usd: float,
+    ) -> None:
+        self._inner = inner
+        self._prices = prices
+        self._max_usd = max_usd
+        price = prices[model]
+        self._estimates = [
+            (
+                json.dumps(str(p.case["exam"]["name"]), ensure_ascii=False)[1:-1],
+                p.prepared.estimate_usd(price),
+            )
+            for p in planned
+        ]
+        self.spent = 0.0
+        self.refused = 0
+
+    def _estimate(self, messages: Sequence[Mapping[str, Any]]) -> float:
+        first = json.dumps(messages[0], ensure_ascii=False) if messages else ""
+        matches = [(name, usd) for name, usd in self._estimates if name in first]
+        if matches:
+            return max(matches, key=lambda m: len(m[0]))[1]
+        return max(usd for _, usd in self._estimates)  # unknown exam: the dearest one
+
+    def complete(
+        self,
+        *,
+        system: str,
+        messages: Sequence[Mapping[str, Any]],
+        schema: Mapping[str, Any],
+        keepalive: Callable[[], None] | None = None,
+    ) -> AnalysisReply:
+        estimate = self._estimate(messages)
+        if self.spent + estimate * CALL_SAFETY > self._max_usd:
+            self.refused += 1
+            print(
+                f"cap reached: spent={self.spent:.3f} + estimate={estimate:.3f} x{CALL_SAFETY} "
+                f"> max_usd={self._max_usd:.2f}; call refused"
+            )
+            raise AiError("ai_unavailable", retry=False)
+        reply = self._inner.complete(
+            system=system, messages=messages, schema=schema, keepalive=keepalive
+        )
+        price = self._prices.get(reply.usage.model)
+        if price is not None:
+            self.spent += usage_usd(price, reply.usage)
+        return reply
 
 
 # --- the run ----------------------------------------------------------------------------
@@ -479,7 +564,11 @@ def try_preview(api: Conn, user_id: UUID, analysis_id: UUID, now: dt.datetime) -
 
 def setup() -> tuple[str, UUID]:
     """Recreate studyflow_eval, migrate it, and add the user, profile, exams and materials."""
-    url = create_database(admin_database_url(), DB_NAME)
+    # This database is dropped: never postgres or a test run's database, and only locally.
+    if DB_NAME == "postgres" or DB_NAME.startswith("studyflow_test"):
+        raise SystemExit(f"refusing to drop database {DB_NAME}")
+    admin = require_local_database_url(admin_database_url())
+    url = create_database(admin, DB_NAME)
     command.upgrade(alembic_config(url), "head")
     user_id = uuid4()
     with psycopg.connect(url, autocommit=True) as owner:
@@ -548,10 +637,19 @@ def run(
         "estimate_usd": estimate,
         "max_usd": args.max_usd,
     }
-    factory: Callable[[Settings], AnalysisClient] | None = None
+    inner: Callable[[Settings], AnalysisClient] = AnthropicAnalysisClient.from_settings
     if args.fake:
         fake = S11Client(planned, model)
-        factory = lambda _settings: fake  # noqa: E731
+        inner = lambda _settings: fake  # noqa: E731
+    capped: list[CappedClient] = []
+
+    def factory(job_settings: Settings) -> AnalysisClient:
+        # Built once per job; the running sum carries over from the jobs before it.
+        client = CappedClient(inner(job_settings), planned, prices, model, args.max_usd)
+        client.spent = sum(c.spent for c in capped)
+        capped.append(client)
+        return client
+
     api_url = make_conninfo(url, user="studyflow_api")
     with (
         psycopg.connect(url, row_factory=dict_row, autocommit=True) as owner,
@@ -576,7 +674,8 @@ def run(
                 (user_id,),
             ).fetchall()
             statuses = Counter(
-                str(r["ingest_status"]) + (f":{r['ingest_error']}" if r["ingest_error"] else "")
+                code(r["ingest_status"])
+                + (f":{code(r['ingest_error'])}" if r["ingest_error"] else "")
                 for r in ingest
             )
             pages = sum(r["page_count"] or 0 for r in ingest)
@@ -598,7 +697,7 @@ def run(
             job_seconds = time.perf_counter() - started
             job = job_row(owner, generation.job_id)
             print(
-                f"job: status={job['status']} error={job['error'] or '-'} "
+                f"job: status={code(job['status'])} error={code(job['error'])} "
                 f"attempts={job['attempts']} seconds={job_seconds:.1f}"
             )
             report["job"] = {k: v for k, v in job.items() if k not in ("started_at", "finished_at")}
@@ -615,10 +714,11 @@ def run(
                 seconds = timings.exams.get(UUID(exam_id))
                 exam_cost = cost["by_exam"].get(exam_id, 0.0)
                 print(
-                    f"exam {case_id}: status={entry['status']} error={entry.get('error') or '-'} "
+                    f"exam {case_id}: status={code(entry['status'])} "
+                    f"error={code(entry.get('error'))} "
                     f"topics={entry['topics']} tasks={entry['tasks']} gaps={len(entry['gaps'])} "
                     f"minutes={entry['total_minutes']}/{entry['budget_minutes']} "
-                    f"warnings={','.join(entry['warnings']) or '-'} "
+                    f"warnings={','.join(map(code, entry['warnings'])) or '-'} "
                     f"dropped={len(entry['dropped'])} "
                     f"seconds={'-' if seconds is None else f'{seconds:.1f}'} "
                     f"cost={exam_cost:.3f}"
@@ -638,10 +738,10 @@ def run(
                 f"task_min={metrics['task_minutes']} tasks={metrics['tasks']} "
                 f"study_days={metrics['study_days']} "
                 f"unscheduled={plan.get('unscheduled_count', 0)} "
-                f"({','.join(f'{k}:{v}' for k, v in sorted(reasons.items())) or '-'}) "
+                f"({','.join(f'{code(k)}:{v}' for k, v in sorted(reasons.items())) or '-'}) "
                 f"shortfalls={len(shortfalls)} "
                 f"shortfall_min={sum(s['minutes'] for s in shortfalls)} "
-                f"warnings={','.join(plan.get('warnings', [])) or '-'}"
+                f"warnings={','.join(map(code, plan.get('warnings', []))) or '-'}"
             )
             for item in planned:
                 key = str(item.exam_id)
@@ -716,10 +816,11 @@ def reanalyze(
     result = job["result"] or {}
     job_cost = spent_usd(owner, prices)["by_job"].get(str(request.job_id), 0.0)
     print(
-        f"reanalysis {item.case_id}: status={job['status']} error={job['error'] or '-'} "
+        f"reanalysis {item.case_id}: status={code(job['status'])} "
+        f"error={code(job['error'])} "
         f"topics={result.get('topics', '-')} tasks={result.get('tasks', '-')} "
         f"minutes={result.get('total_minutes', '-')}/{result.get('budget_minutes', '-')} "
-        f"warnings={','.join(result.get('warnings', [])) or '-'} "
+        f"warnings={','.join(map(code, result.get('warnings', []))) or '-'} "
         f"seconds={seconds:.1f} cost={job_cost:.3f}"
     )
     record: dict[str, Any] = {
