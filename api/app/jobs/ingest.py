@@ -10,6 +10,7 @@ nothing. The material's own status follows the job's: `processing` while it runs
 Nothing here logs extracted text, filenames or payload contents.
 """
 
+import logging
 from collections.abc import Mapping
 from typing import Any, Final
 from uuid import UUID
@@ -28,7 +29,9 @@ from app.domain.materials import (
 )
 from app.jobs.pdf_text import PdfUnreadable, extract_pdf
 from app.jobs.storage import FileMissing, FileTooLarge, StorageUnavailable
-from app.jobs.worker import Handler, JobContext, JobFailed
+from app.jobs.worker import CrashHandler, Handler, JobContext, JobFailed
+
+logger = logging.getLogger(__name__)
 
 _MATERIAL_MISSING: Final = "material_missing"
 
@@ -129,11 +132,17 @@ def _record_failure(ctx: JobContext, material_id: UUID, code: str, *, retry: boo
         status, error = IngestStatus.QUEUED, None
     else:
         status, error = IngestStatus.FAILED, code
-    with ctx.user_transaction() as conn:
-        conn.execute(
-            "UPDATE app.materials SET ingest_status = %s, ingest_error = %s "
-            "WHERE user_id = %s AND id = %s",
-            (status, error, ctx.job.user_id, material_id),
+    try:
+        with ctx.user_transaction() as conn:
+            conn.execute(
+                "UPDATE app.materials SET ingest_status = %s, ingest_error = %s "
+                "WHERE user_id = %s AND id = %s",
+                (status, error, ctx.job.user_id, material_id),
+            )
+    except Exception as exc:
+        # The caller re-raises the original failure; this one is only logged.
+        logger.warning(
+            "job %s could not record the material's failure: %s", ctx.job.id, type(exc).__name__
         )
 
 
@@ -169,6 +178,20 @@ def ingest_material(ctx: JobContext) -> Mapping[str, Any]:
         raise
 
 
+def ingest_material_crashed(ctx: JobContext) -> None:
+    """The worker died on the last attempt: fail a material it left in `processing`."""
+    try:
+        material_id = _material_id(ctx)
+    except JobFailed:
+        return
+    with ctx.user_transaction() as conn:
+        conn.execute(
+            "UPDATE app.materials SET ingest_status = %s, ingest_error = 'worker_crashed' "
+            "WHERE user_id = %s AND id = %s AND ingest_status = %s",
+            (IngestStatus.FAILED, ctx.job.user_id, material_id, IngestStatus.PROCESSING),
+        )
+
+
 def delete_material_file(ctx: JobContext) -> Mapping[str, Any]:
     path = ctx.job.payload.get("storage_path")
     # Only inside the job's own user folder, even if the payload was forged; a ".." segment
@@ -190,3 +213,5 @@ HANDLERS: Final[Mapping[str, Handler]] = {
     JOB_INGEST_MATERIAL: ingest_material,
     JOB_DELETE_MATERIAL_FILE: delete_material_file,
 }
+
+ON_CRASHED: Final[Mapping[str, CrashHandler]] = {JOB_INGEST_MATERIAL: ingest_material_crashed}

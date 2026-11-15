@@ -10,7 +10,7 @@ import threading
 from types import FrameType
 
 from app.config import Settings
-from app.jobs.ingest import HANDLERS
+from app.jobs.ingest import HANDLERS, ON_CRASHED
 from app.jobs.storage import SupabaseStorage
 from app.jobs.worker import Worker
 
@@ -25,7 +25,11 @@ def main() -> None:
         str(settings.supabase_url), settings.supabase_secret_key.get_secret_value()
     )
     worker = Worker(
-        settings.worker_database_url, storage=storage, settings=settings, handlers=HANDLERS
+        settings.worker_database_url,
+        storage=storage,
+        settings=settings,
+        handlers=HANDLERS,
+        on_crashed=ON_CRASHED,
     )
     stop = threading.Event()
 

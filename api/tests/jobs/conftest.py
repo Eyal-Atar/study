@@ -14,9 +14,9 @@ from psycopg.types.json import Jsonb
 
 from app.auth import CurrentUser
 from app.config import Settings
-from app.jobs.ingest import HANDLERS
+from app.jobs.ingest import HANDLERS, ON_CRASHED
 from app.jobs.queue import JOB_COLUMNS, JobRow, row_to_job
-from app.jobs.worker import Handler, Worker
+from app.jobs.worker import CrashHandler, Handler, Worker
 from tests.fixtures_db import FrozenClock
 from tests.jobs.fake_storage import MemoryStorage
 
@@ -65,13 +65,19 @@ def make_worker(
     # Depends on db so that every test starts from an empty queue.
     workers: list[Worker] = []
 
-    def make(handlers: Mapping[str, Handler], *, settings: Settings | None = None) -> Worker:
+    def make(
+        handlers: Mapping[str, Handler],
+        *,
+        settings: Settings | None = None,
+        on_crashed: Mapping[str, CrashHandler] | None = None,
+    ) -> Worker:
         worker = Worker(
             migrated_database_url,
             storage=storage,
             settings=settings if settings is not None else worker_settings,
             handlers=handlers,
             clock=clock,
+            on_crashed=on_crashed,
         )
         worker.connect()
         workers.append(worker)
@@ -87,7 +93,7 @@ def make_worker(
 @pytest.fixture
 def worker(make_worker: Callable[..., Worker]) -> Worker:
     """A worker with the real job handlers, the memory storage and the frozen clock."""
-    return make_worker(HANDLERS)
+    return make_worker(HANDLERS, on_crashed=ON_CRASHED)
 
 
 type MakeJob = Callable[..., UUID]

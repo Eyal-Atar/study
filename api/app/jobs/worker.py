@@ -8,7 +8,9 @@ Outcomes: a handler that returns marks the job done with its result. `JobFailed(
 it at once with that code; `JobFailed(code, retry=True)` and any other exception (logged, and
 recorded as `internal_error`) put it back with a backoff until its attempts run out, then fail
 it. A job reclaimed after a crash that has already used all its attempts fails as
-`worker_crashed` without running again. `jobs.error` only ever holds these fixed codes.
+`worker_crashed` without running again; an `on_crashed` callback for its kind runs first, so
+the job's own data can be marked failed too (its errors are logged and never stop the fail).
+`jobs.error` only ever holds these fixed codes.
 """
 
 import logging
@@ -76,6 +78,7 @@ class JobContext:
 
 
 type Handler = Callable[[JobContext], Mapping[str, Any] | None]
+type CrashHandler = Callable[[JobContext], None]
 
 
 class Worker:
@@ -87,11 +90,13 @@ class Worker:
         settings: Settings,
         handlers: Mapping[str, Handler],
         clock: Callable[[], datetime] | None = None,
+        on_crashed: Mapping[str, CrashHandler] | None = None,
     ) -> None:
         self._conninfo = conninfo
         self._storage = storage
         self._settings = settings
         self._handlers = handlers
+        self._on_crashed = on_crashed if on_crashed is not None else {}
         self._clock = clock if clock is not None else _utc_now
         self._conn: psycopg.Connection[DictRow] | None = None
 
@@ -118,14 +123,6 @@ class Worker:
         if job is None:
             return False
 
-        if job.attempts > job.max_attempts:
-            self._fail(conn, job, "worker_crashed")
-            return True
-        handler = self._handlers.get(job.kind)
-        if handler is None:
-            self._fail(conn, job, "unknown_kind")
-            return True
-
         context = JobContext(
             job=job,
             storage=self._storage,
@@ -134,6 +131,20 @@ class Worker:
             _conn=conn,
             _clock=self._clock,
         )
+        if job.attempts > job.max_attempts:
+            crashed = self._on_crashed.get(job.kind)
+            if crashed is not None:
+                try:
+                    crashed(context)
+                except Exception:
+                    logger.exception("job %s (%s) crash callback failed", job.id, job.kind)
+            self._fail(conn, job, "worker_crashed")
+            return True
+        handler = self._handlers.get(job.kind)
+        if handler is None:
+            self._fail(conn, job, "unknown_kind")
+            return True
+
         try:
             result = handler(context)
         except JobFailed as exc:

@@ -1,4 +1,5 @@
 from collections.abc import Callable, Iterator
+from datetime import timedelta
 from typing import Any, Protocol
 from uuid import UUID, uuid4
 
@@ -11,7 +12,7 @@ import app.jobs.__main__ as worker_main
 from app.auth import CurrentUser
 from app.config import Settings
 from app.domain.materials import JOB_DELETE_MATERIAL_FILE, JOB_INGEST_MATERIAL
-from app.jobs.ingest import HANDLERS
+from app.jobs.ingest import HANDLERS, ON_CRASHED
 from app.jobs.queue import JobRow
 from app.jobs.storage import StorageUnavailable
 from app.jobs.worker import Worker
@@ -370,6 +371,7 @@ def worker_with(
             settings=worker_settings,
             handlers=HANDLERS,
             clock=clock,
+            on_crashed=ON_CRASHED,
         )
         worker.connect()
         workers.append(worker)
@@ -455,6 +457,80 @@ def test_already_ready_material_is_not_processed_again(
     material = _material(owner_db, material_id)
     assert material["ingest_status"] == "ready"
     assert material["text_by_page"] == text
+
+
+def test_worker_crash_on_the_last_attempt_fails_the_material(
+    worker: Worker,
+    make_user: Callable[[], CurrentUser],
+    make_exam: Callable[[CurrentUser], UUID],
+    make_job: MakeJob,
+    owner_db: Conn,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+) -> None:
+    user, other = make_user(), make_user()
+    material_id = _insert_material(owner_db, user, make_exam(user), mime="application/pdf", size=1)
+    other_id = _insert_material(owner_db, other, make_exam(other), mime="application/pdf", size=1)
+    owner_db.execute(
+        "UPDATE app.materials SET ingest_status = 'processing' WHERE id = ANY(%s)",
+        ([material_id, other_id],),
+    )
+    # A's job names B's material too: the callback must stay inside A's rows.
+    stale = clock.now - timedelta(hours=1)
+    job_id = make_job(
+        user,
+        JOB_INGEST_MATERIAL,
+        {"material_id": str(material_id)},
+        status="running",
+        attempts=3,
+        max_attempts=3,
+        locked_at=stale,
+    )
+    forged = make_job(
+        user,
+        JOB_INGEST_MATERIAL,
+        {"material_id": str(other_id)},
+        status="running",
+        attempts=3,
+        max_attempts=3,
+        locked_at=stale,
+    )
+
+    assert worker.run_once() is True
+    assert worker.run_once() is True
+
+    material = _material(owner_db, material_id)
+    assert (material["ingest_status"], material["ingest_error"]) == ("failed", "worker_crashed")
+    assert (read_job(job_id).status, read_job(job_id).error) == ("failed", "worker_crashed")
+    assert read_job(forged).error == "worker_crashed"
+    other_material = _material(owner_db, other_id)
+    assert (other_material["ingest_status"], other_material["ingest_error"]) == (
+        "processing",
+        None,
+    )
+
+
+@pytest.mark.parametrize("payload", [{}, {"material_id": "not-a-uuid"}])
+def test_crash_callback_ignores_a_bad_payload(
+    payload: dict[str, Any],
+    worker: Worker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+) -> None:
+    job_id = make_job(
+        make_user(),
+        JOB_INGEST_MATERIAL,
+        payload,
+        status="running",
+        attempts=3,
+        locked_at=clock.now - timedelta(hours=1),
+    )
+
+    assert worker.run_once() is True
+
+    assert read_job(job_id).error == "worker_crashed"
 
 
 def test_delete_material_file_removes_from_storage(

@@ -138,6 +138,37 @@ def test_crashed_job_past_its_attempts_is_failed_as_worker_crashed(
     assert calls == []
 
 
+@pytest.mark.parametrize("raises", [False, True])
+def test_crash_callback_runs_and_never_stops_the_fail(
+    raises: bool,
+    make_worker: MakeWorker,
+    make_user: Callable[[], CurrentUser],
+    make_job: MakeJob,
+    read_job: Callable[[UUID], JobRow],
+    clock: FrozenClock,
+) -> None:
+    job_id = make_job(
+        make_user(), status="running", attempts=3, locked_at=clock.now - timedelta(hours=1)
+    )
+    calls: list[UUID] = []
+
+    def crashed(ctx: JobContext) -> None:
+        calls.append(ctx.job.id)
+        if raises:
+            raise RuntimeError("boom")
+
+    def handler(ctx: JobContext) -> None:
+        raise AssertionError("a crashed job must not run again")
+
+    worker = make_worker({"k": handler}, on_crashed={"k": crashed, "other": crashed})
+    assert worker.run_once() is True
+
+    assert calls == [job_id]
+    job = read_job(job_id)
+    assert (job.status, job.error) == ("failed", "worker_crashed")
+    assert worker.run_once() is False
+
+
 def test_unknown_kind_fails_without_retry(
     make_worker: MakeWorker,
     make_user: Callable[[], CurrentUser],
