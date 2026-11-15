@@ -35,7 +35,15 @@ def test_invalid_json() -> None:
 def test_extra_field_is_rejected() -> None:
     data = valid_output_dict()
     data["extra"] = 1
-    assert _parse(data) == ["extra: extra_forbidden"]
+    assert _parse(data) == ["(extra): extra_forbidden"]
+
+
+def test_extra_key_name_does_not_leak() -> None:
+    data = valid_output_dict()
+    data["tasks"][0]["SECRETKEY"] = 1
+    errors = _parse(data)
+    assert errors == ["tasks.0.(extra): extra_forbidden"]
+    assert all("SECRETKEY" not in e for e in errors)
 
 
 def test_minutes_too_large() -> None:

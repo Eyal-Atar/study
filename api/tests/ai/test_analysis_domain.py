@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 import pytest
@@ -71,6 +72,21 @@ def test_dependency_cycle() -> None:
     data["tasks"][2]["depends_on"] = "K2"
     errors = _errors(AnalysisOutput.model_validate(data))
     assert errors == ["dependency_cycle:K2,K3"]
+
+
+def test_cycle_with_a_tail_reports_only_the_cycle() -> None:
+    tasks = [
+        _task("K1", depends_on="K2"),
+        _task("K2", depends_on="K3"),
+        _task("K3", depends_on="K4"),
+        _task("K4", depends_on="K2"),
+    ]
+    assert _errors(_out(tasks), {}) == ["dependency_cycle:K2,K3,K4"]
+
+
+def test_unknown_dependency_only_reports_unknown_dependency() -> None:
+    tasks = [_task("K1", depends_on="K9"), _task("K2", depends_on="K1")]
+    assert _errors(_out(tasks), {}) == ["unknown_dependency:K1->K9"]
 
 
 def test_unknown_material() -> None:
@@ -162,6 +178,15 @@ def test_errors_are_capped_and_value_free() -> None:
     tasks = [_task(f"K{i}", title="Eng", topic_key="T9") for i in range(1, 40)]
     errors = _errors(_out(tasks), {})
     assert len(errors) == 20
+    pattern = re.compile(
+        r"^(duplicate_key|unknown_topic|unknown_dependency|self_dependency|"
+        r"dependency_cycle|unknown_material|title_not_hebrew|missing_topic|"
+        r"minutes_out_of_range|missing_review_task|missing_simulation|"
+        r"simulation_without_review|review_without_simulation|"
+        r"material_on_wrong_kind|unexpected_simulation)"
+        r"(:[KTM0-9,>-]+)?$"
+    )
+    assert all(pattern.match(e) for e in errors)
 
 
 # trimming

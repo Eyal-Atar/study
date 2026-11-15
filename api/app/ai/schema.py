@@ -126,8 +126,11 @@ def parse_output(text: str) -> AnalysisOutput | list[str]:
     try:
         return AnalysisOutput.model_validate(data)
     except ValidationError as exc:
-        errors = [
-            f"{'.'.join(str(part) for part in err['loc']) or '(root)'}: {err['type']}"
-            for err in exc.errors()
-        ]
+        errors = []
+        for err in exc.errors():
+            # The key of an unexpected field is model-provided text: mask it.
+            loc = [str(part) for part in err["loc"]]
+            if err["type"] == "extra_forbidden" and loc:
+                loc[-1] = "(extra)"
+            errors.append(f"{'.'.join(loc) or '(root)'}: {err['type']}")
         return errors[:MAX_REPORTED_ERRORS]
