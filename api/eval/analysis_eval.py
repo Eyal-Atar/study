@@ -6,7 +6,7 @@ Usage, from api/:
 
 Without --run it makes no network call and needs no key: it prints, per case, the pages, the
 characters and the scan bytes the request would carry, and the estimated cost per model.
-With --run it needs ANTHROPIC_API_KEY in api/.env, stops before a call whose estimate (x1.5)
+With --run it needs ANTHROPIC_API_KEY in api/.env, stops before a call whose estimate (x2.2)
 would pass --max-usd, and writes the full results, titles included, to eval/results/
 (git-ignored). It never prints material text, the prompt or the model's output.
 """
@@ -19,7 +19,7 @@ import sys
 import time
 import uuid
 import zlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -55,7 +55,7 @@ SYSTEM_TOKENS = 3000
 SCANNED_PAGE_TOKENS = 2500
 IMAGE_TOKENS = 1600
 CHARS_PER_TOKEN = 2.5
-SAFETY = 1.5
+SAFETY = 2.2  # a retry resends the request and the first answer
 
 
 def encode_png(width: int, height: int, rgb_rows: list[bytes]) -> bytes:
@@ -206,9 +206,7 @@ def prepare(case: dict[str, Any], settings: Settings) -> Prepared:
     files: dict[str, bytes] = {}
     for number, (material, data) in enumerate(built, start=1):
         key = f"M{number}"
-        materials.append(
-            MaterialInput(**{**material.__dict__, "key": key})  # same fields, with its key
-        )
+        materials.append(replace(material, key=key))
         files[key] = data
     scans, scan_warnings = load_scans(materials, lambda m: files[m.key], settings)
     limited, text_warnings = limit_text(materials, settings.max_analysis_text_chars)
