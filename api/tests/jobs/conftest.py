@@ -14,6 +14,7 @@ from psycopg.types.json import Jsonb
 
 from app.auth import CurrentUser
 from app.config import Settings
+from app.jobs.ingest import HANDLERS
 from app.jobs.queue import JOB_COLUMNS, JobRow, row_to_job
 from app.jobs.worker import Handler, Worker
 from tests.fixtures_db import FrozenClock
@@ -81,6 +82,12 @@ def make_worker(
     finally:
         for worker in workers:
             worker.close()
+
+
+@pytest.fixture
+def worker(make_worker: Callable[..., Worker]) -> Worker:
+    """A worker with the real job handlers, the memory storage and the frozen clock."""
+    return make_worker(HANDLERS)
 
 
 type MakeJob = Callable[..., UUID]
