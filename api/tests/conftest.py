@@ -16,6 +16,8 @@ from app.config import Settings
 from app.main import create_app
 from tests.tokens import TEST_KID, USER_ID, StaticKeys, TokenFactory
 
+pytest_plugins = ["tests.fixtures_db"]
+
 
 def _b64url_json(data: dict[str, Any]) -> str:
     return base64.urlsafe_b64encode(json.dumps(data).encode()).rstrip(b"=").decode()

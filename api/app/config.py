@@ -29,6 +29,12 @@ class Settings(BaseSettings):
 
     supabase_url: HttpUrl
     cors_origins: list[str] = []
+    database_url: str | None = None
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _empty_database_url_is_none(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
 
     @field_validator("supabase_url")
     @classmethod
