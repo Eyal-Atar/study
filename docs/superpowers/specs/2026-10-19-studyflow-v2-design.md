@@ -141,12 +141,12 @@ flowchart RL
 |---|---|---|
 | `profiles` | `id` (= `auth.users.id`), `display_name`, `timezone`, `wake_time`, `sleep_time`, `daily_study_minutes`, `study_windows` (בוקר/צהריים/ערב/לילה), `rest_days_before_exam`, `notify_lead_minutes`, `onboarding_completed_at` | העדפות שנאספו באונבורדינג ובהגדרות |
 | `exams` | `id`, `user_id`, `name`, `exam_date` (date), `difficulty` (1–5), `status`, `deleted_at` | הקושי משמש לחלוקת השעות בין מבחנים במקביל |
-| `materials` | `id`, `exam_id`, `user_id`, `storage_path`, `filename`, `kind` (syllabus / summary / past_exam / solution / notes / other), `mime`, `size_bytes`, `page_count`, `ingest_status`, `text_by_page` | `solution` נשמר כבר עכשיו, למערכת הפידבק העתידית |
+| `materials` | `id`, `exam_id`, `user_id`, `storage_path`, `filename`, `kind` (syllabus / summary / past_exam / solution / notes / other), `mime`, `size_bytes`, `page_count`, `scanned_pages`, `ingest_status` (queued / processing / ready / failed), `ingest_error`, `warnings`, `text_by_page`, `ingested_at` | `solution` נשמר כבר עכשיו, למערכת הפידבק העתידית. **(החלטות של מי שבונה, S10):** ‏`storage_path` הוא תמיד `{user_id}/{exam_id}/{id}` ונבדק ב-`CHECK`, כך שאי אפשר לרשום קובץ בתיקייה של משתמש אחר; ‏`text_by_page` הוא מערך JSON של `{"page", "text", "scanned"}`; ‏`ingest_error` ו-`warnings` (למשל `pages_truncated`, ‏`text_truncated`) הם קודים, והטקסט בעברית ב-web. ל-`authenticated` יש SELECT ו-DELETE, ‏INSERT רק לעמודות הרישום (`id`, ‏`user_id`, ‏`exam_id`, ‏`storage_path`, ‏`filename`, ‏`kind`, ‏`mime`, ‏`size_bytes`) ו-UPDATE רק לעמודות התוצאה, כי ה-worker כותב את התוצאה בשם המשתמש (7.8). מחיקת חומר היא מחיקה **קשה** של השורה, ועבודת `delete_material_file` מוחקת את הקובץ מ-Storage |
 | `topics` | `id`, `user_id`, `exam_id`, `name`, `weight`, `evidence` | נושאים שה-AI מצא, עם הפניה לשאלות במבחני העבר. בעתיד: ביצועים לפי נושא |
 | `tasks` | `id`, `user_id`, `exam_id`, `topic_id`, `title`, `kind` (learn / practice / review / simulation / simulation_review / custom), `estimated_minutes`, `focus` (1–10), `depends_on_task_id`, `material_id`, `status` (todo / done / skipped), `source` (ai / user), `deleted_at` | `material_id` מקשר סימולציה למבחן העבר שלה |
 | `blocks` | `id`, `user_id`, `task_id` (FK עם `ON DELETE CASCADE`), `starts_at`, `ends_at`, `part_index`, `part_count`, `pinned`, `status` (planned / done / missed / skipped), `notified_at`, `plan_version_id` | `pinned` מחליף את `is_manually_edited`: בלוק שהמשתמש קבע לא זז בתכנון מחדש. `plan_version_id` הוא הגרסה שכתבה את הבלוק לאחרונה. שני בלוקים של אותו משתמש בסטטוס `planned` או `done` לא חופפים בזמן: exclusion constraint עם `btree_gist`, שנבדק בסוף הטרנזקציה, כי תכנון מחדש מוחק ומכניס באותה טרנזקציה. `missed` ו-`skipped` לא תופסים זמן **(החלטה של מי שבונה, S08)** |
 | `plan_versions` | `id`, `user_id`, `reason`, `created_at`, `undone_at`, `snapshot` (JSONB של הבלוקים העתידיים) | בסיס ל"ביטול" של כל שינוי בתוכנית. ה-snapshot הוא `{"v": 1, "blocks": [...]}`: הבלוקים שהם `planned` ונגמרים אחרי רגע השינוי, כפי שהיו **לפני** השינוי. `reason` הוא slug (אותיות קטנות וקו תחתון, עד 40 תווים), וה-enum שלו נכתב עם ה-endpoints (S09). גרסה שבוטלה מסומנת ב-`undone_at` ולא נמחקת; ל-`authenticated` יש רק SELECT, ‏INSERT ו-UPDATE של `undone_at` **(החלטות של מי שבונה, S08)**. מ-S09: `exam_id` ו-`task_id` (הישות שנמחקה, נוספה או נערכה, כדי שהביטול יחזיר אותה), ו-`task_before` (השדות של משימה שנערכה, כפי שהיו לפני העריכה); INSERT רק לעמודות `user_id`, ‏`reason`, ‏`snapshot`, ‏`exam_id`, ‏`task_id`, ‏`task_before`; טריגר שקובע את `undone_at` ל-`now()` ומאפשר אותו פעם אחת; `created_at` עם `clock_timestamp()`, כך שהסדר בין גרסאות הוא סדר הכתיבה תחת הנעילה של המשתמש ולא סדר תחילת הטרנזקציות. ה-enum של `reason`: ‏`replan`, ‏`defer`, ‏`task_added`, ‏`task_changed`, ‏`task_deleted`, ‏`exam_deleted` **(החלטות של מי שבונה, S09)** |
-| `jobs` | `id`, `user_id`, `kind`, `status`, `stage`, `percent`, `error`, `created_at`, `finished_at` | סטטוס אמיתי למסך "בונים לך תוכנית" |
+| `jobs` | `id`, `user_id`, `kind`, `payload`, `status` (queued / running / done / failed), `run_at`, `attempts`, `max_attempts`, `locked_at`, `stage`, `percent`, `error`, `result`, `created_at`, `started_at`, `finished_at` | סטטוס אמיתי למסך "בונים לך תוכנית", וגם התור עצמו (7.8). **(החלטות של מי שבונה, S10):** ‏`kind` הוא slug, ‏`payload` אובייקט JSON אטום (עד 64KB), ‏`error` קוד ולא הודעה. ל-`authenticated` יש SELECT, ו-INSERT רק ל-`user_id`, ‏`kind`, ‏`payload`; את כל השאר כותב ה-worker בתור בעל הסכמה. ‏`run_at` ו-`created_at` עם `clock_timestamp()`, כדי שסדר התפיסה יהיה סדר הכתיבה |
 | `push_subscriptions` | `id`, `user_id`, `endpoint` (unique), `p256dh`, `auth`, `user_agent`, `last_success_at`, `failure_count` | |
 | `xp_events` | `id`, `user_id`, `block_id` (unique), `xp`, `created_at` | יומן XP; הרמה והסכום מחושבים ממנו. ה-unique מונע XP כפול |
 | `badges` | `user_id`, `badge_key`, `earned_at` | |
@@ -164,6 +164,13 @@ flowchart RL
 2. ה-worker מוריד את הקובץ. ב-PDF: מחלץ טקסט לכל עמוד עם PyMuPDF. עמוד עם מעט מאוד טקסט מסומן "סרוק".
 3. עמודים סרוקים ותמונות נשלחים ל-Claude כמסמך או כתמונה, בלי OCR נפרד.
 4. מגבלות: גודל קובץ, מספר עמודים ומספר קבצים למבחן, כולן בקונפיג. קובץ שנחתך מקבל אזהרה גלויה.
+
+**(החלטות של מי שבונה, S10):**
+- **ספריית ה-PDF היא pypdfium2** (‏PDFium של Chrome; ‏BSD-3 / Apache-2.0) ולא PyMuPDF, שהרישיון שלו הוא AGPL או רישיון מסחרי בתשלום של Artifex, ולכן לא מתאים למוצר סגור בלי לקנות רישיון. החילוץ מאחורי `api/app/jobs/pdf_text.py` בלבד. אושר על ידי בעל המוצר ב-15.11.2026.
+- **"סרוק":** עמוד עם 40 תווים נראים (לא רווחים) או פחות (`SCANNED_PAGE_MAX_CHARS`). תמונה (JPEG או PNG) היא חומר עם עמוד סרוק אחד, בלי חילוץ, כדי ש-S11 יטפל בכל "עמוד סרוק" אותו דבר. הסוג נקבע לפי ה-magic bytes של הקובץ ולא לפי מה שהדפדפן אמר.
+- **המגבלות:** `MAX_MATERIAL_BYTES` = 20 MiB (וגם `file_size_limit` של ה-bucket, במיגרציה 0006; צריכים לזוז יחד), ‏`MAX_MATERIAL_PAGES` = 80, ‏`MAX_MATERIALS_PER_EXAM` = 15, ‏`MAX_CHARS_PER_PAGE` = 20000. קובץ ארוך נקלט עד המגבלה: ‏`page_count` הוא המספר האמיתי, ‏`warnings` מקבל `pages_truncated` (או `text_truncated` לעמוד ארוך), והאזהרות מוחזרות ב-`GET /exams/{id}/materials`.
+- **כשלים גלויים:** קודים ב-`materials.ingest_error` וב-`jobs.error`: ‏`file_missing` (נרשם אבל לא הועלה), ‏`file_too_large` (הגודל האמיתי בהורדה, לא מה שהדפדפן דיווח), ‏`unsupported_file`, ‏`pdf_unreadable`, ‏`storage_unavailable` (ניסיון חוזר), ‏`material_missing`, ‏`internal_error`. ‏Storage לא זמין מחזיר את החומר ל-`queued` עד הניסיון האחרון, ואז `failed`.
+- **הטקסט מנורמל** לפני השמירה (בלי `\u0000` ובלי surrogates בודדים), כי jsonb דוחה אותם.
 
 **שלב ב — ניתוח קורס (worker, קריאה אחת לכל מבחן):**
 - **קלט:** תוכן החומרים, פרטי המבחן והקושי, ותקציב הדקות למבחן. את התקציב מחשב הקוד — ימים זמינים × דקות ביום, מחולק בין המבחנים לפי קושי — ולא ה-AI.
@@ -261,8 +268,8 @@ flowchart RL
 |---|---|---|
 | פרופיל והעדפות | `GET /me`, `PATCH /me` | S09 |
 | מבחנים | `GET/POST /exams`, `PATCH/DELETE /exams/{id}` | S09 |
-| חומרים | `POST /exams/{id}/materials` (רישום קובץ שהועלה), `DELETE /materials/{id}` | S10 |
-| יצירת תוכנית | `POST /plans/generate` → מזהה עבודה; `GET /jobs/{id}` | S10/S12 |
+| חומרים | `GET /exams/{id}/materials`, `POST /exams/{id}/materials` (רישום קובץ שהועלה), `DELETE /materials/{id}` | S10 |
+| יצירת תוכנית | `POST /plans/generate` → מזהה עבודה (S12); `GET /jobs/{id}` (S10) | S10/S12 |
 | קריאת התוכנית | `GET /plan?from=&to=`, `GET /today` | S09 |
 | בלוקים | `POST /blocks/{id}/complete`, `POST /blocks/{id}/uncomplete`, `POST /blocks/{id}/defer`, `PATCH /blocks/{id}` | S09 (ב-`PATCH` רק `pinned`; הזזה ב-S18) |
 | משימות | `GET /exams/{id}/tasks`, `POST /tasks`, `PATCH /tasks/{id}`, `DELETE /tasks/{id}` | S09 |
@@ -283,15 +290,23 @@ flowchart RL
   - **ביטול:** `POST /plan/undo {"version_id"}` מבטל רק את הגרסה האחרונה שלא בוטלה, ולא יוצר גרסה. ביטול נוסף הולך לגרסה שלפניה. ביטול של מחיקה מחזיר את הישות, של משימה שנוספה מוחק אותה, ושל עריכת משימה (כולל `done` או `skipped`) מחזיר את השדות שלה מ-`task_before`.
   - **קריאה:** `GET /plan` לפי תאריכים מקומיים (ברירת מחדל שבוע, עד 62 ימים), עם `state` נגזר לכל בלוק (`upcoming`, ‏`in_progress`, ‏`overdue`, ‏`done`, ‏`missed`, ‏`skipped`), ‏`unplaced` (הדקות שחסרות למשימות) ו-`undo` (הגרסה שאפשר לבטל). הסיבות של "לא נכנס" באות מהתצוגה המקדימה, כי GET לא מריץ מתכנן.
   - **המיפוי למתכנן:** מבחנים בלי `deleted_at` ושתאריכם לא עבר; משימות שלהם לפי `(created_at, id)`, ותלות במשימה שלא נכנסה מתבטלת; בלוקים `planned` ו-`done` מ-48 השעות האחרונות והלאה, ובנוסף כל בלוקי ה-`done` של המשימות שנכנסו, כדי שהדקות שכבר נלמדו יירדו מהמשימה.
+- **החלטות של מי שבונה, S10 (חומרים ועבודות):**
+  - **מי קובע את `material_id`:** הדפדפן מייצר UUID v4, מעלה ישירות ל-`materials/{user_id}/{exam_id}/{material_id}`, ואז שולח `POST /exams/{id}/materials` עם `id`, ‏`filename`, ‏`kind`, ‏`mime` (PDF, JPEG או PNG) ו-`size_bytes`. ה-API בונה את `storage_path` בעצמו; הדפדפן לא שולח נתיב. ‏`id` תפוס → 409 ‏`already_exists`.
+  - **מה הרישום בודק:** המבחן של המשתמש ולא מחוק (אחרת 404); ‏`size_bytes` עד המגבלה (אחרת 422 ‏`file_too_large` עם `limit_bytes`); מספר החומרים במבחן (אחרת 422 ‏`too_many_materials` עם `limit`). הרישום והעבודה `ingest_material` נכתבים באותה טרנזקציה, והתשובה (201) כוללת את החומר ואת `job_id`.
+  - **`GET /exams/{id}/materials`** מחזיר את החומרים עם `ingest_status`, ‏`page_count`, ‏`scanned_pages`, ‏`warnings` ו-`ingest_error`, בלי `text_by_page` ובלי `storage_path`. **`GET /jobs/{id}`** מחזיר `status`, ‏`stage`, ‏`percent`, ‏`error`, ‏`result` וזמנים, בלי `payload` ובלי פרטי התפיסה.
+  - **`DELETE /materials/{id}`** מוחק את השורה (204) ומכניס עבודת `delete_material_file`; ה-API לא מחזיק את המפתח הסודי של Storage ולכן לא מוחק קבצים בעצמו.
 
 ### 7.8 עבודות רקע
 
 | עבודה | מתי | הערות |
 |---|---|---|
-| `ingest_material` | אחרי רישום קובץ | חילוץ טקסט וסימון עמודים סרוקים |
+| `ingest_material` | אחרי רישום קובץ | חילוץ טקסט וסימון עמודים סרוקים (S10) |
+| `delete_material_file` | אחרי `DELETE /materials/{id}` | מוחק את הקובץ מ-Storage; מסרב לנתיב שלא מתחיל ב-`user_id` של העבודה (S10) |
 | `generate_plan` | אחרי אונבורדינג, או לפי בקשה | ניתוח לכל מבחן ואז שיבוץ; מעדכן `jobs.stage` ו-`percent` בכל שלב |
 | `send_due_notifications` | כל דקה | "תופס" כל בלוק עם `UPDATE … WHERE notified_at IS NULL RETURNING`, כך שאין שליחה כפולה גם עם כמה workers |
 | `cleanup` | פעם ביום | קבצים יתומים, מחיקות רכות ישנות, מנויי Push שנכשלו |
+
+**התור (החלטות של מי שבונה, S10):** טבלה משלנו, ‏`app.jobs`, בלי procrastinate: טבלה אחת היא גם התור וגם הסטטוס ש-`GET /jobs/{id}` מראה דרך RLS. ה-worker (‏`uv run python -m app.jobs`, תהליך נפרד) מתחבר עם `WORKER_DATABASE_URL` בתור בעל הסכמה, תופס עבודה ב-`UPDATE … WHERE id = (SELECT … FOR UPDATE SKIP LOCKED LIMIT 1)`, ואת העבודה על נתוני המשתמש עושה **בתוך `user_transaction` של המשתמש של העבודה**, כך ש-RLS חל גם עליו, ובנוסף כל שאילתה מסננת `user_id`. בתור בעל הסכמה הוא נוגע רק ב-`app.jobs`. ניסיונות: ‏`max_attempts` = 3; כישלון זמני חוזר ל-`queued` עם `run_at = now + 30s · 2^(attempts−1)`; כישלון קבוע → `failed` מיד. עבודה `running` שה-`locked_at` שלה ישן מ-10 דקות נתפסת מחדש (ואם כבר אין לה ניסיונות: `failed` עם `worker_crashed`, ולפני כן רץ callback של `on_crashed` לפי סוג העבודה, שמסמן את החומר `failed` עם אותו קוד, כדי שלא יישאר `processing` בלי הסבר); ‏`progress(stage, percent)` מרענן את `locked_at`, ולכן עבודה ארוכה (‏`generate_plan`) חייבת לדווח התקדמות. handler חדש נרשם במילון `HANDLERS` ב-`app/jobs/ingest.py`, בלי מיגרציה. פולינג כל 2 שניות, בלי `LISTEN/NOTIFY`. הזמן מגיע משעון מוזרק, כמו ב-API.
 
 ### 7.9 Frontend
 
@@ -327,14 +342,14 @@ flowchart RL
 
 - ריפו פרטי, בלי סודות בקוד, ו-Dependabot פעיל. כל push נסרק עם gitleaks על כל ההיסטוריה, כי בריפו פרטי אין סריקת סודות חינמית של GitHub.
 - RLS על כל הטבלאות, וסכמת `app` לא חשופה.
-- bucket פרטי עם מדיניות לפי `user_id`.
+- bucket פרטי עם מדיניות לפי `user_id`. **(S10):** ה-bucket `materials` פרטי, עם `file_size_limit` ו-`allowed_mime_types`; ל-`authenticated` יש INSERT ו-SELECT רק על אובייקטים ב-`materials` שהתיקייה הראשונה שלהם היא `auth.uid()` (ולהעלאה: בדיוק שתי תיקיות). אין UPDATE (אין דריסה) ואין DELETE (מחיקה רק דרך ה-API). המדיניות נבדקת גם מקומית, מול חיקוי של סכמת `storage` ב-shim של הבדיקות. המפתח הסודי של Supabase (`SUPABASE_SECRET_KEY`) קיים רק בתהליך ה-worker, אף פעם לא ב-API.
 - מכסות: ניתוחי AI ביום, בקשות לשינוי בשפה חופשית ביום, ומגבלות העלאה.
 - כל פלט מוצג דרך React (escaping אוטומטי); `dangerouslySetInnerHTML` אסור.
 - ייצוא ומחיקה של חשבון; מדיניות פרטיות שמגלה עיבוד אצל Anthropic.
 
 ### 7.12 תפעול
 
-- **סביבות:** מקומית: `uvicorn` ו-`vite` מול פרויקט ה-dev ב-Supabase, ו-Postgres 17 מ-Homebrew לבדיקות. אין Docker במק, ולכן אין `supabase start`. אחר כך staging ו-production.
+- **סביבות:** מקומית: `uvicorn` ו-`vite` מול פרויקט ה-dev ב-Supabase, ו-Postgres 17 מ-Homebrew לבדיקות. אין Docker במק, ולכן אין `supabase start`. אחר כך staging ו-production. ה-worker רץ בנפרד: `uv run python -m app.jobs` מתוך `api/`, עם `WORKER_DATABASE_URL` ו-`SUPABASE_SECRET_KEY` **(S10)**. קובצי PDF אמיתיים לבדיקות מקומיות יושבים ב-`api/eval/materials/`, שמוגנת ב-`.gitignore`.
 - **אירוח:** ה-API וה-worker כקונטיינר על PaaS; ה-web על אירוח סטטי. הספקים הם החלטה של מי שבונה, באזור קרוב לישראל.
 - **CI ב-GitHub Actions:**
   - api: ruff, type-check, pytest
@@ -414,7 +429,7 @@ flowchart RL
 
 ## 12. מה נשאר להחלטת מי שבונה
 
-- הספריות בתוך הסטאק: ספריית התור. רכיבי ה-UI ומנהל החבילות נקבעו ב-S04 (סעיף 7.9). המיגרציות, הגישה למסד ומודל הזמן נקבעו ב-S05: Alembic עם SQL מפורש, psycopg 3, ו-`zoneinfo` עם החבילה `tzdata` במקום ספריית תאריכים. ספריית הבדיקות ה-property-based נקבעה ב-S06: hypothesis.
+- הספריות בתוך הסטאק: רכיבי ה-UI ומנהל החבילות נקבעו ב-S04 (סעיף 7.9). ספריית התור נקבעה ב-S10: טבלה משלנו עם `FOR UPDATE SKIP LOCKED`, בלי procrastinate (סעיף 7.8). ספריית ה-PDF נקבעה ב-S10: pypdfium2 (סעיף 7.5). המיגרציות, הגישה למסד ומודל הזמן נקבעו ב-S05: Alembic עם SQL מפורש, psycopg 3, ו-`zoneinfo` עם החבילה `tzdata` במקום ספריית תאריכים. ספריית הבדיקות ה-property-based נקבעה ב-S06: hypothesis.
 - ספקי האירוח של ה-API ושל ה-web, בתנאי שהם מנוהלים, זולים וקרובים לישראל.
 - המודלים של Claude לכל שלב, לפי תוצאות ה-eval.
 - המספרים המדויקים של המכסות והמגבלות.
