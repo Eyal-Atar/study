@@ -59,9 +59,11 @@ Required tasks:
 - For EACH past exam add a full simulation titled "סימולציה מלאה: [name]" (kind \
 simulation, material_key = that exam) and a debrief titled "תחקור סימולציה: [name]" \
 (kind simulation_review, depends_on = that simulation).
-- If there is no past exam, add exactly one generic simulation (material_key null; \
-the student finds a sample exam) and its debrief, which depends on it. Add no other \
-simulation.
+- A solution file of a past exam can also back a simulation (material_key = that \
+file), with its debrief; it is not required.
+- If there is no past exam and no simulation from a solution file, add exactly one \
+generic simulation (material_key null; the student finds a sample exam) and its \
+debrief, which depends on it. Add no other simulation without a material.
 - If there are no materials at all, plan from the exam name, and still include the \
 generic simulation and its debrief.
 

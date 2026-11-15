@@ -145,6 +145,28 @@ def test_material_on_wrong_kind() -> None:
     ]
 
 
+def test_simulation_may_use_a_solution_file() -> None:
+    # A solution file of a past exam usually holds the questions too; every model in the
+    # S11 eval simulated from it, and rejecting that cost a paid retry each time.
+    tasks = [
+        _task("K1", "review", topic_key=None),
+        _task("K2", "simulation", topic_key=None, material_key="M2"),
+        _task("K3", "simulation_review", topic_key=None, depends_on="K2"),
+    ]
+    materials = {"M1": MaterialKind.SYLLABUS, "M2": MaterialKind.SOLUTION}
+    assert _errors(_out(tasks), materials) == []
+
+
+def test_simulation_may_not_use_a_syllabus() -> None:
+    tasks = [
+        _task("K1", "review", topic_key=None),
+        _task("K2", "simulation", topic_key=None, material_key="M1"),
+        _task("K3", "simulation_review", topic_key=None, depends_on="K2"),
+    ]
+    materials = {"M1": MaterialKind.SYLLABUS}
+    assert _errors(_out(tasks), materials) == ["material_on_wrong_kind:K2->M1"]
+
+
 def test_unexpected_simulation_with_past_exam() -> None:
     data = valid_output_dict()
     data["tasks"].append(_task("K8", "simulation", topic_key=None, material_key=None))

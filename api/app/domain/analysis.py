@@ -26,6 +26,11 @@ _HEBREW: Final = re.compile("[֐-׿]")
 _TOPIC_REQUIRED: Final = frozenset({"learn", "practice"})
 
 
+# A simulation runs on a past exam, or on a solution file of one: solution files usually
+# hold the questions too, and every model in the S11 eval simulated from them.
+SIMULATION_MATERIAL_KINDS: Final = frozenset({MaterialKind.PAST_EXAM, MaterialKind.SOLUTION})
+
+
 def budget_range(budget: int) -> tuple[int, int]:
     # Integer arithmetic: 420 * 1.1 is 462.00000000000006 in floats.
     tenths = round(BUDGET_TOLERANCE * 10)
@@ -102,7 +107,7 @@ def validate_analysis(
             kind = materials.get(task.material_key)
             if kind is None:
                 errors.append(f"unknown_material:{key}->{task.material_key}")
-            elif task.kind == "simulation" and kind is not MaterialKind.PAST_EXAM:
+            elif task.kind == "simulation" and kind not in SIMULATION_MATERIAL_KINDS:
                 errors.append(f"material_on_wrong_kind:{key}->{task.material_key}")
         if not _HEBREW.search(task.title):
             errors.append(f"title_not_hebrew:{key}")
