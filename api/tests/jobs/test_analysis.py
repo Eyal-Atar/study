@@ -17,6 +17,7 @@ from psycopg.types.json import Jsonb
 
 import app.services.analysis as analysis_module
 from app.ai.client import AiError, AnalysisReply
+from app.ai.schema import AnalysisOutput
 from app.auth import CurrentUser
 from app.config import Settings
 from app.db.session import user_transaction
@@ -28,12 +29,21 @@ from app.domain.analysis import (
 )
 from app.jobs.pdf_text import pdf_subset
 from app.jobs.storage import StorageUnavailable
-from app.services.analysis import AnalysisFailed, AnalysisOutcome, analyze_exam
+from app.services.analysis import (
+    AnalysisFailed,
+    AnalysisOutcome,
+    DraftOutcome,
+    analyze_exam,
+    draft_analysis,
+    failed_exams_of_job,
+    record_failed_analysis,
+)
 from app.services.board import load_board
 from app.services.profiles import lock_user
 from tests.ai.fake_client import FakeAnalysisClient, reply
 from tests.ai.samples import valid_output_dict
 from tests.api.factories import NOW, insert_exam
+from tests.jobs.conftest import MakeJob
 from tests.jobs.fake_storage import MemoryStorage
 from tests.jobs.pdfs import make_pdf
 
@@ -181,6 +191,43 @@ def analyze(
         return analyze_exam(**args)
 
     return run
+
+
+type Draft = Callable[..., DraftOutcome]
+
+
+@pytest.fixture
+def draft(
+    transaction: Callable[[], AbstractContextManager[Conn]],
+    storage: MemoryStorage,
+    settings: Settings,
+    user: CurrentUser,
+    exam: UUID,
+) -> Draft:
+    def run(client: FakeAnalysisClient, **overrides: Any) -> DraftOutcome:
+        args: dict[str, Any] = {
+            "transaction": transaction,
+            "storage": storage,
+            "client": client,
+            "settings": settings,
+            "user_id": user.id,
+            "exam_id": exam,
+            "budget_minutes": BUDGET,
+            "today": TODAY,
+        }
+        args.update(overrides)
+        return draft_analysis(**args)
+
+    return run
+
+
+def _analyses(db: psycopg.Connection, exam: UUID) -> list[dict[str, Any]]:
+    with db.cursor(row_factory=psycopg.rows.dict_row) as cur:
+        return list(
+            cur.execute(
+                "SELECT * FROM app.analyses WHERE exam_id = %s ORDER BY created_at, id", (exam,)
+            ).fetchall()
+        )
 
 
 def _rows(db: psycopg.Connection, table: str, exam: UUID) -> list[dict[str, Any]]:
@@ -1004,3 +1051,205 @@ def test_image_over_the_api_limit_is_skipped_with_a_warning(
     assert _blocks(client, "image") == []
     assert "content not available" in _texts(client)
     assert outcome.warnings == ("scanned_pages_skipped",)
+
+
+# --- app.analyses: every analysis is recorded ---------------------------------------------
+
+
+def test_analysis_row_is_written_with_the_tasks(
+    analyze: Analyze,
+    db: psycopg.Connection,
+    user: CurrentUser,
+    exam: UUID,
+    materials: dict[str, UUID],
+    make_job: MakeJob,
+) -> None:
+    job = make_job(user, "generate_plan")
+
+    outcome = analyze(FakeAnalysisClient([valid()]), job_id=job)
+
+    [row] = _analyses(db, exam)
+    assert row["id"] == outcome.analysis_id
+    assert row["user_id"] == user.id
+    assert row["job_id"] == job
+    assert row["status"] == "applied"
+    assert row["applied_at"] is not None
+    assert row["error"] is None
+    sample = valid_output_dict()
+    assert [t["reason"] for t in row["output"]["tasks"]] == [t["reason"] for t in sample["tasks"]]
+    assert row["material_keys"] == {key: str(value) for key, value in materials.items()}
+    assert row["warnings"] == []
+    assert row["dropped"] == []
+    assert row["total_minutes"] == 420
+    assert row["budget_minutes"] == BUDGET
+    # The stored output loads back as the validated answer (applying a draft relies on it).
+    assert AnalysisOutput.model_validate(row["output"]) == AnalysisOutput.model_validate(sample)
+    assert {t["analysis_id"] for t in _rows(db, "tasks", exam)} == {outcome.analysis_id}
+    assert {t["analysis_id"] for t in _rows(db, "topics", exam)} == {outcome.analysis_id}
+
+
+def test_analysis_row_keeps_the_warnings_and_what_was_dropped(
+    analyze: Analyze, db: psycopg.Connection, materials: dict[str, UUID], exam: UUID
+) -> None:
+    outcome = analyze(FakeAnalysisClient([reply(_json(_over_budget_output()))]), budget_minutes=300)
+
+    [row] = _analyses(db, exam)
+    assert outcome.dropped == ("K5", "K4")
+    # The stored output is the trimmed one: what was saved as tasks.
+    assert [t["key"] for t in row["output"]["tasks"]] == ["K1", "K2", "K3", "K6", "K7"]
+    assert row["budget_minutes"] == 300
+    assert tuple(row["warnings"]) == outcome.warnings
+    assert tuple(row["dropped"]) == outcome.dropped
+    assert row["total_minutes"] == outcome.total_minutes
+    assert row["job_id"] is None
+
+
+def test_failed_save_writes_no_analysis_row(
+    analyze: Analyze, db: psycopg.Connection, exam: UUID, materials: dict[str, UUID]
+) -> None:
+    def delete() -> None:
+        db.execute("UPDATE app.exams SET deleted_at = now() WHERE id = %s", (exam,))
+
+    with pytest.raises(AnalysisFailed):
+        analyze(HookedClient([valid()], delete))
+
+    assert _analyses(db, exam) == []
+
+
+def test_draft_writes_no_tasks(
+    draft: Draft,
+    db: psycopg.Connection,
+    user: CurrentUser,
+    exam: UUID,
+    materials: dict[str, UUID],
+    make_job: MakeJob,
+) -> None:
+    existing = _insert_ai_task(db, user, exam)
+    job = make_job(user, "reanalyze_exam")
+    client = FakeAnalysisClient([valid()])
+
+    outcome = draft(client, job_id=job)
+
+    assert len(client.calls) == 1
+    assert [t["id"] for t in _rows(db, "tasks", exam)] == [existing]
+    assert _rows(db, "topics", exam) == []
+    [row] = _analyses(db, exam)
+    assert row["id"] == outcome.analysis_id
+    assert row["status"] == "draft"
+    assert row["applied_at"] is None
+    assert row["job_id"] == job
+    assert row["material_keys"] == {key: str(value) for key, value in materials.items()}
+    assert row["budget_minutes"] == BUDGET
+    sample = valid_output_dict()
+    assert AnalysisOutput.model_validate(row["output"]) == AnalysisOutput.model_validate(sample)
+    assert outcome.tasks == len(sample["tasks"])
+    assert outcome.topics == len(sample["topics"])
+    assert outcome.total_minutes == 420
+    assert outcome.budget_minutes == BUDGET
+    assert outcome.warnings == ()
+    assert outcome.dropped == ()
+    assert [gap.topic for gap in outcome.gaps] == ["טורים"]
+    assert len(outcome.usage) == 1
+
+
+def test_new_draft_supersedes_the_old_one(
+    analyze: Analyze,
+    draft: Draft,
+    db: psycopg.Connection,
+    exam: UUID,
+    materials: dict[str, UUID],
+) -> None:
+    applied = analyze(FakeAnalysisClient([valid()]))
+    first = draft(FakeAnalysisClient([valid()]))
+    second = draft(FakeAnalysisClient([valid()]))
+
+    status = {row["id"]: row["status"] for row in _analyses(db, exam)}
+    assert status == {
+        applied.analysis_id: "applied",
+        first.analysis_id: "superseded",
+        second.analysis_id: "draft",
+    }
+
+
+def test_draft_of_another_exam_is_not_superseded(
+    draft: Draft,
+    db: psycopg.Connection,
+    user: CurrentUser,
+    exam: UUID,
+    materials: dict[str, UUID],
+    add_material: AddMaterial,
+) -> None:
+    other = insert_exam(db, user.id, name="אחר", exam_date=EXAM_DATE)
+    add_material(user, other, kind="syllabus")
+    add_material(user, other, kind="past_exam")
+    kept = draft(FakeAnalysisClient([valid()]), exam_id=other)
+
+    draft(FakeAnalysisClient([valid()]))
+
+    assert [row["status"] for row in _analyses(db, other)] == ["draft"]
+    assert _analyses(db, other)[0]["id"] == kept.analysis_id
+
+
+def test_draft_of_a_deleted_exam_writes_nothing(
+    draft: Draft, db: psycopg.Connection, exam: UUID, materials: dict[str, UUID]
+) -> None:
+    def delete() -> None:
+        db.execute("UPDATE app.exams SET deleted_at = now() WHERE id = %s", (exam,))
+
+    with pytest.raises(AnalysisFailed) as info:
+        draft(HookedClient([valid()], delete))
+
+    assert info.value.code == "exam_missing"
+    assert len(info.value.usage) == 1
+    assert _analyses(db, exam) == []
+
+
+def test_keepalive_reaches_the_client(
+    analyze: Analyze, draft: Draft, materials: dict[str, UUID]
+) -> None:
+    beats: list[str] = []
+
+    # A retry is a second call, and it beats too.
+    analyze(
+        FakeAnalysisClient([reply("not json"), valid()]),
+        keepalive=lambda: beats.append("analyze"),
+    )
+    draft(FakeAnalysisClient([valid()]), keepalive=lambda: beats.append("draft"))
+
+    assert beats == ["analyze", "analyze", "draft"]
+
+
+def test_failed_analysis_row(
+    transaction: Callable[[], AbstractContextManager[Conn]],
+    db: psycopg.Connection,
+    user: CurrentUser,
+    exam: UUID,
+    make_job: MakeJob,
+) -> None:
+    job = make_job(user, "generate_plan")
+    other_job = make_job(user, "generate_plan")
+
+    with transaction() as conn:
+        record_failed_analysis(conn, user.id, exam, job, "analysis_invalid")
+
+    [row] = _analyses(db, exam)
+    assert (row["status"], row["error"], row["job_id"]) == ("failed", "analysis_invalid", job)
+    assert row["output"] is None
+    with transaction() as conn:
+        assert failed_exams_of_job(conn, user.id, job) == {exam}
+        assert failed_exams_of_job(conn, user.id, other_job) == set()
+
+
+def test_failed_analysis_of_a_hard_deleted_exam_is_not_recorded(
+    transaction: Callable[[], AbstractContextManager[Conn]],
+    db: psycopg.Connection,
+    user: CurrentUser,
+    exam: UUID,
+    make_job: MakeJob,
+) -> None:
+    job = make_job(user, "generate_plan")
+    db.execute("DELETE FROM app.exams WHERE id = %s", (exam,))
+
+    with transaction() as conn:
+        record_failed_analysis(conn, user.id, exam, job, "exam_missing")
+        assert failed_exams_of_job(conn, user.id, job) == set()

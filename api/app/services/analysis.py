@@ -1,5 +1,10 @@
 """Course analysis with Claude: read an exam's materials as the user, ask once (and retry
-once), validate and trim the answer, and save its topics and tasks in one transaction.
+once), validate and trim the answer, and save it in one transaction.
+
+Every analysis leaves a row in app.analyses. A first analysis (analyze_exam) writes it as
+`applied`, with its topics and tasks pointing at it. A reanalysis (draft_analysis) writes it
+as a `draft` and touches no task: the user applies it later, after a preview, from the
+stored output. A failure that ends an exam's part of a job is recorded as `failed`.
 
 No transaction is open while Storage or Claude is called: those calls take seconds to
 minutes, and every transaction runs under a 5 s statement timeout. Nothing from the
@@ -15,6 +20,7 @@ from typing import Any, Final
 from uuid import UUID
 
 import psycopg
+from psycopg.types.json import Jsonb
 
 from app.ai.client import AiError, AnalysisClient, AnalysisReply, Usage
 from app.ai.prompts import (
@@ -103,6 +109,7 @@ class SavedAnalysis:
 
 @dataclass(frozen=True)
 class AnalysisOutcome:
+    analysis_id: UUID
     topic_ids: dict[str, UUID]
     task_ids: dict[str, UUID]
     gaps: tuple[GapOut, ...]
@@ -111,6 +118,29 @@ class AnalysisOutcome:
     total_minutes: int
     budget_minutes: int
     usage: tuple[Usage, ...]
+
+
+@dataclass(frozen=True)
+class DraftOutcome:
+    analysis_id: UUID
+    gaps: tuple[GapOut, ...]
+    warnings: tuple[str, ...]
+    dropped: tuple[str, ...]
+    total_minutes: int
+    budget_minutes: int
+    tasks: int
+    topics: int
+    usage: tuple[Usage, ...]
+
+
+@dataclass(frozen=True)
+class _Prepared:
+    """What the call produced, ready to be written: the answer and what goes with it."""
+
+    draft: AnalysisDraft
+    material_ids: dict[str, UUID]
+    warnings: tuple[str, ...]
+    budget_minutes: int
 
 
 def _exam_is_live(conn: Conn, user_id: UUID, exam_id: UUID) -> dict[str, Any] | None:
@@ -140,12 +170,15 @@ def _pages(raw: object) -> tuple[PageText, ...]:
     )
 
 
-def load_input(conn: Conn, user_id: UUID, exam_id: UUID) -> AnalysisInput:
+def load_input(
+    conn: Conn, user_id: UUID, exam_id: UUID, *, first_analysis: bool = True
+) -> AnalysisInput:
     exam = _exam_is_live(conn, user_id, exam_id)
     if exam is None:
         raise AnalysisFailed("exam_missing")
-    # Checked again under the lock in save_analysis; here it saves a paid call.
-    if _has_ai_tasks(conn, user_id, exam_id):
+    # Checked again under the lock in save_analysis; here it saves a paid call. A
+    # reanalysis writes no tasks, so it has nothing to check.
+    if first_analysis and _has_ai_tasks(conn, user_id, exam_id):
         raise AnalysisFailed("already_analyzed")
     rows = conn.execute(
         "SELECT id, kind, filename, mime, storage_path, ingest_status, page_count, text_by_page "
@@ -293,12 +326,18 @@ def run_analysis(
     materials: Mapping[str, MaterialKind],
     budget: int,
     progress: Callable[[str, int], None] | None = None,
+    keepalive: Callable[[], None] | None = None,
 ) -> AnalysisDraft:
     usage: list[Usage] = []
     messages: list[dict[str, Any]] = [{"role": "user", "content": list(request.content)}]
     for attempt in range(MAX_ATTEMPTS):
         try:
-            reply = client.complete(system=request.system, messages=messages, schema=request.schema)
+            reply = client.complete(
+                system=request.system,
+                messages=messages,
+                schema=request.schema,
+                keepalive=keepalive,
+            )
         except AiError as error:
             raise AnalysisFailed(error.code, retry=error.retry, usage=usage) from None
         usage.append(reply.usage)
@@ -354,43 +393,56 @@ def _new_id(row: Mapping[str, Any] | None) -> UUID:
     return new_id
 
 
-def save_analysis(
-    conn: Conn,
-    user_id: UUID,
-    exam_id: UUID,
-    draft: AnalysisDraft,
-    material_ids: Mapping[str, UUID],
-) -> SavedAnalysis:
-    lock_user(conn, user_id)
-    if _exam_is_live(conn, user_id, exam_id) is None:
-        raise AnalysisFailed("exam_missing")
-    if _has_ai_tasks(conn, user_id, exam_id):
-        raise AnalysisFailed("already_analyzed")
-
+def _live_materials(
+    conn: Conn, user_id: UUID, exam_id: UUID, material_ids: Mapping[str, UUID]
+) -> set[UUID]:
     # A material deleted during the call loses its link, not the task built on it.
     rows = conn.execute(
         "SELECT id FROM app.materials WHERE user_id = %s AND exam_id = %s AND id = ANY(%s) "
         "FOR KEY SHARE",
         (user_id, exam_id, list(material_ids.values())),
     ).fetchall()
-    live = {row["id"] for row in rows}
+    return {row["id"] for row in rows}
+
+
+def insert_analysis_tasks(
+    conn: Conn,
+    user_id: UUID,
+    exam_id: UUID,
+    analysis_id: UUID,
+    output: AnalysisOutput,
+    material_ids: Mapping[str, UUID],
+) -> SavedAnalysis:
+    """Write the output's topics and tasks, each pointing at its analysis.
+
+    The caller holds the user's lock and has checked that the exam is live.
+    """
+    live = _live_materials(conn, user_id, exam_id, material_ids)
 
     topic_ids: dict[str, UUID] = {}
-    for position, topic in enumerate(draft.output.topics, start=1):
+    for position, topic in enumerate(output.topics, start=1):
         row = conn.execute(
-            "INSERT INTO app.topics (user_id, exam_id, name, weight, evidence, position) "
-            "VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
-            (user_id, exam_id, topic.name, topic.weight, topic.evidence or None, position),
+            "INSERT INTO app.topics (user_id, exam_id, name, weight, evidence, position, "
+            "analysis_id) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
+            (
+                user_id,
+                exam_id,
+                topic.name,
+                topic.weight,
+                topic.evidence or None,
+                position,
+                analysis_id,
+            ),
         ).fetchone()
         topic_ids[topic.key] = _new_id(row)
 
     task_ids: dict[str, UUID] = {}
-    for position, task in _topological(draft.output.tasks):
+    for position, task in _topological(output.tasks):
         material_id = material_ids.get(task.material_key) if task.material_key else None
         row = conn.execute(
             "INSERT INTO app.tasks (user_id, exam_id, title, kind, estimated_minutes, focus, "
-            "depends_on_task_id, source, topic_id, material_id, position) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, 'ai', %s, %s, %s) RETURNING id",
+            "depends_on_task_id, source, topic_id, material_id, position, analysis_id) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, 'ai', %s, %s, %s, %s) RETURNING id",
             (
                 user_id,
                 exam_id,
@@ -402,10 +454,110 @@ def save_analysis(
                 topic_ids[task.topic_key] if task.topic_key else None,
                 material_id if material_id in live else None,
                 position,
+                analysis_id,
             ),
         ).fetchone()
         task_ids[task.key] = _new_id(row)
     return SavedAnalysis(topic_ids=topic_ids, task_ids=task_ids)
+
+
+def _insert_analysis(
+    conn: Conn,
+    user_id: UUID,
+    exam_id: UUID,
+    prepared: _Prepared,
+    *,
+    status: str,
+    job_id: UUID | None,
+) -> UUID:
+    """The analyses row of a validated answer, as `applied` (now) or as a `draft`."""
+    row = conn.execute(
+        "INSERT INTO app.analyses (user_id, exam_id, job_id, status, output, material_keys, "
+        "warnings, dropped, total_minutes, budget_minutes, applied_at) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "
+        "CASE WHEN %s = 'applied' THEN now() END) RETURNING id",
+        (
+            user_id,
+            exam_id,
+            job_id,
+            status,
+            Jsonb(prepared.draft.output.model_dump(mode="json")),
+            Jsonb({key: str(value) for key, value in prepared.material_ids.items()}),
+            list(prepared.warnings),
+            list(prepared.draft.dropped),
+            prepared.draft.total_minutes,
+            prepared.budget_minutes,
+            status,
+        ),
+    ).fetchone()
+    return _new_id(row)
+
+
+def save_analysis(
+    conn: Conn,
+    user_id: UUID,
+    exam_id: UUID,
+    prepared: _Prepared,
+    *,
+    job_id: UUID | None = None,
+) -> tuple[UUID, SavedAnalysis]:
+    """Save a first analysis as applied, with its topics and tasks."""
+    lock_user(conn, user_id)
+    if _exam_is_live(conn, user_id, exam_id) is None:
+        raise AnalysisFailed("exam_missing")
+    if _has_ai_tasks(conn, user_id, exam_id):
+        raise AnalysisFailed("already_analyzed")
+    analysis_id = _insert_analysis(
+        conn, user_id, exam_id, prepared, status="applied", job_id=job_id
+    )
+    saved = insert_analysis_tasks(
+        conn, user_id, exam_id, analysis_id, prepared.draft.output, prepared.material_ids
+    )
+    return analysis_id, saved
+
+
+def save_draft(
+    conn: Conn,
+    user_id: UUID,
+    exam_id: UUID,
+    prepared: _Prepared,
+    *,
+    job_id: UUID | None = None,
+) -> UUID:
+    """Save a reanalysis as the exam's only draft: the drafts before it are superseded."""
+    lock_user(conn, user_id)
+    if _exam_is_live(conn, user_id, exam_id) is None:
+        raise AnalysisFailed("exam_missing")
+    conn.execute(
+        "UPDATE app.analyses SET status = 'superseded' "
+        "WHERE user_id = %s AND exam_id = %s AND status = 'draft'",
+        (user_id, exam_id),
+    )
+    return _insert_analysis(conn, user_id, exam_id, prepared, status="draft", job_id=job_id)
+
+
+def record_failed_analysis(
+    conn: Conn, user_id: UUID, exam_id: UUID, job_id: UUID | None, code: str
+) -> None:
+    """Record that an exam's analysis failed for good in this job.
+
+    An exam deleted for good has nothing to attach the row to: nothing is written.
+    """
+    conn.execute(
+        "INSERT INTO app.analyses (user_id, exam_id, job_id, status, error) "
+        "SELECT user_id, id, %s, 'failed', %s FROM app.exams WHERE user_id = %s AND id = %s",
+        (job_id, code, user_id, exam_id),
+    )
+
+
+def failed_exams_of_job(conn: Conn, user_id: UUID, job_id: UUID) -> set[UUID]:
+    """The exams whose analysis failed for good in this job: a retry skips them."""
+    rows = conn.execute(
+        "SELECT DISTINCT exam_id FROM app.analyses "
+        "WHERE user_id = %s AND job_id = %s AND status = 'failed'",
+        (user_id, job_id),
+    ).fetchall()
+    return {row["exam_id"] for row in rows}
 
 
 def _log_save_error(error: Exception) -> None:
@@ -425,7 +577,7 @@ def _unique(items: Sequence[str]) -> tuple[str, ...]:
     return tuple(dict.fromkeys(items))
 
 
-def analyze_exam(
+def _prepare(
     *,
     transaction: Callable[[], AbstractContextManager[Conn]],
     storage: Storage,
@@ -435,8 +587,11 @@ def analyze_exam(
     exam_id: UUID,
     budget_minutes: int,
     today: dt.date,
-    progress: Callable[[str, int], None] | None = None,
-) -> AnalysisOutcome:
+    progress: Callable[[str, int], None] | None,
+    keepalive: Callable[[], None] | None,
+    first_analysis: bool,
+) -> _Prepared:
+    """Load the materials as the user, call Claude, and validate and trim the answer."""
     budget = min(budget_minutes, settings.max_analysis_minutes)
     if budget <= 0:
         raise AnalysisFailed("no_study_time")
@@ -444,7 +599,7 @@ def analyze_exam(
     if progress is not None:
         progress("reading_materials", 5)
     with transaction() as conn:
-        data = load_input(conn, user_id, exam_id)
+        data = load_input(conn, user_id, exam_id, first_analysis=first_analysis)
 
     def fetch(material: MaterialInput) -> bytes:
         return storage.download(
@@ -471,13 +626,27 @@ def analyze_exam(
         materials=kinds,
         budget=budget,
         progress=progress,
+        keepalive=keepalive,
     )
 
-    if progress is not None:
-        progress("saving", 90)
+    warnings = [WARNING_MATERIALS_NOT_READY] if data.skipped > 0 else []
+    warnings += budget_warnings + scan_warnings + text_warnings + list(draft.warnings)
+    return _Prepared(
+        draft=draft,
+        material_ids={m.key: m.id for m in materials},
+        warnings=_unique(warnings),
+        budget_minutes=budget,
+    )
+
+
+def _write[T](
+    transaction: Callable[[], AbstractContextManager[Conn]],
+    draft: AnalysisDraft,
+    write: Callable[[Conn], T],
+) -> T:
     try:
         with transaction() as conn:
-            saved = save_analysis(conn, user_id, exam_id, draft, {m.key: m.id for m in materials})
+            return write(conn)
     except AnalysisFailed as failed:
         # The call was paid for: the usage goes with the failure.
         raise AnalysisFailed(failed.code, retry=failed.retry, usage=draft.usage) from None
@@ -487,15 +656,102 @@ def analyze_exam(
         _log_save_error(error)
         raise AnalysisFailed("internal_error", usage=draft.usage) from None
 
-    warnings = [WARNING_MATERIALS_NOT_READY] if data.skipped > 0 else []
-    warnings += budget_warnings + scan_warnings + text_warnings + list(draft.warnings)
+
+def analyze_exam(
+    *,
+    transaction: Callable[[], AbstractContextManager[Conn]],
+    storage: Storage,
+    client: AnalysisClient,
+    settings: Settings,
+    user_id: UUID,
+    exam_id: UUID,
+    budget_minutes: int,
+    today: dt.date,
+    progress: Callable[[str, int], None] | None = None,
+    keepalive: Callable[[], None] | None = None,
+    job_id: UUID | None = None,
+) -> AnalysisOutcome:
+    """A first analysis: saved as applied, with its topics and tasks."""
+    prepared = _prepare(
+        transaction=transaction,
+        storage=storage,
+        client=client,
+        settings=settings,
+        user_id=user_id,
+        exam_id=exam_id,
+        budget_minutes=budget_minutes,
+        today=today,
+        progress=progress,
+        keepalive=keepalive,
+        first_analysis=True,
+    )
+    draft = prepared.draft
+
+    if progress is not None:
+        progress("saving", 90)
+    analysis_id, saved = _write(
+        transaction,
+        draft,
+        lambda conn: save_analysis(conn, user_id, exam_id, prepared, job_id=job_id),
+    )
     return AnalysisOutcome(
+        analysis_id=analysis_id,
         topic_ids=saved.topic_ids,
         task_ids=saved.task_ids,
         gaps=tuple(draft.output.gaps),
-        warnings=_unique(warnings),
+        warnings=prepared.warnings,
         dropped=draft.dropped,
         total_minutes=draft.total_minutes,
-        budget_minutes=budget,
+        budget_minutes=prepared.budget_minutes,
+        usage=draft.usage,
+    )
+
+
+def draft_analysis(
+    *,
+    transaction: Callable[[], AbstractContextManager[Conn]],
+    storage: Storage,
+    client: AnalysisClient,
+    settings: Settings,
+    user_id: UUID,
+    exam_id: UUID,
+    budget_minutes: int,
+    today: dt.date,
+    progress: Callable[[str, int], None] | None = None,
+    keepalive: Callable[[], None] | None = None,
+    job_id: UUID | None = None,
+) -> DraftOutcome:
+    """A reanalysis: saved as a draft to apply later; no task or topic is written."""
+    prepared = _prepare(
+        transaction=transaction,
+        storage=storage,
+        client=client,
+        settings=settings,
+        user_id=user_id,
+        exam_id=exam_id,
+        budget_minutes=budget_minutes,
+        today=today,
+        progress=progress,
+        keepalive=keepalive,
+        first_analysis=False,
+    )
+    draft = prepared.draft
+
+    if progress is not None:
+        progress("saving", 90)
+    analysis_id = _write(
+        transaction,
+        draft,
+        lambda conn: save_draft(conn, user_id, exam_id, prepared, job_id=job_id),
+    )
+    return DraftOutcome(
+        analysis_id=analysis_id,
+        gaps=tuple(draft.output.gaps),
+        warnings=prepared.warnings,
+        dropped=draft.dropped,
+        total_minutes=draft.total_minutes,
+        budget_minutes=prepared.budget_minutes,
+        tasks=len(draft.output.tasks),
+        topics=len(draft.output.topics),
         usage=draft.usage,
     )
