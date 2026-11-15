@@ -61,7 +61,9 @@ def _count(db: psycopg.Connection, table: str) -> int:
 
 def test_core_tables_exist(db: psycopg.Connection) -> None:
     assert _app_tables(db) == [
+        "ai_usage",
         "alembic_version",
+        "analyses",
         "blocks",
         "exams",
         "jobs",
@@ -126,6 +128,10 @@ def test_only_authenticated_has_table_privileges(db: psycopg.Connection) -> None
         "materials": {"SELECT", "DELETE"},
         "jobs": {"SELECT"},
         "topics": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+        # The worker writes analyses on behalf of the user and the API applies them;
+        # ai_usage is written only by the worker as the schema owner.
+        "analyses": {"SELECT", "INSERT", "UPDATE"},
+        "ai_usage": {"SELECT"},
     }
     for table in _app_tables(db):
         for role in ("anon", "studyflow_api", "service_role"):
