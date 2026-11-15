@@ -1,3 +1,4 @@
+from typing import Literal
 from urllib.parse import urlsplit
 
 from pydantic import Field, HttpUrl, SecretStr, field_validator
@@ -40,8 +41,27 @@ class Settings(BaseSettings):
     scanned_page_max_chars: int = Field(default=40, ge=0)
     worker_poll_seconds: float = Field(default=2.0, gt=0)
     job_lock_timeout_seconds: int = Field(default=600, gt=0)
+    # Course analysis with Claude (worker and eval only). Model names come from the environment.
+    anthropic_api_key: SecretStr | None = None
+    ai_model_analysis: str | None = None
+    ai_model_light: str | None = None
+    ai_analysis_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
+    ai_analysis_max_tokens: int = Field(default=32000, gt=0)
+    ai_timeout_seconds: float = Field(default=600.0, gt=0)
+    max_analysis_minutes: int = Field(default=6000, gt=0)
+    max_analysis_scanned_pages: int = Field(default=100, ge=0)
+    max_analysis_text_chars: int = Field(default=300_000, gt=0)
+    max_analysis_scan_bytes: int = Field(default=25_165_824, gt=0)
 
-    @field_validator("database_url", "worker_database_url", "supabase_secret_key", mode="before")
+    @field_validator(
+        "database_url",
+        "worker_database_url",
+        "supabase_secret_key",
+        "anthropic_api_key",
+        "ai_model_analysis",
+        "ai_model_light",
+        mode="before",
+    )
     @classmethod
     def _empty_string_is_none(cls, value: object) -> object:
         return None if isinstance(value, str) and not value.strip() else value

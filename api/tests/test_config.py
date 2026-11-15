@@ -121,3 +121,35 @@ def test_worker_limits_must_be_positive(monkeypatch: pytest.MonkeyPatch, name: s
     monkeypatch.setenv(name, "0")
     with pytest.raises(ValidationError):
         Settings(supabase_url="https://test-ref.supabase.co", _env_file=None)
+
+
+def test_ai_settings_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("ANTHROPIC_API_KEY", "AI_MODEL_ANALYSIS", "AI_MODEL_LIGHT"):
+        monkeypatch.delenv(name, raising=False)
+    settings = Settings(supabase_url="https://test-ref.supabase.co", _env_file=None)
+    assert settings.anthropic_api_key is None
+    assert settings.ai_model_analysis is None
+    assert settings.ai_model_light is None
+    assert settings.ai_analysis_effort == "medium"
+    assert settings.ai_analysis_max_tokens == 32000
+    assert settings.ai_timeout_seconds == 600.0
+    assert settings.max_analysis_minutes == 6000
+    assert settings.max_analysis_scanned_pages == 100
+    assert settings.max_analysis_text_chars == 300_000
+    assert settings.max_analysis_scan_bytes == 25_165_824
+
+
+def test_empty_anthropic_key_is_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
+    monkeypatch.setenv("AI_MODEL_ANALYSIS", " ")
+    settings = Settings(supabase_url="https://test-ref.supabase.co", _env_file=None)
+    assert settings.anthropic_api_key is None
+    assert settings.ai_model_analysis is None
+
+
+def test_anthropic_key_is_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-secret")
+    settings = Settings(supabase_url="https://test-ref.supabase.co", _env_file=None)
+    assert "sk-ant-secret" not in repr(settings)
+    assert settings.anthropic_api_key is not None
+    assert settings.anthropic_api_key.get_secret_value() == "sk-ant-secret"
