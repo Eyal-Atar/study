@@ -378,3 +378,24 @@ def test_plan_version_analysis_link_and_insert_grant(
     assert db.execute(
         "SELECT analysis_id FROM app.plan_versions WHERE id = %s", (row[0],)
     ).fetchone() == (None,)
+
+
+def test_authenticated_can_update_only_the_lifecycle_columns_of_analyses(
+    db: psycopg.Connection, api_db: psycopg.Connection, make_user: MakeUser
+) -> None:
+    user = make_user()
+    exam = _exam(db, user.id)
+    analysis = _analysis(db, user.id, exam)
+    with user_transaction(api_db, user) as conn:
+        conn.execute(
+            "UPDATE app.analyses SET status = 'applied', applied_at = now(), "
+            "undone_at = NULL, replaced_task_ids = '{}' WHERE id = %s",
+            (analysis,),
+        )
+    for column, value in (("output", "'{}'::jsonb"), ("error", "'x'"), ("warnings", "'{a}'")):
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            with user_transaction(api_db, user) as conn:
+                conn.execute(
+                    f"UPDATE app.analyses SET {column} = {value} WHERE id = %s",  # noqa: S608
+                    (analysis,),
+                )

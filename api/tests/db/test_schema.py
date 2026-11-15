@@ -130,7 +130,8 @@ def test_only_authenticated_has_table_privileges(db: psycopg.Connection) -> None
         "topics": {"SELECT", "INSERT", "UPDATE", "DELETE"},
         # The worker writes analyses on behalf of the user and the API applies them;
         # ai_usage is written only by the worker as the schema owner.
-        "analyses": {"SELECT", "INSERT", "UPDATE"},
+        # UPDATE is granted on columns only (migration 0008).
+        "analyses": {"SELECT", "INSERT"},
         "ai_usage": {"SELECT"},
     }
     for table in _app_tables(db):

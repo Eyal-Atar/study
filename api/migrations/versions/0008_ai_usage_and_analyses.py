@@ -5,7 +5,8 @@ Explicit SQL, written by hand.
 `analyses` keeps one AI analysis of one exam: the validated output, the status of the
 draft (`draft`, `applied`, `failed`, `superseded`, `undone`), and what applying it replaced
 (`replaced_task_ids`, used by undo). The worker writes it on behalf of the user and the API
-applies it, so `authenticated` gets SELECT, INSERT and UPDATE but never DELETE.
+applies it, so `authenticated` gets SELECT, INSERT, and UPDATE on the lifecycle columns only
+(status, applied_at, undone_at, replaced_task_ids); never DELETE.
 
 `ai_usage` is the spending ledger behind the daily quota: one row per call to Claude,
 written by the worker as the schema owner, read-only for the user. `exam_id` has no foreign
@@ -105,7 +106,11 @@ def upgrade() -> None:
         USING (user_id = (SELECT auth.uid()))
         WITH CHECK (user_id = (SELECT auth.uid()))
     """)
-    op.execute("GRANT SELECT, INSERT, UPDATE ON app.analyses TO authenticated")
+    op.execute("GRANT SELECT, INSERT ON app.analyses TO authenticated")
+    op.execute(
+        "GRANT UPDATE (status, applied_at, undone_at, replaced_task_ids) "
+        "ON app.analyses TO authenticated"
+    )
 
     op.execute("""
         CREATE TABLE app.ai_usage (
