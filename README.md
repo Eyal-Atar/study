@@ -26,6 +26,17 @@ uv run uvicorn app.main:create_app --factory --reload
 
 בדיקות: `uv run pytest` (הן יוצרות מסד `studyflow_test` ב-Postgres המקומי). lint ופורמט: `uv run ruff check .` ו-`uv run ruff format --check .`. טיפוסים: `uv run mypy`.
 
+## הרצת ה-worker
+
+ה-worker הוא תהליך נפרד שמריץ את העבודות שבתור (למשל קליטת חומר שהועלה). הוא רץ מתוך `api/`:
+
+```bash
+cd api
+uv run python -m app.jobs
+```
+
+הוא קורא את אותן הגדרות כמו ה-API, ובנוסף שני משתנים ב-`.env`: ‏`WORKER_DATABASE_URL` (חיבור כבעלים של הסכמה) ו-`SUPABASE_SECRET_KEY` (גישה ל-Storage). שני המשתנים האלה שייכים ל-worker בלבד: ה-API לא משתמש בהם, ובסביבת production מגדירים אותם רק לתהליך של ה-worker.
+
 ## הרצת ה-web
 
 הפקודות רצות מתוך `web/`, וצריך Node 24 עם npm 11.17 ומעלה.

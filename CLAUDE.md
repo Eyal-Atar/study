@@ -22,6 +22,7 @@
 | --- | --- |
 | התקנת תלויות | `uv sync` |
 | הרצת השרת | `uv run uvicorn app.main:create_app --factory --reload` |
+| הרצת ה-worker | `uv run python -m app.jobs` |
 | בדיקות | `uv run pytest` |
 | lint | `uv run ruff check .` |
 | בדיקת פורמט | `uv run ruff format --check .` |
@@ -29,6 +30,8 @@
 | Postgres מקומי לבדיקות | `brew services start postgresql@17` (פעם אחת; הבדיקות יוצרות את `studyflow_test` לבד) |
 | מיגרציות על פרויקט ה-dev | `uv run alembic upgrade head` (קורא את `MIGRATION_DATABASE_URL` מ-`api/.env`) |
 | מיגרציה חדשה | `uv run alembic revision --rev-id <NNNN> -m "<name>"`, עם SQL מפורש ב-`op.execute` |
+
+`api/eval/materials/` מקומית בלבד ומוגנת ב-`.gitignore` (רק ה-README שלה נכנס ל-git): יש בה קבצים אמיתיים לבדיקות, ולא שמים בה קבצים שצריכים להיכנס ל-git. בדיקת העשן: `uv run python eval/pdf_smoke.py eval/materials`.
 
 הבדיקות פונות רק ל-`TEST_DATABASE_URL` (ברירת מחדל `postgresql://localhost:5432/postgres`), ומסרבות לכתובת שאינה מקומית. הן יוצרות ב-Postgres המקומי תפקידים שחלים על כל ה-cluster: `anon`, ‏`authenticated`, ‏`service_role`, ו-`studyflow_api` עם LOGIN ובלי סיסמה. לכן ה-Postgres הזה משמש רק לפיתוח. ‏`psql` נמצא ב-`/opt/homebrew/opt/postgresql@17/bin`. כל טבלה חדשה בסכמה `app` צריכה RLS, ו-`tests/db/test_schema.py` נכשל בלעדיו.
 
