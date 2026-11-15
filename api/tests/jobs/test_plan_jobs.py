@@ -766,3 +766,146 @@ def test_reanalyze_bad_exam_is_exam_missing(
 
     assert job.status == "failed"
     assert job.error == "exam_missing"
+
+
+# --- fix round 1: the planning time, the usage at the call, the failed row, the client ----
+
+
+def test_planning_uses_the_time_after_the_calls(
+    run: Callable[..., JobRow],
+    new_exam: Callable[..., UUID],
+    db: psycopg.Connection,
+    clock: FrozenClock,
+) -> None:
+    start = dt.datetime(2026, 11, 16, 9, 0, tzinfo=dt.UTC)  # inside the morning window
+    a = new_exam(EXAM_A)
+    clock.set(start)
+
+    def hook(_keepalive: Callable[[], None] | None) -> None:
+        clock.advance(minutes=20)
+
+    job = run(HookedClient([valid()], hook), _generate(a))
+
+    assert job.status == "done", job.error
+    first = scalar(db, "SELECT min(starts_at) FROM app.blocks WHERE status = 'planned'")
+    assert first is not None
+    assert first >= start + dt.timedelta(minutes=20)
+
+
+def test_claim_lost_during_a_paid_call_records_the_usage(
+    run: Callable[..., JobRow],
+    new_exam: Callable[..., UUID],
+    owner_db: psycopg.Connection[DictRow],
+    db: psycopg.Connection,
+    read_job: ReadJob,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    a = new_exam(EXAM_A)
+    monkeypatch.setattr(plan_jobs, "TICK_SECONDS", 0.01)
+    job_ids: list[UUID] = []
+
+    def hook(_keepalive: Callable[[], None] | None) -> None:
+        # Another worker claims the job during the call; the ticker finds the fence closed.
+        row = owner_db.execute(
+            "UPDATE app.jobs SET attempts = attempts + 1 WHERE kind = %s RETURNING id",
+            (JOB_GENERATE_PLAN,),
+        ).fetchone()
+        assert row is not None
+        job_ids.append(row["id"])
+        time.sleep(0.2)
+
+    # Quiet: no streamed event reports the loss mid-call, so the reply comes back paid and
+    # the loss shows when the ticker stops.
+    job = run(QuietClient([valid()], hook), _generate(a))
+
+    assert job.status == "running"  # left alone for the worker that holds it now
+    assert job.attempts == 2
+    assert _usage(db, job.id) == 1
+    assert _ai_tasks(db, a) == 0
+    assert job_ids == [job.id]
+
+
+def test_usage_is_one_row_per_call(
+    run: Callable[..., JobRow], new_exam: Callable[..., UUID], db: psycopg.Connection
+) -> None:
+    a, b = new_exam(EXAM_A), new_exam(EXAM_B)
+
+    job = run(FakeAnalysisClient([valid(), invalid(), invalid()]), _generate(a, b))
+
+    assert job.status == "done", job.error
+    assert _count(db, "SELECT count(*) FROM app.ai_usage WHERE exam_id = %s", a) == 1
+    assert _count(db, "SELECT count(*) FROM app.ai_usage WHERE exam_id = %s", b) == 2
+    assert _usage(db, job.id) == 3
+
+
+def test_reanalysis_usage_is_one_row_per_call(
+    run: Callable[..., JobRow], new_exam: Callable[..., UUID], db: psycopg.Connection
+) -> None:
+    a = new_exam(EXAM_A)
+
+    job = run(
+        FakeAnalysisClient([invalid(), valid()]), {"exam_id": str(a)}, kind=JOB_REANALYZE_EXAM
+    )
+
+    assert job.status == "done", job.error
+    assert _count(db, "SELECT count(*) FROM app.ai_usage WHERE exam_id = %s", a) == 2
+
+
+def test_failed_row_that_cannot_be_written_does_not_retry(
+    run: Callable[..., JobRow],
+    new_exam: Callable[..., UUID],
+    db: psycopg.Connection,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    a, b = new_exam(EXAM_A), new_exam(EXAM_B)
+
+    def broken(*_args: Any) -> None:
+        raise psycopg.errors.QueryCanceled("statement timeout")
+
+    monkeypatch.setattr(plan_jobs, "record_failed_analysis", broken)
+
+    job = run(FakeAnalysisClient([invalid(), invalid(), valid()]), _generate(a, b))
+
+    assert job.status == "done", job.error
+    assert job.result is not None
+    assert job.result["exams"][0]["status"] == "failed"
+    assert job.result["exams"][0]["error"] == "analysis_invalid"
+    assert job.result["exams"][1]["status"] == "analyzed"
+
+
+def test_failed_row_that_cannot_be_written_fails_a_single_exam_job_for_good(
+    run: Callable[..., JobRow],
+    new_exam: Callable[..., UUID],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    a = new_exam(EXAM_A)
+
+    def broken(*_args: Any) -> None:
+        raise psycopg.errors.QueryCanceled("statement timeout")
+
+    monkeypatch.setattr(plan_jobs, "record_failed_analysis", broken)
+
+    job = run(FakeAnalysisClient([invalid(), invalid()]), _generate(a))
+
+    assert job.status == "failed"
+    assert job.error == "analysis_invalid"
+    assert job.attempts == 1
+
+
+def test_planning_alone_needs_no_client(
+    run: Callable[..., JobRow],
+    new_exam: Callable[..., UUID],
+    db: psycopg.Connection,
+    user: Any,
+) -> None:
+    a = new_exam(EXAM_A)
+    _insert_ai_task(db, user, a)
+
+    def factory(_settings: Settings) -> Any:
+        raise AiError("ai_not_configured")
+
+    job = run(None, _generate(a), factory=factory)
+
+    assert job.status == "done", job.error
+    assert job.result is not None
+    assert job.result["exams"][0]["status"] == "skipped"

@@ -152,7 +152,7 @@ def _exam_is_live(conn: Conn, user_id: UUID, exam_id: UUID) -> dict[str, Any] | 
     return dict(row) if row is not None else None
 
 
-def _has_ai_tasks(conn: Conn, user_id: UUID, exam_id: UUID) -> bool:
+def has_ai_tasks(conn: Conn, user_id: UUID, exam_id: UUID) -> bool:
     row = conn.execute(
         "SELECT EXISTS (SELECT 1 FROM app.tasks WHERE user_id = %s AND exam_id = %s "
         "AND source = 'ai' AND deleted_at IS NULL) AS found",
@@ -178,7 +178,7 @@ def load_input(
         raise AnalysisFailed("exam_missing")
     # Checked again under the lock in save_analysis; here it saves a paid call. A
     # reanalysis writes no tasks, so it has nothing to check.
-    if first_analysis and _has_ai_tasks(conn, user_id, exam_id):
+    if first_analysis and has_ai_tasks(conn, user_id, exam_id):
         raise AnalysisFailed("already_analyzed")
     rows = conn.execute(
         "SELECT id, kind, filename, mime, storage_path, ingest_status, page_count, text_by_page "
@@ -505,7 +505,7 @@ def save_analysis(
     lock_user(conn, user_id)
     if _exam_is_live(conn, user_id, exam_id) is None:
         raise AnalysisFailed("exam_missing")
-    if _has_ai_tasks(conn, user_id, exam_id):
+    if has_ai_tasks(conn, user_id, exam_id):
         raise AnalysisFailed("already_analyzed")
     analysis_id = _insert_analysis(
         conn, user_id, exam_id, prepared, status="applied", job_id=job_id

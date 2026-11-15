@@ -100,6 +100,10 @@ class JobContext:
         # The claim itself set locked_at to `now`.
         self._last_beat = self.now
 
+    def clock(self) -> datetime:
+        """The current time from the worker's clock (`now` is the claim time)."""
+        return self._clock()
+
     def user_transaction(self) -> AbstractContextManager[psycopg.Connection[DictRow]]:
         """One transaction as the job's user, under RLS."""
         return self._user_transaction()

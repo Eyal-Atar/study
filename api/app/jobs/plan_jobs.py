@@ -15,8 +15,9 @@ as a `plan_generated` version. Failures fall in three groups:
 If no exam ends analyzed or skipped, the job fails with the first exam's failure code: a
 "done" with an empty board would hide that the AI failed.
 
-Every paid call is written to app.ai_usage right after its exam, before the plan is
-written, so a crash later does not lose the record of money already spent.
+Every paid call is written to app.ai_usage as soon as it returns (by the client wrapper),
+before anything else is written, so a crash later, or a claim lost during the call, does
+not lose the record of money already spent.
 
 Each Claude call runs inside `ctx.keeping_alive()`: a ticker renews the job's lock while the
 call is quiet (the SDK drops the API's ping events), and the call also gets
@@ -37,17 +38,20 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import Any, Final
 from uuid import UUID
 
+import psycopg
+
 from app.ai.client import AiError, AnalysisClient, AnalysisReply
 from app.ai.schema import GapOut
 from app.domain.planner import PlanResult, exam_budgets, replan
 from app.domain.time import local_date
-from app.jobs.worker import KEEPALIVE_SECONDS, JobContext, JobFailed
+from app.jobs.worker import KEEPALIVE_SECONDS, JobContext, JobFailed, JobLost
 from app.services.analysis import (
     AnalysisFailed,
     AnalysisOutcome,
     analyze_exam,
     draft_analysis,
     failed_exams_of_job,
+    has_ai_tasks,
     record_failed_analysis,
 )
 from app.services.board import load_board
@@ -75,11 +79,17 @@ EXAMS_SPAN: Final = 80
 
 
 class _KeptAliveClient:
-    """An AnalysisClient that runs every call inside the job's keepalive ticker."""
+    """An AnalysisClient that runs every call inside the job's keepalive ticker, and writes
+    each paid call to app.ai_usage as soon as it returns (for the exam in `exam_id`).
+
+    The usage is written even when the ticker found the claim lost during the call: the
+    money was spent, so the row is written first and JobLost is raised after it.
+    """
 
     def __init__(self, ctx: JobContext, client: AnalysisClient) -> None:
         self._ctx = ctx
         self._client = client
+        self.exam_id: UUID | None = None
 
     def complete(
         self,
@@ -89,13 +99,21 @@ class _KeptAliveClient:
         schema: Mapping[str, Any],
         keepalive: Callable[[], None] | None = None,
     ) -> AnalysisReply:
-        with self._ctx.keeping_alive(interval=TICK_SECONDS):
-            return self._client.complete(
-                system=system, messages=messages, schema=schema, keepalive=keepalive
-            )
+        reply: AnalysisReply | None = None
+        try:
+            with self._ctx.keeping_alive(interval=TICK_SECONDS):
+                reply = self._client.complete(
+                    system=system, messages=messages, schema=schema, keepalive=keepalive
+                )
+        except JobLost:
+            if reply is not None:
+                self._ctx.record_usage([reply.usage], exam_id=self.exam_id)
+            raise
+        self._ctx.record_usage([reply.usage], exam_id=self.exam_id)
+        return reply
 
 
-def _client(ctx: JobContext) -> AnalysisClient:
+def _client(ctx: JobContext) -> _KeptAliveClient:
     try:
         client = ctx.ai_client()
     except AiError as error:
@@ -182,15 +200,6 @@ def _earlier(
     }
 
 
-def _has_ai_tasks(conn: Conn, user_id: UUID, exam_id: UUID) -> bool:
-    row = conn.execute(
-        "SELECT EXISTS (SELECT 1 FROM app.tasks WHERE user_id = %s AND exam_id = %s "
-        "AND source = 'ai' AND deleted_at IS NULL) AS found",
-        (user_id, exam_id),
-    ).fetchone()
-    return bool(row is not None and row["found"])
-
-
 def _exam_progress(ctx: JobContext, index: int, count: int) -> Callable[[str, int], None]:
     """The analysis's own progress (0..100), mapped into this exam's share of 5..85."""
     start = EXAMS_START + EXAMS_SPAN * index / count
@@ -248,7 +257,7 @@ def _plan_result(version_id: UUID | None, result: PlanResult) -> dict[str, Any]:
 
 def _analyze_one(
     ctx: JobContext,
-    client: AnalysisClient,
+    client: _KeptAliveClient,
     exam_id: UUID,
     budget: int,
     today: dt.date,
@@ -256,6 +265,7 @@ def _analyze_one(
 ) -> dict[str, Any]:
     """Analyze one exam: its result entry, or JobFailed when the job must stop."""
     user_id = ctx.job.user_id
+    client.exam_id = exam_id
     try:
         outcome = analyze_exam(
             transaction=ctx.user_transaction,
@@ -271,7 +281,6 @@ def _analyze_one(
             job_id=ctx.job.id,
         )
     except AnalysisFailed as failed:
-        ctx.record_usage(failed.usage, exam_id=exam_id)
         code = failed.code
         logger.info("job %s exam %s analysis failed: %s", ctx.job.id, exam_id, code)
         if code in ACCOUNT_CODES:
@@ -280,11 +289,29 @@ def _analyze_one(
             return _empty(exam_id, "skipped", budget)
         if failed.retry and not ctx.last_attempt:
             raise JobFailed(code, retry=True) from None
-        with ctx.user_transaction() as conn:
-            record_failed_analysis(conn, user_id, exam_id, ctx.job.id, code)
+        _record_failed(ctx, exam_id, code)
         return _empty(exam_id, "failed", budget, code)
-    ctx.record_usage(outcome.usage, exam_id=exam_id)
     return _analyzed(exam_id, outcome)
+
+
+def _record_failed(ctx: JobContext, exam_id: UUID, code: str) -> None:
+    """Write the exam's failed analysis; a failure to write it is logged and passed over.
+
+    Raising here would retry the job, and the retry would pay for this exam again: without
+    the row the exam stays failed only in this attempt's result.
+    """
+    try:
+        with ctx.user_transaction() as conn:
+            record_failed_analysis(conn, ctx.job.user_id, exam_id, ctx.job.id, code)
+    except Exception as error:
+        sqlstate = error.sqlstate if isinstance(error, psycopg.Error) else None
+        logger.error(
+            "job %s exam %s failed analysis not recorded: %s sqlstate=%s",
+            ctx.job.id,
+            exam_id,
+            type(error).__name__,
+            sqlstate,
+        )
 
 
 def generate_plan(ctx: JobContext) -> dict[str, Any]:
@@ -294,7 +321,9 @@ def generate_plan(ctx: JobContext) -> dict[str, Any]:
     with ctx.user_transaction() as conn:
         budgets, today = _budgets(conn, user_id, ctx.now)
         failed_before = failed_exams_of_job(conn, user_id, ctx.job.id)
-    client = _client(ctx)
+    # Built on the first exam that needs a call: a retry with only planning left must not
+    # fail on a client it does not use.
+    client: _KeptAliveClient | None = None
 
     exams: list[dict[str, Any]] = []
     for index, exam_id in enumerate(exam_ids):
@@ -303,18 +332,20 @@ def generate_plan(ctx: JobContext) -> dict[str, Any]:
             exams.append(_empty(exam_id, "skipped", 0))
             continue
         with ctx.user_transaction() as conn:
-            has_ai_tasks = _has_ai_tasks(conn, user_id, exam_id)
+            analyzed = has_ai_tasks(conn, user_id, exam_id)
             earlier = (
                 _earlier(conn, user_id, ctx.job.id, exam_id, budget)
-                if has_ai_tasks or exam_id in failed_before
+                if analyzed or exam_id in failed_before
                 else None
             )
         if earlier is not None:  # this job's earlier attempt analyzed it or failed it
             exams.append(earlier)
             continue
-        if has_ai_tasks:  # analyzed by another job meanwhile
+        if analyzed:  # analyzed by another job meanwhile
             exams.append(_empty(exam_id, "skipped", budget))
             continue
+        if client is None:
+            client = _client(ctx)
         exams.append(
             _analyze_one(
                 ctx, client, exam_id, budget, today, _exam_progress(ctx, index, len(exam_ids))
@@ -328,8 +359,10 @@ def generate_plan(ctx: JobContext) -> dict[str, Any]:
     ctx.progress("planning", 88)
     # One transaction: the board is locked from its load to the write. A progress report
     # cannot run inside it (it renews the lock as the owner), so "saving_plan" is not sent.
+    # The time after the analyses (minutes after the claim): nothing is planned before it.
+    now = ctx.clock()
     with ctx.user_transaction() as conn:
-        board = load_board(conn, user_id, ctx.now, lock=True)
+        board = load_board(conn, user_id, now, lock=True)
         started = time.perf_counter()
         result = replan(board.profile, board.exams, board.tasks, board.existing, board.now)
         logger.info("job %s plan took %d ms", ctx.job.id, (time.perf_counter() - started) * 1000)
@@ -345,6 +378,7 @@ def reanalyze_exam(ctx: JobContext) -> dict[str, Any]:
     if exam_id not in budgets:  # deleted, past, or not this user's
         raise JobFailed(EXAM_MISSING)
     client = _client(ctx)
+    client.exam_id = exam_id
     try:
         outcome = draft_analysis(
             transaction=ctx.user_transaction,
@@ -360,13 +394,11 @@ def reanalyze_exam(ctx: JobContext) -> dict[str, Any]:
             job_id=ctx.job.id,
         )
     except AnalysisFailed as failed:
-        ctx.record_usage(failed.usage, exam_id=exam_id)
         logger.info("job %s exam %s reanalysis failed: %s", ctx.job.id, exam_id, failed.code)
         # The worker retries only while attempts remain; account codes never retry.
         raise JobFailed(
             failed.code, retry=failed.retry and failed.code not in ACCOUNT_CODES
         ) from None
-    ctx.record_usage(outcome.usage, exam_id=exam_id)
     return {
         "analysis_id": str(outcome.analysis_id),
         "exam_id": str(exam_id),
