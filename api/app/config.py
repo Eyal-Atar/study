@@ -1,6 +1,6 @@
 from urllib.parse import urlsplit
 
-from pydantic import HttpUrl, field_validator
+from pydantic import Field, HttpUrl, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # The port a browser leaves out of the Origin header, per scheme.
@@ -30,10 +30,21 @@ class Settings(BaseSettings):
     supabase_url: HttpUrl
     cors_origins: list[str] = []
     database_url: str | None = None
+    # The worker's settings. The worker connects as the schema owner; the API never reads these.
+    worker_database_url: str | None = None
+    supabase_secret_key: SecretStr | None = None
+    max_material_bytes: int = Field(default=20_971_520, gt=0)
+    max_material_pages: int = Field(default=80, gt=0)
+    max_materials_per_exam: int = Field(default=15, gt=0)
+    max_chars_per_page: int = Field(default=20_000, gt=0)
+    scanned_page_max_chars: int = Field(default=40, ge=0)
+    worker_poll_seconds: float = Field(default=2.0, gt=0)
+    job_lock_timeout_seconds: int = Field(default=600, gt=0)
+    job_max_attempts: int = Field(default=3, gt=0)
 
-    @field_validator("database_url", mode="before")
+    @field_validator("database_url", "worker_database_url", "supabase_secret_key", mode="before")
     @classmethod
-    def _empty_database_url_is_none(cls, value: object) -> object:
+    def _empty_string_is_none(cls, value: object) -> object:
         return None if isinstance(value, str) and not value.strip() else value
 
     @field_validator("supabase_url")

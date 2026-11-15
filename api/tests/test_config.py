@@ -96,3 +96,26 @@ def test_cors_origin_accepts_what_a_browser_sends(origin: str) -> None:
         supabase_url="https://test-ref.supabase.co", cors_origins=[origin], _env_file=None
     )
     assert settings.cors_origins == [origin]
+
+
+def test_empty_worker_connection_and_key_are_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("WORKER_DATABASE_URL", " ")
+    monkeypatch.setenv("SUPABASE_SECRET_KEY", "")
+    settings = Settings(supabase_url="https://test-ref.supabase.co", _env_file=None)
+    assert settings.worker_database_url is None
+    assert settings.supabase_secret_key is None
+
+
+def test_secret_key_is_hidden_from_repr(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SUPABASE_SECRET_KEY", "sb_secret_abc")
+    settings = Settings(supabase_url="https://test-ref.supabase.co", _env_file=None)
+    assert settings.supabase_secret_key is not None
+    assert settings.supabase_secret_key.get_secret_value() == "sb_secret_abc"
+    assert "sb_secret_abc" not in repr(settings)
+
+
+@pytest.mark.parametrize("name", ["JOB_MAX_ATTEMPTS", "WORKER_POLL_SECONDS", "MAX_MATERIAL_BYTES"])
+def test_worker_limits_must_be_positive(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
+    monkeypatch.setenv(name, "0")
+    with pytest.raises(ValidationError):
+        Settings(supabase_url="https://test-ref.supabase.co", _env_file=None)
