@@ -155,3 +155,18 @@ def test_lock_serializes_two_transactions(
         thread.join()
     assert time.monotonic() - started >= 0.6
     assert uuid4()
+
+
+def test_done_blocks_of_loaded_tasks_count_whatever_their_age(
+    database: Database, make_user: MakeUser, db: psycopg.Connection
+) -> None:
+    user = make_user()
+    exam = _exam(db, user, "2026-12-20")
+    task = _task(db, user, exam)
+    db.execute("UPDATE app.tasks SET estimated_minutes = 120 WHERE id = %s", (task,))
+    deleted = _task(db, user, exam, deleted=True)
+    old_done = _block(db, user, task, "2026-11-12 08:00Z", "2026-11-12 09:00Z", status="done")
+    _block(db, user, task, "2026-11-11 08:00Z", "2026-11-11 09:00Z", status="missed")
+    _block(db, user, deleted, "2026-11-12 10:00Z", "2026-11-12 11:00Z", status="done")
+    board = _board(database, user)
+    assert [block.id for block in board.blocks] == [old_done]

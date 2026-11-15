@@ -1,0 +1,86 @@
+"""Replan the whole board: a preview with a basis, and an apply that checks it."""
+
+import datetime as dt
+from dataclasses import dataclass
+from uuid import UUID
+
+from app.domain.planner import (
+    ExamShortfall,
+    PlannedBlock,
+    PlanResult,
+    Unscheduled,
+    replan,
+)
+from app.errors import ApiError
+from app.services.board import Board, fingerprint, load_board
+from app.services.plan_views import BlockView, blocks_by_id
+from app.services.plan_writes import VersionReason, apply_result, has_changes
+from app.services.profiles import Conn
+
+
+@dataclass(frozen=True)
+class ReplanOutcome:
+    basis: str
+    changed: bool
+    version_id: UUID | None
+    added: tuple[PlannedBlock, ...]
+    removed: tuple[BlockView, ...]
+    unscheduled: tuple[Unscheduled, ...]
+    shortfalls: tuple[ExamShortfall, ...]
+    warnings: tuple[str, ...]
+
+
+def _run(board: Board) -> PlanResult:
+    return replan(board.profile, board.exams, board.tasks, board.existing, board.now)
+
+
+def _outcome(
+    board: Board,
+    result: PlanResult,
+    *,
+    changed: bool,
+    version_id: UUID | None,
+    removed: tuple[BlockView, ...],
+) -> ReplanOutcome:
+    return ReplanOutcome(
+        basis=fingerprint(board),
+        changed=changed,
+        version_id=version_id,
+        added=tuple(block for block in result.blocks if block.block_id is None),
+        removed=removed,
+        unscheduled=result.unscheduled,
+        shortfalls=result.shortfalls,
+        warnings=tuple(warning.code.value for warning in result.warnings),
+    )
+
+
+def preview_replan(conn: Conn, user_id: UUID, now: dt.datetime) -> ReplanOutcome:
+    """What a replan would change, without writing; basis identifies the board it saw."""
+    board = load_board(conn, user_id, now)
+    result = _run(board)
+    removed = blocks_by_id(conn, user_id, result.removed, board.profile, now)
+    return _outcome(
+        board,
+        result,
+        changed=has_changes(board, result),
+        version_id=None,
+        removed=removed,
+    )
+
+
+def apply_replan(conn: Conn, user_id: UUID, now: dt.datetime, basis: str) -> ReplanOutcome:
+    """Replan again with the current time and write it, if the board is still the one previewed."""
+    board = load_board(conn, user_id, now, lock=True)
+    if fingerprint(board) != basis:
+        raise ApiError("stale_plan")
+    result = _run(board)
+    # Read before apply_result deletes them.
+    removed = blocks_by_id(conn, user_id, result.removed, board.profile, now)
+    version_id = apply_result(conn, user_id, board, result, VersionReason.REPLAN)
+    return _outcome(
+        board,
+        result,
+        changed=version_id is not None,
+        version_id=version_id,
+        removed=removed,
+    )

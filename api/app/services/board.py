@@ -3,8 +3,10 @@
 import datetime as dt
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import cached_property
+from typing import Any
 from uuid import UUID
 
 from app.domain.planner import (
@@ -71,18 +73,40 @@ class Board:
 
     @cached_property
     def snapshot_blocks(self) -> tuple[SnapshotBlock, ...]:
-        return tuple(
-            SnapshotBlock(
-                id=block.id,
-                task_id=block.task_id,
-                interval=block.interval,
-                part_index=block.part_index,
-                part_count=block.part_count,
-                pinned=block.pinned,
-                status=block.status,
-            )
-            for block in self.blocks
-        )
+        return tuple(to_snapshot_block(block) for block in self.blocks)
+
+
+# The columns to_block_row reads, for every query that maps blocks.
+BLOCK_COLUMNS = (
+    "id, task_id, starts_at, ends_at, part_index, part_count, pinned, status, plan_version_id"
+)
+
+
+def to_block_row(row: Mapping[str, Any]) -> BlockRow:
+    """A row of app.blocks (BLOCK_COLUMNS, possibly more) as a BlockRow, in UTC."""
+    return BlockRow(
+        id=row["id"],
+        task_id=row["task_id"],
+        starts_at=row["starts_at"].astimezone(dt.UTC),
+        ends_at=row["ends_at"].astimezone(dt.UTC),
+        part_index=row["part_index"],
+        part_count=row["part_count"],
+        pinned=row["pinned"],
+        status=BlockStatus(row["status"]),
+        plan_version_id=row["plan_version_id"],
+    )
+
+
+def to_snapshot_block(block: BlockRow) -> SnapshotBlock:
+    return SnapshotBlock(
+        id=block.id,
+        task_id=block.task_id,
+        interval=block.interval,
+        part_index=block.part_index,
+        part_count=block.part_count,
+        pinned=block.pinned,
+        status=block.status,
+    )
 
 
 def load_board(conn: Conn, user_id: UUID, now: dt.datetime, *, lock: bool = False) -> Board:
@@ -121,24 +145,17 @@ def load_board(conn: Conn, user_id: UUID, now: dt.datetime, *, lock: bool = Fals
         for row in task_rows
     )
 
+    # The recent planned and done blocks of every task, and the done blocks of the
+    # loaded tasks whatever their age: those are what the task has already done.
     blocks = tuple(
-        BlockRow(
-            id=row["id"],
-            task_id=row["task_id"],
-            starts_at=row["starts_at"].astimezone(dt.UTC),
-            ends_at=row["ends_at"].astimezone(dt.UTC),
-            part_index=row["part_index"],
-            part_count=row["part_count"],
-            pinned=row["pinned"],
-            status=BlockStatus(row["status"]),
-            plan_version_id=row["plan_version_id"],
-        )
+        to_block_row(row)
         for row in conn.execute(
-            "SELECT id, task_id, starts_at, ends_at, part_index, part_count, pinned, status, "
-            "plan_version_id FROM app.blocks "
-            "WHERE user_id = %s AND status IN ('planned', 'done') AND ends_at > %s "
-            "ORDER BY starts_at, id",
-            (user_id, now - BLOCK_LOOKBACK),
+            f"SELECT {BLOCK_COLUMNS} FROM app.blocks "  # noqa: S608 - a constant column list
+            "WHERE user_id = %s AND ("
+            "(status IN ('planned', 'done') AND ends_at > %s) "
+            "OR (status = 'done' AND task_id = ANY(%s))"
+            ") ORDER BY starts_at, id",
+            (user_id, now - BLOCK_LOOKBACK, list(task_ids)),
         ).fetchall()
     )
     return Board(
