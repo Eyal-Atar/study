@@ -1,3 +1,5 @@
+import threading
+import time
 from collections.abc import Callable
 from typing import Any
 from uuid import UUID, uuid4
@@ -117,6 +119,8 @@ def test_list_materials_of_missing_exam_is_404(api: TestClient, user: ApiUser) -
     [
         "zip_mime",
         "empty_filename",
+        "blank_filename",
+        "nul_filename",
         "long_filename",
         "bad_kind",
         "zero_size",
@@ -142,6 +146,10 @@ def test_register_validation(
         body["mime"] = "application/zip"
     elif case == "empty_filename":
         body["filename"] = ""
+    elif case == "blank_filename":
+        body["filename"] = "   "
+    elif case == "nul_filename":
+        body["filename"] = "a\x00b.pdf"
     elif case == "long_filename":
         body["filename"] = "x" * 256
     elif case == "bad_kind":
@@ -190,6 +198,59 @@ def test_too_many_materials(
     # The limit is per exam: another exam still takes files.
     other_exam = insert_exam(db, user.id, exam_date="2026-12-02")
     register_material(api, user, other_exam)
+
+
+def test_concurrent_registrations_stop_at_the_limit(
+    api: TestClient,
+    db: psycopg.Connection,
+    migrated_database_url: str,
+    user: ApiUser,
+    exam: UUID,
+) -> None:
+    """Two registrations at 14 files: the per-user lock lets exactly one of them in.
+
+    A second owner connection holds app.jobs, so a request that got past the count waits
+    at its enqueue. Without the lock both requests reach that point having counted 14;
+    with it the second waits for the first to commit and then counts 15.
+    """
+    for _ in range(14):
+        insert_material(db, user.id, exam)
+    barrier = threading.Barrier(2)
+    results: list[Any] = []
+    errors: list[BaseException] = []
+
+    def post() -> None:
+        try:
+            barrier.wait(5)
+            results.append(api.post(f"/exams/{exam}/materials", json=_body(), headers=user.headers))
+        except BaseException as error:  # reported to the test thread
+            errors.append(error)
+
+    threads = [threading.Thread(target=post) for _ in range(2)]
+    with psycopg.connect(migrated_database_url) as holder:
+        holder.execute("LOCK TABLE app.jobs IN EXCLUSIVE MODE")
+        for thread in threads:
+            thread.start()
+        # Both requests are blocked: one (or both) on app.jobs, or one on the user lock.
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            waiting = scalar(
+                db,
+                "SELECT count(*) FROM pg_stat_activity "
+                "WHERE datname = current_database() AND wait_event_type = 'Lock'",
+            )
+            if waiting >= 2:
+                break
+            time.sleep(0.02)
+        holder.commit()
+    for thread in threads:
+        thread.join(20)
+    assert not any(thread.is_alive() for thread in threads)
+    assert errors == []
+    assert sorted(response.status_code for response in results) == [201, 422]
+    refused = next(response for response in results if response.status_code == 422)
+    assert refused.json()["code"] == "too_many_materials"
+    assert _counts(db, user.id) == (15, 1)
 
 
 def test_duplicate_id_is_409(

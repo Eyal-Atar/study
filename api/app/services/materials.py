@@ -11,10 +11,10 @@ from uuid import UUID
 import psycopg.errors
 
 from app.config import Settings
-from app.domain.materials import JOB_DELETE_MATERIAL_FILE, JOB_INGEST_MATERIAL
+from app.domain.materials import JOB_DELETE_MATERIAL_FILE, JOB_INGEST_MATERIAL, MaterialKind
 from app.errors import ApiError
 from app.jobs.queue import enqueue
-from app.services.profiles import Conn
+from app.services.profiles import Conn, lock_user
 
 MATERIAL_COLUMNS: Final = (
     "id, exam_id, filename, kind, mime, size_bytes, page_count, scanned_pages, ingest_status, "
@@ -54,12 +54,15 @@ def register_material(
     *,
     material_id: UUID,
     filename: str,
-    kind: str,
+    kind: MaterialKind,
     mime: str,
     size_bytes: int,
     settings: Settings,
 ) -> tuple[Row, UUID]:
     """Insert the material and queue its ingest job; returns the row and the job's id."""
+    # The per-user lock (the profile row) makes the count and the INSERT one step: without it,
+    # parallel registrations would all count the same number and pass the limit together.
+    lock_user(conn, user_id)
     _require_live_exam(conn, user_id, exam_id)
     if size_bytes > settings.max_material_bytes:
         raise ApiError("file_too_large", extra={"limit_bytes": settings.max_material_bytes})
@@ -67,7 +70,9 @@ def register_material(
         "SELECT count(*) AS n FROM app.materials WHERE user_id = %s AND exam_id = %s",
         (user_id, exam_id),
     ).fetchone()
-    if count_row is not None and count_row["n"] >= settings.max_materials_per_exam:
+    if count_row is None:
+        raise RuntimeError("SELECT count(*) returned no row")
+    if count_row["n"] >= settings.max_materials_per_exam:
         raise ApiError("too_many_materials", extra={"limit": settings.max_materials_per_exam})
     try:
         row = conn.execute(
@@ -86,6 +91,9 @@ def register_material(
             ),
         ).fetchone()
     except psycopg.errors.UniqueViolation as error:
+        # Deliberately 409, also when the id is another user's material (the primary key is
+        # global): ids are random v4 UUIDs chosen by the client, so this reveals nothing useful,
+        # and the plan accepted it. Do not turn it into a 404.
         raise ApiError("already_exists") from error
     if row is None:
         raise RuntimeError("the new material is not visible to this user")
