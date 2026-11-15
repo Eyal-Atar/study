@@ -66,15 +66,17 @@ def test_clock_skew_within_30_seconds_is_accepted(
     client: TestClient, make_token: TokenFactory
 ) -> None:
     now = int(time.time())
-    assert client.get("/me", headers=bearer(make_token(iat=now + 5))).status_code == 200
+    assert client.get("/probe", headers=bearer(make_token(iat=now + 5))).status_code == 200
     assert (
-        client.get("/me", headers=bearer(make_token(iat=now - 3600, exp=now - 5))).status_code
+        client.get("/probe", headers=bearer(make_token(iat=now - 3600, exp=now - 5))).status_code
         == 200
     )
 
 
 def test_audience_may_be_a_list(client: TestClient, make_token: TokenFactory) -> None:
-    assert client.get("/me", headers=bearer(make_token(aud=["authenticated"]))).status_code == 200
+    assert (
+        client.get("/probe", headers=bearer(make_token(aud=["authenticated"]))).status_code == 200
+    )
 
 
 def test_unreachable_jwks_is_503(make_token: TokenFactory) -> None:

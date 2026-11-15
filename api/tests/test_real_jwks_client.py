@@ -15,7 +15,7 @@ from jwt.algorithms import ECAlgorithm, RSAAlgorithm
 
 from app.config import Settings
 from app.main import create_app
-from tests.tokens import USER_ID, bearer
+from tests.tokens import USER_ID, add_auth_probe, bearer
 
 JWKS_PATH = "/auth/v1/.well-known/jwks.json"
 
@@ -72,8 +72,8 @@ def test_real_client_verifies_an_es256_token(
     key = ec.generate_private_key(ec.SECP256R1())
     public = ECAlgorithm.to_jwk(key.public_key(), as_dict=True)
     served["keys"] = [{**public, "kid": "es-1", "alg": "ES256", "use": "sig"}]
-    client = TestClient(create_app(settings))
-    response = client.get("/me", headers=bearer(_token(settings, key, "es-1", "ES256")))
+    client = TestClient(add_auth_probe(create_app(settings)))
+    response = client.get("/probe", headers=bearer(_token(settings, key, "es-1", "ES256")))
     assert response.status_code == 200
     assert response.json()["id"] == str(USER_ID)
 
@@ -85,7 +85,7 @@ def test_real_client_verifies_an_rs256_token(
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     public = RSAAlgorithm.to_jwk(key.public_key(), as_dict=True)
     served["keys"] = [{**public, "kid": "rs-1", "alg": "RS256", "use": "sig"}]
-    client = TestClient(create_app(settings))
-    response = client.get("/me", headers=bearer(_token(settings, key, "rs-1", "RS256")))
+    client = TestClient(add_auth_probe(create_app(settings)))
+    response = client.get("/probe", headers=bearer(_token(settings, key, "rs-1", "RS256")))
     assert response.status_code == 200
     assert response.json()["id"] == str(USER_ID)

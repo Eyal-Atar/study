@@ -3,11 +3,24 @@ from typing import Any
 from uuid import UUID
 
 import jwt
+from fastapi import FastAPI
+
+from app.auth import AuthenticatedUser
 
 USER_ID = UUID("6f1c9a52-3d0e-4b8e-9a51-2c7f0e4d8b13")
 TEST_KID = "test-key-1"
 
 TokenFactory = Callable[..., str]
+
+
+def add_auth_probe(app: FastAPI) -> FastAPI:
+    """Mount GET /probe, an endpoint that needs a valid token and nothing else (no database)."""
+
+    def probe(user: AuthenticatedUser) -> dict[str, str]:
+        return {"id": str(user.id)}
+
+    app.add_api_route("/probe", probe)
+    return app
 
 
 def bearer(token: str) -> dict[str, str]:

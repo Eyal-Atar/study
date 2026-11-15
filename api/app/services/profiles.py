@@ -1,0 +1,123 @@
+"""The user's profile: created on first use, locked per user, mapped to the planner."""
+
+import datetime as dt
+from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import Final
+from uuid import UUID
+
+import psycopg
+from psycopg import sql
+from psycopg.rows import DictRow
+
+from app.domain.planner import Profile, StudyWindow
+from app.domain.time import parse_timezone
+
+type Conn = psycopg.Connection[DictRow]
+
+# The columns a PATCH may write: a closed list, never taken from the request.
+UPDATABLE_COLUMNS: Final = frozenset(
+    {
+        "display_name",
+        "timezone",
+        "wake_time",
+        "sleep_time",
+        "daily_study_minutes",
+        "study_windows",
+        "rest_days_before_exam",
+        "notify_lead_minutes",
+    }
+)
+PLAN_FIELDS: Final = frozenset(
+    {
+        "timezone",
+        "wake_time",
+        "sleep_time",
+        "daily_study_minutes",
+        "study_windows",
+        "rest_days_before_exam",
+    }
+)
+_WINDOW_ORDER: Final = tuple(window.value for window in StudyWindow)
+
+
+def canonical_windows(windows: object) -> tuple[str, ...]:
+    """The study windows in the fixed order morning, afternoon, evening, night."""
+    names = {str(window) for window in windows}  # type: ignore[attr-defined]
+    return tuple(name for name in _WINDOW_ORDER if name in names)
+
+
+@dataclass(frozen=True)
+class ProfileRow:
+    id: UUID
+    display_name: str | None
+    timezone: str
+    wake_time: dt.time
+    sleep_time: dt.time
+    daily_study_minutes: int
+    study_windows: tuple[str, ...]
+    rest_days_before_exam: int
+    notify_lead_minutes: int
+    onboarding_completed_at: dt.datetime | None
+    created_at: dt.datetime
+
+
+def _to_row(raw: Mapping[str, object] | None) -> ProfileRow:
+    if raw is None:
+        raise RuntimeError("the profile row is not visible to this user")
+    values = dict(raw)
+    values["study_windows"] = canonical_windows(values["study_windows"])
+    return ProfileRow(**values)  # type: ignore[arg-type]
+
+
+def ensure_profile(conn: Conn, user_id: UUID) -> ProfileRow:
+    conn.execute(
+        "INSERT INTO app.profiles (id) VALUES (%s) ON CONFLICT DO NOTHING",
+        (user_id,),
+    )
+    row = conn.execute("SELECT * FROM app.profiles WHERE id = %s", (user_id,)).fetchone()
+    return _to_row(row)
+
+
+def lock_user(conn: Conn, user_id: UUID) -> ProfileRow:
+    """Serialize everything that changes this user's board: hold the profile row."""
+    ensure_profile(conn, user_id)
+    row = conn.execute("SELECT * FROM app.profiles WHERE id = %s FOR UPDATE", (user_id,)).fetchone()
+    return _to_row(row)
+
+
+def update_profile(
+    conn: Conn, user_id: UUID, changes: Mapping[str, object]
+) -> tuple[ProfileRow, bool]:
+    unknown = set(changes) - UPDATABLE_COLUMNS
+    if unknown:
+        raise ValueError(f"Not updatable: {sorted(unknown)}")
+    before = lock_user(conn, user_id)
+    values = dict(changes)
+    if "study_windows" in values:
+        values["study_windows"] = list(canonical_windows(values["study_windows"]))
+    if not values:
+        return before, False
+    assignments = sql.SQL(", ").join(
+        sql.SQL("{} = {}").format(sql.Identifier(column), sql.Placeholder()) for column in values
+    )
+    row = conn.execute(
+        sql.SQL("UPDATE app.profiles SET {} WHERE id = %s RETURNING *").format(assignments),
+        [*values.values(), user_id],
+    ).fetchone()
+    after = _to_row(row)
+    plan_affected = any(
+        getattr(before, field) != getattr(after, field) for field in PLAN_FIELDS if field in values
+    )
+    return after, plan_affected
+
+
+def to_planner_profile(row: ProfileRow) -> Profile:
+    return Profile(
+        timezone=parse_timezone(row.timezone),
+        wake_time=row.wake_time,
+        sleep_time=row.sleep_time,
+        daily_study_minutes=row.daily_study_minutes,
+        study_windows=frozenset(StudyWindow(name) for name in row.study_windows),
+        rest_days_before_exam=row.rest_days_before_exam,
+    )

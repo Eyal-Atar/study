@@ -14,7 +14,7 @@ from jwt.algorithms import ECAlgorithm
 
 from app.config import Settings
 from app.main import create_app
-from tests.tokens import TEST_KID, USER_ID, StaticKeys, TokenFactory
+from tests.tokens import TEST_KID, USER_ID, StaticKeys, TokenFactory, add_auth_probe
 
 pytest_plugins = ["tests.fixtures_db"]
 
@@ -85,7 +85,7 @@ def make_token(settings: Settings, signing_key: ec.EllipticCurvePrivateKey) -> T
 
 @pytest.fixture
 def app(settings: Settings, jwks: dict[str, Any]) -> FastAPI:
-    return create_app(settings, signing_keys=StaticKeys(jwks))
+    return add_auth_probe(create_app(settings, signing_keys=StaticKeys(jwks)))
 
 
 @pytest.fixture
