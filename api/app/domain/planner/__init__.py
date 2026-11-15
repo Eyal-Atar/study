@@ -12,6 +12,7 @@ from app.domain.planner.availability import (
     study_date,
     study_days,
 )
+from app.domain.planner.budget import exam_budgets
 from app.domain.planner.capacity import (
     BREAK_MINUTES,
     LONG_BREAK_MINUTES,
@@ -100,6 +101,7 @@ __all__ = [
     "clip",
     "day_fits",
     "day_windows",
+    "exam_budgets",
     "exam_cutoff",
     "fixed_state",
     "is_complete",
