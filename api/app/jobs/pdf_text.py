@@ -4,6 +4,9 @@ PDFium is not thread-safe: the worker runs this single-threaded, one file at a t
 Error messages never include text from the file.
 """
 
+import io
+from collections.abc import Sequence
+
 import pypdfium2 as pdfium
 
 from app.domain.materials import (
@@ -68,3 +71,26 @@ def extract_pdf(
         return ExtractedText(pages=tuple(pages), page_count=page_count, warnings=tuple(warnings))
     finally:
         pdf.close()
+
+
+def pdf_subset(data: bytes, pages: Sequence[int]) -> bytes:
+    """A new PDF made of the given 1-based pages, in the given order."""
+    try:
+        src = pdfium.PdfDocument(data)
+    except pdfium.PdfiumError as exc:
+        raise PdfUnreadable("The PDF could not be opened") from exc
+    try:
+        if any(page < 1 or page > len(src) for page in pages):
+            raise PdfUnreadable("A requested page is outside the document")
+        new = pdfium.PdfDocument.new()
+        try:
+            new.import_pages(src, [page - 1 for page in pages])
+            buffer = io.BytesIO()
+            new.save(buffer)
+            return buffer.getvalue()
+        except pdfium.PdfiumError as exc:
+            raise PdfUnreadable("The pages could not be copied") from exc
+        finally:
+            new.close()
+    finally:
+        src.close()
