@@ -125,6 +125,7 @@ flowchart RL
 - ה-API מחזיר ISO 8601 עם offset; הממשק מציג לפי אזור הזמן של המשתמש.
 - **שעה שלא קיימת או שחוזרת:** שעה שנופלת בפער של המעבר לשעון קיץ זזה קדימה באורך הפער (02:30 הופכת ל-03:30). שעה שחוזרת פעמיים במעבר לשעון חורף מתפרשת כמופע הראשון. חלון שמתחיל בפער ונגמר לפני ההתחלה המוזזת הוא חלון ריק. שם של אזור זמן נבדק מול רשימת IANA, כולל אותיות גדולות וקטנות. העזרים ב-`api/app/domain/time.py`.
 - **בדיקות חובה:** הלילה של המעבר לשעון חורף ולשעון קיץ ב-`Asia/Jerusalem`, בלוק שחוצה חצות, ומשתמש שפותח את האפליקציה מאזור זמן אחר.
+- **איך ה-timezone מגיע לשרת (החלטה של מי שבונה, S09):** `GET /me` מחזיר את ה-`timezone` של הפרופיל, וה-web שולח `PATCH /me {"timezone": …}` כשהדפדפן מדווח אזור אחר. הפרופיל נוצר בבקשה הראשונה עם `Asia/Jerusalem`. שינוי אזור הוא שינוי גלובלי: הוא נשמר, והתשובה אומרת `plan_affected: true`. ה-API מחזיר זמנים ב-UTC (`…Z`). "היום" ב-`GET /today`, והימים של `GET /plan`, נקבעים לפי `study_date` של תחילת הבלוק (7.6 שלב 1), לפי האזור של הפרופיל. השעון של השרת מוזרק (`app.state.clock`), כדי שאפשר יהיה לבדוק אותו.
 
 ### 7.4 מודל הנתונים
 
@@ -144,7 +145,7 @@ flowchart RL
 | `topics` | `id`, `user_id`, `exam_id`, `name`, `weight`, `evidence` | נושאים שה-AI מצא, עם הפניה לשאלות במבחני העבר. בעתיד: ביצועים לפי נושא |
 | `tasks` | `id`, `user_id`, `exam_id`, `topic_id`, `title`, `kind` (learn / practice / review / simulation / simulation_review / custom), `estimated_minutes`, `focus` (1–10), `depends_on_task_id`, `material_id`, `status` (todo / done / skipped), `source` (ai / user), `deleted_at` | `material_id` מקשר סימולציה למבחן העבר שלה |
 | `blocks` | `id`, `user_id`, `task_id` (FK עם `ON DELETE CASCADE`), `starts_at`, `ends_at`, `part_index`, `part_count`, `pinned`, `status` (planned / done / missed / skipped), `notified_at`, `plan_version_id` | `pinned` מחליף את `is_manually_edited`: בלוק שהמשתמש קבע לא זז בתכנון מחדש. `plan_version_id` הוא הגרסה שכתבה את הבלוק לאחרונה. שני בלוקים של אותו משתמש בסטטוס `planned` או `done` לא חופפים בזמן: exclusion constraint עם `btree_gist`, שנבדק בסוף הטרנזקציה, כי תכנון מחדש מוחק ומכניס באותה טרנזקציה. `missed` ו-`skipped` לא תופסים זמן **(החלטה של מי שבונה, S08)** |
-| `plan_versions` | `id`, `user_id`, `reason`, `created_at`, `undone_at`, `snapshot` (JSONB של הבלוקים העתידיים) | בסיס ל"ביטול" של כל שינוי בתוכנית. ה-snapshot הוא `{"v": 1, "blocks": [...]}`: הבלוקים שהם `planned` ונגמרים אחרי רגע השינוי, כפי שהיו **לפני** השינוי. `reason` הוא slug (אותיות קטנות וקו תחתון, עד 40 תווים), וה-enum שלו נכתב עם ה-endpoints (S09). גרסה שבוטלה מסומנת ב-`undone_at` ולא נמחקת; ל-`authenticated` יש רק SELECT, ‏INSERT ו-UPDATE של `undone_at` **(החלטות של מי שבונה, S08)** |
+| `plan_versions` | `id`, `user_id`, `reason`, `created_at`, `undone_at`, `snapshot` (JSONB של הבלוקים העתידיים) | בסיס ל"ביטול" של כל שינוי בתוכנית. ה-snapshot הוא `{"v": 1, "blocks": [...]}`: הבלוקים שהם `planned` ונגמרים אחרי רגע השינוי, כפי שהיו **לפני** השינוי. `reason` הוא slug (אותיות קטנות וקו תחתון, עד 40 תווים), וה-enum שלו נכתב עם ה-endpoints (S09). גרסה שבוטלה מסומנת ב-`undone_at` ולא נמחקת; ל-`authenticated` יש רק SELECT, ‏INSERT ו-UPDATE של `undone_at` **(החלטות של מי שבונה, S08)**. מ-S09: `exam_id` ו-`task_id` (הישות שנמחקה, נוספה או נערכה, כדי שהביטול יחזיר אותה), ו-`task_before` (השדות של משימה שנערכה, כפי שהיו לפני העריכה); INSERT רק לעמודות `user_id`, ‏`reason`, ‏`snapshot`, ‏`exam_id`, ‏`task_id`, ‏`task_before`; טריגר שקובע את `undone_at` ל-`now()` ומאפשר אותו פעם אחת; `created_at` עם `clock_timestamp()`, כך שהסדר בין גרסאות הוא סדר הכתיבה תחת הנעילה של המשתמש ולא סדר תחילת הטרנזקציות. ה-enum של `reason`: ‏`replan`, ‏`defer`, ‏`task_added`, ‏`task_changed`, ‏`task_deleted`, ‏`exam_deleted` **(החלטות של מי שבונה, S09)** |
 | `jobs` | `id`, `user_id`, `kind`, `status`, `stage`, `percent`, `error`, `created_at`, `finished_at` | סטטוס אמיתי למסך "בונים לך תוכנית" |
 | `push_subscriptions` | `id`, `user_id`, `endpoint` (unique), `p256dh`, `auth`, `user_agent`, `last_success_at`, `failure_count` | |
 | `xp_events` | `id`, `user_id`, `block_id` (unique), `xp`, `created_at` | יומן XP; הרמה והסכום מחושבים ממנו. ה-unique מונע XP כפול |
@@ -152,6 +153,8 @@ flowchart RL
 | `ai_usage` | `id`, `user_id`, `job_id`, `model`, `input_tokens`, `output_tokens`, `created_at` | מכסות ומעקב עלויות |
 
 - מחיקה של מבחן או משימה היא מחיקה רכה (`deleted_at`) עם אפשרות ביטול; מחיקה סופית רצה בעבודת ניקוי. מחיקת חשבון מוחקת הכל, כולל הקבצים ב-Storage.
+  - **מה מחיקה רכה עושה בפועל (S09):** הבלוקים `planned` של המשימות שמתחילים מ"עכשיו" והלאה (גם נעולים) נמחקים, ובלוק שכבר התחיל נשאר. כל מחיקה יוצרת גרסה, גם בלי בלוקים, וביטול שלה מחזיר את `deleted_at` ל-NULL ואת הבלוקים. מבחן מחוק, מבחן שתאריכו עבר ומשימה מחוקה לא נכנסים למתכנן; בלוק `done` של משימה מחוקה עדיין תופס את הזמן שלו.
+- **בלוקים בדקה שלמה (S09):** `blocks_whole_minutes` דורש ש-`starts_at` ו-`ends_at` יהיו על דקה שלמה, כמו `Interval` של המתכנן.
 - **הרצף (streak) נספר לפי ימי לימוד** — יום מקומי עם לפחות בלוק לימוד אחד שהושלם — ולא לפי כניסות לאפליקציה. **(החלטה שלי)**
 
 ### 7.5 צינור ה-AI (Claude)
@@ -238,6 +241,12 @@ flowchart RL
    - שינוי קטן (דחייה, סקירת בוקר, משימה שנוספה או נמחקה): הנחת משימה בודדת, בלי תצוגה מקדימה, עם "בטל".
    - שינוי גלובלי (מבחן שנוסף, נמחק או שתאריכו זז; שינוי בשעות ביום או בחלונות): תכנון מחדש מ"עכשיו" עם תצוגה מקדימה ואישור.
    - מבחן שנוסף אחרי האונבורדינג מנותח לבד; שאר המבחנים לא מנותחים שוב.
+   - **מה כל פעולה ב-API מפעילה (S09):**
+     - **`place_task`:** ‏`POST /tasks`; ‏`PATCH /tasks/{id}` כשמשתנים משך, סוג, מיקוד, תלות או סטטוס ל-`todo` (עם `release` של הבלוקים המועמדים של המשימה); ‏`defer`. בלי `not_before`, הדחייה מתחילה מסוף הבלוק שנדחה, אחרת המתכנן מחזיר אותו לאותו מקום. בלוק שהתחיל משתחרר כולו, וכל הדקות שלו מונחות מחדש, כי מי שדוחה באמצע כנראה לא לומד עכשיו.
+     - **מחיקת בלוקים פתוחים:** מחיקת משימה או מבחן, ומשימה שעוברת ל-`done` או `skipped`.
+     - **שמירה בלבד, עם `plan_affected: true`:** ‏`PATCH /me` בשדות של התוכנית, מבחן חדש, ושינוי תאריך או קושי של מבחן. ה-web מציע `POST /plan/replan` עם תצוגה מקדימה.
+     - **הנחה שנכשלה:** ב-`POST`/`PATCH /tasks` השדות נשמרים, הלוח לא משתנה, והתשובה כוללת `placement.placed = false` עם הסיבה. ב-`defer`: ‏409 ‏`placement_failed`, ושום דבר לא משתנה.
+     - **בלי גרסה:** `complete`, ‏`uncomplete` ונעילה (`PATCH /blocks/{id}`), כי הביטול שלהם הוא הפעולה ההפוכה.
 
 **אינווריאנטים לבדיקה (גם בבדיקות property-based):** אין חפיפות; הכל בתוך חלונות; אין לימוד למבחן ביום המבחן או בימי המנוחה שלו; כל משימה משובצת או בדוח; תלויות נשמרות; סימולציות לא מפוצלות; תכנון מחדש לא מזיז בלוקים שהושלמו, שננעלו או שכבר התחילו; תכנון מחדש של תוכנית שלא השתנתה לא מזיז אף בלוק; `replan` לא משאיר בדוח יותר דקות מתכנון נקי; הנחת משימה בודדת לא נוגעת בבלוקים של משימות אחרות; וביטול מחזיר את הבלוקים העתידיים שהיו לפני השינוי. האינווריאנטים של החלונות, ההפסקות וסדר התלויות חלים על בלוקים שהמתכנן הניח או השאיר; בלוק קבוע נמצא איפה שהמשתמש שם אותו. **(S08)**
 
@@ -248,21 +257,32 @@ flowchart RL
 - **שגיאות:** פורמט אחיד (`application/problem+json`) עם הודעה בעברית למשתמש, בלי פרטים פנימיים.
 - **Endpoints לליבה:**
 
-| פעולה | Endpoint |
-|---|---|
-| פרופיל והעדפות | `GET /me`, `PATCH /me` |
-| מבחנים | `GET/POST /exams`, `PATCH/DELETE /exams/{id}` |
-| חומרים | `POST /exams/{id}/materials` (רישום קובץ שהועלה), `DELETE /materials/{id}` |
-| יצירת תוכנית | `POST /plans/generate` → מזהה עבודה; `GET /jobs/{id}` |
-| קריאת התוכנית | `GET /plan?from=&to=`, `GET /today` |
-| בלוקים | `POST /blocks/{id}/complete`, `POST /blocks/{id}/uncomplete`, `POST /blocks/{id}/defer`, `PATCH /blocks/{id}` |
-| משימות | `POST /tasks`, `PATCH /tasks/{id}`, `DELETE /tasks/{id}` |
-| תכנון מחדש וביטול | `POST /plan/replan` (עם `preview=true`), `POST /plan/undo` |
-| התראות | `POST /push/subscriptions`, `DELETE /push/subscriptions/{id}` |
-| חשבון | `GET /me/export`, `DELETE /me` |
-| תוספות | `GET /progress`, `POST /plan/change-requests` |
+| פעולה | Endpoint | נבנה ב- |
+|---|---|---|
+| פרופיל והעדפות | `GET /me`, `PATCH /me` | S09 |
+| מבחנים | `GET/POST /exams`, `PATCH/DELETE /exams/{id}` | S09 |
+| חומרים | `POST /exams/{id}/materials` (רישום קובץ שהועלה), `DELETE /materials/{id}` | S10 |
+| יצירת תוכנית | `POST /plans/generate` → מזהה עבודה; `GET /jobs/{id}` | S10/S12 |
+| קריאת התוכנית | `GET /plan?from=&to=`, `GET /today` | S09 |
+| בלוקים | `POST /blocks/{id}/complete`, `POST /blocks/{id}/uncomplete`, `POST /blocks/{id}/defer`, `PATCH /blocks/{id}` | S09 (ב-`PATCH` רק `pinned`; הזזה ב-S18) |
+| משימות | `GET /exams/{id}/tasks`, `POST /tasks`, `PATCH /tasks/{id}`, `DELETE /tasks/{id}` | S09 |
+| תכנון מחדש וביטול | `POST /plan/replan` (עם `preview=true`), `POST /plan/undo` | S09 |
+| התראות | `POST /push/subscriptions`, `DELETE /push/subscriptions/{id}` | S16 |
+| חשבון | `GET /me/export`, `DELETE /me` | S15 |
+| תוספות | `GET /progress`, `POST /plan/change-requests` | S19, S20 |
 
-- `complete` רץ בטרנזקציה אחת: סטטוס הבלוק, סטטוס המשימה, רשומת XP, רצף ותגים. לא שתי קריאות נפרדות כמו היום.
+- `complete` רץ בטרנזקציה אחת: סטטוס הבלוק, סטטוס המשימה, רשומת XP, רצף ותגים. לא שתי קריאות נפרדות כמו היום. ב-S09: בלוק `planned`, ‏`missed` או `skipped` עובר ל-`done` (ו-`done` נשאר בלי שינוי), והמשימה עוברת ל-`done` כשאין לה בלוק `planned` עתידי והדקות שהושלמו מכסות אותה. XP, רצף ותגים מצטרפים לאותה טרנזקציה ב-S19.
+- **החלטות של מי שבונה, S09:**
+  - **טרנזקציה:** ה-service פותח `with db.transaction(user)`, וה-COMMIT קורה לפני שהתשובה יוצאת. לכן חפיפה שנבדקת ב-COMMIT (`blocks_no_overlap`) חוזרת באותה בקשה כ-409. endpoints סינכרוניים, ‏`psycopg_pool.ConnectionPool` (עד 10 חיבורים, 5 שניות המתנה, בלי prepared statements), ו-`statement_timeout` של 5 שניות בתוך אותה פקודת `set_config` שעוברת ל-`authenticated`.
+  - **נעילה:** כל פעולה שמשנה את הלוח מתחילה ב-`SELECT … FOR UPDATE` על הפרופיל, ולכן שתי בקשות של אותו משתמש רצות בזו אחר זו.
+  - **שגיאות:** חפיפה (23P01) → 409 ‏`plan_conflict`; מסד לא זמין, timeout או pool מלא → 503 ‏`database_unavailable`; גרסה או `basis` שהתיישנו → 409 ‏`stale_plan`; פעולה שהמצב לא מאפשר → 409 ‏`invalid_state`; הנחה שנכשלה בדחייה → 409 ‏`placement_failed` עם `reason` ו-`blocked_by`; מעגל תלויות → 422 ‏`dependency_cycle`; תאריך מבחן שעבר → 422 ‏`exam_in_past`. תשובת 500 עוברת דרך middleware פנימי ל-CORS, כך שיש לה כותרות CORS.
+  - **גבולות קלט:** תאריך מבחן מהיום המקומי עד 730 ימים קדימה; טווח של `GET /plan` עד 62 ימים, בתוך חמש שנים מהיום; טקסט בלי תו NUL; ‏`timezone` נשמר בשם הקנוני של IANA. ערך שהמתכנן או המסד לא יכולים לעבד מחזיר 422 ולא 500.
+  - **עריכה בלי שינוי:** `PATCH /tasks` מניח מחדש רק כשערך של שדה תכנון השתנה בפועל.
+  - **בעלות:** כל שאילתה מסננת `user_id` במפורש גם מעל RLS. הפניה למשאב של משתמש אחר, גם בגוף הבקשה, היא 404.
+  - **תצוגה מקדימה:** `POST /plan/replan {"preview": true}` מחזיר את השינוי ו-`basis`, ‏SHA-256 של קלט המתכנן בלי `now`. ‏`{"preview": false, "basis"}` מחשב שוב עם `now` עדכני וכותב, או מחזיר `stale_plan` אם הלוח השתנה.
+  - **ביטול:** `POST /plan/undo {"version_id"}` מבטל רק את הגרסה האחרונה שלא בוטלה, ולא יוצר גרסה. ביטול נוסף הולך לגרסה שלפניה. ביטול של מחיקה מחזיר את הישות, של משימה שנוספה מוחק אותה, ושל עריכת משימה (כולל `done` או `skipped`) מחזיר את השדות שלה מ-`task_before`.
+  - **קריאה:** `GET /plan` לפי תאריכים מקומיים (ברירת מחדל שבוע, עד 62 ימים), עם `state` נגזר לכל בלוק (`upcoming`, ‏`in_progress`, ‏`overdue`, ‏`done`, ‏`missed`, ‏`skipped`), ‏`unplaced` (הדקות שחסרות למשימות) ו-`undo` (הגרסה שאפשר לבטל). הסיבות של "לא נכנס" באות מהתצוגה המקדימה, כי GET לא מריץ מתכנן.
+  - **המיפוי למתכנן:** מבחנים בלי `deleted_at` ושתאריכם לא עבר; משימות שלהם לפי `(created_at, id)`, ותלות במשימה שלא נכנסה מתבטלת; בלוקים `planned` ו-`done` מ-48 השעות האחרונות והלאה, ובנוסף כל בלוקי ה-`done` של המשימות שנכנסו, כדי שהדקות שכבר נלמדו יירדו מהמשימה.
 
 ### 7.8 עבודות רקע
 
