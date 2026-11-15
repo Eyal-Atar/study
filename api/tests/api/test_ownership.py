@@ -1,9 +1,10 @@
 """Ownership between users on every endpoint (spec section 10: B gets 404 on A's rows).
 
-A owns an exam, tasks, blocks and a plan version. B calls every endpoint that takes an id
-(in the path or in the body) with A's ids: the answer is 404 not_found, and every row of A
-is exactly what it was. The endpoints without an id are checked to show only B's own
-rows. A route that is in neither list fails test_every_route_is_covered.
+A owns an exam, tasks, blocks, a plan version, a material and a job. B calls every
+endpoint that takes an id (in the path or in the body) with A's ids: the answer is 404
+not_found, and every row of A is exactly what it was. The endpoints without an id are
+checked to show only B's own rows. A route that is in neither list fails
+test_every_route_is_covered.
 """
 
 import datetime as dt
@@ -26,6 +27,7 @@ from tests.api.factories import (
     TEST_PROFILE,
     Z,
     insert_block,
+    register_material,
     replan_apply,
     replan_preview,
     scalar,
@@ -49,6 +51,8 @@ class Ids:
     a_block: UUID
     a_done_block: UUID
     a_version: UUID
+    a_material: UUID
+    a_job: UUID
     b_exam: UUID
     b_task: UUID
 
@@ -170,6 +174,34 @@ CASES: tuple[Case, ...] = (
         _no_params,
         lambda i: {"version_id": str(i.a_version)},
     ),
+    Case(
+        "list_a_materials",
+        "GET",
+        "/exams/{exam_id}/materials",
+        lambda i: {"exam_id": i.a_exam},
+        _none,
+    ),
+    Case(
+        "register_material_in_a_exam",
+        "POST",
+        "/exams/{exam_id}/materials",
+        lambda i: {"exam_id": i.a_exam},
+        lambda _: {
+            "id": str(uuid4()),
+            "filename": "נגנב.pdf",
+            "kind": "past_exam",
+            "mime": "application/pdf",
+            "size_bytes": 1000,
+        },
+    ),
+    Case(
+        "delete_material",
+        "DELETE",
+        "/materials/{material_id}",
+        lambda i: {"material_id": i.a_material},
+        _none,
+    ),
+    Case("get_job", "GET", "/jobs/{job_id}", lambda i: {"job_id": i.a_job}, _none),
 )
 
 # Endpoints without an id of a row: test_lists_show_only_own_rows covers them.
@@ -233,6 +265,8 @@ def dump(db: psycopg.Connection, user_id: UUID) -> Dump:
         ("blocks", "user_id"),
         ("plan_versions", "user_id"),
         ("profiles", "id"),
+        ("materials", "user_id"),
+        ("jobs", "user_id"),
     ):
         out[table] = [
             tuple(row)
@@ -280,7 +314,7 @@ def _post_task(api: TestClient, user: ApiUser, exam: UUID, minutes: int = 60) ->
 def world(
     api: TestClient, make_api_user: MakeApiUser, db: psycopg.Connection, clock: FrozenClock
 ) -> tuple[ApiUser, ApiUser, Ids]:
-    """A with an exam, two placed tasks, a done block and a version; B with its own."""
+    """A with an exam, two placed tasks, a done block, a version and a material; B with its own."""
     clock.set(NOW)
     a = _new_user(make_api_user, api)
     b = _new_user(make_api_user, api)
@@ -304,6 +338,7 @@ def world(
         )
     )
     a_version = UUID(a_other["version_id"])
+    a_registered = register_material(api, a, a_exam)
 
     b_exam = _post_exam(api, b, "מבחן של ב")
     b_task = _post_task(api, b, b_exam)
@@ -314,6 +349,8 @@ def world(
         a_block=a_block,
         a_done_block=a_done,
         a_version=a_version,
+        a_material=UUID(a_registered["material"]["id"]),
+        a_job=UUID(a_registered["job_id"]),
         b_exam=b_exam,
         b_task=UUID(b_task["task"]["id"]),
     )
@@ -367,7 +404,7 @@ def test_lists_show_only_own_rows(
     a_rows = dump(db, a.id)
     forbidden = {str(a.id)} | {
         str(row[0])
-        for table in ("exams", "tasks", "blocks", "plan_versions")
+        for table in ("exams", "tasks", "blocks", "plan_versions", "materials", "jobs")
         for row in a_rows[table]
     }
     assert {str(ids.a_exam), str(ids.a_task), str(ids.a_block), str(ids.a_version)} <= forbidden
@@ -449,7 +486,9 @@ def test_unauthenticated_everywhere(
     api: TestClient, db: psycopg.Connection, method: str, path: str
 ) -> None:
     rows_before = scalar(db, "SELECT count(*) FROM app.profiles")
-    url = path.format(exam_id=uuid4(), task_id=uuid4(), block_id=uuid4())
+    url = path.format(
+        exam_id=uuid4(), task_id=uuid4(), block_id=uuid4(), material_id=uuid4(), job_id=uuid4()
+    )
     for headers in ({}, {"Authorization": "Bearer not-a-token"}):
         response = api.request(method, url, headers=headers)
         assert response.status_code == 401, response.text

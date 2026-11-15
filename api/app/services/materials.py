@@ -1,0 +1,104 @@
+"""Materials: register an upload (and queue its ingest), list them, delete one.
+
+The row and its job are written in the caller's one transaction, so a refused or failed
+registration leaves neither behind. Every check runs before the first write.
+"""
+
+from collections.abc import Mapping, Sequence
+from typing import Any, Final
+from uuid import UUID
+
+import psycopg.errors
+
+from app.config import Settings
+from app.domain.materials import JOB_DELETE_MATERIAL_FILE, JOB_INGEST_MATERIAL
+from app.errors import ApiError
+from app.jobs.queue import enqueue
+from app.services.profiles import Conn
+
+MATERIAL_COLUMNS: Final = (
+    "id, exam_id, filename, kind, mime, size_bytes, page_count, scanned_pages, ingest_status, "
+    "ingest_error, warnings, created_at, ingested_at"
+)
+
+type Row = Mapping[str, Any]
+
+
+def storage_path(user_id: UUID, exam_id: UUID, material_id: UUID) -> str:
+    """The object's path in the bucket; the table's CHECK requires exactly this."""
+    return f"{user_id}/{exam_id}/{material_id}"
+
+
+def _require_live_exam(conn: Conn, user_id: UUID, exam_id: UUID) -> None:
+    exam = conn.execute(
+        "SELECT 1 FROM app.exams WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
+        (user_id, exam_id),
+    ).fetchone()
+    if exam is None:
+        raise ApiError("not_found")
+
+
+def list_materials(conn: Conn, user_id: UUID, exam_id: UUID) -> Sequence[Row]:
+    _require_live_exam(conn, user_id, exam_id)
+    return conn.execute(
+        f"SELECT {MATERIAL_COLUMNS} FROM app.materials "  # noqa: S608 - a constant column list
+        "WHERE user_id = %s AND exam_id = %s ORDER BY created_at, id",
+        (user_id, exam_id),
+    ).fetchall()
+
+
+def register_material(
+    conn: Conn,
+    user_id: UUID,
+    exam_id: UUID,
+    *,
+    material_id: UUID,
+    filename: str,
+    kind: str,
+    mime: str,
+    size_bytes: int,
+    settings: Settings,
+) -> tuple[Row, UUID]:
+    """Insert the material and queue its ingest job; returns the row and the job's id."""
+    _require_live_exam(conn, user_id, exam_id)
+    if size_bytes > settings.max_material_bytes:
+        raise ApiError("file_too_large", extra={"limit_bytes": settings.max_material_bytes})
+    count_row = conn.execute(
+        "SELECT count(*) AS n FROM app.materials WHERE user_id = %s AND exam_id = %s",
+        (user_id, exam_id),
+    ).fetchone()
+    if count_row is not None and count_row["n"] >= settings.max_materials_per_exam:
+        raise ApiError("too_many_materials", extra={"limit": settings.max_materials_per_exam})
+    try:
+        row = conn.execute(
+            "INSERT INTO app.materials "  # noqa: S608 - a constant column list
+            "(id, user_id, exam_id, storage_path, filename, kind, mime, size_bytes) "
+            f"VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING {MATERIAL_COLUMNS}",
+            (
+                material_id,
+                user_id,
+                exam_id,
+                storage_path(user_id, exam_id, material_id),
+                filename,
+                kind,
+                mime,
+                size_bytes,
+            ),
+        ).fetchone()
+    except psycopg.errors.UniqueViolation as error:
+        raise ApiError("already_exists") from error
+    if row is None:
+        raise RuntimeError("the new material is not visible to this user")
+    job_id = enqueue(conn, user_id, JOB_INGEST_MATERIAL, {"material_id": str(material_id)})
+    return row, job_id
+
+
+def delete_material(conn: Conn, user_id: UUID, material_id: UUID) -> UUID:
+    """Delete the row and queue the deletion of its file; returns the job's id."""
+    row = conn.execute(
+        "DELETE FROM app.materials WHERE user_id = %s AND id = %s RETURNING storage_path",
+        (user_id, material_id),
+    ).fetchone()
+    if row is None:
+        raise ApiError("not_found")
+    return enqueue(conn, user_id, JOB_DELETE_MATERIAL_FILE, {"storage_path": row["storage_path"]})

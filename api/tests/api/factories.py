@@ -2,7 +2,7 @@
 
 import datetime as dt
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import psycopg
 from fastapi.testclient import TestClient
@@ -133,3 +133,65 @@ def replan_apply(api: TestClient, user: ApiUser, basis: str | None = None) -> di
     assert response.status_code == 200, response.text
     body: dict[str, Any] = response.json()
     return body
+
+
+def register_material(
+    api: TestClient,
+    user: ApiUser,
+    exam_id: UUID,
+    *,
+    material_id: UUID | None = None,
+    filename: str = "מבחן.pdf",
+    kind: str = "past_exam",
+    mime: str = "application/pdf",
+    size_bytes: int = 1000,
+) -> dict[str, Any]:
+    """Register a material through the API; expects 201 and returns the body."""
+    response = api.post(
+        f"/exams/{exam_id}/materials",
+        json={
+            "id": str(material_id if material_id is not None else uuid4()),
+            "filename": filename,
+            "kind": kind,
+            "mime": mime,
+            "size_bytes": size_bytes,
+        },
+        headers=user.headers,
+    )
+    assert response.status_code == 201, response.text
+    body: dict[str, Any] = response.json()
+    return body
+
+
+def insert_material(
+    db: psycopg.Connection,
+    user_id: UUID,
+    exam_id: UUID,
+    *,
+    material_id: UUID | None = None,
+    filename: str = "מבחן.pdf",
+    kind: str = "past_exam",
+    mime: str = "application/pdf",
+    size_bytes: int = 1000,
+    created_at: dt.datetime | None = None,
+) -> UUID:
+    """A material row written as the owner, with the storage path the CHECK requires."""
+    material_id = material_id if material_id is not None else uuid4()
+    return _id(
+        db.execute(
+            "INSERT INTO app.materials (id, user_id, exam_id, storage_path, filename, kind, "
+            "mime, size_bytes, created_at) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, coalesce(%s, now())) RETURNING id",
+            (
+                material_id,
+                user_id,
+                exam_id,
+                f"{user_id}/{exam_id}/{material_id}",
+                filename,
+                kind,
+                mime,
+                size_bytes,
+                created_at,
+            ),
+        ).fetchone()
+    )
