@@ -16,7 +16,7 @@ it('creates the client with the PKCE flow', () => {
   expect(vi.mocked(createClient).mock.calls[0]).toMatchObject([
     'https://test-ref.supabase.co',
     'sb_publishable_abc123',
-    { auth: { flowType: 'pkce' } },
+    { auth: { flowType: 'pkce' }, global: { fetch: expect.any(Function) as unknown } },
   ])
 })
 

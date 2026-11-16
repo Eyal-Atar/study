@@ -1,16 +1,15 @@
 import { useMe } from '../api/me'
 import { errorMessage } from '../api/client'
-import { useAuth } from '../auth/AuthContext'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
 
-// The signed-in user, as the API (GET /me) knows them.
-export function HomePage() {
-  const { signOut } = useAuth()
+// A placeholder until S14 builds the today screen: the signed-in user, as the API (GET /me) knows them.
+export function TodayPage() {
   const me = useMe()
   return (
-    <main className="mx-auto max-w-2xl px-4 py-16">
-      <h1 className="text-3xl font-bold">{he.appName}</h1>
+    <div>
+      <h1 className="text-2xl font-bold">{he.today.title}</h1>
+      <p className="mt-2 text-ink-muted">{he.today.placeholder}</p>
       {me.isPending ? (
         <p role="status" className="mt-8">
           {he.common.loading}
@@ -31,22 +30,13 @@ export function HomePage() {
       ) : null}
       {me.isSuccess ? (
         <div className="mt-8">
-          <p>{me.data.email === null ? he.home.noEmail : he.home.signedInAs(me.data.email)}</p>
-          <dl className="mt-2 text-sm text-slate-600">
-            <dt>{he.home.userId}</dt>
+          <p>{me.data.email === null ? he.today.noEmail : he.today.signedInAs(me.data.email)}</p>
+          <dl className="mt-2 text-sm text-ink-muted">
+            <dt>{he.today.userId}</dt>
             <dd dir="ltr">{me.data.id}</dd>
           </dl>
         </div>
       ) : null}
-      <Button
-        variant="secondary"
-        className="mt-8"
-        onPress={() => {
-          void signOut()
-        }}
-      >
-        {he.home.signOut}
-      </Button>
-    </main>
+    </div>
   )
 }

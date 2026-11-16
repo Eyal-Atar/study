@@ -145,13 +145,114 @@ describe('createApiClient', () => {
   })
 })
 
+describe('createApiClient writes', () => {
+  it('post, patch and delete send the method, the JSON body and the token', async () => {
+    const { api, fetchMock } = setup(() => Promise.resolve(problem(200, { ok: true }, 'application/json')))
+    await api.post('/exams', { name: 'א' })
+    await api.patch('/me', { timezone: 'Asia/Jerusalem' })
+    await api.post('/plans/generate')
+    const calls = fetchMock.mock.calls.map(([, init]) => ({
+      method: init?.method,
+      body: init?.body,
+      type: new Headers(init?.headers).get('Content-Type'),
+      auth: new Headers(init?.headers).get('Authorization'),
+    }))
+    expect(calls).toEqual([
+      { method: 'POST', body: '{"name":"א"}', type: 'application/json', auth: 'Bearer tok' },
+      { method: 'PATCH', body: '{"timezone":"Asia/Jerusalem"}', type: 'application/json', auth: 'Bearer tok' },
+      { method: 'POST', body: undefined, type: null, auth: 'Bearer tok' },
+    ])
+  })
+
+  it('a 204 resolves to undefined', async () => {
+    const { api, fetchMock } = setup(() => Promise.resolve(new Response(null, { status: 204 })))
+    await expect(api.delete('/materials/m1')).resolves.toBeUndefined()
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('DELETE')
+  })
+
+  it('keeps the extra fields of a problem in details', async () => {
+    const { api } = setup(() =>
+      Promise.resolve(
+        problem(429, {
+          type: 'about:blank',
+          title: 't',
+          status: 429,
+          code: 'ai_quota_exceeded',
+          limit: 3,
+          resets_at: '2026-11-16T22:00:00Z',
+        }),
+      ),
+    )
+    await expect(api.post('/plans/generate')).rejects.toMatchObject({
+      status: 429,
+      code: 'ai_quota_exceeded',
+      details: { limit: 3, resets_at: '2026-11-16T22:00:00Z' },
+    })
+  })
+})
+
+describe('createApiClient on 401', () => {
+  function withRefresh(responses: Response[], refresh: () => Promise<string | null>) {
+    const onUnauthenticated = vi.fn()
+    const refreshAccessToken = vi.fn(refresh)
+    const fetchMock = vi.fn<typeof fetch>(() => Promise.resolve(responses.shift() ?? problem(500, {})))
+    const api = createApiClient({
+      baseUrl: 'http://api.test',
+      getAccessToken: () => Promise.resolve('old'),
+      refreshAccessToken,
+      onUnauthenticated,
+      fetch: fetchMock,
+    })
+    return { api, onUnauthenticated, refreshAccessToken, fetchMock }
+  }
+  const unauthorized = () => problem(401, { code: 'unauthenticated', title: 't', status: 401 })
+
+  it('refreshes once and sends the request again with the new token', async () => {
+    const { api, onUnauthenticated, refreshAccessToken, fetchMock } = withRefresh(
+      [unauthorized(), problem(200, { id: 'u1' }, 'application/json')],
+      () => Promise.resolve('new'),
+    )
+    await expect(api.get('/me')).resolves.toEqual({ id: 'u1' })
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1)
+    expect(new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get('Authorization')).toBe('Bearer new')
+    expect(onUnauthenticated).not.toHaveBeenCalled()
+  })
+
+  it('a second 401 signs out', async () => {
+    const { api, onUnauthenticated, refreshAccessToken } = withRefresh([unauthorized(), unauthorized()], () =>
+      Promise.resolve('new'),
+    )
+    await expect(api.get('/me')).rejects.toMatchObject({ status: 401 })
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1)
+    expect(onUnauthenticated).toHaveBeenCalledTimes(1)
+  })
+
+  it('a refresh that finds no session signs out without a second request', async () => {
+    const { api, onUnauthenticated, fetchMock } = withRefresh([unauthorized()], () => Promise.resolve(null))
+    await expect(api.get('/me')).rejects.toMatchObject({ status: 401 })
+    expect(onUnauthenticated).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('a refresh that cannot reach Auth is a network error and keeps the user signed in', async () => {
+    const { api, onUnauthenticated } = withRefresh([unauthorized()], () => Promise.reject(new Error('offline')))
+    await expect(api.get('/me')).rejects.toMatchObject({ status: 0, code: 'network' })
+    expect(onUnauthenticated).not.toHaveBeenCalled()
+  })
+})
+
 describe('errorMessage', () => {
+  it('prefers our own text for a known code', () => {
+    expect(errorMessage(new ApiError(422, 'exam_in_past', 'כותרת של השרת'))).toBe(he.codes.exam_in_past)
+  })
+
   it('returns the title when there is one', () => {
-    expect(errorMessage(new ApiError(503, 'x', 'כותרת'))).toBe('כותרת')
+    expect(errorMessage(new ApiError(503, 'x_unknown', 'כותרת'))).toBe('כותרת')
   })
 
   it('says the server is unreachable when there was no response', () => {
-    expect(errorMessage(new ApiError(0, 'network', null))).toBe(he.errors.unreachable)
+    expect(errorMessage(new ApiError(0, null, null))).toBe(he.errors.unreachable)
+    expect(errorMessage(new ApiError(0, 'timeout', null))).toBe(he.codes.timeout)
   })
 
   it('falls back to the generic message', () => {

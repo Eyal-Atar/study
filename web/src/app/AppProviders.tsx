@@ -5,6 +5,7 @@ import { ApiContext } from '../api/ApiContext'
 import type { ApiClient } from '../api/client'
 import { AuthProvider } from '../auth/AuthProvider'
 import type { AuthClient } from '../auth/supabase'
+import { ToastProvider } from '../ui/toast'
 
 // The services are created once by the caller (main.tsx, or a test) and passed in.
 // AuthProvider sits inside QueryClientProvider, because it clears the cache when the user changes.
@@ -23,7 +24,9 @@ export function AppProviders({
     <QueryClientProvider client={queryClient}>
       <I18nProvider locale="he-IL">
         <ApiContext value={api}>
-          <AuthProvider auth={auth}>{children}</AuthProvider>
+          <AuthProvider auth={auth}>
+            <ToastProvider>{children}</ToastProvider>
+          </AuthProvider>
         </ApiContext>
       </I18nProvider>
     </QueryClientProvider>

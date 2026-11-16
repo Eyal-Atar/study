@@ -32,6 +32,7 @@ export function createFakeAuth(initial: Session | null = null): FakeAuth {
 
   const client: AuthClient = {
     getSession: () => Promise.resolve({ data: { session }, error: null }),
+    refreshSession: () => Promise.resolve({ data: { session }, error: null }),
     onAuthStateChange: (callback) => {
       const id = Symbol('subscription')
       listeners.set(id, callback)

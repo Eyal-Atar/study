@@ -2,6 +2,7 @@ import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 import { QueryClient } from '@tanstack/react-query'
 import { act, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { silentApi } from '../test/fakeApi'
 import { AppProviders } from '../app/AppProviders'
 import { createFakeAuth, fakeSession, type FakeAuth } from '../test/fakeAuth'
 import { useAuth } from './AuthContext'
@@ -13,7 +14,7 @@ function Status() {
 
 function renderProvider(auth: FakeAuth, queryClient = new QueryClient()) {
   const result = render(
-    <AppProviders auth={auth.client} api={{ get: () => Promise.reject(new Error('unused')) }} queryClient={queryClient}>
+    <AppProviders auth={auth.client} api={silentApi()} queryClient={queryClient}>
       <Status />
     </AppProviders>,
   )

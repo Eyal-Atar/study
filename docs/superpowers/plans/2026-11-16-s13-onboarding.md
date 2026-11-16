@@ -115,7 +115,7 @@ flowchart TB
 - `ApiClientOptions.refreshAccessToken?: () => Promise<string | null>` — נקרא פעם אחת על 401; ‏`null` = session לא תקף.
 - `createTimeoutFetch({ timeoutMs, uploadTimeoutMs, cooldownMs, now? }): typeof fetch` — ב-`createSupabase`, דרך `global.fetch`.
 - `codeText(code: string, params?: CodeParams): string`, ‏`shortfallText(examName, minutes, dailyMinutes: number | null)`, ‏`unscheduledText(reason)`; ‏`errorMessage(error)` מעדיף `codeText` לקוד מוכר.
-- `useToast(): { show(options: { text: string; tone?: 'info' | 'success' | 'error'; action?: { label: string; onAction: () => void }; timeoutMs?: number }): string; close(key: string): void }`; פעולה הרסנית: `timeoutMs` = 10000 עם `action` "בטל" (`he.common.undo`).
+- `useToast(): ToastApi` in `web/src/ui/useToast.ts` (`show({ text, tone?, action?: { label, onAction }, timeoutMs?, onExpire? }) → key`, `close(key)`); `ToastProvider` and `ToastRegion` in `web/src/ui/toast.tsx`; פעולה הרסנית: `timeoutMs` = 10000 עם `action` "בטל" (`he.common.undo`).
 - `AppShell` (header עם שם המוצר ויציאה, ‏`<main>` ו-`ToastRegion`), ‏`routes`: ‏`/today` → ‏`TodayPage` (placeholder), ‏`/` → ‏`Navigate` ל-`/today`.
 - `createFakeApi(handlers)` ב-`src/test/fakeApi.ts`: לקוח מזויף עם `on('GET /me', reply)`, ‏`calls()`, ותשובות `ApiError`.
 

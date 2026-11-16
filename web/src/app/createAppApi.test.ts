@@ -33,9 +33,34 @@ describe('createAppApi', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('a 401 response signs out locally once', async () => {
+  it('a 401 response refreshes once, then signs out locally once', async () => {
+    const fetchMock = stubFetch(() => jsonResponse(401, { type: 'x', title: 't', status: 401, code: 'unauthenticated' }))
+    const auth = createFakeAuth(fakeSession())
+    const refresh = vi.spyOn(auth.client, 'refreshSession')
+    const api = createAppApi('http://api.test', auth.client)
+
+    await expect(api.get('/me')).rejects.toMatchObject({ status: 401 })
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(auth.signOut).toHaveBeenCalledExactlyOnceWith({ scope: 'local' })
+  })
+
+  it('a refresh that cannot reach Auth keeps the user signed in', async () => {
     stubFetch(() => jsonResponse(401, { type: 'x', title: 't', status: 401, code: 'unauthenticated' }))
     const auth = createFakeAuth(fakeSession())
+    const offline = Object.assign(new Error('offline'), { name: 'AuthRetryableFetchError' })
+    auth.client.refreshSession = () => Promise.resolve({ data: { session: null }, error: offline })
+    const api = createAppApi('http://api.test', auth.client)
+
+    await expect(api.get('/me')).rejects.toMatchObject({ status: 0, code: 'network' })
+    expect(auth.signOut).not.toHaveBeenCalled()
+  })
+
+  it('a refresh with an invalid session signs out', async () => {
+    stubFetch(() => jsonResponse(401, { type: 'x', title: 't', status: 401, code: 'unauthenticated' }))
+    const auth = createFakeAuth(fakeSession())
+    auth.client.refreshSession = () =>
+      Promise.resolve({ data: { session: null }, error: Object.assign(new Error('bad'), { name: 'AuthApiError' }) })
     const api = createAppApi('http://api.test', auth.client)
 
     await expect(api.get('/me')).rejects.toMatchObject({ status: 401 })

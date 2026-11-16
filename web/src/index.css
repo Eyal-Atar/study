@@ -1,1 +1,29 @@
 @import "tailwindcss";
+
+/*
+  The colours of the app, as Tailwind theme variables: components use only these names
+  (bg-surface, text-ink-muted, bg-brand, border-line, ...), so branding (S17) replaces the
+  values here and nothing else. theme.test.ts checks the AA contrast of the text pairs.
+*/
+@theme {
+  --color-surface: #ffffff;
+  --color-surface-muted: #f3f5f8;
+  --color-ink: #111827;
+  --color-ink-muted: #4b5563;
+  --color-line: #d1d5db;
+  --color-brand: #1d4ed8;
+  --color-brand-strong: #1e3a8a;
+  --color-brand-soft: #e8eefc;
+  --color-on-brand: #ffffff;
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fdecec;
+  --color-success: #166534;
+  --color-success-soft: #e7f6ec;
+  --color-warning: #92400e;
+  --color-warning-soft: #fdf3e3;
+}
+
+body {
+  background-color: var(--color-surface-muted);
+  color: var(--color-ink);
+}

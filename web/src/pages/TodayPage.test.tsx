@@ -5,22 +5,23 @@ import { describe, expect, it, vi } from 'vitest'
 import { ApiError, type ApiClient } from '../api/client'
 import { he } from '../i18n/he'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
+import { silentApi } from '../test/fakeApi'
 import { renderRoute } from '../test/renderRoute'
 
 // An ApiClient whose GET calls are recorded in `get`.
 function fakeApi(answer: () => Promise<unknown>) {
   const get = vi.fn<(path: string, init?: { signal?: AbortSignal }) => Promise<unknown>>(() => answer())
-  const api: ApiClient = { get: <T,>(path: string, init?: { signal?: AbortSignal }) => get(path, init) as Promise<T> }
+  const api: ApiClient = { ...silentApi(), get: <T,>(path: string, init?: { signal?: AbortSignal }) => get(path, init) as Promise<T> }
   return { api, get }
 }
 
-describe('HomePage', () => {
+describe('TodayPage', () => {
   it('shows the user from GET /me', async () => {
     const { api, get } = fakeApi(() => Promise.resolve({ id: 'u1', email: 'a@b.c' }))
     renderRoute('/', { auth: createFakeAuth(fakeSession()), api })
 
-    expect(await screen.findByText(he.home.signedInAs('a@b.c'))).toBeInTheDocument()
-    expect(screen.getByText(he.home.userId)).toBeInTheDocument()
+    expect(await screen.findByText(he.today.signedInAs('a@b.c'))).toBeInTheDocument()
+    expect(screen.getByText(he.today.userId)).toBeInTheDocument()
     expect(screen.getByText('u1')).toBeInTheDocument()
     // StrictMode mounts twice: React Query cancels the first request (it reads the signal) and starts a second.
     expect(get.mock.calls.every(([path, init]) => path === '/me' && init?.signal instanceof AbortSignal)).toBe(true)
@@ -31,8 +32,8 @@ describe('HomePage', () => {
     const { api } = fakeApi(() => new Promise(() => undefined))
     renderRoute('/', { auth: createFakeAuth(fakeSession()), api })
 
-    // The heading is HomePage's, so the status is not the one RequireAuth shows while auth loads.
-    expect(await screen.findByRole('heading', { name: he.appName })).toBeInTheDocument()
+    // The heading is TodayPage's, so the status is not the one RequireAuth shows while auth loads.
+    expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent(he.common.loading)
   })
 
@@ -40,7 +41,7 @@ describe('HomePage', () => {
     const { api } = fakeApi(() => Promise.resolve({ id: 'u1', email: null }))
     renderRoute('/', { auth: createFakeAuth(fakeSession()), api })
 
-    expect(await screen.findByText(he.home.noEmail)).toBeInTheDocument()
+    expect(await screen.findByText(he.today.noEmail)).toBeInTheDocument()
   })
 
   it('shows the API error and retries on demand', async () => {
@@ -64,7 +65,7 @@ describe('HomePage', () => {
     const { api } = fakeApi(() => Promise.resolve({ id: 'u1', email: 'a@b.c' }))
     const { router } = renderRoute('/', { auth, api })
 
-    await user.click(await screen.findByRole('button', { name: he.home.signOut }))
+    await user.click(await screen.findByRole('button', { name: he.shell.signOut }))
     expect(auth.signOut).toHaveBeenCalledExactlyOnceWith({ scope: 'local' })
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/login')
@@ -77,7 +78,7 @@ describe('HomePage', () => {
     const { api } = fakeApi(() => Promise.resolve({ id: 'x', email: 'a@b.c' }))
     renderRoute('/', { auth, api, queryClient })
 
-    expect(await screen.findByText(he.home.signedInAs('a@b.c'))).toBeInTheDocument()
+    expect(await screen.findByText(he.today.signedInAs('a@b.c'))).toBeInTheDocument()
     expect(queryClient.getQueryCache().find({ queryKey: ['me', 'user-a'], exact: true })).toBeDefined()
   })
 
@@ -86,13 +87,13 @@ describe('HomePage', () => {
     const auth = createFakeAuth(fakeSession({ id: 'user-a' }))
     const { api } = fakeApi(() => Promise.resolve({ id: 'x', email }))
     renderRoute('/', { auth, api })
-    expect(await screen.findByText(he.home.signedInAs('a@b.c'))).toBeInTheDocument()
+    expect(await screen.findByText(he.today.signedInAs('a@b.c'))).toBeInTheDocument()
 
     email = 'b@example.com'
     act(() => {
       auth.emit('SIGNED_IN', fakeSession({ id: 'user-b', email: 'b@example.com' }))
     })
-    expect(await screen.findByText(he.home.signedInAs('b@example.com'))).toBeInTheDocument()
-    expect(screen.queryByText(he.home.signedInAs('a@b.c'))).not.toBeInTheDocument()
+    expect(await screen.findByText(he.today.signedInAs('b@example.com'))).toBeInTheDocument()
+    expect(screen.queryByText(he.today.signedInAs('a@b.c'))).not.toBeInTheDocument()
   })
 })
