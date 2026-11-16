@@ -1,0 +1,92 @@
+import { QueryClient } from '@tanstack/react-query'
+import { render } from '@testing-library/react'
+import { StrictMode, type ReactNode } from 'react'
+import { createMemoryRouter } from 'react-router'
+import { RouterProvider } from 'react-router/dom'
+import type { ApiClient } from '../api/client'
+import { AppProviders } from '../app/AppProviders'
+import type { Block, ExamSummary, Plan, ReplanPreview, Today } from '../board/types'
+import { ToastRegion } from '../ui/toast'
+import { createFakeAuth, fakeSession } from './fakeAuth'
+
+// Sample board data in the shape of the API. Every id is stable, so a test can refer to it.
+
+export const USER_ID = 'user-a'
+export const EXAM_ID = 'exam-1'
+
+export function makeBlock(overrides: Partial<Block> = {}): Block {
+  return {
+    id: 'block-1',
+    task_id: 'task-1',
+    exam_id: EXAM_ID,
+    task_title: 'פרק 3: גרפים',
+    task_kind: 'learn',
+    exam_name: 'אלגוריתמים',
+    starts_at: '2026-11-16T12:00:00Z',
+    ends_at: '2026-11-16T13:00:00Z',
+    study_date: '2026-11-16',
+    part_index: 1,
+    part_count: 1,
+    pinned: false,
+    status: 'planned',
+    state: 'upcoming',
+    ...overrides,
+  }
+}
+
+export function makeToday(blocks: Block[] = [makeBlock()], overrides: Partial<Today> = {}): Today {
+  return { date: '2026-11-16', blocks, planned_minutes: 60, done_minutes: 0, ...overrides }
+}
+
+export function makePlan(blocks: Block[] = [makeBlock()], overrides: Partial<Plan> = {}): Plan {
+  return { from: '2026-11-16', to: '2026-11-22', blocks, unplaced: [], undo: null, ...overrides }
+}
+
+export function makePreview(overrides: Partial<ReplanPreview> = {}): ReplanPreview {
+  return {
+    basis: 'basis-1',
+    changed: false,
+    version_id: null,
+    added: [],
+    removed: [],
+    unscheduled: [],
+    shortfalls: [],
+    warnings: [],
+    ...overrides,
+  }
+}
+
+export const EXAMS: ExamSummary[] = [{ id: EXAM_ID, name: 'אלגוריתמים' }]
+
+// GET /me as the server returns it (the web Me type declares only id and email until S13).
+export function makeMe(timezone = 'Asia/Jerusalem') {
+  return { id: USER_ID, email: 'a@example.com', timezone, daily_study_minutes: 180 }
+}
+
+// Renders `ui` inside the real providers, a memory router and the toast region, signed in as USER_ID.
+export function renderBoard(ui: ReactNode, { api, queryClient }: { api: ApiClient; queryClient?: QueryClient }) {
+  const client = queryClient ?? new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const auth = createFakeAuth(fakeSession({ id: USER_ID }))
+  const router = createMemoryRouter(
+    [
+      {
+        path: '*',
+        element: (
+          <>
+            {ui}
+            <ToastRegion />
+          </>
+        ),
+      },
+    ],
+    { initialEntries: ['/today'] },
+  )
+  const result = render(
+    <StrictMode>
+      <AppProviders auth={auth.client} api={api} queryClient={client}>
+        <RouterProvider router={router} />
+      </AppProviders>
+    </StrictMode>,
+  )
+  return { ...result, router, queryClient: client }
+}
