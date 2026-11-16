@@ -18,6 +18,8 @@ def get_me(user: AuthenticatedUser, database: DatabaseDep) -> MeResponse:
 
 @router.patch("/me")
 def patch_me(body: MePatch, user: AuthenticatedUser, database: DatabaseDep) -> MePatchResponse:
+    if errors := body.hobby_errors():
+        raise ApiError("validation_error", extra={"errors": errors})
     changes = body.model_dump(exclude_unset=True)
     with database.transaction(user) as conn:
         current = lock_user(conn, user.id)

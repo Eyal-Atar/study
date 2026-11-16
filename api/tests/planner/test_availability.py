@@ -112,7 +112,8 @@ def test_night_shift_gets_the_morning_after_midnight() -> None:
 @pytest.mark.parametrize(
     ("rest", "last", "cutoff"),
     [
-        (1, date(2026, 11, 3), Z(2026, 11, 3, 22)),
+        # With a rest day, the last study day ends at sleep_time (23:00), not at midnight.
+        (1, date(2026, 11, 3), Z(2026, 11, 3, 21)),
         (0, date(2026, 11, 4), Z(2026, 11, 4, 22)),
     ],
 )
@@ -145,11 +146,22 @@ def test_still_awake_after_midnight_belongs_to_yesterday() -> None:
     assert days[0].windows == (iv(Z(2026, 11, 1, 22, 30), Z(2026, 11, 1, 23)),)
 
 
-def test_night_before_a_rest_day_ends_at_midnight() -> None:
+def test_night_before_a_rest_day_runs_to_sleep_time() -> None:
+    # S15 (plan decision 3): the rest day keeps the rest, so the night is not cut at midnight.
     profile = make_profile(sleep_time=time(1), study_windows=frozenset({E, N}))
     days = {d.date: d for d in study_days(profile, [EXAM], NOW)}
     assert days[date(2026, 11, 2)].windows[-1].end == Z(2026, 11, 2, 23)
-    assert days[date(2026, 11, 3)].windows[-1].end == Z(2026, 11, 3, 22)
+    assert days[date(2026, 11, 3)].windows[-1].end == Z(2026, 11, 3, 23)
+
+
+def test_night_before_the_exam_day_ends_at_midnight() -> None:
+    # Without rest days the exam time is unknown, so the last night stops at midnight.
+    profile = make_profile(
+        sleep_time=time(1), study_windows=frozenset({E, N}), rest_days_before_exam=0
+    )
+    days = {d.date: d for d in study_days(profile, [EXAM], NOW)}
+    assert days[date(2026, 11, 3)].windows[-1].end == Z(2026, 11, 3, 23)
+    assert days[date(2026, 11, 4)].windows[-1].end == Z(2026, 11, 4, 22)
 
 
 def test_overlapping_waking_hours_do_not_share_a_window() -> None:

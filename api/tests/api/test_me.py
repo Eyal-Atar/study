@@ -21,6 +21,9 @@ DEFAULTS = {
     "notify_lead_minutes": 10,
     "display_name": None,
     "onboarding_completed_at": None,
+    "study_start_delay_minutes": 60,
+    "hobby_start": None,
+    "hobby_minutes": None,
 }
 
 

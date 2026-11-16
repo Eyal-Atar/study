@@ -28,6 +28,9 @@ UPDATABLE_COLUMNS: Final = frozenset(
         "study_windows",
         "rest_days_before_exam",
         "notify_lead_minutes",
+        "study_start_delay_minutes",
+        "hobby_start",
+        "hobby_minutes",
     }
 )
 PLAN_FIELDS: Final = frozenset(
@@ -38,6 +41,9 @@ PLAN_FIELDS: Final = frozenset(
         "daily_study_minutes",
         "study_windows",
         "rest_days_before_exam",
+        "study_start_delay_minutes",
+        "hobby_start",
+        "hobby_minutes",
     }
 )
 _WINDOW_ORDER: Final = tuple(window.value for window in StudyWindow)
@@ -144,4 +150,11 @@ def to_planner_profile(row: ProfileRow) -> Profile:
         daily_study_minutes=row.daily_study_minutes,
         study_windows=frozenset(StudyWindow(name) for name in row.study_windows),
         rest_days_before_exam=row.rest_days_before_exam,
+        study_start_delay=dt.timedelta(minutes=row.study_start_delay_minutes),
+        # The database keeps the two set together, or neither (profiles_hobby_together).
+        hobby=(
+            None
+            if row.hobby_start is None or row.hobby_minutes is None
+            else (row.hobby_start, row.hobby_minutes)
+        ),
     )

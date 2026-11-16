@@ -1,7 +1,7 @@
 """Free study windows of each local study day (stages 1 and 2 of the planner).
 
 Every window the planner places a task in comes from here, so this is where
-midnight, daylight-saving transitions, "now" and rest days are decided.
+midnight, daylight-saving transitions, "now", the hobby and rest days are decided.
 """
 
 import datetime as dt
@@ -41,11 +41,19 @@ def awake_span(profile: Profile, day: dt.date) -> Interval | None:
     return _span(start + profile.study_start_delay, end)
 
 
+def _wall_end(start: dt.time, minutes: int) -> dt.time:
+    """The wall time minutes after start, wrapping past midnight."""
+    total = (start.hour * 60 + start.minute + minutes) % (24 * 60)
+    return dt.time(total // 60, total % 60)
+
+
 def day_windows(profile: Profile, day: dt.date) -> tuple[Interval, ...]:
-    """The chosen study windows that fall in the awake span of day.
+    """The chosen study windows that fall in the awake span of day, without the hobby.
 
     Occurrences starting on the day before, the day itself and the day after are
     considered, so a night window or a night-shift morning is found on the right day.
+    The hobby follows the wall clock like the windows do, so on a clock-change night it
+    can be an hour longer or shorter. A remnant shorter than a part is dropped.
     """
     awake = awake_span(profile, day)
     if awake is None:
@@ -60,7 +68,15 @@ def day_windows(profile: Profile, day: dt.date) -> tuple[Interval, ...]:
             occurrence = _span(*span)
             if occurrence is not None:
                 found.extend(clip([occurrence], awake.start, awake.end))
-    return tuple(_long_enough(merge(found)))
+    windows = merge(found)
+    if profile.hobby is not None:
+        start, minutes = profile.hobby
+        end = _wall_end(start, minutes)
+        for offset in (-1, 0, 1):
+            taken = _span(*local_span(day + offset * _ONE_DAY, start, end, profile.timezone))
+            if taken is not None:
+                windows = subtract(windows, taken)
+    return tuple(_long_enough(windows))
 
 
 def last_study_day(exam: Exam, profile: Profile) -> dt.date:
@@ -68,9 +84,19 @@ def last_study_day(exam: Exam, profile: Profile) -> dt.date:
 
 
 def exam_cutoff(exam: Exam, profile: Profile) -> dt.datetime:
-    """The start of the first rest day, or of the exam day when there are no rest days."""
-    day = exam.exam_date - profile.rest_days_before_exam * _ONE_DAY
-    return local_day_bounds(day, profile.timezone)[0]
+    """When studying for the exam ends.
+
+    With rest days, the end of the last study day's waking hours: the rest day keeps the
+    rest, so the night before it is not cut at midnight (a night shift keeps its whole last
+    day). Without them, the start of the exam day, because the exam time is unknown and
+    may be in the morning.
+    """
+    tz = profile.timezone
+    if profile.rest_days_before_exam >= 1:
+        return local_span(last_study_day(exam, profile), profile.wake_time, profile.sleep_time, tz)[
+            1
+        ]
+    return local_day_bounds(exam.exam_date, tz)[0]
 
 
 def _utc(now: dt.datetime) -> dt.datetime:
@@ -121,7 +147,13 @@ def _open_windows(
     tz = profile.timezone
     first = local_date(now, tz) - _ONE_DAY
     last = max(last_study_day(exam, profile) for exam in exams)
-    cutoffs = sorted(exam_cutoff(exam, profile) for exam in exams)
+    # With rest days a study day never runs past its exams' cutoffs, which end its waking
+    # hours; only the midnight before an exam day cuts a day short.
+    cutoffs = (
+        sorted(exam_cutoff(exam, profile) for exam in exams)
+        if profile.rest_days_before_exam == 0
+        else []
+    )
 
     days: list[tuple[dt.date, list[Interval]]] = []
     day = first

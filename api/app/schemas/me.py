@@ -1,5 +1,5 @@
 import datetime as dt
-from typing import Annotated, Any, Self
+from typing import Annotated, Any, Final, Self
 from uuid import UUID
 
 from pydantic import (
@@ -26,6 +26,9 @@ def _whole_minute(value: dt.time) -> dt.time:
 
 WallTime = Annotated[dt.time, AfterValidator(_whole_minute)]
 
+# The only fields of MePatch that may be null: the hobby, turned off.
+NULLABLE: Final = frozenset({"hobby_start", "hobby_minutes"})
+
 
 class MeResponse(BaseModel):
     id: UUID
@@ -39,6 +42,9 @@ class MeResponse(BaseModel):
     rest_days_before_exam: int
     notify_lead_minutes: int
     onboarding_completed_at: dt.datetime | None
+    study_start_delay_minutes: int
+    hobby_start: str | None
+    hobby_minutes: int | None
 
     @classmethod
     def from_row(cls, row: ProfileRow, email: str | None) -> Self:
@@ -54,6 +60,9 @@ class MeResponse(BaseModel):
             rest_days_before_exam=row.rest_days_before_exam,
             notify_lead_minutes=row.notify_lead_minutes,
             onboarding_completed_at=row.onboarding_completed_at,
+            study_start_delay_minutes=row.study_start_delay_minutes,
+            hobby_start=None if row.hobby_start is None else row.hobby_start.strftime("%H:%M"),
+            hobby_minutes=row.hobby_minutes,
         )
 
 
@@ -77,6 +86,10 @@ class MePatch(BaseModel):
     study_windows: Annotated[list[StudyWindow], Field(min_length=1, max_length=4)] | None = None
     rest_days_before_exam: Annotated[int, Field(ge=0, le=14)] | None = None
     notify_lead_minutes: Annotated[int, Field(ge=0, le=120)] | None = None
+    study_start_delay_minutes: Annotated[int, Field(ge=0, le=360)] | None = None
+    # Sent together: both null turns the hobby off (checked in hobby_errors).
+    hobby_start: WallTime | None = None
+    hobby_minutes: Annotated[int, Field(ge=15, le=240)] | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -84,9 +97,25 @@ class MePatch(BaseModel):
         if isinstance(data, dict):
             if not data:
                 raise ValueError("at least one field is required")
-            if any(value is None for value in data.values()):
+            if any(value is None for key, value in data.items() if key not in NULLABLE):
                 raise ValueError("null is not a valid value")
         return data
+
+    def hobby_errors(self) -> list[dict[str, object]]:
+        """The hobby's two fields come together, both null or both set; else where it fails.
+
+        A model validator would report the whole body, so this is the router's check.
+        """
+        sent = self.model_fields_set & NULLABLE
+        if not sent:
+            return []
+        missing = sorted(NULLABLE - sent)
+        if missing:
+            return [{"loc": ["body", missing[0]], "type": "missing_hobby_field"}]
+        if (self.hobby_start is None) != (self.hobby_minutes is None):
+            null = "hobby_start" if self.hobby_start is None else "hobby_minutes"
+            return [{"loc": ["body", null], "type": "hobby_half_off"}]
+        return []
 
     @field_validator("timezone")
     @classmethod

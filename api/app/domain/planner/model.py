@@ -89,8 +89,10 @@ class Profile:
     daily_study_minutes: int
     study_windows: frozenset[StudyWindow]
     rest_days_before_exam: int
-    # Not in the database: how long after "now" studying may start.
+    # How long after wake_time studying may start (profiles.study_start_delay_minutes).
     study_start_delay: dt.timedelta = dt.timedelta(hours=1)
+    # A daily time kept free: (start wall time, minutes), or None (profiles.hobby_*).
+    hobby: tuple[dt.time, int] | None = None
 
     def __post_init__(self) -> None:
         _require(isinstance(self.timezone, ZoneInfo), "timezone must be a ZoneInfo")
@@ -119,6 +121,15 @@ class Profile:
             self.study_start_delay % dt.timedelta(minutes=1) == dt.timedelta(0),
             "study_start_delay must be a whole number of minutes",
         )
+        if self.hobby is not None:
+            _require(
+                isinstance(self.hobby, tuple) and len(self.hobby) == 2,
+                "hobby must be a (start, minutes) tuple or None",
+            )
+            start, minutes = self.hobby
+            _check_wall_time("hobby start", start)
+            _require(_is_int(minutes), "hobby minutes must be an int")
+            _require(15 <= minutes <= 240, "hobby minutes must be 15-240")
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
