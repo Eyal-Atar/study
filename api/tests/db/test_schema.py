@@ -71,6 +71,7 @@ def test_core_tables_exist(db: psycopg.Connection) -> None:
         "materials",
         "plan_versions",
         "profiles",
+        "push_subscriptions",
         "tasks",
         "topics",
         "xp_events",
@@ -138,6 +139,8 @@ def test_only_authenticated_has_table_privileges(db: psycopg.Connection) -> None
         # INSERT is granted on columns only, and there is no UPDATE (migration 0011).
         "xp_events": {"SELECT", "DELETE"},
         "badges": {"SELECT", "DELETE"},
+        # INSERT and UPDATE are granted on columns only (migration 0010).
+        "push_subscriptions": {"SELECT", "DELETE"},
     }
     for table in _app_tables(db):
         for role in ("anon", "studyflow_api", "service_role"):
@@ -171,7 +174,7 @@ def test_profile_defaults(db: psycopg.Connection, make_user: MakeUser) -> None:
         240,
         ["morning", "afternoon"],
         1,
-        10,
+        0,
         None,
     )
 
