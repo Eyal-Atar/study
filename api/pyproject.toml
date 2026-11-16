@@ -51,6 +51,11 @@ files = ["app", "tests", "migrations"]
 module = ["pypdfium2", "pypdfium2.*"]
 ignore_missing_imports = true
 
+# http-ece ships no type stubs; only encrypt and decrypt are used.
+[[tool.mypy.overrides]]
+module = ["http_ece"]
+ignore_missing_imports = true
+
 [dependency-groups]
 dev = [
     "hypothesis>=6.170.9",

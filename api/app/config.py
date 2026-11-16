@@ -4,6 +4,7 @@ from urllib.parse import urlsplit
 from pydantic import Field, HttpUrl, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.domain.notifications import load_vapid_key
 from app.domain.time import InvalidTimezoneError, parse_timezone
 
 # The port a browser leaves out of the Origin header, per scheme.
@@ -28,7 +29,11 @@ def _browser_origin(value: str) -> str | None:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    # hide_input_in_errors: a model validator's error would otherwise print every input,
+    # secrets included (SecretStr hides the value only after validation).
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore", hide_input_in_errors=True
+    )
 
     supabase_url: HttpUrl
     cors_origins: list[str] = []
@@ -62,6 +67,15 @@ class Settings(BaseSettings):
     # 20 MiB of scans: base64 adds a third (about 26.7 MiB), and with the text the
     # request stays under the API's 32 MB limit.
     max_analysis_scan_bytes: int = Field(default=20_971_520, gt=0)
+    # Web Push (worker only): the VAPID pair as base64url (the private key is the 32-byte
+    # scalar, the public key the 65-byte uncompressed point) and the contact subject.
+    # All three or none; none means the worker sends no reminders.
+    vapid_private_key: SecretStr | None = None
+    vapid_public_key: str | None = None
+    vapid_subject: str | None = None
+    push_timeout_seconds: float = Field(default=10.0, gt=0)
+    # How late a reminder may still go out, after the worker was down.
+    push_grace_minutes: int = Field(default=10, gt=0)
 
     @field_validator(
         "database_url",
@@ -70,6 +84,9 @@ class Settings(BaseSettings):
         "anthropic_api_key",
         "ai_model_analysis",
         "ai_model_light",
+        "vapid_private_key",
+        "vapid_public_key",
+        "vapid_subject",
         mode="before",
     )
     @classmethod
@@ -96,6 +113,25 @@ class Settings(BaseSettings):
                 f"JOB_LOCK_TIMEOUT_SECONDS = {self.job_lock_timeout_seconds}, or a stuck call "
                 "outlives the job lock and a second worker takes the job"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _vapid_is_all_or_nothing_and_one_pair(self) -> Settings:
+        private, public, subject = self.vapid_private_key, self.vapid_public_key, self.vapid_subject
+        if private is None and public is None and subject is None:
+            return self
+        if private is None or public is None or subject is None:
+            raise ValueError(
+                "VAPID_PRIVATE_KEY, VAPID_PUBLIC_KEY and VAPID_SUBJECT must be set together, "
+                "or all left empty"
+            )
+        # The messages of load_vapid_key never include the key.
+        load_vapid_key(private.get_secret_value(), public)
+        if not any(
+            subject.startswith(prefix) and len(subject) > len(prefix)
+            for prefix in ("mailto:", "https://")
+        ):
+            raise ValueError("VAPID_SUBJECT must be a mailto: or https:// contact")
         return self
 
     @field_validator("supabase_url")
@@ -125,6 +161,15 @@ class Settings(BaseSettings):
                     f"spaces, default port or leading zero in the port (got {value!r})"
                 )
         return values
+
+    @property
+    def push_configured(self) -> bool:
+        # All three, not just the key: model_copy(update=...) skips the validators.
+        return (
+            self.vapid_private_key is not None
+            and self.vapid_public_key is not None
+            and self.vapid_subject is not None
+        )
 
     @property
     def jwt_issuer(self) -> str:

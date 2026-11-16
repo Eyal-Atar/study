@@ -1,4 +1,8 @@
+import base64
+
 import pytest
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from pydantic import ValidationError
 
 from app.config import Settings
@@ -176,3 +180,112 @@ def test_quota_settings_defaults() -> None:
         )
     with pytest.raises(ValidationError):
         Settings(supabase_url="https://test-ref.supabase.co", ai_max_retries=6, _env_file=None)
+
+
+def _vapid_pair() -> tuple[str, str]:
+    def b64(raw: bytes) -> str:
+        return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+
+    key = ec.generate_private_key(ec.SECP256R1())
+    private = b64(key.private_numbers().private_value.to_bytes(32, "big"))
+    public = b64(key.public_key().public_bytes(Encoding.X962, PublicFormat.UncompressedPoint))
+    return private, public
+
+
+VAPID_PRIVATE, VAPID_PUBLIC = _vapid_pair()
+OTHER_PRIVATE, OTHER_PUBLIC = _vapid_pair()
+VAPID_SUBJECT = "mailto:studyflow-dev@example.com"
+
+
+def _vapid_settings(**values: object) -> Settings:
+    return Settings(supabase_url="https://test-ref.supabase.co", _env_file=None, **values)  # type: ignore[arg-type]
+
+
+def test_push_defaults_to_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("VAPID_PRIVATE_KEY", "VAPID_PUBLIC_KEY", "VAPID_SUBJECT"):
+        monkeypatch.delenv(name, raising=False)
+    settings = _vapid_settings()
+    assert settings.vapid_private_key is None
+    assert settings.vapid_public_key is None
+    assert settings.vapid_subject is None
+    assert settings.push_timeout_seconds == 10
+    assert settings.push_grace_minutes == 10
+    assert not settings.push_configured
+
+
+def test_empty_vapid_values_are_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("VAPID_PRIVATE_KEY", "")
+    monkeypatch.setenv("VAPID_PUBLIC_KEY", " ")
+    monkeypatch.setenv("VAPID_SUBJECT", "")
+    settings = _vapid_settings()
+    assert settings.vapid_private_key is None
+    assert settings.vapid_public_key is None
+    assert not settings.push_configured
+
+
+@pytest.mark.parametrize("subject", [VAPID_SUBJECT, "https://studyflow.example.com"])
+def test_a_full_vapid_pair_configures_push(monkeypatch: pytest.MonkeyPatch, subject: str) -> None:
+    monkeypatch.setenv("VAPID_PRIVATE_KEY", VAPID_PRIVATE)
+    monkeypatch.setenv("VAPID_PUBLIC_KEY", VAPID_PUBLIC)
+    monkeypatch.setenv("VAPID_SUBJECT", subject)
+    settings = _vapid_settings()
+    assert settings.push_configured
+    assert settings.vapid_private_key is not None
+    assert settings.vapid_private_key.get_secret_value() == VAPID_PRIVATE
+    assert VAPID_PRIVATE not in repr(settings)
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"vapid_private_key": VAPID_PRIVATE},
+        {"vapid_public_key": VAPID_PUBLIC},
+        {"vapid_subject": VAPID_SUBJECT},
+        {"vapid_private_key": VAPID_PRIVATE, "vapid_public_key": VAPID_PUBLIC},
+        {"vapid_public_key": VAPID_PUBLIC, "vapid_subject": VAPID_SUBJECT},
+    ],
+)
+def test_a_partial_vapid_setting_fails(values: dict[str, str]) -> None:
+    with pytest.raises(ValidationError, match="VAPID_PRIVATE_KEY, VAPID_PUBLIC_KEY") as info:
+        _vapid_settings(**values)
+    assert VAPID_PRIVATE not in str(info.value)
+
+
+@pytest.mark.parametrize(
+    ("private", "public"),
+    [
+        (VAPID_PRIVATE, OTHER_PUBLIC),  # a key from another pair
+        (OTHER_PRIVATE, VAPID_PUBLIC),
+        (VAPID_PRIVATE[:-2], VAPID_PUBLIC),  # not 32 bytes
+        (VAPID_PRIVATE + "AA", VAPID_PUBLIC),
+        ("A" * 43, VAPID_PUBLIC),  # zero is not a valid scalar
+        ("_" * 43, VAPID_PUBLIC),  # above the group order
+        (VAPID_PRIVATE.replace("-", "+").replace("_", "/") + "+", VAPID_PUBLIC),
+        (VAPID_PRIVATE, VAPID_PUBLIC[:-1]),
+    ],
+)
+def test_a_vapid_key_that_does_not_match_fails(private: str, public: str) -> None:
+    with pytest.raises(ValidationError, match="VAPID") as info:
+        _vapid_settings(
+            vapid_private_key=private, vapid_public_key=public, vapid_subject=VAPID_SUBJECT
+        )
+    assert private not in str(info.value)
+    assert VAPID_PRIVATE not in str(info.value)
+
+
+@pytest.mark.parametrize(
+    "subject", ["studyflow@example.com", "http://example.com", "mailto:", "https://", "x"]
+)
+def test_the_vapid_subject_is_mailto_or_https(subject: str) -> None:
+    with pytest.raises(ValidationError, match="VAPID_SUBJECT") as info:
+        _vapid_settings(
+            vapid_private_key=VAPID_PRIVATE, vapid_public_key=VAPID_PUBLIC, vapid_subject=subject
+        )
+    assert VAPID_PRIVATE not in str(info.value)
+
+
+@pytest.mark.parametrize("name", ["PUSH_TIMEOUT_SECONDS", "PUSH_GRACE_MINUTES"])
+def test_push_limits_must_be_positive(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
+    monkeypatch.setenv(name, "0")
+    with pytest.raises(ValidationError):
+        _vapid_settings()
