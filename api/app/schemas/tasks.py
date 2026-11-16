@@ -13,6 +13,7 @@ TaskTitle = Annotated[
 Minutes = Annotated[int, Field(ge=5, le=600)]
 Focus = Annotated[int, Field(ge=1, le=10)]
 TaskStatusName = Literal["todo", "done", "skipped"]
+_NULLABLE = frozenset({"depends_on_task_id", "topic_id"})
 
 
 class TaskOut(BaseModel):
@@ -28,6 +29,15 @@ class TaskOut(BaseModel):
     status: TaskStatusName
     source: str
     created_at: dt.datetime
+    topic_id: UUID | None
+    material_id: UUID | None
+    position: int | None
+
+
+class TaskListItem(TaskOut):
+    """A task in the exam's list, with the analysis's reason for it (null for a user task)."""
+
+    reason: str | None
 
 
 class TaskCreate(BaseModel):
@@ -39,6 +49,7 @@ class TaskCreate(BaseModel):
     estimated_minutes: Minutes
     focus: Focus = 5
     depends_on_task_id: UUID | None = None
+    topic_id: UUID | None = None
 
 
 class TaskPatch(BaseModel):
@@ -50,6 +61,7 @@ class TaskPatch(BaseModel):
     focus: Focus | None = None
     depends_on_task_id: UUID | None = None  # null removes the dependency
     status: TaskStatusName | None = None
+    topic_id: UUID | None = None  # null removes the topic
 
     @model_validator(mode="before")
     @classmethod
@@ -57,7 +69,7 @@ class TaskPatch(BaseModel):
         if isinstance(data, dict):
             if not data:
                 raise ValueError("at least one field is required")
-            if any(value is None for key, value in data.items() if key != "depends_on_task_id"):
+            if any(value is None for key, value in data.items() if key not in _NULLABLE):
                 raise ValueError("null is not a valid value")
         return data
 

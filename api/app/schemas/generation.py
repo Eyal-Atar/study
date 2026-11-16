@@ -46,6 +46,7 @@ class AddedTaskOut(BaseModel):
     title: str
     kind: TaskKind
     minutes: int
+    reason: str | None
 
 
 class ApplyAnalysisResponse(BaseModel):

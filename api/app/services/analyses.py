@@ -54,6 +54,7 @@ class AddedTask:
     title: str
     kind: str
     minutes: int
+    reason: str | None
 
 
 @dataclass(frozen=True)
@@ -204,6 +205,7 @@ def apply_analysis(
                 title=task.title,
                 kind=task.kind,
                 minutes=task.minutes,
+                reason=task.reason or None,
             )
             for task in output.tasks
         ),

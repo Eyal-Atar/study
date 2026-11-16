@@ -29,7 +29,8 @@ def _today(conn: Conn, user_id: UUID, now: dt.datetime) -> dt.date:
 
 
 def _check_date(exam_date: dt.date, today: dt.date) -> None:
-    if exam_date < today:
+    # The exam day itself has no study (7.6 step 2): an exam today would get no task.
+    if exam_date <= today:
         raise ApiError("exam_in_past")
     if exam_date > today + dt.timedelta(days=MAX_DAYS_AHEAD):
         raise ApiError(
@@ -84,7 +85,9 @@ def update_exam(
         raise ValueError(f"Not updatable: {sorted(unknown)}")
     board = load_board(conn, user_id, now, lock=True)
     before = _live_exam(conn, user_id, exam_id)
-    if "exam_date" in changes:
+    # Only a new date is checked: an exam dated today can still be renamed, or sent back
+    # whole by a form, without moving it.
+    if "exam_date" in changes and changes["exam_date"] != before["exam_date"]:
         _check_date(changes["exam_date"], local_date(now, board.profile.timezone))
     assignments = sql.SQL(", ").join(
         sql.SQL("{} = {}").format(sql.Identifier(column), sql.Placeholder()) for column in changes

@@ -67,13 +67,14 @@ def test_exam_crud(api: TestClient, user: ApiUser) -> None:
         {"name": "x", "exam_date": "2026-12-01", "difficulty": 6},
         {"name": "x", "exam_date": "2026-12-01", "difficulty": 0},
         {"name": "x", "exam_date": "2026-11-15"},
+        {"name": "x", "exam_date": "2026-11-16"},
         {"name": "x", "exam_date": "2026-12-01", "unknown": 1},
     ],
 )
 def test_exam_validation(api: TestClient, user: ApiUser, body: dict[str, Any]) -> None:
     response = api.post("/exams", json=body, headers=user.headers)
     assert response.status_code == 422, response.text
-    if body["exam_date"] == "2026-11-15" and "unknown" not in body:
+    if body["exam_date"] in ("2026-11-15", "2026-11-16") and "unknown" not in body:
         assert response.json()["code"] == "exam_in_past"
 
 
@@ -81,9 +82,11 @@ def test_patch_exam_into_the_past_and_missing(
     api: TestClient, user: ApiUser, db: psycopg.Connection
 ) -> None:
     exam = insert_exam(db, user.id, exam_date="2026-11-20")
-    past = api.patch(f"/exams/{exam}", json={"exam_date": "2026-11-15"}, headers=user.headers)
-    assert past.status_code == 422
-    assert past.json()["code"] == "exam_in_past"
+    for date in ("2026-11-15", "2026-11-16"):  # today is 2026-11-16: no study day is left
+        past = api.patch(f"/exams/{exam}", json={"exam_date": date}, headers=user.headers)
+        assert past.status_code == 422
+        assert past.json()["code"] == "exam_in_past"
+    assert str(scalar(db, "SELECT exam_date FROM app.exams WHERE id = %s", exam)) == "2026-11-20"
     empty = api.patch(f"/exams/{exam}", json={}, headers=user.headers)
     assert empty.status_code == 422
     gone = insert_exam(db, user.id, exam_date="2026-11-20", deleted=True)
@@ -146,6 +149,44 @@ def test_exam_date_is_at_most_two_years_ahead(
     for date in (after, "9999-12-31"):
         _too_far(api.patch(f"/exams/{exam}", json={"exam_date": date}, headers=user.headers))
     assert str(scalar(db, "SELECT exam_date FROM app.exams WHERE id = %s", exam)) == last
+
+
+def test_an_exam_dated_today_keeps_its_date_on_other_changes(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-16")
+    renamed = api.patch(f"/exams/{exam}", json={"name": "חדש"}, headers=user.headers)
+    assert renamed.status_code == 200, renamed.text
+    same = api.patch(
+        f"/exams/{exam}", json={"name": "שוב", "exam_date": "2026-11-16"}, headers=user.headers
+    )
+    assert same.status_code == 200, same.text
+    assert same.json()["plan_affected"] is False
+    tomorrow = api.patch(f"/exams/{exam}", json={"exam_date": "2026-11-17"}, headers=user.headers)
+    assert tomorrow.status_code == 200, tomorrow.text
+
+
+def test_tomorrow_follows_the_profile_timezone(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, clock: FrozenClock
+) -> None:
+    set_profile(db, user.id, timezone="Asia/Jerusalem")
+    clock.set(Z(2026, 11, 15, 23, 30))  # 01:30 on 2026-11-16 in Jerusalem, 2026-11-15 in UTC
+    today = api.post(
+        "/exams", json={"name": "היום", "exam_date": "2026-11-16"}, headers=user.headers
+    )
+    assert today.status_code == 422, today.text
+    assert today.json()["code"] == "exam_in_past"
+    tomorrow = api.post(
+        "/exams", json={"name": "מחר", "exam_date": "2026-11-17"}, headers=user.headers
+    )
+    assert tomorrow.status_code == 201, tomorrow.text
+
+
+def test_exam_in_past_says_tomorrow_or_later(api: TestClient, user: ApiUser) -> None:
+    response = api.post(
+        "/exams", json={"name": "היום", "exam_date": "2026-11-16"}, headers=user.headers
+    )
+    assert response.json()["title"] == "תאריך המבחן צריך להיות מחר או אחר כך."
 
 
 def test_today_follows_the_profile_timezone_for_the_upper_bound(

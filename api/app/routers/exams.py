@@ -11,7 +11,7 @@ from app.schemas.exams import (
     ExamPatch,
     ExamResponse,
 )
-from app.schemas.tasks import TaskOut
+from app.schemas.tasks import TaskListItem
 from app.services import exams as exam_service
 from app.services import tasks as task_service
 
@@ -57,7 +57,9 @@ def delete_exam(
 
 
 @router.get("/exams/{exam_id}/tasks")
-def get_exam_tasks(exam_id: UUID, user: AuthenticatedUser, database: DatabaseDep) -> list[TaskOut]:
+def get_exam_tasks(
+    exam_id: UUID, user: AuthenticatedUser, database: DatabaseDep
+) -> list[TaskListItem]:
     with database.transaction(user) as conn:
         rows = task_service.list_tasks(conn, user.id, exam_id)
-    return [TaskOut.model_validate(row) for row in rows]
+    return [TaskListItem.model_validate(row) for row in rows]

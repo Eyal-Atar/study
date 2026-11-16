@@ -22,10 +22,10 @@ from app.services.profiles import Conn
 
 TASK_COLUMNS: Final = (
     "id, exam_id, title, kind, estimated_minutes, focus, depends_on_task_id, status, "
-    "source, created_at"
+    "source, created_at, topic_id, material_id, position"
 )
 _UPDATABLE: Final = frozenset(
-    {"title", "kind", "estimated_minutes", "focus", "depends_on_task_id", "status"}
+    {"title", "kind", "estimated_minutes", "focus", "depends_on_task_id", "status", "topic_id"}
 )
 # A change to one of these moves the task on the board.
 _PLACEMENT_FIELDS: Final = frozenset(
@@ -42,7 +42,11 @@ class PlacementOutcome:
     blocked_by: UUID | None
 
 
+_TASK_COLUMNS_OF_T: Final = ", ".join(f"t.{column.strip()}" for column in TASK_COLUMNS.split(","))
+
+
 def list_tasks(conn: Conn, user_id: UUID, exam_id: UUID) -> Sequence[Row]:
+    """The exam's live tasks, each with its analysis's reason (output.tasks[position - 1])."""
     exam = conn.execute(
         "SELECT 1 FROM app.exams WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
         (user_id, exam_id),
@@ -50,14 +54,15 @@ def list_tasks(conn: Conn, user_id: UUID, exam_id: UUID) -> Sequence[Row]:
     if exam is None:
         raise ApiError("not_found")
     return conn.execute(
-        f"SELECT {TASK_COLUMNS} FROM app.tasks "  # noqa: S608 - a constant column list
-        "WHERE user_id = %s AND exam_id = %s AND deleted_at IS NULL "
-        "ORDER BY position NULLS LAST, created_at, id",
+        f"SELECT {_TASK_COLUMNS_OF_T}, "  # noqa: S608 - a constant column list
+        "a.output -> 'tasks' -> (t.position - 1) ->> 'reason' AS reason "
+        "FROM app.tasks t "
+        "LEFT JOIN app.analyses a ON a.id = t.analysis_id AND a.user_id = t.user_id "
+        "AND t.source = 'ai' "
+        "WHERE t.user_id = %s AND t.exam_id = %s AND t.deleted_at IS NULL "
+        "ORDER BY t.position NULLS LAST, t.created_at, t.id",
         (user_id, exam_id),
     ).fetchall()
-
-
-_TASK_COLUMNS_OF_T: Final = ", ".join(f"t.{column.strip()}" for column in TASK_COLUMNS.split(","))
 
 
 def _live_task(conn: Conn, user_id: UUID, task_id: UUID) -> Row:
@@ -71,6 +76,16 @@ def _live_task(conn: Conn, user_id: UUID, task_id: UUID) -> Row:
     if row is None:
         raise ApiError("not_found")
     return row
+
+
+def _check_topic(conn: Conn, user_id: UUID, exam_id: UUID, topic_id: UUID) -> None:
+    """The topic must belong to the same user and exam (the FK would say so, as a 500)."""
+    row = conn.execute(
+        "SELECT 1 FROM app.topics WHERE user_id = %s AND id = %s AND exam_id = %s",
+        (user_id, topic_id, exam_id),
+    ).fetchone()
+    if row is None:
+        raise ApiError("not_found")
 
 
 def _check_cycle(conn: Conn, user_id: UUID, task_id: UUID, target: UUID) -> None:
@@ -144,9 +159,11 @@ def create_task(
         raise ApiError("exam_in_past")
     if values["depends_on_task_id"] is not None:
         _live_task(conn, user_id, values["depends_on_task_id"])
+    if values["topic_id"] is not None:
+        _check_topic(conn, user_id, values["exam_id"], values["topic_id"])
     row = conn.execute(
         "INSERT INTO app.tasks (user_id, exam_id, title, kind, estimated_minutes, focus, "  # noqa: S608
-        "depends_on_task_id, source) VALUES (%s, %s, %s, %s, %s, %s, %s, 'user') "
+        "depends_on_task_id, topic_id, source) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'user') "
         f"RETURNING {TASK_COLUMNS}",
         (
             user_id,
@@ -156,6 +173,7 @@ def create_task(
             values["estimated_minutes"],
             values["focus"],
             values["depends_on_task_id"],
+            values["topic_id"],
         ),
     ).fetchone()
     if row is None:
@@ -178,6 +196,9 @@ def update_task(
     if target is not None:
         _live_task(conn, user_id, target)
         _check_cycle(conn, user_id, task_id, target)
+    topic = changes.get("topic_id")
+    if topic is not None:
+        _check_topic(conn, user_id, before["exam_id"], topic)
     assignments = sql.SQL(", ").join(
         sql.SQL("{} = {}").format(sql.Identifier(column), sql.Placeholder()) for column in changes
     )

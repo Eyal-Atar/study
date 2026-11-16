@@ -191,8 +191,11 @@ def test_apply_replaces_only_untouched_ai_tasks(
         assert deleted[board[name]] is None, name
     assert body["replaced"] == [{"id": str(board["replace"]), "title": "ישנה בלי התקדמות"}]
     assert body["kept"] == 4
-    assert [(item["title"], item["kind"], item["minutes"]) for item in body["added"]] == [
-        (task["title"], task["kind"], task["minutes"]) for task in valid_output_dict()["tasks"]
+    assert [
+        (item["title"], item["kind"], item["minutes"], item["reason"]) for item in body["added"]
+    ] == [
+        (task["title"], task["kind"], task["minutes"], task["reason"])
+        for task in valid_output_dict()["tasks"]
     ]
 
     new_tasks = db.execute(
