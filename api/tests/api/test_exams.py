@@ -182,11 +182,11 @@ def test_tomorrow_follows_the_profile_timezone(
     assert tomorrow.status_code == 201, tomorrow.text
 
 
-def test_exam_in_past_says_tomorrow_or_later(api: TestClient, user: ApiUser) -> None:
+def test_exam_in_past_says_the_date_has_passed_or_is_today(api: TestClient, user: ApiUser) -> None:
     response = api.post(
         "/exams", json={"name": "היום", "exam_date": "2026-11-16"}, headers=user.headers
     )
-    assert response.json()["title"] == "תאריך המבחן צריך להיות מחר או אחר כך."
+    assert response.json()["title"] == "תאריך המבחן כבר עבר, או שהוא היום."
 
 
 def test_today_follows_the_profile_timezone_for_the_upper_bound(

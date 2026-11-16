@@ -187,6 +187,9 @@ def fingerprint(board: Board) -> str:
             "study_windows": sorted(window.value for window in profile.study_windows),
             "rest_days_before_exam": profile.rest_days_before_exam,
             "study_start_delay": profile.study_start_delay.total_seconds(),
+            "hobby": (
+                None if profile.hobby is None else [profile.hobby[0].isoformat(), profile.hobby[1]]
+            ),
         },
         "exams": [
             {"id": str(e.id), "date": e.exam_date.isoformat(), "difficulty": e.difficulty}

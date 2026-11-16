@@ -39,7 +39,7 @@ PROBLEMS: Mapping[str, Problem] = MappingProxyType(
         "invalid_state": Problem(409, "אי אפשר לבצע את הפעולה הזו במצב הנוכחי."),
         "nothing_to_undo": Problem(409, "אין שינוי לבטל."),
         "dependency_cycle": Problem(422, "התלות הזו יוצרת מעגל בין משימות."),
-        "exam_in_past": Problem(422, "תאריך המבחן צריך להיות מחר או אחר כך."),
+        "exam_in_past": Problem(422, "תאריך המבחן כבר עבר, או שהוא היום."),
         "too_many_materials": Problem(422, "הגעתם למספר הקבצים המקסימלי למבחן הזה."),
         "file_too_large": Problem(422, "הקובץ גדול מדי."),
         "already_exists": Problem(409, "הפריט הזה כבר קיים."),

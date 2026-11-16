@@ -9,7 +9,9 @@ adds) never leave the database by accident. `plan_versions` and `jobs` are inter
 
 The deletion (spec 7.11, plan S15 decision 9) has two steps: here, in one transaction,
 `app.delete_account_data()` removes every app row of `auth.uid()` and the delete_account job
-is queued; the worker then deletes the files and the Auth user (app/jobs/account.py).
+is queued; the worker then deletes the files and the Auth user (app/jobs/account.py). The
+user may not set the job's max_attempts (INSERT on user_id, kind and payload only), so the
+worker raises it to 10 when it claims the job.
 """
 
 import datetime as dt
@@ -154,7 +156,9 @@ def delete_account(conn: Conn, user_id: UUID) -> UUID:
     """Delete every app row of the user now and queue the worker's delete_account job.
 
     `lock_user` first, like every board write: a write already holding the lock finishes
-    before this, and one that comes after waits and then finds no profile. The function
+    before this. One that comes after waits, then finds no profile, and `ensure_profile`
+    creates an empty one again (with whatever that write adds). That is harmless: the
+    worker's Auth delete cascades every row of the user away, that one too. The function
     deletes only `auth.uid()`, the user of this transaction, so `user_id` is used for the
     job row only (RLS and the INSERT grant check it is the same user). It also deletes the
     user's earlier jobs, a queued delete_account included: there is only ever one.

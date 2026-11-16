@@ -24,7 +24,9 @@ transaction; app.jobs and app.ai_usage are the only tables the worker writes as 
 `user_storage_names` lists the job user's files in Storage, read as the owner (S15).
 
 A delete_account job ends by deleting its user from Auth, which cascades to its own row:
-its end write then finds nothing, and that is logged at INFO, not as a lost claim.
+its end write then finds nothing, and that is logged at INFO, not as a lost claim. It gets
+10 attempts (the worker raises the row's max_attempts when it claims it, since the API may
+not set it), and its final failure is logged at ERROR ("delete_account failed for good").
 """
 
 import logging
@@ -32,7 +34,7 @@ import re
 import threading
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import AbstractContextManager, contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, Final
 from uuid import UUID
@@ -47,7 +49,16 @@ from app.config import Settings
 from app.db.session import user_transaction
 from app.domain.materials import JOB_DELETE_ACCOUNT
 from app.jobs.auth_admin import AuthAdmin, SupabaseAuthAdmin
-from app.jobs.queue import JobRow, backoff, claim, fail, finish, heartbeat, requeue
+from app.jobs.queue import (
+    JobRow,
+    backoff,
+    claim,
+    fail,
+    finish,
+    heartbeat,
+    raise_max_attempts,
+    requeue,
+)
 from app.jobs.storage import Storage
 
 logger = logging.getLogger(__name__)
@@ -67,6 +78,15 @@ type AuthAdminFactory = Callable[[Settings], AuthAdmin]
 
 # Jobs whose success deletes their own row (through the cascade from auth.users).
 _ENDS_WITH_ITS_ROW: Final = frozenset({JOB_DELETE_ACCOUNT})
+
+# Kinds that get more attempts than the table's default (3). The API enqueues as the user,
+# who may insert only user_id, kind and payload, so the worker raises the row's
+# max_attempts when it claims such a job (the CHECK allows up to 10).
+_MAX_ATTEMPTS: Final[Mapping[str, int]] = {JOB_DELETE_ACCOUNT: 10}
+
+# Kinds whose final failure is logged at ERROR, to be alerted on: a failed delete_account
+# leaves files or an Auth user behind.
+_ALERT_ON_FAILURE: Final = frozenset({JOB_DELETE_ACCOUNT})
 
 
 class JobFailed(Exception):
@@ -351,6 +371,12 @@ class Worker:
         job = claim(conn, now, lock_timeout=lock_timeout)
         if job is None:
             return False
+        wanted = _MAX_ATTEMPTS.get(job.kind)
+        if wanted is not None and job.max_attempts < wanted:
+            if not raise_max_attempts(conn, job.id, job.attempts, wanted):
+                self._log_lost(job)
+                return True
+            job = replace(job, max_attempts=wanted)
 
         context = JobContext(
             job=job,
@@ -433,7 +459,10 @@ class Worker:
 
     def _fail(self, conn: psycopg.Connection[DictRow], job: JobRow, code: str) -> None:
         if fail(conn, job.id, job.attempts, self._clock(), code):
-            logger.info("job %s (%s) failed: %s", job.id, job.kind, code)
+            if job.kind in _ALERT_ON_FAILURE:
+                logger.error("%s failed for good: job %s code %s", job.kind, job.id, code)
+            else:
+                logger.info("job %s (%s) failed: %s", job.id, job.kind, code)
         else:
             self._claim_lost(job)
 

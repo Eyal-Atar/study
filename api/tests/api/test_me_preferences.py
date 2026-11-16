@@ -179,3 +179,17 @@ def test_a_longer_start_delay_moves_the_first_block_of_the_day(
     # Studying now starts at 09:00; a block still valid (from 09:00 on) stays where it is.
     assert dt.date(2026, 11, 17) in days
     assert all(start.time() >= dt.time(9) for start in days.values())
+
+
+def test_a_hobby_set_after_a_preview_makes_its_apply_stale(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    insert_task(db, user.id, exam, minutes=120)
+    basis = replan_preview(api, user)["basis"]
+    assert _patch(api, user, {"hobby_start": "18:30", "hobby_minutes": 90}).status_code == 200
+    response = api.post(
+        "/plan/replan", json={"preview": False, "basis": basis}, headers=user.headers
+    )
+    assert response.status_code == 409
+    assert response.json()["code"] == "stale_plan"

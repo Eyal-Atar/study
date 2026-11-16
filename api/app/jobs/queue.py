@@ -185,6 +185,15 @@ def fail(conn: Conn, job_id: UUID, attempts: int, now: datetime, error: str) -> 
     return cursor.rowcount == 1
 
 
+def raise_max_attempts(conn: Conn, job_id: UUID, attempts: int, max_attempts: int) -> bool:
+    """Give a claimed job more attempts than the table's default (the API cannot set them)."""
+    cursor = conn.execute(
+        sql.SQL("UPDATE app.jobs SET max_attempts = %s") + _FENCE,
+        (max_attempts, job_id, attempts),
+    )
+    return cursor.rowcount == 1
+
+
 def backoff(attempt: int) -> timedelta:
     """The wait before the next try after `attempt` failed: 30s, 60s, 120s, ..."""
     return timedelta(seconds=BACKOFF_BASE_SECONDS * 2 ** (attempt - 1))

@@ -153,6 +153,22 @@ def test_fingerprint_ignores_now_and_sees_changes(
     assert fingerprint(_board(database, user)) != first
 
 
+def test_fingerprint_sees_the_hobby(
+    database: Database, make_user: MakeUser, db: psycopg.Connection
+) -> None:
+    user = make_user()
+    db.execute("INSERT INTO app.profiles (id) VALUES (%s)", (user.id,))
+    first = fingerprint(_board(database, user))
+    db.execute(
+        "UPDATE app.profiles SET hobby_start = '18:30', hobby_minutes = 90 WHERE id = %s",
+        (user.id,),
+    )
+    with_hobby = fingerprint(_board(database, user))
+    assert with_hobby != first
+    db.execute("UPDATE app.profiles SET hobby_minutes = 60 WHERE id = %s", (user.id,))
+    assert fingerprint(_board(database, user)) != with_hobby
+
+
 def test_lock_serializes_two_transactions(
     database: Database, make_user: MakeUser, db: psycopg.Connection
 ) -> None:

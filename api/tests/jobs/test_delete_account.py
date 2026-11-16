@@ -307,7 +307,8 @@ def test_a_user_already_gone_from_auth_is_a_success(
     assert not [record for record in caplog.records if record.levelno >= logging.WARNING]
 
 
-def test_a_forged_name_outside_the_users_folder_is_never_deleted(
+@pytest.mark.parametrize("shape", ["dotdot", "empty_segment"])
+def test_a_forged_name_is_skipped_never_deleted_and_the_rest_goes_on(
     api: TestClient,
     db: psycopg.Connection,
     clock: FrozenClock,
@@ -315,21 +316,71 @@ def test_a_forged_name_outside_the_users_folder_is_never_deleted(
     auth_admin: FakeAuthAdmin,
     account_worker: Worker,
     two_users: tuple[ApiUser, ApiUser],
+    caplog: pytest.LogCaptureFixture,
+    shape: str,
 ) -> None:
     a, b = two_users
+    a_files = _objects(db, a.id)
     # Its first folder is A's, so the listing returns it; the ".." would climb into B's.
-    forged = f"{a.id}/../{b.id}/x"
+    forged = f"{a.id}/../{b.id}/x" if shape == "dotdot" else f"{a.id}/e//x"
     _put_object(db, storage, forged)
+    assert forged in _objects(db, a.id)
     job_id = _delete_me(api, db, clock, a)
 
-    assert account_worker.run_once() is True
+    with caplog.at_level(logging.INFO):
+        assert account_worker.run_once() is True
 
-    # Refused before anything was deleted, and not retried.
-    assert storage.batches == []
-    assert storage.deleted == []
+    # The forged name is never deleted; A's own files and A in Auth are.
+    assert forged not in storage.deleted
+    assert forged in storage.files
+    assert sorted(storage.deleted) == a_files
+    assert auth_admin.calls == [a.id]
+    assert scalar(db, "SELECT count(*) FROM auth.users WHERE id = %s", a.id) == 0
+    assert _job(db, job_id) is None
+    # One ERROR line with the count only: no file name, no user.
+    errors = [record for record in caplog.records if record.levelno >= logging.ERROR]
+    assert len(errors) == 1
+    message = errors[0].getMessage()
+    assert "skipped 1 storage name" in message
+    assert forged not in message
+    assert str(a.id) not in message
+    assert str(b.id) not in message
+
+
+def test_delete_account_gets_ten_attempts_then_logs_its_final_failure(
+    api: TestClient,
+    db: psycopg.Connection,
+    clock: FrozenClock,
+    storage: MemoryStorage,
+    auth_admin: FakeAuthAdmin,
+    account_worker: Worker,
+    two_users: tuple[ApiUser, ApiUser],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    a, _ = two_users
+    storage.failures[_objects(db, a.id)[0]] = StorageUnavailable("down")
+    job_id = _delete_me(api, db, clock, a)
+
+    for attempt in range(1, 10):
+        with caplog.at_level(logging.INFO):
+            assert account_worker.run_once() is True
+        assert _job(db, job_id) == ("queued", "storage_unavailable", attempt)
+        assert scalar(db, "SELECT max_attempts FROM app.jobs WHERE id = %s", job_id) == 10
+        assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+        clock.advance(hours=24)
+
+    with caplog.at_level(logging.INFO):
+        assert account_worker.run_once() is True
+
+    assert _job(db, job_id) == ("failed", "storage_unavailable", 10)
     assert auth_admin.calls == []
-    assert _job(db, job_id) == ("failed", "unsafe_storage_path", 1)
-    assert forged in _objects(db, a.id)
+    errors = [record for record in caplog.records if record.levelno >= logging.ERROR]
+    assert len(errors) == 1
+    message = errors[0].getMessage()
+    assert "delete_account failed for good" in message
+    assert str(job_id) in message
+    assert "storage_unavailable" in message
+    assert str(a.id) not in message
 
 
 def test_the_listing_never_runs_inside_a_user_transaction(
