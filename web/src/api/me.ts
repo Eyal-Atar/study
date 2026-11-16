@@ -19,6 +19,11 @@ export interface Me {
   study_windows: StudyWindow[]
   rest_days_before_exam: number
   notify_lead_minutes: number
+  // Minutes after waking before study may start (0–360, S15 decision 1).
+  study_start_delay_minutes: number
+  // The daily hobby time (S15 decision 2): both null (off) or both set. 'HH:MM', and 15–240 minutes.
+  hobby_start: string | null
+  hobby_minutes: number | null
   // null until the first plan is written (the API sets it, S13 decision 1).
   onboarding_completed_at: string | null
 }
@@ -35,6 +40,9 @@ export type MePatch = Partial<
     | 'study_windows'
     | 'rest_days_before_exam'
     | 'notify_lead_minutes'
+    | 'study_start_delay_minutes'
+    | 'hobby_start'
+    | 'hobby_minutes'
   >
 >
 

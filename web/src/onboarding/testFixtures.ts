@@ -18,6 +18,9 @@ export function meFixture(overrides: Partial<Me> = {}): Me {
     study_windows: ['morning', 'afternoon'],
     rest_days_before_exam: 1,
     notify_lead_minutes: 10,
+    study_start_delay_minutes: 60,
+    hobby_start: null,
+    hobby_minutes: null,
     onboarding_completed_at: null,
     ...overrides,
   }

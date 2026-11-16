@@ -106,6 +106,9 @@ function toMe(answer: MePatchResponse): Me {
     study_windows: answer.study_windows,
     rest_days_before_exam: answer.rest_days_before_exam,
     notify_lead_minutes: answer.notify_lead_minutes,
+    study_start_delay_minutes: answer.study_start_delay_minutes,
+    hobby_start: answer.hobby_start,
+    hobby_minutes: answer.hobby_minutes,
     onboarding_completed_at: answer.onboarding_completed_at,
   }
 }
