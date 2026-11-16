@@ -22,7 +22,7 @@
 | --- | --- |
 | התקנת תלויות | `uv sync` |
 | הרצת השרת | `uv run uvicorn app.main:create_app --factory --reload` |
-| הרצת ה-worker | `uv run python -m app.jobs` |
+| הרצת ה-worker | `uv run python -m app.jobs` (גם התזכורות, כשמפתחות VAPID ב-`api/.env`) |
 | בדיקות | `uv run pytest` |
 | lint | `uv run ruff check .` |
 | בדיקת פורמט | `uv run ruff format --check .` |
@@ -51,5 +51,6 @@
 | lint | `npm run lint` |
 | טיפוסים | `npm run typecheck` |
 | build | `npm run build` |
+| ה-build עם service worker (בדיקת PWA ו-Push) | `npm run build && npm run preview` (פורט 5173) |
 
 ב-`web/.npmrc` מוגדר `min-release-age=7`: גרסה צעירה מ-7 ימים לא מותקנת (הגנת supply-chain), וזה מעכב גם תיקוני אבטחה; לתיקון דחוף מוסיפים את החבילה הבודדת ל-`web/.npmrc` בשורה `min-release-age-exclude=<pkg>` (ואם היא נעולה לחבילות אחיות שיצאו איתה, גם אותן, בשורה נוספת כמו `min-release-age-exclude[]=@typescript-eslint/*`), מתקינים ומסירים את השורה אחר כך, וכותבים בקומיט למה. `devEngines` עוצר Node או npm בגרסה אחרת.
