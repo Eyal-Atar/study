@@ -25,6 +25,8 @@ export const he = {
   shell: {
     signOut: 'יציאה',
     mainNav: 'ניווט ראשי',
+    today: 'היום',
+    week: 'שבוע',
   },
   login: {
     google: 'התחברות עם Google',
@@ -322,10 +324,30 @@ export const he = {
   // S14
   today: {
     title: 'היום',
-    placeholder: 'כאן תופיע התוכנית של היום.',
-    signedInAs: (email: string) => `התחברת בתור ${email}`,
-    noEmail: 'התחברת בלי כתובת מייל',
-    userId: 'מזהה משתמש',
+    progressLabel: 'ההתקדמות של היום',
+    progress: (done: number, total: number) => `${String(done)} מתוך ${String(total)} דקות`,
+    next: 'המשימה הבאה',
+    // The next block when it is on a later day: "מחר, 09:00".
+    nextAt: (day: string, time: string) => `${day}, ${time}`,
+    blocks: 'הבלוקים של היום',
+    // Today's list when the next block (today's) has its own card above it.
+    moreBlocks: 'עוד היום',
+    noBlocksToday: 'אין בלוקים היום.',
+    noTasks: 'אין משימות בלוח.',
+    noMoreTasks: 'אין עוד משימות בלוח.',
+    planFailed: 'לא הצלחנו לבדוק את הימים הבאים.',
+    stale: 'לא הצלחנו לרענן, ולכן ייתכן שהלוח לא עדכני.',
   },
-  week: {},
+  // S14: the week screen (web/src/week).
+  week: {
+    title: 'שבוע',
+    range: (first: string, last: string) => `${first} עד ${last}`,
+    moves: 'מעבר בין שבועות',
+    previous: 'הקודם',
+    thisWeek: 'השבוע',
+    next: 'הבא',
+    free: 'יום פנוי',
+    total: (duration: string) => `סך הכול ${duration}`,
+    stale: 'לא הצלחנו לרענן את הלוח, וייתכן שהוא לא מעודכן. ננסה שוב בעוד דקה.',
+  },
 } as const
