@@ -20,11 +20,13 @@ export interface MaterialItemProps {
   warnings?: readonly string[]
   // The row's buttons. They wrap under the name when the row is too narrow (a phone at 375px).
   actions?: ReactNode
+  // Replaces the kind's text with a control that changes it (the exam screen, S15).
+  kindControl?: ReactNode
 }
 
 // One file of an exam: a pending upload, or a registered material. The parent decides the status and the
 // actions; this row only lays them out.
-export function MaterialItem({ filename, kind, status, tone, warnings = [], actions }: MaterialItemProps) {
+export function MaterialItem({ filename, kind, status, tone, warnings = [], actions, kindControl }: MaterialItemProps) {
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
       <div className="min-w-0 flex-1 basis-48">
@@ -33,7 +35,7 @@ export function MaterialItem({ filename, kind, status, tone, warnings = [], acti
         <p className="truncate text-start text-sm font-medium text-ink">
           <bdi>{filename}</bdi>
         </p>
-        <p className="text-xs text-ink-muted">{he.onboardingMaterials.kinds[kind]}</p>
+        {kindControl ?? <p className="text-xs text-ink-muted">{he.onboardingMaterials.kinds[kind]}</p>}
         <p className={`mt-1 text-sm ${TONES[tone]}`}>{status}</p>
         {warnings.map((warning) => (
           <p key={warning} className="mt-2 rounded-md bg-warning-soft px-2 py-1 text-xs text-warning">

@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 import { FileTrigger } from 'react-aria-components'
 import { ApiError, errorMessage } from '../api/client'
 import { useUserId } from '../api/me'
@@ -68,7 +68,16 @@ function materialStatus(material: Material): { status: string; tone: 'muted' | '
 
 // One exam of the materials step: its name, the file picker, and its files. A file uploads as soon as it is
 // picked, with the kind its name suggests (decision 11), so the step stays one tap per file.
-export function ExamMaterials({ exam, onCountChange }: { exam: Exam; onCountChange: (examId: string, count: number) => void }) {
+export interface ExamMaterialsProps {
+  exam: Exam
+  onCountChange: (examId: string, count: number) => void
+  // The section's heading; the exam's name by default (the onboarding lists every exam).
+  heading?: string
+  // A control that changes a registered material's kind, in place of its kind's text (S15).
+  kindControl?: (material: Material) => ReactNode
+}
+
+export function ExamMaterials({ exam, onCountChange, heading, kindControl }: ExamMaterialsProps) {
   const headingId = useId()
   const userId = useUserId()
   const queryClient = useQueryClient()
@@ -185,7 +194,7 @@ export function ExamMaterials({ exam, onCountChange }: { exam: Exam; onCountChan
     <section aria-labelledby={headingId} className="border-t border-line py-6 first:border-t-0 first:pt-0">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id={headingId} className="min-w-0 truncate text-base font-semibold text-ink">
-          <bdi>{exam.name}</bdi>
+          {heading ?? <bdi>{exam.name}</bdi>}
         </h2>
         <FileTrigger acceptedFileTypes={[...ACCEPTED_FILE_TYPES]} allowsMultiple onSelect={pick}>
           <Button variant="secondary" aria-label={t.addFilesFor(exam.name)}>
@@ -221,6 +230,7 @@ export function ExamMaterials({ exam, onCountChange }: { exam: Exam; onCountChan
                 status={status}
                 tone={tone}
                 warnings={material.warnings.map((code) => codeText(code))}
+                kindControl={kindControl?.(material)}
                 actions={
                   <Button variant="quiet" aria-label={t.deleteNamed(material.filename)} onPress={() => { remove(material); }}>
                     {he.common.delete}
