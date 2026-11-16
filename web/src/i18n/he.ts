@@ -581,5 +581,74 @@ export const he = {
   // S19: the progress board (web/src/progress). Filled by Task 4.
   progress: {
     title: 'התקדמות',
+    // Numbers are formatted by the caller (progress/format.ts), so 10000 reads "10,000".
+    level: {
+      title: 'רמה',
+      level: (level: number) => `רמה ${String(level)}`,
+      totalXp: (xp: string) => `${xp} XP בסך הכול`,
+      barLabel: (next: number) => `ההתקדמות לרמה ${String(next)}`,
+      barValue: (done: string, total: string) => `${done} מתוך ${total} XP`,
+      toNext: (xp: string, next: number) => `עוד ${xp} XP לרמה ${String(next)}`,
+      max: 'זו הרמה הגבוהה ביותר.',
+      blocksDone: (count: number) =>
+        count === 0 ? 'עוד לא הושלמו בלוקים' : count === 1 ? 'בלוק אחד הושלם' : `${String(count)} בלוקים הושלמו`,
+    },
+    streak: {
+      title: 'רצף ימי לימוד',
+      current: 'הרצף הנוכחי',
+      longest: 'הרצף הארוך ביותר',
+      days: (n: number) => (n === 1 ? 'יום אחד' : n === 2 ? 'יומיים' : `${String(n)} ימים`),
+      start: 'היום הוא יום טוב להתחיל.',
+      studiedToday: 'למדתם היום.',
+      keepGoing: 'בלוק אחד היום ממשיך את הרצף.',
+    },
+    days: {
+      title: '14 הימים האחרונים',
+      summary: (studied: number, total: number) =>
+        studied === 0
+          ? `עוד אין ימי לימוד ב-${String(total)} הימים האחרונים.`
+          : studied === 1
+            ? `יום לימוד אחד מתוך ${String(total)} הימים האחרונים.`
+            : `${String(studied)} ימי לימוד מתוך ${String(total)} הימים האחרונים.`,
+      // Sunday first, as Date.getUTCDay() counts.
+      weekdayLetters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'],
+    },
+    badges: {
+      title: 'תגים',
+      summary: (earned: number, total: number) => `${String(earned)} מתוך ${String(total)} הושגו`,
+      earnedOn: (date: string) => `הושג ב-${date}`,
+      notEarned: 'עוד לא הושג',
+      towards: (current: string, threshold: string) => `${current} מתוך ${threshold}`,
+      groups: {
+        first: 'התחלה',
+        blocks: 'בלוקים שהושלמו',
+        streak: 'רצף ימי לימוד',
+        level: 'רמות',
+        xp: 'נקודות XP',
+      },
+      // By badge key (api/app/domain/gamification): a name and a short line on what earns it.
+      items: {
+        first_task: { name: 'צעד ראשון', description: 'הבלוק הראשון שהושלם' },
+        task_master_10: { name: '10 בלוקים', description: '10 בלוקי לימוד שהושלמו' },
+        task_master_20: { name: '20 בלוקים', description: '20 בלוקי לימוד שהושלמו' },
+        task_master_50: { name: '50 בלוקים', description: '50 בלוקי לימוד שהושלמו' },
+        task_master_100: { name: '100 בלוקים', description: '100 בלוקי לימוד שהושלמו' },
+        iron_will_7: { name: 'שבוע ברצף', description: 'רצף של 7 ימי לימוד' },
+        iron_will_10: { name: '10 ימים ברצף', description: 'רצף של 10 ימי לימוד' },
+        iron_will_14: { name: 'שבועיים ברצף', description: 'רצף של 14 ימי לימוד' },
+        iron_will_30: { name: '30 ימים ברצף', description: 'רצף של 30 ימי לימוד' },
+        iron_will_100: { name: '100 ימים ברצף', description: 'רצף של 100 ימי לימוד' },
+        knowledge_seeker_5: { name: 'רמה 5', description: 'הגעה לרמה 5' },
+        knowledge_seeker_10: { name: 'רמה 10', description: 'הגעה לרמה 10' },
+        knowledge_seeker_20: { name: 'רמה 20', description: 'הגעה לרמה 20' },
+        knowledge_seeker_25: { name: 'רמה 25', description: 'הגעה לרמה 25' },
+        knowledge_seeker_50: { name: 'רמה 50', description: 'הגעה לרמה הגבוהה ביותר' },
+        xp_1000: { name: '1,000 XP', description: '1,000 נקודות XP בסך הכול' },
+        xp_5000: { name: '5,000 XP', description: '5,000 נקודות XP בסך הכול' },
+        xp_10000: { name: '10,000 XP', description: '10,000 נקודות XP בסך הכול' },
+      },
+      // A key the web does not know yet (a newer API): shown by its threshold.
+      unknown: { name: 'תג', description: '' },
+    },
   },
 } as const
