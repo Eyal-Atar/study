@@ -20,6 +20,7 @@ from app.routers import (
     me,
     plan,
     progress,
+    review,
     tasks,
     topics,
 )
@@ -75,6 +76,7 @@ def create_app(
     app.include_router(tasks.router)
     app.include_router(blocks.router)
     app.include_router(plan.router)
+    app.include_router(review.router)
     app.include_router(materials.router)
     app.include_router(jobs.router)
     app.include_router(generation.router)

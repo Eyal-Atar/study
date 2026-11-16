@@ -58,6 +58,13 @@ class VersionReason(StrEnum):
     EXAM_DELETED = "exam_deleted"
     PLAN_GENERATED = "plan_generated"
     EXAM_REANALYZED = "exam_reanalyzed"
+    REVIEW_MOVED = "review_moved"
+    REVIEW_SKIPPED = "review_skipped"
+
+
+# The morning review's versions: block_id is the past block they marked missed or skipped,
+# which undo sets back to planned (no snapshot holds it: it is over).
+REVIEW_REASONS = frozenset({VersionReason.REVIEW_MOVED, VersionReason.REVIEW_SKIPPED})
 
 
 @dataclass(frozen=True)
@@ -70,6 +77,7 @@ class VersionRow:
     snapshot: Any
     task_before: Any = None
     analysis_id: UUID | None = None
+    block_id: UUID | None = None
 
 
 # The task fields a task_changed version keeps, as they were before the change.
@@ -150,10 +158,13 @@ def create_version(
     task_id: UUID | None,
     before: Mapping[str, Any] | None,
     analysis_id: UUID | None = None,
+    *,
+    block_id: UUID | None = None,
 ) -> UUID:
     row = conn.execute(
         "INSERT INTO app.plan_versions (user_id, reason, snapshot, exam_id, task_id, "
-        "task_before, analysis_id) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
+        "task_before, analysis_id, block_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
+        "RETURNING id",
         (
             user_id,
             reason.value,
@@ -162,6 +173,7 @@ def create_version(
             task_id,
             None if before is None else Jsonb(dict(before)),
             analysis_id,
+            block_id,
         ),
     ).fetchone()
     if row is None:
@@ -223,19 +235,25 @@ def apply_result(
     task_id: UUID | None = None,
     before: Mapping[str, Any] | None = None,
     analysis_id: UUID | None = None,
+    block_id: UUID | None = None,
+    always_version: bool = False,
 ) -> UUID | None:
     """Write a planner result computed from `board`, with a version; None if it changes nothing.
 
     `before` is the changed task's fields as they were (task_before), for a task_changed
-    version; `analysis_id` is the analysis an exam_reanalyzed version applied.
+    version; `analysis_id` is the analysis an exam_reanalyzed version applied; `block_id`
+    is the past block a review version marked. With `always_version` the version is
+    written even when the result changes nothing (a review must be undoable anyway).
 
     The caller holds the user lock: `board` was loaded with load_board(lock=True) in this
     same transaction, so nothing changed between the board and this write.
     """
     diff = changes(board, result)
-    if not diff:
+    if not diff and not always_version:
         return None
-    version_id = create_version(conn, user_id, board, reason, exam_id, task_id, before, analysis_id)
+    version_id = create_version(
+        conn, user_id, board, reason, exam_id, task_id, before, analysis_id, block_id=block_id
+    )
     write_changes(conn, user_id, diff, version_id)
     return version_id
 
@@ -250,6 +268,7 @@ def delete_open_blocks(
     exam_id: UUID | None = None,
     task_id: UUID | None = None,
     before: Mapping[str, Any] | None = None,
+    block_id: UUID | None = None,
     always_version: bool = False,
 ) -> UUID | None:
     """Delete the tasks' planned blocks that have not started (pinned too), with a version.
@@ -270,7 +289,9 @@ def delete_open_blocks(
     ]
     version_id = None
     if open_ids or always_version:
-        version_id = create_version(conn, user_id, board, reason, exam_id, task_id, before)
+        version_id = create_version(
+            conn, user_id, board, reason, exam_id, task_id, before, block_id=block_id
+        )
         delete_planned(conn, user_id, open_ids)
     renumber(conn, user_id, board.now)
     return version_id
@@ -311,14 +332,15 @@ def _version_row(row: Mapping[str, Any]) -> VersionRow:
         snapshot=row["snapshot"],
         task_before=row["task_before"],
         analysis_id=row["analysis_id"],
+        block_id=row["block_id"],
     )
 
 
 def latest_version(conn: Conn, user_id: UUID) -> VersionRow | None:
     """The newest version that was not undone."""
     row = conn.execute(
-        "SELECT id, reason, created_at, exam_id, task_id, snapshot, task_before, analysis_id "
-        "FROM app.plan_versions "
+        "SELECT id, reason, created_at, exam_id, task_id, snapshot, task_before, analysis_id, "
+        "block_id FROM app.plan_versions "
         "WHERE user_id = %s AND undone_at IS NULL "
         "ORDER BY created_at DESC, id DESC LIMIT 1",
         (user_id,),
@@ -423,7 +445,25 @@ def _undo_side_effect(conn: Conn, user_id: UUID, version: VersionRow, now: dt.da
     brings back the tasks it replaced, and marks the analysis undone (it does not become a
     draft again). It is refused (invalid_state, nothing written) once any task of the
     analysis has progress (see _check_no_progress).
+
+    A review version sets its past block back to planned if it is still missed or skipped
+    (one marked done since stays done), so it returns to the review; a review_skipped
+    version also puts the task's status back (task_before).
     """
+    if version.reason in REVIEW_REASONS:
+        if version.block_id is not None:
+            conn.execute(
+                "UPDATE app.blocks SET status = 'planned' "
+                "WHERE user_id = %s AND id = %s AND status IN ('missed', 'skipped')",
+                (user_id, version.block_id),
+            )
+        if (
+            version.reason == VersionReason.REVIEW_SKIPPED
+            and version.task_id is not None
+            and version.task_before is not None
+        ):
+            _restore_task(conn, user_id, version.task_id, version.task_before)
+        return
     if version.reason == VersionReason.EXAM_DELETED and version.exam_id is not None:
         conn.execute(
             "UPDATE app.exams SET deleted_at = NULL WHERE user_id = %s AND id = %s",
