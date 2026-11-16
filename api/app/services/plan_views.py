@@ -11,6 +11,7 @@ from uuid import UUID
 
 from app.domain.planner import (
     BlockStatus,
+    Interval,
     Profile,
     TaskKind,
     TaskStatus,
@@ -18,7 +19,7 @@ from app.domain.planner import (
     start_minute,
     study_date,
 )
-from app.domain.time import local_date
+from app.domain.time import local_date, local_span
 from app.errors import ApiError
 from app.services.board import BLOCK_COLUMNS, BlockRow, load_board, to_block_row
 from app.services.plan_writes import VersionRow, latest_version
@@ -85,6 +86,17 @@ class TodayView:
     blocks: tuple[BlockView, ...]
     planned_minutes: int
     done_minutes: int
+    day: Interval | None
+
+
+def waking_span(profile: Profile, day: dt.date) -> Interval | None:
+    """wake_time to sleep_time of a study day, without the start delay; None if empty.
+
+    The bounds of a manual move: the delay after waking is the planner's preference, not a
+    limit on where the user may put a block.
+    """
+    start, end = local_span(day, profile.wake_time, profile.sleep_time, profile.timezone)
+    return Interval(start, end) if start < end else None
 
 
 def block_state(row: BlockRow, now: dt.datetime) -> str:
@@ -233,4 +245,5 @@ def today_view(conn: Conn, user_id: UUID, now: dt.datetime) -> TodayView:
         blocks=blocks,
         planned_minutes=minutes(BlockStatus.PLANNED),
         done_minutes=minutes(BlockStatus.DONE),
+        day=waking_span(profile, today),
     )

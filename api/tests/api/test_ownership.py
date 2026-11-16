@@ -637,3 +637,78 @@ def test_unauthenticated_everywhere(
         assert response.status_code == 401, response.text
         assert response.json()["code"] == "unauthenticated"
     assert scalar(db, "SELECT count(*) FROM app.profiles") == rows_before
+
+
+# S18: moving a block and the slots it can move to.
+MOVE_CASES: tuple[Case, ...] = (
+    Case(
+        "move_block",
+        "PATCH",
+        "/blocks/{block_id}",
+        lambda i: {"block_id": i.a_block},
+        lambda _: {"starts_at": "2026-11-16T20:00:00Z"},
+    ),
+    Case(
+        "block_slots", "GET", "/blocks/{block_id}/slots", lambda i: {"block_id": i.a_block}, _none
+    ),
+)
+CASES = (*CASES, *MOVE_CASES)
+
+
+@pytest.mark.parametrize("case", MOVE_CASES, ids=[case.name for case in MOVE_CASES])
+def test_other_user_gets_404_on_moves(
+    api: TestClient,
+    db: psycopg.Connection,
+    world: tuple[ApiUser, ApiUser, Ids],
+    case: Case,
+) -> None:
+    test_other_user_gets_404(api, db, world, case)
+
+
+# S18 Task A, the morning review. The new routes join CASES and WITHOUT_ID here, at the end of
+# the file, so test_every_route_is_covered counts them; test_other_user_gets_404 was already
+# parametrized above, so test_review_of_another_user_is_404 runs them on A's overdue block.
+REVIEW_CASES: tuple[Case, ...] = (
+    Case(
+        "reschedule_block",
+        "POST",
+        "/blocks/{block_id}/reschedule",
+        lambda i: {"block_id": i.a_block},
+        _none,
+    ),
+    Case(
+        "reschedule_block_anywhere",
+        "POST",
+        "/blocks/{block_id}/reschedule",
+        lambda i: {"block_id": i.a_block},
+        lambda _: {"today_only": False},
+    ),
+    Case("skip_block", "POST", "/blocks/{block_id}/skip", lambda i: {"block_id": i.a_block}, _none),
+)
+CASES = (*CASES, *REVIEW_CASES)
+WITHOUT_ID = WITHOUT_ID | {("GET", "/review")}
+
+
+@pytest.mark.parametrize("case", REVIEW_CASES, ids=[case.name for case in REVIEW_CASES])
+def test_review_of_another_user_is_404(
+    api: TestClient,
+    db: psycopg.Connection,
+    world: tuple[ApiUser, ApiUser, Ids],
+    case: Case,
+) -> None:
+    a, b, ids = world
+    # Sunday 11:00-12:00, before NOW: an overdue block of A's task, in A's review only.
+    overdue = insert_block(db, a.id, ids.a_task, Z(2026, 11, 15, 11), Z(2026, 11, 15, 12))
+    a_review = api.get("/review", headers=a.headers)
+    assert [block["id"] for block in a_review.json()["blocks"]] == [str(overdue)]
+    assert api.get("/review", headers=b.headers).json() == {"blocks": []}
+    before = dump(db, a.id)
+    b_before = dump(db, b.id)
+
+    response = api.request(
+        case.method, case.route.format(block_id=overdue), headers=b.headers, json=case.body(ids)
+    )
+    assert response.status_code == 404, response.text
+    assert response.json()["code"] == "not_found"
+    assert dump(db, a.id) == before
+    assert dump(db, b.id) == b_before

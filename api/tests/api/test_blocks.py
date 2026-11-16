@@ -225,9 +225,13 @@ def test_pin_and_unpin(api: TestClient, user: ApiUser, db: psycopg.Connection) -
     assert _task_blocks(db, task) == [(block, Z(2026, 11, 16, 15), Z(2026, 11, 16, 16))]
 
     bad = api.patch(
-        f"/blocks/{block}", json={"starts_at": "2026-11-16T09:00:00Z"}, headers=user.headers
+        f"/blocks/{block}", json={"ends_at": "2026-11-16T09:00:00Z"}, headers=user.headers
     )
     assert bad.status_code == 422
+    naive = api.patch(
+        f"/blocks/{block}", json={"starts_at": "2026-11-16T09:00:00"}, headers=user.headers
+    )
+    assert naive.status_code == 422
     empty = api.patch(f"/blocks/{block}", json={}, headers=user.headers)
     assert empty.status_code == 422
 

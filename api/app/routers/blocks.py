@@ -4,11 +4,13 @@ from fastapi import APIRouter
 
 from app.auth import AuthenticatedUser
 from app.deps import DatabaseDep, Now
+from app.errors import ApiError
 from app.schemas.blocks import (
+    BlockPatch,
     CompleteResponse,
     DeferRequest,
     DeferResponse,
-    PinRequest,
+    SlotsResponse,
 )
 from app.schemas.plan import BlockOut
 from app.services.blocks import (
@@ -17,6 +19,7 @@ from app.services.blocks import (
     pin_block,
     uncomplete_block,
 )
+from app.services.moves import block_slots, move_block
 
 router = APIRouter()
 
@@ -55,8 +58,22 @@ def post_defer(
 
 @router.patch("/blocks/{block_id}")
 def patch_block(
-    block_id: UUID, body: PinRequest, user: AuthenticatedUser, database: DatabaseDep, now: Now
+    block_id: UUID, body: BlockPatch, user: AuthenticatedUser, database: DatabaseDep, now: Now
 ) -> BlockOut:
     with database.transaction(user) as conn:
-        view = pin_block(conn, user.id, block_id, body.pinned, now)
+        if body.starts_at is not None:
+            view = move_block(conn, user.id, block_id, body.starts_at, body.pinned, now)
+        elif body.pinned is not None:
+            view = pin_block(conn, user.id, block_id, body.pinned, now)
+        else:  # BlockPatch requires one of the two
+            raise ApiError("validation_error")
     return BlockOut.model_validate(view)
+
+
+@router.get("/blocks/{block_id}/slots")
+def get_slots(
+    block_id: UUID, user: AuthenticatedUser, database: DatabaseDep, now: Now
+) -> SlotsResponse:
+    with database.transaction(user) as conn:
+        view = block_slots(conn, user.id, block_id, now)
+    return SlotsResponse.from_view(view)

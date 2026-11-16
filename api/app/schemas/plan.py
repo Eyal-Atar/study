@@ -80,6 +80,9 @@ class TodayResponse(BaseModel):
     blocks: list[BlockOut]
     planned_minutes: int
     done_minutes: int
+    # The waking hours of the study day (UTC instants), the span a block can be moved within.
+    day_starts_at: dt.datetime | None
+    day_ends_at: dt.datetime | None
 
     @classmethod
     def from_view(cls, view: TodayView) -> Self:
@@ -88,6 +91,8 @@ class TodayResponse(BaseModel):
             blocks=_blocks(view.blocks),
             planned_minutes=view.planned_minutes,
             done_minutes=view.done_minutes,
+            day_starts_at=None if view.day is None else view.day.start,
+            day_ends_at=None if view.day is None else view.day.end,
         )
 
 

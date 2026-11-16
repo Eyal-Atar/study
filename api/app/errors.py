@@ -45,6 +45,8 @@ PROBLEMS: Mapping[str, Problem] = MappingProxyType(
         "already_exists": Problem(409, "הפריט הזה כבר קיים."),
         "ai_quota_exceeded": Problem(429, "הגעתם למספר יצירות התוכנית היומי. אפשר לנסות שוב מחר."),
         "nothing_to_analyze": Problem(409, "כל המבחנים כבר נותחו. אפשר לתכנן מחדש את הלוח."),
+        "slot_taken": Problem(409, "השעה הזו תפוסה בבלוק אחר. בחרו שעה אחרת."),
+        "outside_day": Problem(422, "אפשר להזיז בלוק רק לשעות הערות של אותו יום, ולא לפני עכשיו."),
         "internal_error": Problem(500, "משהו השתבש אצלנו. נסו שוב מאוחר יותר."),
     }
 )
