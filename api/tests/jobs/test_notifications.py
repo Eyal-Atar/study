@@ -283,12 +283,23 @@ def test_a_block_moved_in_place_is_reminded_again(
     assert sender.block_ids() == [str(block_id), str(block_id)]
 
 
+def test_a_block_that_already_ended_gets_no_reminder(
+    db: psycopg.Connection, owner_db: Conn, student: Callable[..., Student]
+) -> None:
+    s = student()
+    ended = block(db, s, START - timedelta(minutes=5), minutes=5)
+    sender = FakeSender()
+
+    assert run(owner_db, sender, START).claimed == 0
+    assert notified_at(db, ended) is None
+
+
 def test_a_late_reminder_goes_within_the_grace_but_not_after(
     db: psycopg.Connection, owner_db: Conn, student: Callable[..., Student]
 ) -> None:
     s = student()
     stale = block(db, s, START - timedelta(minutes=11), minutes=1)
-    late = block(db, s, START - timedelta(minutes=9), minutes=1)
+    late = block(db, s, START - timedelta(minutes=9), minutes=30)
     sender = FakeSender()
 
     stats = run(owner_db, sender, START)
@@ -297,7 +308,7 @@ def test_a_late_reminder_goes_within_the_grace_but_not_after(
     assert sender.block_ids() == [str(late)]
     assert notified_at(db, stale) is None
     # The text tells the truth: it already started.
-    assert sender.calls[0].payload["body"].startswith("מתחיל עכשיו")
+    assert sender.calls[0].payload["body"].startswith("התחיל לפני 9 דקות")
 
 
 def test_a_user_without_a_subscription_is_not_claimed_until_subscribing(
@@ -330,10 +341,11 @@ def test_a_second_run_in_the_same_minute_sends_nothing(
 def test_the_limit_caps_one_round_and_the_rest_follow(
     db: psycopg.Connection, owner_db: Conn, student: Callable[..., Student]
 ) -> None:
-    s = student()
+    # Future blocks inside a 15-minute lead: all due, none ended.
+    s = student(lead=15)
     ids = [block(db, s, START + timedelta(minutes=i), minutes=1) for i in range(3)]
     sender = FakeSender()
-    now = START + timedelta(minutes=3)
+    now = START
 
     assert run(owner_db, sender, now, limit=2).claimed == 2
     assert run(owner_db, sender, now, limit=2).claimed == 1
@@ -354,7 +366,7 @@ def test_two_concurrent_runs_send_each_block_once(
     for _ in range(4):
         s = student(lead=15)
         for i in range(10):
-            starts = START - timedelta(minutes=5) + timedelta(minutes=i)
+            starts = START + timedelta(minutes=i)
             expected.add(str(block(db, s, starts, minutes=1)))
     barrier = threading.Barrier(2, timeout=10)
     senders = [FakeSender(), FakeSender()]
@@ -465,12 +477,22 @@ def test_a_sender_exception_counts_as_failed_and_the_others_still_go(
     assert subscription_row(db, other) == (0, START)
 
 
+@pytest.mark.parametrize(
+    "internal",
+    [
+        "https://169.254.169.254/latest/meta-data",
+        # urlsplit raises on this one: it must still be a failed send, not a crashed round.
+        "https://[fcm.googleapis.com]/x",
+    ],
+)
 def test_an_endpoint_off_the_allowlist_gets_no_send(
-    db: psycopg.Connection, owner_db: Conn, student: Callable[..., Student]
+    db: psycopg.Connection,
+    owner_db: Conn,
+    student: Callable[..., Student],
+    internal: str,
 ) -> None:
     s = student(subscriptions=())
     # Passes the table's CHECK (https://), not the push service list.
-    internal = "https://169.254.169.254/latest/meta-data"
     subscribe(db, s.user.id, internal)
     block(db, s)
     sender = FakeSender()
@@ -502,10 +524,10 @@ def test_every_subscription_of_the_user_gets_it(
 def test_several_outcomes_of_one_subscription_in_a_round(
     db: psycopg.Connection, owner_db: Conn, student: Callable[..., Student]
 ) -> None:
-    s = student()
+    s = student(lead=15)
     url = endpoint(f"{s.user.id}-default")
-    block(db, s, START, minutes=1)
     block(db, s, START + timedelta(minutes=1), minutes=1)
+    block(db, s, START + timedelta(minutes=2), minutes=1)
     answers = iter([SendOutcome(SendKind.FAILED, 503), SENT])
 
     class Flaky(FakeSender):
@@ -515,7 +537,7 @@ def test_several_outcomes_of_one_subscription_in_a_round(
             super().send(target, payload, ttl=ttl, now=now)
             return next(answers)
 
-    now = START + timedelta(minutes=1)
+    now = START
     assert run(owner_db, Flaky(), now) == NotifyStats(2, 1, 0, 1)
     # One success in the round: the subscription works.
     assert subscription_row(db, url) == (0, now)
@@ -524,13 +546,13 @@ def test_several_outcomes_of_one_subscription_in_a_round(
 def test_a_gone_subscription_is_not_sent_to_again_in_the_round(
     db: psycopg.Connection, owner_db: Conn, student: Callable[..., Student]
 ) -> None:
-    s = student()
+    s = student(lead=15)
     url = endpoint(f"{s.user.id}-default")
-    block(db, s, START, minutes=1)
     block(db, s, START + timedelta(minutes=1), minutes=1)
+    block(db, s, START + timedelta(minutes=2), minutes=1)
     sender = FakeSender({url: SendOutcome(SendKind.GONE, 410)})
 
-    stats = run(owner_db, sender, START + timedelta(minutes=1))
+    stats = run(owner_db, sender, START)
 
     assert stats == NotifyStats(2, 0, 1, 0)
     assert len(sender.calls) == 1

@@ -1,4 +1,5 @@
 import { PRODUCT_NAME } from '../product'
+import { hePwa } from './hePwa'
 
 // A name the user typed (an exam, a file) can be in any language: First Strong Isolate and Pop
 // Directional Isolate keep a Latin name from reordering the Hebrew sentence around it.
@@ -692,10 +693,8 @@ export const he = {
     installHow: 'איך מוסיפים',
     installDismiss: 'הבנתי',
   },
-  // S16: the service worker (src/sw.ts), when a push arrives without a readable reminder.
-  pwa: {
-    pushFallbackBody: 'יש לך תזכורת חדשה בלוח.',
-  },
+  // S16: the service worker's texts live in hePwa.ts, so sw.js does not bundle this file.
+  pwa: hePwa,
   // S19: the progress board (web/src/progress). Filled by Task 4.
   progress: {
     title: 'התקדמות',

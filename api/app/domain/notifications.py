@@ -53,10 +53,15 @@ def _truncate(text: str, limit: int) -> str:
 def _lead(seconds_left: float) -> str:
     # Rounded to the nearest minute, not down: blocks start on a whole minute and the ticker
     # wakes a moment after one, so a 15-minute reminder sees 14:59 left and must say 15.
-    # The count comes from the real time left (not the setting), so a late one does not lie.
+    # The count comes from the real time left (not the setting), so a late one does not lie:
+    # after a worker pause (up to the grace window) it says how long ago the block started.
     minutes = int((seconds_left + 30) // 60)
-    if minutes <= 0:
+    if minutes == 0:
         return "מתחיל עכשיו"
+    if minutes == -1:
+        return "התחיל לפני דקה"
+    if minutes < 0:
+        return f"התחיל לפני {-minutes} דקות"
     if minutes == 1:
         return "בעוד דקה"
     return f"בעוד {minutes} דקות"
@@ -117,8 +122,10 @@ def check_push_endpoint(url: str) -> str | None:
         return PUSH_ENDPOINT_INVALID
     if any(not ("!" <= char <= "~") or char == "\\" for char in url):
         return PUSH_ENDPOINT_INVALID
-    parts = urlsplit(url)
+    # urlsplit itself raises on a malformed bracketed host ("https://[::1", "https://a]/x"),
+    # and so does .port on a bad port: both are invalid endpoints, never a crash.
     try:
+        parts = urlsplit(url)
         port = parts.port
     except ValueError:
         return PUSH_ENDPOINT_INVALID

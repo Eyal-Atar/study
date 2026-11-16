@@ -69,6 +69,8 @@ _CLAIM: Final = """
         WHERE b2.status = 'planned'
           AND b2.notified_at IS NULL
           AND b2.starts_at > %(now)s - %(grace)s
+          -- A block that already ended needs no reminder, however late the round is.
+          AND b2.ends_at > %(now)s
           AND b2.starts_at <= %(now)s + %(max_lead)s
           AND b2.starts_at - make_interval(mins => p.notify_lead_minutes) <= %(now)s
           AND t.deleted_at IS NULL
@@ -166,10 +168,10 @@ def _send(
 ) -> SendOutcome:
     # Checked here as well as in the sender: a row written to the table some other way must
     # not get a POST, whatever sender is plugged in.
-    if check_push_endpoint(target.endpoint) is not None:
-        logger.warning("reminder not sent: endpoint not on the push service list")
-        return SendOutcome(SendKind.FAILED, None)
     try:
+        if check_push_endpoint(target.endpoint) is not None:
+            logger.warning("reminder not sent: endpoint not on the push service list")
+            return SendOutcome(SendKind.FAILED, None)
         return sender.send(target, payload, ttl=ttl, now=now)
     except Exception as exc:
         # Class name only: the message may carry the URL or a key.

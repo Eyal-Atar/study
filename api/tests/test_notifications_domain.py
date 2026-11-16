@@ -49,7 +49,9 @@ def text_at(now: datetime, **overrides: object) -> ReminderText:
         # The ticker wakes a moment into the minute, so a 15-minute reminder sees 14:59.
         (timedelta(minutes=14, seconds=59), "בעוד 15 דקות"),
         # A late reminder (the worker was down) does not claim time is left.
-        (-timedelta(minutes=3), "מתחיל עכשיו"),
+        (-timedelta(minutes=3), "התחיל לפני 3 דקות"),
+        (-timedelta(seconds=75), "התחיל לפני דקה"),
+        (-timedelta(seconds=25), "מתחיל עכשיו"),
     ],
 )
 def test_the_lead_counts_the_real_time_left(before: timedelta, lead: str) -> None:
@@ -178,6 +180,9 @@ def test_known_push_services_are_accepted(url: str) -> None:
         "https://fcm.googleapis.com./x",
         "https://169.254.169.254/latest/meta-data",
         "https://[::1]/x",
+        "https://[::1",
+        "https://fcm.googleapis.com]/x",
+        "https://[fcm.googleapis.com]/x",
         "https://user@fcm.googleapis.com/x",
         "https://user:pw@fcm.googleapis.com/x",
         "https://evil.com@fcm.googleapis.com/x",
