@@ -20,3 +20,11 @@ bc16ac149a8d5f5cd7bc48976dd5d5eb46e6cb0b:.planning/milestones/phases 10-14/11-pu
 3a392cd722a93e772091df3a04483d4c3fd8632b:web/src/config/env.test.ts:generic-api-key:38
 4ff15e77590e7b3da8aee39e3d4ae4cf1c2de64c:docs/superpowers/plans/2026-10-25-s04-web-skeleton.md:generic-api-key:503
 4ff15e77590e7b3da8aee39e3d4ae4cf1c2de64c:docs/superpowers/plans/2026-10-25-s04-web-skeleton.md:generic-api-key:504
+
+# S16 test values, checked on 2026-11-16: the same fake publishable key as above
+# (sb_publishable_abc123) in the auth-js test, and a keyword argument in the VAPID
+# settings test whose value is a variable name (VAPID_PUBLIC), not a key; the key pair
+# behind it is generated inside the test run and is never the one in api/.env.
+# The fingerprints carry the commit, so a rebase of s16-pwa-push must update them.
+7079218aeece7c0dec85848f32c1638f8f579d50:web/src/auth/supabase.test.ts:generic-api-key:52
+e5f9ad8a390e208a980d72ef923de861117cabe0:api/tests/test_config.py:generic-api-key:282
