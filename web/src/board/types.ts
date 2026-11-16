@@ -31,6 +31,10 @@ export interface Today {
   blocks: Block[]
   planned_minutes: number
   done_minutes: number
+  // S18: from wake_time to sleep_time of today's study day (UTC instants), the span a block can be
+  // moved within; null when the profile leaves no waking time that day.
+  day_starts_at: string | null
+  day_ends_at: string | null
 }
 
 // A task that is not on the board (GET /plan). The reason comes only from the replan preview.
@@ -106,4 +110,26 @@ export interface CompleteResult {
 export interface DeferResult {
   blocks: Block[]
   version_id: string | null
+}
+
+// S18 GET /review: planned blocks that ended without a mark, of todo tasks, from the last 7 study days.
+export interface Review {
+  blocks: Block[]
+}
+
+// S18 POST /blocks/{id}/reschedule {today_only}: the task's done and live planned blocks, and the version.
+export type RescheduleResult = DeferResult
+
+// S18 POST /blocks/{id}/skip: the task is skipped, its open blocks are gone.
+export interface SkipResult {
+  task_status: string
+  version_id: string | null
+}
+
+// S18 GET /blocks/{id}/slots: every start on the local 15-minute grid the block can move to.
+export interface Slots {
+  study_date: string
+  day_starts_at: string | null
+  day_ends_at: string | null
+  slots: string[]
 }

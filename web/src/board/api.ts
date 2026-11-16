@@ -22,6 +22,10 @@ export function examsKey(userId: string | null) {
 export function reportKey(userId: string | null) {
   return [...boardKey(userId), 'report'] as const
 }
+// S18: GET /review, under the board so every board action refreshes it.
+export function reviewKey(userId: string | null) {
+  return [...boardKey(userId), 'review'] as const
+}
 
 // The block state (upcoming, in_progress, overdue) is derived on the server from `now`, so an open
 // screen asks again every minute, and when the window regains focus (TanStack's default).

@@ -113,6 +113,10 @@ export const he = {
     dependency_too_late: 'המשימה שהיא תלויה בה נגמרת מאוחר מדי.',
     longer_than_daily_minutes: 'היא ארוכה משעות הלימוד שלכם ביום.',
     dependent_too_early: 'משימה שתלויה בה כבר משובצת לפני המקום הזה.',
+    // S18: the morning review and moving a block within its day
+    no_time_today: 'אין היום מקום פנוי שמחזיק את כל המשימה.',
+    slot_taken: 'השעה הזו תפוסה בבלוק אחר.',
+    outside_day: 'אפשר להזיז בלוק רק לשעה פנויה בהמשך אותו יום.',
   },
   // "Did not fit" reports, with the exam name (codes.ts).
   report: {
@@ -341,6 +345,10 @@ export const he = {
     planFailed: 'לא הצלחנו לבדוק את הימים הבאים.',
     stale: 'לא הצלחנו לרענן, ולכן ייתכן שהלוח לא עדכני.',
   },
+  // S18: the morning review card in "today" (web/src/today/ReviewCard.tsx).
+  review: {},
+  // S18: moving a block within its day: drag, keyboard and the "move" dialog.
+  move: {},
   // S14: the week screen (web/src/week).
   week: {
     title: 'שבוע',

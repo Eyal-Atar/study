@@ -38,7 +38,16 @@ export function makeBlock(overrides: Partial<Block> = {}): Block {
 }
 
 export function makeToday(blocks: Block[] = [makeBlock()], overrides: Partial<Today> = {}): Today {
-  return { date: '2026-11-16', blocks, planned_minutes: 60, done_minutes: 0, ...overrides }
+  return {
+    date: '2026-11-16',
+    blocks,
+    planned_minutes: 60,
+    done_minutes: 0,
+    // 07:00–23:00 in Jerusalem (UTC+2 in November)
+    day_starts_at: '2026-11-16T05:00:00Z',
+    day_ends_at: '2026-11-16T21:00:00Z',
+    ...overrides,
+  }
 }
 
 export function makePlan(blocks: Block[] = [makeBlock()], overrides: Partial<Plan> = {}): Plan {
