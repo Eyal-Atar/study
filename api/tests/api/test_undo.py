@@ -163,16 +163,18 @@ def _version(
     *,
     exam_id: UUID | None = None,
     task_id: UUID | None = None,
+    task_before: dict[str, Any] | None = None,
 ) -> UUID:
     version: UUID = scalar(
         db,
-        "INSERT INTO app.plan_versions (user_id, reason, snapshot, exam_id, task_id) "
-        "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+        "INSERT INTO app.plan_versions (user_id, reason, snapshot, exam_id, task_id, "
+        "task_before) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
         user.id,
         reason,
         Jsonb(snapshot),
         exam_id,
         task_id,
+        None if task_before is None else Jsonb(task_before),
     )
     return version
 
@@ -466,3 +468,150 @@ def test_undo_leaves_a_started_block_that_is_unchanged_where_it_is(
     assert response.status_code == 200, response.text
     assert response.json()["replaced"] == []
     assert _block_rows(db, first) == before
+
+
+def _saved_before(db: psycopg.Connection, version: str | UUID) -> Any:
+    return scalar(db, "SELECT task_before FROM app.plan_versions WHERE id = %s", version)
+
+
+def test_undo_of_an_older_estimate_keeps_a_later_title(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    task = insert_task(db, user.id, exam, minutes=60, title="ישנה")
+    insert_block(db, user.id, task, Z(2026, 11, 16, 9), Z(2026, 11, 16, 10))
+
+    longer = api.patch(f"/tasks/{task}", json={"estimated_minutes": 180}, headers=user.headers)
+    assert longer.status_code == 200, longer.text
+    version = longer.json()["version_id"]
+    assert version is not None
+    assert _saved_before(db, version) == {"estimated_minutes": 60}
+
+    renamed = api.patch(f"/tasks/{task}", json={"title": "חדשה"}, headers=user.headers)
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json()["version_id"] is None
+
+    response = _undo(api, user, version)
+    assert response.status_code == 200, response.text
+    assert _task_row(db, task) == ("חדשה", "learn", 60, 5, None, "todo")
+
+
+def test_undo_of_an_older_estimate_keeps_a_task_finished_since(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    task = insert_task(db, user.id, exam, minutes=60)
+    insert_block(db, user.id, task, Z(2026, 11, 16, 9), Z(2026, 11, 16, 10))
+
+    longer = api.patch(f"/tasks/{task}", json={"estimated_minutes": 120}, headers=user.headers)
+    assert longer.status_code == 200, longer.text
+    version = longer.json()["version_id"]
+    assert version is not None
+    assert _saved_before(db, version) == {"estimated_minutes": 60}
+
+    # Completing every block finishes the task without writing a version.
+    blocks = [row[0] for row in _block_rows(db, task)]
+    assert len(blocks) >= 1
+    for block in blocks:
+        completed = api.post(f"/blocks/{block}/complete", headers=user.headers)
+        assert completed.status_code == 200, completed.text
+    assert scalar(db, "SELECT status FROM app.tasks WHERE id = %s", task) == "done"
+    with_latest = scalar(
+        db,
+        "SELECT id FROM app.plan_versions WHERE user_id = %s AND undone_at IS NULL "
+        "ORDER BY created_at DESC, id DESC LIMIT 1",
+        user.id,
+    )
+    assert str(with_latest) == version
+
+    response = _undo(api, user, version)
+    assert response.status_code == 200, response.text
+    assert _task_row(db, task)[2:] == (60, 5, None, "done")
+
+
+def test_undo_of_an_old_version_with_all_six_fields_restores_them_all(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    first = insert_task(db, user.id, exam, minutes=60, title="קודמת")
+    task = insert_task(db, user.id, exam, minutes=180, title="חדשה", kind="practice", focus=8)
+    before = {
+        "title": "ישנה",
+        "kind": "learn",
+        "estimated_minutes": 60,
+        "focus": 3,
+        "depends_on_task_id": str(first),
+        "status": "todo",
+    }
+    version = _version(
+        db, user, "task_changed", {"v": 1, "blocks": []}, task_id=task, task_before=before
+    )
+
+    response = _undo(api, user, version)
+    assert response.status_code == 200, response.text
+    assert _task_row(db, task) == ("ישנה", "learn", 60, 3, first, "todo")
+
+
+@pytest.mark.parametrize(
+    "before",
+    [
+        {"estimated_minutes": 60, "colour": "red"},
+        {
+            "title": "ישנה",
+            "kind": "learn",
+            "estimated_minutes": 60,
+            "focus": 3,
+            "depends_on_task_id": None,
+            "status": "todo",
+            "colour": "red",
+        },
+        {},
+        ["estimated_minutes"],
+    ],
+)
+def test_undo_of_a_task_before_with_unknown_or_no_fields_is_409_and_changes_nothing(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, before: Any
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    task = insert_task(db, user.id, exam, minutes=180, title="חדשה")
+    row = _task_row(db, task)
+    version = _version(
+        db, user, "task_changed", {"v": 1, "blocks": []}, task_id=task, task_before=before
+    )
+
+    response = _undo(api, user, version)
+    assert response.status_code == 409
+    assert response.json()["code"] == "invalid_state"
+    assert _task_row(db, task) == row
+    assert scalar(db, "SELECT undone_at FROM app.plan_versions WHERE id = %s", version) is None
+
+
+def test_undo_of_a_dependency_change_drops_a_dependency_that_would_make_a_cycle(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    b = insert_task(db, user.id, exam, minutes=60, title="ב", status="done")
+    c = insert_task(db, user.id, exam, minutes=60, title="ג")
+    a = insert_task(db, user.id, exam, minutes=60, title="א", depends_on=b)
+    insert_block(db, user.id, c, Z(2026, 11, 16, 9), Z(2026, 11, 16, 10))
+    insert_block(db, user.id, a, Z(2026, 11, 16, 10, 30), Z(2026, 11, 16, 11, 30))
+
+    changed = api.patch(
+        f"/tasks/{a}",
+        json={"depends_on_task_id": str(c), "estimated_minutes": 120},
+        headers=user.headers,
+    )
+    assert changed.status_code == 200, changed.text
+    version = changed.json()["version_id"]
+    assert version is not None
+    assert _saved_before(db, version) == {"depends_on_task_id": str(b), "estimated_minutes": 60}
+
+    # B is done, so it is off the board: its new dependency writes no version.
+    reversed_ = api.patch(f"/tasks/{b}", json={"depends_on_task_id": str(a)}, headers=user.headers)
+    assert reversed_.status_code == 200, reversed_.text
+    assert reversed_.json()["version_id"] is None
+
+    response = _undo(api, user, version)
+    assert response.status_code == 200, response.text
+    assert _task_row(db, a)[2:] == (60, 5, None, "todo")
+    assert _task_row(db, b)[4] == a

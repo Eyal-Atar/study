@@ -5,8 +5,8 @@ Every change to the board goes through `apply_result` (a planner result),
 app/services/analyses.py (a reanalysis, built from `create_version` and `write_changes`).
 Each saves the board as it was before the change (a snapshot of the future planned
 blocks) in plan_versions, so `undo_version` can bring it back. A `task_changed` version
-also keeps the task's editable fields as they were (`task_before`), so undo puts the task
-back too.
+also keeps the task's editable fields that the change touched, as they were
+(`task_before`), so undo puts them back too.
 """
 
 import datetime as dt
@@ -17,6 +17,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
+from psycopg import sql
 from psycopg.types.json import Jsonb
 
 from app.domain.planner import (
@@ -82,12 +83,21 @@ TASK_BEFORE_FIELDS = (
 )
 
 
-def task_before(row: Mapping[str, Any]) -> dict[str, Any]:
-    """The fields of a task row that a task_changed version keeps, as JSON values."""
-    values = {field: row[field] for field in TASK_BEFORE_FIELDS}
-    depends_on = values["depends_on_task_id"]
-    values["depends_on_task_id"] = None if depends_on is None else str(depends_on)
-    return values
+def _json_value(field: str, value: Any) -> Any:
+    if field == "depends_on_task_id" and value is not None:
+        return str(value)
+    return value
+
+
+def task_before(row: Mapping[str, Any], after: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """The fields of a task row that a task_changed version keeps, as JSON values.
+
+    With `after` (the row once changed), only the fields whose value changed are kept, so
+    undo puts back what this change did and leaves later edits (a new title, a status the
+    user set since) as they are.
+    """
+    fields = [field for field in TASK_BEFORE_FIELDS if after is None or row[field] != after[field]]
+    return {field: _json_value(field, row[field]) for field in fields}
 
 
 @dataclass(frozen=True)
@@ -339,26 +349,32 @@ def _restorable_dependency(conn: Conn, user_id: UUID, task_id: UUID, target: obj
 
 
 def _restore_task(conn: Conn, user_id: UUID, task_id: UUID, before: Any) -> None:
-    """Put a changed task's fields back as they were, if the task is still live."""
+    """Put a changed task's saved fields back as they were, if the task is still live.
+
+    `before` holds only the fields the change touched (a version written before S14 holds
+    all of TASK_BEFORE_FIELDS); any other key, or no key at all, is invalid.
+    """
     try:
-        values = {field: before[field] for field in TASK_BEFORE_FIELDS}
-        dependency = _restorable_dependency(conn, user_id, task_id, values["depends_on_task_id"])
+        if not isinstance(before, Mapping):
+            raise TypeError("task_before must be an object")
+        values = dict(before)
+        if not values or not set(values) <= set(TASK_BEFORE_FIELDS):
+            raise ValueError(f"fields must be a non-empty subset of {TASK_BEFORE_FIELDS}")
+        if "depends_on_task_id" in values:
+            values["depends_on_task_id"] = _restorable_dependency(
+                conn, user_id, task_id, values["depends_on_task_id"]
+            )
     except (KeyError, TypeError, ValueError) as error:
         raise SnapshotError(f"invalid task_before: {error}") from error
+    fields = [field for field in TASK_BEFORE_FIELDS if field in values]
+    assignments = sql.SQL(", ").join(
+        sql.SQL("{} = {}").format(sql.Identifier(field), sql.Placeholder()) for field in fields
+    )
     conn.execute(
-        "UPDATE app.tasks SET title = %s, kind = %s, estimated_minutes = %s, focus = %s, "
-        "depends_on_task_id = %s, status = %s "
-        "WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
-        (
-            values["title"],
-            values["kind"],
-            values["estimated_minutes"],
-            values["focus"],
-            dependency,
-            values["status"],
-            user_id,
-            task_id,
-        ),
+        sql.SQL(
+            "UPDATE app.tasks SET {} WHERE user_id = %s AND id = %s AND deleted_at IS NULL"
+        ).format(assignments),
+        [*(values[field] for field in fields), user_id, task_id],
     )
 
 

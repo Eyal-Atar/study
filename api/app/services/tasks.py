@@ -96,6 +96,7 @@ def _place(
     task_id: UUID,
     reason: VersionReason,
     before: Row | None = None,
+    after: Row | None = None,
 ) -> tuple[PlacementOutcome | None, UUID | None]:
     """Place the task on a fresh board, releasing its candidate blocks; None if not on it."""
     board: Board = load_board(conn, user_id, now, lock=True)
@@ -124,7 +125,7 @@ def _place(
         result,
         reason,
         task_id=task_id,
-        before=None if before is None else task_before(before),
+        before=None if before is None else task_before(before, after),
     )
     return PlacementOutcome(True, None, None), version_id
 
@@ -200,12 +201,12 @@ def update_task(
             [task_id],
             VersionReason.TASK_CHANGED,
             task_id=task_id,
-            before=task_before(before),
+            before=task_before(before, row),
         )
         return row, None, version_id
     if moved:
         outcome, version_id = _place(
-            conn, user_id, now, task_id, VersionReason.TASK_CHANGED, before
+            conn, user_id, now, task_id, VersionReason.TASK_CHANGED, before, row
         )
         return row, outcome, version_id
     return row, None, None
