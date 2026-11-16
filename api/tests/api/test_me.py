@@ -18,7 +18,7 @@ DEFAULTS = {
     "daily_study_minutes": 240,
     "study_windows": ["morning", "afternoon"],
     "rest_days_before_exam": 1,
-    "notify_lead_minutes": 10,
+    "notify_lead_minutes": 0,
     "display_name": None,
     "onboarding_completed_at": None,
     "study_start_delay_minutes": 60,
@@ -102,6 +102,12 @@ def test_patch_windows_are_canonical_and_a_reorder_is_not_a_change(
         {"display_name": None},
         {"display_name": "a\u0000b"},
         {"unknown_field": 1},
+        {"notify_lead_minutes": 7},
+        {"notify_lead_minutes": 120},
+        {"notify_lead_minutes": -5},
+        {"notify_lead_minutes": "5"},
+        {"notify_lead_minutes": 5.5},
+        {"notify_lead_minutes": True},
         {},
     ],
 )
@@ -114,6 +120,21 @@ def test_patch_rejects_invalid_values(
     assert response.status_code == 422
     assert response.json()["code"] == "validation_error"
     assert api.get("/me", headers=user.headers).json() == before
+
+
+@pytest.mark.parametrize("minutes", [0, 5, 10, 15])
+def test_patch_notify_lead_minutes_takes_the_four_choices(
+    api: TestClient, make_api_user: MakeApiUser, minutes: int
+) -> None:
+    user = make_api_user()
+    # Start from another choice, so every value (0 too) is a real change.
+    api.patch("/me", json={"notify_lead_minutes": 15 if minutes != 15 else 5}, headers=user.headers)
+    response = api.patch("/me", json={"notify_lead_minutes": minutes}, headers=user.headers)
+    assert response.status_code == 200, response.text
+    assert response.json()["notify_lead_minutes"] == minutes
+    # The reminder time never moves a block, so it does not ask for a replan.
+    assert response.json()["plan_affected"] is False
+    assert api.get("/me", headers=user.headers).json()["notify_lead_minutes"] == minutes
 
 
 def test_two_users_see_their_own_profile(api: TestClient, make_api_user: MakeApiUser) -> None:

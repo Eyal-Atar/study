@@ -47,6 +47,7 @@ PROBLEMS: Mapping[str, Problem] = MappingProxyType(
         "nothing_to_analyze": Problem(409, "כל המבחנים כבר נותחו. אפשר לתכנן מחדש את הלוח."),
         "slot_taken": Problem(409, "השעה הזו תפוסה בבלוק אחר. בחרו שעה אחרת."),
         "outside_day": Problem(422, "אפשר להזיז בלוק רק לשעות הערות של אותו יום, ולא לפני עכשיו."),
+        "push_endpoint_invalid": Problem(422, "אי אפשר להפעיל התראות בדפדפן הזה."),
         "internal_error": Problem(500, "משהו השתבש אצלנו. נסו שוב מאוחר יותר."),
     }
 )

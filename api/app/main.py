@@ -20,6 +20,7 @@ from app.routers import (
     me,
     plan,
     progress,
+    push,
     review,
     tasks,
     topics,
@@ -83,4 +84,5 @@ def create_app(
     app.include_router(topics.router)
     app.include_router(account.router)
     app.include_router(progress.router)
+    app.include_router(push.router)
     return app

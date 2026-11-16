@@ -1,6 +1,7 @@
 """Ownership between users on every endpoint (spec section 10: B gets 404 on A's rows).
 
-A owns an exam, tasks, blocks, a plan version, a material, a job and an analysis draft.
+A owns an exam, tasks, blocks, a plan version, a material, a job, an analysis draft and a
+push subscription.
 B calls every endpoint that takes an id (in the path or in the body) with A's ids: the
 answer is 404 not_found, and every row of A is exactly what it was. The endpoints without
 an id are checked to show only B's own rows. A route that is in neither list fails
@@ -34,10 +35,13 @@ from tests.api.factories import (
     replan_preview,
     scalar,
 )
+from tests.api.test_push import new_keys
 from tests.fixtures_db import ApiUser, FrozenClock
 
 MakeApiUser = Callable[[], ApiUser]
 Dump = dict[str, list[tuple[Any, ...]]]
+
+A_PUSH_ENDPOINT = "https://fcm.googleapis.com/fcm/send/a-device"
 
 # Routes that are not part of the API surface under test.
 EXCLUDED_PATHS = frozenset({"/health", "/docs", "/docs/oauth2-redirect", "/openapi.json", "/redoc"})
@@ -57,6 +61,7 @@ class Ids:
     a_job: UUID
     a_analysis: UUID
     a_topic: UUID
+    a_push: UUID
     b_exam: UUID
     b_task: UUID
 
@@ -262,6 +267,13 @@ CASES: tuple[Case, ...] = (
         lambda i: {"analysis_id": i.a_analysis},
         lambda _: {"preview": False, "basis": "0" * 64},
     ),
+    Case(
+        "delete_push_subscription",
+        "DELETE",
+        "/push/subscriptions/{subscription_id}",
+        lambda i: {"subscription_id": i.a_push},
+        _none,
+    ),
 )
 
 # Endpoints without an id of a row: test_lists_show_only_own_rows covers them.
@@ -281,6 +293,7 @@ WITHOUT_ID = frozenset(
         ("DELETE", "/me"),
         # S19: the caller's own progress.
         ("GET", "/progress"),
+        ("POST", "/push/subscriptions"),
     }
 )
 
@@ -338,6 +351,7 @@ def dump(db: psycopg.Connection, user_id: UUID) -> Dump:
         ("analyses", "user_id"),
         ("xp_events", "user_id"),
         ("badges", "user_id"),
+        ("push_subscriptions", "user_id"),
     ):
         order = "badge_key" if table == "badges" else "id"
         out[table] = [
@@ -398,6 +412,16 @@ def _post_task(api: TestClient, user: ApiUser, exam: UUID, minutes: int = 60) ->
     return body
 
 
+def _post_push(api: TestClient, user: ApiUser, endpoint: str) -> UUID:
+    response = api.post(
+        "/push/subscriptions",
+        json={"endpoint": endpoint, "keys": new_keys()},
+        headers=user.headers,
+    )
+    assert response.status_code == 201, response.text
+    return UUID(response.json()["id"])
+
+
 @pytest.fixture
 def world(
     api: TestClient, make_api_user: MakeApiUser, db: psycopg.Connection, clock: FrozenClock
@@ -446,6 +470,7 @@ def world(
             )
         )
     )
+    a_push = _post_push(api, a, A_PUSH_ENDPOINT)
 
     b_exam = _post_exam(api, b, "מבחן של ב")
     b_task = _post_task(api, b, b_exam)
@@ -460,6 +485,7 @@ def world(
         a_job=UUID(a_registered["job_id"]),
         a_analysis=a_analysis,
         a_topic=a_topic,
+        a_push=a_push,
         b_exam=b_exam,
         b_task=UUID(b_task["task"]["id"]),
     )
@@ -522,6 +548,7 @@ def test_lists_show_only_own_rows(
             "jobs",
             "topics",
             "analyses",
+            "push_subscriptions",
         )
         for row in a_rows[table]
     }
@@ -577,6 +604,14 @@ def test_lists_show_only_own_rows(
     assert set(payload["exam_ids"]) == b_exams
     assert str(ids.b_exam) in b_exams
     assert dump(db, a.id) == a_rows
+    # B's own browser: a new row for B, and A's subscription (another endpoint) stays.
+    subscribed = api.post(
+        "/push/subscriptions",
+        json={"endpoint": "https://fcm.googleapis.com/fcm/send/b-device", "keys": new_keys()},
+        headers=b.headers,
+    )
+    assert_clean(subscribed)
+    assert dump(db, a.id) == a_rows
 
 
 def test_users_do_not_block_each_other(
@@ -631,6 +666,7 @@ def test_unauthenticated_everywhere(
         job_id=uuid4(),
         analysis_id=uuid4(),
         topic_id=uuid4(),
+        subscription_id=uuid4(),
     )
     for headers in ({}, {"Authorization": "Bearer not-a-token"}):
         response = api.request(method, url, headers=headers)

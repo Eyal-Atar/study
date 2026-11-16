@@ -1,5 +1,5 @@
 import datetime as dt
-from typing import Annotated, Any, Final, Self
+from typing import Annotated, Any, Final, Literal, Self
 from uuid import UUID
 
 from pydantic import (
@@ -85,7 +85,8 @@ class MePatch(BaseModel):
     daily_study_minutes: Annotated[int, Field(ge=30, le=960)] | None = None
     study_windows: Annotated[list[StudyWindow], Field(min_length=1, max_length=4)] | None = None
     rest_days_before_exam: Annotated[int, Field(ge=0, le=14)] | None = None
-    notify_lead_minutes: Annotated[int, Field(ge=0, le=120)] | None = None
+    # Minutes before a block its reminder is sent: the four choices of the settings screen.
+    notify_lead_minutes: Literal[0, 5, 10, 15] | None = None
     study_start_delay_minutes: Annotated[int, Field(ge=0, le=360)] | None = None
     # Sent together: both null turns the hobby off (checked in hobby_errors).
     hobby_start: WallTime | None = None
