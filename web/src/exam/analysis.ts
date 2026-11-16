@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient, type UseQueryR
 import { useApi } from '../api/ApiContext'
 import type { ApiError } from '../api/client'
 import { useUserId } from '../api/me'
+import { boardKey } from '../board/api'
 import {
   examsKey,
   materialsKey,
@@ -113,7 +114,14 @@ export function useExamTopics(examId: string): UseQueryResult<ExamTopics, ApiErr
 // What a change of the exam's tasks makes stale: its tasks and topics, the board views and the exams.
 export function invalidateExamPlan(queryClient: QueryClient, userId: string | null, examId: string) {
   return Promise.all(
-    [examTasksKey(userId, examId), topicsKey(userId, examId), planKey(userId), todayKey(userId), examsKey(userId)].map(
+    [
+      examTasksKey(userId, examId),
+      topicsKey(userId, examId),
+      planKey(userId),
+      todayKey(userId),
+      boardKey(userId),
+      examsKey(userId),
+    ].map(
       (queryKey) => queryClient.invalidateQueries({ queryKey }),
     ),
   )
