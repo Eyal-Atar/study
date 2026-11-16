@@ -122,6 +122,15 @@ _EXPORTED: Final[Mapping[str, tuple[tuple[str, ...], tuple[str, ...]]]] = {
         # id breaks ties but is not exported (it means nothing to the user).
         ("created_at", "id"),
     ),
+    # S19: the XP ledger and the badges.
+    "xp_events": (
+        ("id", "block_id", "xp", "study_date", "created_at"),
+        ("created_at", "id"),
+    ),
+    "badges": (
+        ("badge_key", "earned_at"),
+        ("earned_at", "badge_key"),
+    ),
 }
 
 

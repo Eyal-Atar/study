@@ -34,6 +34,8 @@ USER_COLUMN = {
     "topics": "user_id",
     "analyses": "user_id",
     "ai_usage": "user_id",
+    "xp_events": "user_id",
+    "badges": "user_id",
 }
 
 TEXT_SENTINEL = "SENTINEL-TEXT-BY-PAGE-7f3a"
@@ -129,6 +131,13 @@ def fill_account(db: psycopg.Connection, user_id: UUID) -> Filled:
         ends_at=NOW.replace(hour=9),
     )
     db.execute("UPDATE app.blocks SET plan_version_id = %s WHERE id = %s", (version, block))
+    db.execute("UPDATE app.blocks SET status = 'done' WHERE id = %s", (block,))
+    db.execute(
+        "INSERT INTO app.xp_events (user_id, block_id, xp, study_date) "
+        "VALUES (%s, %s, 50, '2026-11-16')",
+        (user_id, block),
+    )
+    db.execute("INSERT INTO app.badges (user_id, badge_key) VALUES (%s, 'first_task')", (user_id,))
     db.execute(
         "INSERT INTO app.ai_usage (user_id, job_id, exam_id, model, input_tokens, output_tokens) "
         "VALUES (%s, %s, %s, 'claude-test', 100, 20)",
@@ -197,6 +206,8 @@ def test_export_has_the_documented_shape(
         "materials",
         "analyses",
         "ai_usage",
+        "xp_events",
+        "badges",
     }
     assert body["format"] == "studyflow-export"
     assert body["version"] == 1
@@ -309,6 +320,16 @@ def test_export_has_the_documented_shape(
         "exam_id": str(filled.exam_id),
         "created_at": usage["created_at"],
     }
+    (event,) = body["xp_events"]
+    assert event == {
+        "id": event["id"],
+        "block_id": str(filled.block_id),
+        "xp": 50,
+        "study_date": "2026-11-16",
+        "created_at": event["created_at"],
+    }
+    (badge,) = body["badges"]
+    assert badge == {"badge_key": "first_task", "earned_at": badge["earned_at"]}
 
 
 def test_export_never_carries_extracted_text_or_storage_paths(

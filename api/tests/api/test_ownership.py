@@ -279,6 +279,8 @@ WITHOUT_ID = frozenset(
         # tests/api/test_account.py that deleting B leaves A whole.
         ("GET", "/me/export"),
         ("DELETE", "/me"),
+        # S19: the caller's own progress.
+        ("GET", "/progress"),
     }
 )
 
@@ -334,11 +336,14 @@ def dump(db: psycopg.Connection, user_id: UUID) -> Dump:
         ("jobs", "user_id"),
         ("topics", "user_id"),
         ("analyses", "user_id"),
+        ("xp_events", "user_id"),
+        ("badges", "user_id"),
     ):
+        order = "badge_key" if table == "badges" else "id"
         out[table] = [
             tuple(row)
             for row in db.execute(
-                f"SELECT * FROM app.{table} WHERE {column} = %s ORDER BY id",  # noqa: S608
+                f"SELECT * FROM app.{table} WHERE {column} = %s ORDER BY {order}",  # noqa: S608
                 (user_id,),
             ).fetchall()
         ]
@@ -410,6 +415,13 @@ def world(
         db, a.id, UUID(a_other["task"]["id"]), Z(2026, 11, 15, 9), Z(2026, 11, 15, 10)
     )
     db.execute("UPDATE app.blocks SET status = 'done' WHERE id = %s", (a_done,))
+    # S19: A's XP for that block and a badge, which B must neither see nor change.
+    db.execute(
+        "INSERT INTO app.xp_events (user_id, block_id, xp, study_date) "
+        "VALUES (%s, %s, 50, '2026-11-15')",
+        (a.id, a_done),
+    )
+    db.execute("INSERT INTO app.badges (user_id, badge_key) VALUES (%s, 'first_task')", (a.id,))
     a_block = UUID(
         str(
             scalar(
@@ -530,6 +542,10 @@ def test_lists_show_only_own_rows(
     assert_clean(api.get("/plan", headers=b.headers))
     assert_clean(api.get("/today", headers=b.headers))
     assert_clean(api.get("/me/export", headers=b.headers))
+    progress = api.get("/progress", headers=b.headers)
+    assert_clean(progress)
+    assert progress.json()["total_xp"] == 0
+    assert not any(badge["earned"] for badge in progress.json()["badges"])
     me = api.get("/me", headers=b.headers)
     assert_clean(me)
     assert me.json()["id"] == str(b.id)

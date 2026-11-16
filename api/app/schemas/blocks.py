@@ -3,17 +3,21 @@ from uuid import UUID
 from pydantic import AwareDatetime, BaseModel, ConfigDict
 
 from app.schemas.plan import BlockOut
+from app.schemas.progress import ProgressChangeOut
 from app.services.blocks import CompleteOutcome, DeferOutcome
 
 
 class CompleteResponse(BaseModel):
     block: BlockOut
     task_status: str
+    progress: ProgressChangeOut
 
     @classmethod
     def from_outcome(cls, outcome: CompleteOutcome) -> CompleteResponse:
         return cls(
-            block=BlockOut.model_validate(outcome.block), task_status=outcome.task_status.value
+            block=BlockOut.model_validate(outcome.block),
+            task_status=outcome.task_status.value,
+            progress=ProgressChangeOut.from_change(outcome.progress),
         )
 
 

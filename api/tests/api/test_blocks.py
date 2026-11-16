@@ -72,7 +72,9 @@ def test_complete_marks_block_and_task(
 
     again = _post(api, user, block, "complete")
     assert again.status_code == 200, again.text
-    assert again.json() == body
+    # A second complete changes nothing; its progress says so (S19: no XP the second time).
+    assert {**again.json(), "progress": None} == {**body, "progress": None}
+    assert again.json()["progress"]["xp_change"] == 0
 
 
 def test_complete_one_part_keeps_the_task_open(

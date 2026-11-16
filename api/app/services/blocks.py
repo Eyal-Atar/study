@@ -19,7 +19,9 @@ from app.domain.planner import (
     start_minute,
 )
 from app.errors import ApiError
+from app.services import gamification
 from app.services.board import BLOCK_COLUMNS, BlockRow, load_board, to_block_row
+from app.services.gamification import ProgressChange
 from app.services.plan_views import BlockView, blocks_by_id
 from app.services.plan_writes import VersionReason, apply_result, renumber
 from app.services.profiles import Conn, lock_user, to_planner_profile
@@ -29,6 +31,8 @@ from app.services.profiles import Conn, lock_user, to_planner_profile
 class CompleteOutcome:
     block: BlockView
     task_status: TaskStatus
+    # XP, level and badges (S19), changed in the same transaction as the block.
+    progress: ProgressChange
 
 
 @dataclass(frozen=True)
@@ -90,7 +94,9 @@ def complete_block(conn: Conn, user_id: UUID, block_id: UUID, now: dt.datetime) 
     target = _find(conn, user_id, block_id)
     task = target.task
     status = task.status
-    if target.block.status is not BlockStatus.DONE:
+    if target.block.status is BlockStatus.DONE:
+        progress = gamification.unchanged(conn, user_id)
+    else:
         conn.execute(
             "UPDATE app.blocks SET status = 'done' WHERE user_id = %s AND id = %s",
             (user_id, block_id),
@@ -113,7 +119,10 @@ def complete_block(conn: Conn, user_id: UUID, block_id: UUID, now: dt.datetime) 
             status = TaskStatus.DONE
             _set_task_status(conn, user_id, task.id, status)
         renumber(conn, user_id, now)
-    return CompleteOutcome(_view(conn, user_id, block_id, profile_row, now), status)
+        progress = gamification.record_completion(
+            conn, user_id, to_planner_profile(profile_row), target.block, task.focus, now
+        )
+    return CompleteOutcome(_view(conn, user_id, block_id, profile_row, now), status, progress)
 
 
 def uncomplete_block(
@@ -132,7 +141,8 @@ def uncomplete_block(
         status = TaskStatus.TODO
         _set_task_status(conn, user_id, target.task.id, status)
     renumber(conn, user_id, now)
-    return CompleteOutcome(_view(conn, user_id, block_id, profile_row, now), status)
+    progress = gamification.revoke_completion(conn, user_id, block_id)
+    return CompleteOutcome(_view(conn, user_id, block_id, profile_row, now), status, progress)
 
 
 def defer_block(
