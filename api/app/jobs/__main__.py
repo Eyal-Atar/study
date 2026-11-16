@@ -1,7 +1,9 @@
 """The worker process: `python -m app.jobs`, run from api/.
 
 It reads the same settings as the API plus WORKER_DATABASE_URL (the schema owner) and
-SUPABASE_SECRET_KEY (for Storage), and runs jobs until SIGINT or SIGTERM.
+SUPABASE_SECRET_KEY (for Storage, and for the Auth admin API that deletes accounts; the
+worker's default factory builds that client from the same settings), and runs jobs until
+SIGINT or SIGTERM.
 """
 
 import logging

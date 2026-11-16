@@ -1,5 +1,7 @@
 """An in-memory `Storage` for worker tests; no network."""
 
+from collections.abc import Sequence
+
 from app.jobs.storage import FileMissing, FileTooLarge
 
 
@@ -10,6 +12,8 @@ class MemoryStorage:
         self.files: dict[str, bytes] = {}
         self.deleted: list[str] = []
         self.failures: dict[str, Exception] = {}
+        # One list per delete_many call, in order.
+        self.batches: list[list[str]] = []
 
     def download(self, path: str, *, max_bytes: int) -> bytes:
         if path in self.failures:
@@ -26,3 +30,13 @@ class MemoryStorage:
             raise self.failures[path]
         self.deleted.append(path)
         self.files.pop(path, None)
+
+    def delete_many(self, paths: Sequence[str]) -> None:
+        """All or nothing: a path in `failures` raises before anything is deleted."""
+        for path in paths:
+            if path in self.failures:
+                raise self.failures[path]
+        self.batches.append(list(paths))
+        for path in paths:
+            self.deleted.append(path)
+            self.files.pop(path, None)

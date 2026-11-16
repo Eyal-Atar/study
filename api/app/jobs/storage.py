@@ -1,7 +1,8 @@
 """The worker's client for the private Supabase Storage bucket of study materials."""
 
 import logging
-from typing import Protocol
+from collections.abc import Sequence
+from typing import Final, Protocol
 
 import httpx2
 
@@ -9,6 +10,9 @@ logger = logging.getLogger(__name__)
 
 _CHUNK_SIZE = 64 * 1024
 _ERROR_BODY_LIMIT = 4096
+MATERIALS_BUCKET: Final = "materials"
+# Paths per DELETE request in delete_many (Supabase accepts up to 1000).
+DELETE_BATCH: Final = 100
 
 
 class StorageError(Exception):
@@ -34,6 +38,14 @@ class Storage(Protocol):
         """Delete the object; one that does not exist is not an error."""
         ...
 
+    def delete_many(self, paths: Sequence[str]) -> None:
+        """Delete these objects, in batches; missing ones are not an error.
+
+        StorageUnavailable stops at the failing batch: earlier batches stay deleted, so a
+        retry lists what is left and deletes only that.
+        """
+        ...
+
 
 class SupabaseStorage:
     """Supabase Storage over REST with the project's secret key.
@@ -46,7 +58,7 @@ class SupabaseStorage:
         supabase_url: str,
         secret_key: str,
         *,
-        bucket: str = "materials",
+        bucket: str = MATERIALS_BUCKET,
         timeout: float = 30.0,
         transport: httpx2.BaseTransport | None = None,
     ) -> None:
@@ -97,6 +109,18 @@ class SupabaseStorage:
             raise StorageUnavailable(f"storage delete: {type(exc).__name__}") from None
         if response.status_code not in (200, 404):
             raise StorageUnavailable(f"storage delete: status {response.status_code}")
+
+    def delete_many(self, paths: Sequence[str]) -> None:
+        url = f"{self._base}/{self._bucket}"
+        for start in range(0, len(paths), DELETE_BATCH):
+            batch = list(paths[start : start + DELETE_BATCH])
+            try:
+                response = self._client.request("DELETE", url, json={"prefixes": batch})
+            except httpx2.TransportError as exc:
+                logger.warning("storage delete_many failed: %s", type(exc).__name__)
+                raise StorageUnavailable(f"storage delete_many: {type(exc).__name__}") from None
+            if response.status_code not in (200, 404):
+                raise StorageUnavailable(f"storage delete_many: status {response.status_code}")
 
 
 def _is_not_found(response: httpx2.Response) -> bool:

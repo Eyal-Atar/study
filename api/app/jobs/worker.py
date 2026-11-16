@@ -20,6 +20,11 @@ and the worker leaves the job alone without writing (an INFO line only). An end 
 `JobContext.ai_client()` builds the Claude client once per job, from the worker's factory,
 and `record_usage` writes the ledger app.ai_usage as the schema owner, outside any user
 transaction; app.jobs and app.ai_usage are the only tables the worker writes as the owner.
+`JobContext.auth_admin()` builds the Auth admin client the same way, and
+`user_storage_names` lists the job user's files in Storage, read as the owner (S15).
+
+A delete_account job ends by deleting its user from Auth, which cascades to its own row:
+its end write then finds nothing, and that is logged at INFO, not as a lost claim.
 """
 
 import logging
@@ -40,6 +45,8 @@ from app.ai.client import AnalysisClient, AnthropicAnalysisClient, Usage
 from app.auth import CurrentUser
 from app.config import Settings
 from app.db.session import user_transaction
+from app.domain.materials import JOB_DELETE_ACCOUNT
+from app.jobs.auth_admin import AuthAdmin, SupabaseAuthAdmin
 from app.jobs.queue import JobRow, backoff, claim, fail, finish, heartbeat, requeue
 from app.jobs.storage import Storage
 
@@ -56,6 +63,10 @@ CODE_PATTERN: Final = re.compile(r"[a-z][a-z_]{0,59}")
 KEEPALIVE_SECONDS: Final = 30
 
 type AiClientFactory = Callable[[Settings], AnalysisClient]
+type AuthAdminFactory = Callable[[Settings], AuthAdmin]
+
+# Jobs whose success deletes their own row (through the cascade from auth.users).
+_ENDS_WITH_ITS_ROW: Final = frozenset({JOB_DELETE_ACCOUNT})
 
 
 class JobFailed(Exception):
@@ -92,6 +103,10 @@ class JobContext:
         repr=False, default=AnthropicAnalysisClient.from_settings
     )
     _ai_client: AnalysisClient | None = field(repr=False, default=None, init=False)
+    _auth_admin_factory: AuthAdminFactory = field(
+        repr=False, default=SupabaseAuthAdmin.from_settings
+    )
+    _auth_admin: AuthAdmin | None = field(repr=False, default=None, init=False)
     _last_beat: datetime = field(repr=False, init=False)
     # Set while a keeping_alive ticker runs: the ticker's "claim lost" flag.
     _ticker_lost: threading.Event | None = field(repr=False, default=None, init=False)
@@ -219,6 +234,27 @@ class JobContext:
             self._ai_client = self._ai_client_factory(self.settings)
         return self._ai_client
 
+    def auth_admin(self) -> AuthAdmin:
+        """The Auth admin client, built on first use; AuthUnavailable propagates."""
+        if self._auth_admin is None:
+            self._auth_admin = self._auth_admin_factory(self.settings)
+        return self._auth_admin
+
+    def user_storage_names(self, bucket: str) -> list[str]:
+        """The names of the job user's objects in `bucket`: those whose first folder is the user.
+
+        Read as the owner (past RLS), never inside user_transaction: as `authenticated` the
+        storage policies would decide what is visible. A name's first folder being the user
+        does not make the rest of it safe; the caller still checks each name.
+        """
+        self._require_idle("user_storage_names")
+        rows = self._conn.execute(
+            "SELECT name FROM storage.objects "
+            "WHERE bucket_id = %s AND (storage.foldername(name))[1] = %s ORDER BY name",
+            (bucket, str(self.job.user_id)),
+        ).fetchall()
+        return [row["name"] for row in rows]
+
     def record_usage(self, usage: Sequence[Usage], *, exam_id: UUID | None) -> None:
         """Write one app.ai_usage row per call, as the owner, committed at once.
 
@@ -273,6 +309,7 @@ class Worker:
         clock: Callable[[], datetime] | None = None,
         on_crashed: Mapping[str, CrashHandler] | None = None,
         ai_client_factory: AiClientFactory | None = None,
+        auth_admin_factory: AuthAdminFactory | None = None,
     ) -> None:
         self._conninfo = conninfo
         self._storage = storage
@@ -284,6 +321,11 @@ class Worker:
             ai_client_factory
             if ai_client_factory is not None
             else AnthropicAnalysisClient.from_settings
+        )
+        self._auth_admin_factory: AuthAdminFactory = (
+            auth_admin_factory
+            if auth_admin_factory is not None
+            else SupabaseAuthAdmin.from_settings
         )
         self._conn: psycopg.Connection[DictRow] | None = None
 
@@ -318,6 +360,7 @@ class Worker:
             _conn=conn,
             _clock=self._clock,
             _ai_client_factory=self._ai_client_factory,
+            _auth_admin_factory=self._auth_admin_factory,
         )
         if job.attempts > job.max_attempts:
             crashed = self._on_crashed.get(job.kind)
@@ -398,7 +441,15 @@ class Worker:
         logger.info("job %s (%s) lost its claim; leaving it", job.id, job.kind)
 
     def _claim_lost(self, job: JobRow) -> None:
+        if job.kind in _ENDS_WITH_ITS_ROW and not self._job_exists(job):
+            # Expected: deleting the user from Auth cascaded to this job's row.
+            logger.info("job %s (%s) row gone with its user; nothing to write", job.id, job.kind)
+            return
         logger.warning("job %s (%s) claim lost; its end was not written", job.id, job.kind)
+
+    def _job_exists(self, job: JobRow) -> bool:
+        row = self._connection().execute("SELECT 1 FROM app.jobs WHERE id = %s", (job.id,))
+        return row.fetchone() is not None
 
     def run_forever(self, *, stop: threading.Event | None = None) -> None:
         """Run jobs until `stop` is set; survive lost connections and failing jobs."""
