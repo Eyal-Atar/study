@@ -37,6 +37,12 @@ export function AppShell() {
                   <NavLink to="/week" className={tabClass}>
                     {he.shell.week}
                   </NavLink>
+                  <NavLink to="/exams" className={tabClass}>
+                    {he.shell.exams}
+                  </NavLink>
+                  <NavLink to="/settings" className={tabClass}>
+                    {he.shell.settings}
+                  </NavLink>
                 </nav>
               )}
             </div>

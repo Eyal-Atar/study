@@ -27,6 +27,9 @@ export const he = {
     mainNav: 'ניווט ראשי',
     today: 'היום',
     week: 'שבוע',
+    // S15
+    exams: 'מבחנים',
+    settings: 'הגדרות',
   },
   login: {
     google: 'התחברות עם Google',
@@ -348,4 +351,11 @@ export const he = {
     total: (duration: string) => `סך הכול ${duration}`,
     stale: 'לא הצלחנו לרענן את הלוח, וייתכן שהוא לא מעודכן. ננסה שוב בעוד דקה.',
   },
+  // S15: the exams list and the exam screen (Task 6); analysis and materials (Task 7).
+  exam: {
+    analysis: {},
+    materials: {},
+  },
+  // S15: settings, export, account deletion and the goodbye page (Task 8).
+  settings: {},
 } as const

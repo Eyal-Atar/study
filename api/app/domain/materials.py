@@ -37,6 +37,7 @@ JOB_INGEST_MATERIAL: Final = "ingest_material"
 JOB_DELETE_MATERIAL_FILE: Final = "delete_material_file"
 JOB_GENERATE_PLAN: Final = "generate_plan"
 JOB_REANALYZE_EXAM: Final = "reanalyze_exam"
+JOB_DELETE_ACCOUNT: Final = "delete_account"
 
 _PDF_SIGNATURE: Final = b"%PDF-"
 _PDF_SIGNATURE_WINDOW: Final = 1024

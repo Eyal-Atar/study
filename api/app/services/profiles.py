@@ -2,16 +2,18 @@
 
 import datetime as dt
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Final
 from uuid import UUID
 
 import psycopg
+import psycopg.errors
 from psycopg import sql
 from psycopg.rows import DictRow
 
 from app.domain.planner import Profile, StudyWindow
 from app.domain.time import parse_timezone
+from app.errors import ApiError
 
 type Conn = psycopg.Connection[DictRow]
 
@@ -60,21 +62,34 @@ class ProfileRow:
     notify_lead_minutes: int
     onboarding_completed_at: dt.datetime | None
     created_at: dt.datetime
+    # Migration 0009 (S15); the defaults are the column defaults.
+    study_start_delay_minutes: int = 60
+    hobby_start: dt.time | None = None
+    hobby_minutes: int | None = None
+
+
+_ROW_FIELDS: Final = frozenset(field.name for field in fields(ProfileRow))
 
 
 def _to_row(raw: Mapping[str, object] | None) -> ProfileRow:
     if raw is None:
         raise RuntimeError("the profile row is not visible to this user")
-    values = dict(raw)
+    # Only the fields this code knows: a column added by a later migration must not break
+    # code that is still running against the same database (S15).
+    values = {key: value for key, value in raw.items() if key in _ROW_FIELDS}
     values["study_windows"] = canonical_windows(values["study_windows"])
     return ProfileRow(**values)  # type: ignore[arg-type]
 
 
 def ensure_profile(conn: Conn, user_id: UUID) -> ProfileRow:
-    conn.execute(
-        "INSERT INTO app.profiles (id) VALUES (%s) ON CONFLICT DO NOTHING",
-        (user_id,),
-    )
+    try:
+        conn.execute(
+            "INSERT INTO app.profiles (id) VALUES (%s) ON CONFLICT DO NOTHING",
+            (user_id,),
+        )
+    except psycopg.errors.ForeignKeyViolation:
+        # The token is still valid, but the user is gone from Auth: the account was deleted.
+        raise ApiError("unauthenticated") from None
     row = conn.execute("SELECT * FROM app.profiles WHERE id = %s", (user_id,)).fetchone()
     return _to_row(row)
 
