@@ -25,12 +25,13 @@ export function AppShell() {
       <TimezoneSync />
       <div className="min-h-dvh">
         <header className="border-b border-line bg-surface">
-          <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-2">
-            <div className="flex items-center gap-4">
+          {/* On a phone the four links get their own row under the name and "יציאה" (390px, S15). */}
+          <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-x-4 px-4 py-2">
+            <div className="contents sm:flex sm:items-center sm:gap-4">
               <span className="text-lg font-bold">{he.appName}</span>
               {/* During the onboarding there is no board yet, and the gate sends both screens back. */}
               {onboarding ? null : (
-                <nav aria-label={he.shell.mainNav} className="flex">
+                <nav aria-label={he.shell.mainNav} className="order-last -mx-3 flex w-full overflow-x-auto sm:order-none sm:mx-0 sm:w-auto">
                   <NavLink to="/today" className={tabClass}>
                     {he.shell.today}
                   </NavLink>
