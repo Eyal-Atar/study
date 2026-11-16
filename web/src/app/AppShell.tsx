@@ -25,7 +25,7 @@ export function AppShell() {
       <TimezoneSync />
       <div className="min-h-dvh">
         <header className="border-b border-line bg-surface">
-          {/* On a phone the four links get their own row under the name and "יציאה" (390px, S15). */}
+          {/* On a phone the five links get their own row under the name and "יציאה" (390px, S15). */}
           <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-x-4 px-4 py-2">
             <div className="contents sm:flex sm:items-center sm:gap-4">
               <span className="text-lg font-bold">{he.appName}</span>
@@ -40,6 +40,9 @@ export function AppShell() {
                   </NavLink>
                   <NavLink to="/exams" className={tabClass}>
                     {he.shell.exams}
+                  </NavLink>
+                  <NavLink to="/progress" className={tabClass}>
+                    {he.shell.progress}
                   </NavLink>
                   <NavLink to="/settings" className={tabClass}>
                     {he.shell.settings}

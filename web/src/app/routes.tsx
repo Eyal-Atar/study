@@ -3,6 +3,7 @@ import { AUTH_CALLBACK_PATH } from '../auth/AuthContext'
 import { RequireAuth } from '../auth/RequireAuth'
 import { ExamPage } from '../exam/ExamPage'
 import { ExamsPage } from '../exam/ExamsPage'
+import { ProgressPage } from '../progress/ProgressPage'
 import { AuthCallbackPage } from '../pages/AuthCallbackPage'
 import { LoginPage } from '../pages/LoginPage'
 import { onboardingRoutes } from '../onboarding/routes'
@@ -19,6 +20,7 @@ export const TODAY_PATH = '/today'
 export const WEEK_PATH = '/week'
 export const EXAMS_PATH = '/exams'
 export const SETTINGS_PATH = '/settings'
+export const PROGRESS_PATH = '/progress'
 export const DELETE_ACCOUNT_PATH = '/settings/delete-account'
 // Outside RequireAuth: the page a deleted account lands on, signed out.
 export const GOODBYE_PATH = '/goodbye'
@@ -44,6 +46,7 @@ export const routes: RouteObject[] = [
               { path: WEEK_PATH, Component: WeekPage },
               { path: EXAMS_PATH, Component: ExamsPage },
               { path: `${EXAMS_PATH}/:examId`, Component: ExamPage },
+              { path: PROGRESS_PATH, Component: ProgressPage },
               { path: SETTINGS_PATH, Component: SettingsPage },
               { path: DELETE_ACCOUNT_PATH, Component: DeleteAccountPage },
               ...onboardingRoutes,

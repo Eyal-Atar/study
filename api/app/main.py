@@ -19,6 +19,7 @@ from app.routers import (
     materials,
     me,
     plan,
+    progress,
     tasks,
     topics,
 )
@@ -79,4 +80,5 @@ def create_app(
     app.include_router(generation.router)
     app.include_router(topics.router)
     app.include_router(account.router)
+    app.include_router(progress.router)
     return app

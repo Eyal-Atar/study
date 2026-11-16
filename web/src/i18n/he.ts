@@ -30,6 +30,8 @@ export const he = {
     // S15
     exams: 'מבחנים',
     settings: 'הגדרות',
+    // S19
+    progress: 'התקדמות',
   },
   login: {
     google: 'התחברות עם Google',
@@ -575,5 +577,9 @@ export const he = {
       body: 'כל הנתונים שלכם נמחקו.',
       login: 'לדף הכניסה',
     },
+  },
+  // S19: the progress board (web/src/progress). Filled by Task 4.
+  progress: {
+    title: 'התקדמות',
   },
 } as const
