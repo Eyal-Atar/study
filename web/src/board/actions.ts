@@ -5,10 +5,10 @@ import { ApiError, errorMessage } from '../api/client'
 import { codeText, unscheduledText } from '../i18n/codes'
 import { he } from '../i18n/he'
 import { UNDO_TIMEOUT_MS, useToast } from '../ui/useToast'
-import { boardKey, useBoardUserId } from './api'
+import { boardKey, todayKey, useBoardUserId } from './api'
 import { useOfferReplan } from './offerReplan'
 import { dateIn, dayLabel, formatTime, useProfileTimezone } from './time'
-import type { Block, BlockState, CompleteResult, DeferResult } from './types'
+import type { Block, BlockState, CompleteResult, DeferResult, Today } from './types'
 
 // The actions on one block, shared by "today" and "week".
 //
@@ -29,6 +29,8 @@ export interface BlockActions {
   setPinned(block: Block, pinned: boolean): void
   // True while an action on this block is running, in any screen.
   pending(blockId: string): boolean
+  // True while this block is being deferred (the button says "דוחה…").
+  deferring(blockId: string): boolean
 }
 
 interface Vars {
@@ -40,6 +42,15 @@ type Snapshot = [QueryKey, unknown][]
 
 function actionKey(userId: string | null) {
   return ['blockAction', userId] as const
+}
+function deferKey(userId: string | null) {
+  return [...actionKey(userId), 'defer'] as const
+}
+
+// What defer remembers before it runs: the task's blocks it already knew, and today's study day.
+interface DeferContext {
+  known: Set<string>
+  today: string | undefined
 }
 
 function hasBlocks(data: unknown): data is { blocks: Block[] } {
@@ -53,10 +64,12 @@ function plannedState(block: Block, now: number = Date.now()): BlockState {
   return 'upcoming'
 }
 
-// The first block of the task that is still to do, to say where a deferred task went.
-function nextPlanned(blocks: Block[]): Block | undefined {
+// Where a deferred task went: place_task keeps the task's other blocks where they are and writes
+// the released minutes as new blocks (new ids), so the answer is the first planned block the board
+// did not have before. None (the board did not show the task's blocks) → say it moved, not where.
+function movedTo(blocks: Block[], known: Set<string>): Block | undefined {
   return blocks
-    .filter((b) => b.status === 'planned')
+    .filter((b) => b.status === 'planned' && !known.has(b.id))
     .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at))[0]
 }
 
@@ -84,8 +97,17 @@ export function useBlockActions(): BlockActions {
     return snapshot
   }
 
-  function restore(snapshot: Snapshot | undefined) {
-    for (const [queryKey, data] of snapshot ?? []) queryClient.setQueryData(queryKey, data)
+  // Put back only this block, as the snapshot had it: another action, or a refetch that landed in
+  // between, may have changed the rest of the board since, and that stays.
+  function restore(id: string, snapshot: Snapshot | undefined) {
+    for (const [queryKey, saved] of snapshot ?? []) {
+      if (!hasBlocks(saved)) continue
+      const before = saved.blocks.find((b) => b.id === id)
+      if (before === undefined) continue
+      queryClient.setQueryData(queryKey, (data: unknown) =>
+        hasBlocks(data) ? { ...data, blocks: data.blocks.map((b) => (b.id === id ? before : b)) } : data,
+      )
+    }
   }
 
   function undoToast(text: string, onUndo: () => void) {
@@ -98,8 +120,8 @@ export function useBlockActions(): BlockActions {
     mutationKey,
     mutationFn: ({ block }) => api.post<CompleteResult>(`/blocks/${block.id}/complete`),
     onMutate: ({ block }) => patchBlock(block.id, (b) => ({ ...b, status: 'done', state: 'done' })),
-    onError: (error, _vars, snapshot) => {
-      restore(snapshot)
+    onError: (error, { block }, snapshot) => {
+      restore(block.id, snapshot)
       fail(error)
     },
     onSuccess: (result) => {
@@ -114,8 +136,8 @@ export function useBlockActions(): BlockActions {
     mutationKey,
     mutationFn: ({ block }) => api.post<CompleteResult>(`/blocks/${block.id}/uncomplete`),
     onMutate: ({ block }) => patchBlock(block.id, (b) => ({ ...b, status: 'planned', state: plannedState(b) })),
-    onError: (error, _vars, snapshot) => {
-      restore(snapshot)
+    onError: (error, { block }, snapshot) => {
+      restore(block.id, snapshot)
       fail(error)
     },
     onSuccess: (result) => {
@@ -130,8 +152,8 @@ export function useBlockActions(): BlockActions {
     mutationKey,
     mutationFn: ({ block, pinned }) => api.patch<Block>(`/blocks/${block.id}`, { pinned: pinned === true }),
     onMutate: ({ block, pinned }) => patchBlock(block.id, (b) => ({ ...b, pinned: pinned === true })),
-    onError: (error, _vars, snapshot) => {
-      restore(snapshot)
+    onError: (error, { block }, snapshot) => {
+      restore(block.id, snapshot)
       fail(error)
     },
     onSuccess: (result) => {
@@ -157,9 +179,16 @@ export function useBlockActions(): BlockActions {
       })
   }
 
-  const deferMutation = useMutation<DeferResult, ApiError, Vars>({
-    mutationKey,
+  const deferMutation = useMutation<DeferResult, ApiError, Vars, DeferContext>({
+    mutationKey: deferKey(userId),
     mutationFn: ({ block }) => api.post<DeferResult>(`/blocks/${block.id}/defer`),
+    onMutate: ({ block }) => {
+      const known = new Set<string>()
+      for (const [, data] of queryClient.getQueriesData({ queryKey: key })) {
+        if (hasBlocks(data)) for (const b of data.blocks) if (b.task_id === block.task_id) known.add(b.id)
+      }
+      return { known, today: queryClient.getQueryData<Today>(todayKey(userId))?.date }
+    },
     onError: (error) => {
       if (error instanceof ApiError && error.code === 'placement_failed') {
         const reason = error.details.reason
@@ -169,12 +198,14 @@ export function useBlockActions(): BlockActions {
       }
       fail(error)
     },
-    onSuccess: (result) => {
-      const next = nextPlanned(result.blocks)
+    onSuccess: (result, _vars, context) => {
+      const next = movedTo(result.blocks, context.known)
+      // "Today" is the server's study day (after midnight, before sleep, it is still yesterday's date).
+      const today = context.today ?? dateIn(tz)
       const text =
         next === undefined
           ? he.board.deferredSomewhere
-          : he.board.deferred(dayLabel(next.study_date, dateIn(tz)), formatTime(next.starts_at, tz))
+          : he.board.deferred(dayLabel(next.study_date, today), formatTime(next.starts_at, tz))
       const versionId = result.version_id
       if (versionId === null) {
         toast.show({ text, tone: 'success' })
@@ -191,7 +222,12 @@ export function useBlockActions(): BlockActions {
     filters: { mutationKey, status: 'pending' },
     select: (mutation) => (mutation.state.variables as Vars | undefined)?.block.id,
   })
+  const deferringIds = useMutationState({
+    filters: { mutationKey: deferKey(userId), status: 'pending' },
+    select: (mutation) => (mutation.state.variables as Vars | undefined)?.block.id,
+  })
   const pending = useCallback((blockId: string) => pendingIds.includes(blockId), [pendingIds])
+  const deferring = useCallback((blockId: string) => deferringIds.includes(blockId), [deferringIds])
 
   return {
     complete: (block) => {
@@ -207,5 +243,6 @@ export function useBlockActions(): BlockActions {
       pinMutation.mutate({ block, pinned })
     },
     pending,
+    deferring,
   }
 }

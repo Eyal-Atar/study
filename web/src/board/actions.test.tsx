@@ -8,7 +8,7 @@ import { makeBlock, makeMe, makePlan, makeToday, renderBoard, USER_ID } from '..
 import { createFakeApi, problem } from '../test/fakeApi'
 import { useBlockActions } from './actions'
 import { planKey, todayKey, usePlan, useToday } from './api'
-import { dateIn, dayLabel, useProfileTimezone } from './time'
+import { dayLabel, useProfileTimezone } from './time'
 import type { Block } from './types'
 
 // A promise the test resolves or rejects when it wants.
@@ -52,13 +52,18 @@ function Probe() {
 }
 
 // A fake server with one block, whose GET answers follow `state.block`.
-function setup({ block = makeBlock(), timezone = 'Asia/Jerusalem' }: { block?: Block; timezone?: string } = {}) {
-  const state = { block, frozen: false }
+function setup({
+  block = makeBlock(),
+  timezone = 'Asia/Jerusalem',
+  todayDate = '2026-11-16',
+  others = [],
+}: { block?: Block; timezone?: string; todayDate?: string; others?: Block[] } = {}) {
+  const state = { block, frozen: false, others }
   const never = new Promise<never>(() => undefined)
   const fake = createFakeApi()
     .on('GET /me', makeMe(timezone))
-    .on('GET /today', () => (state.frozen ? never : makeToday([state.block])))
-    .on({ method: 'GET', path: /^\/plan/ }, () => (state.frozen ? never : makePlan([state.block])))
+    .on('GET /today', () => (state.frozen ? never : makeToday([state.block, ...state.others], { date: todayDate })))
+    .on({ method: 'GET', path: /^\/plan/ }, () => (state.frozen ? never : makePlan([state.block, ...state.others])))
   const rendered = renderBoard(<Probe />, { api: fake.api })
   return { fake, state, ...rendered }
 }
@@ -179,12 +184,44 @@ describe('useBlockActions', () => {
 
     state.block = moved
     answer.resolve({ blocks: [earlierDone, moved], version_id: 'v1' })
-    const text = he.board.deferred(dayLabel('2026-11-17', dateIn('Asia/Jerusalem')), '09:00')
+    const text = he.board.deferred(dayLabel('2026-11-17', '2026-11-16'), '09:00')
     expect(await (await toasts()).findByText(text)).toBeInTheDocument()
 
     await user.click((await toasts()).getByRole('button', { name: he.common.undo }))
     expect(fake.calls('POST', '/plan/undo')).toEqual([{ method: 'POST', path: '/plan/undo', body: { version_id: 'v1' } }])
     expect(await (await toasts()).findByText(he.board.deferUndone)).toBeInTheDocument()
+  })
+
+  it('the defer toast names the new block, not a later part of the task that stayed in place', async () => {
+    const user = userEvent.setup()
+    // Part 1 now, part 2 later today; place_task keeps part 2 and writes part 1's minutes tomorrow.
+    const part1 = makeBlock({ part_index: 1, part_count: 2 })
+    const part2 = makeBlock({ id: 'block-3', part_index: 2, part_count: 2, starts_at: '2026-11-16T15:00:00Z', ends_at: '2026-11-16T16:00:00Z' })
+    const { fake } = setup({ block: part1, others: [part2] })
+    await ready()
+    await waitFor(() => {
+      expect(screen.getByTestId('tz')).toHaveTextContent('Asia/Jerusalem')
+    })
+    const moved = makeBlock({ id: 'block-4', part_index: 2, part_count: 2, starts_at: '2026-11-17T14:00:00Z', ends_at: '2026-11-17T15:00:00Z', study_date: '2026-11-17' })
+    fake.on('POST /blocks/block-1/defer', { blocks: [{ ...part2, part_index: 1 }, moved], version_id: 'v1' })
+
+    await user.click(screen.getByRole('button', { name: 'defer' }))
+    expect(await (await toasts()).findByText(he.board.deferred(he.board.tomorrow, '16:00'))).toBeInTheDocument()
+  })
+
+  it('the defer toast counts days from the server study day, not the calendar day', async () => {
+    const user = userEvent.setup()
+    // At 00:30 before sleep the study day is still the 15th: a block later tonight is "today".
+    const { fake } = setup({ todayDate: '2026-11-15' })
+    await ready()
+    await waitFor(() => {
+      expect(screen.getByTestId('tz')).toHaveTextContent('Asia/Jerusalem')
+    })
+    const moved = makeBlock({ id: 'block-2', starts_at: '2026-11-15T23:30:00Z', ends_at: '2026-11-16T00:00:00Z', study_date: '2026-11-15' })
+    fake.on('POST /blocks/block-1/defer', { blocks: [moved], version_id: 'v1' })
+
+    await user.click(screen.getByRole('button', { name: 'defer' }))
+    expect(await (await toasts()).findByText(he.board.deferred(he.board.today, '01:30'))).toBeInTheDocument()
   })
 
   it('the defer toast shows the time in the profile timezone', async () => {
@@ -198,7 +235,7 @@ describe('useBlockActions', () => {
     fake.on('POST /blocks/block-1/defer', { blocks: [moved], version_id: null })
 
     await user.click(screen.getByRole('button', { name: 'defer' }))
-    const text = he.board.deferred(dayLabel('2026-11-17', dateIn('America/New_York')), '10:00')
+    const text = he.board.deferred(dayLabel('2026-11-17', '2026-11-16'), '10:00')
     expect(await (await toasts()).findByText(text)).toBeInTheDocument()
     // Without a version there is nothing to undo.
     expect((await toasts()).queryByRole('button', { name: he.common.undo })).not.toBeInTheDocument()

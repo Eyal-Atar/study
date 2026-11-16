@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { errorMessage } from '../api/client'
 import { shortfallText, unscheduledText } from '../i18n/codes'
 import { he } from '../i18n/he'
@@ -10,6 +10,21 @@ import { planKey } from './api'
 import { PlanReport } from './PlanReport'
 import { durationText } from './time'
 import type { ReplanPreview, Unplaced } from './types'
+
+// The raise button needs a real replan after it (S13's ReplanOffer); most tests run as if it exists.
+const flags = vi.hoisted(() => ({ canReplan: true }))
+vi.mock('./offerReplan', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./offerReplan')>()
+  return {
+    ...actual,
+    get CAN_REPLAN() {
+      return flags.canReplan
+    },
+  }
+})
+afterEach(() => {
+  flags.canReplan = true
+})
 
 const EXAM_2 = 'exam-2'
 const exams = [...EXAMS, { id: EXAM_2, name: 'הסתברות' }]
@@ -112,6 +127,14 @@ describe('PlanReport', () => {
     setup({ preview: makePreview({ shortfalls: [{ exam_id: EXAM_ID, minutes: 120, daily_minutes: null }] }) })
     const r = await report()
     expect(await r.findByText(shortfallText('אלגוריתמים', 120, null))).toBeInTheDocument()
+    expect(r.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('hides the raise button while the app cannot replan (before S13 ReplanOffer)', async () => {
+    flags.canReplan = false
+    setup({ preview: makePreview({ shortfalls: [{ exam_id: EXAM_ID, minutes: 120, daily_minutes: 300 }] }) })
+    const r = await report()
+    expect(await r.findByText(shortfallText('אלגוריתמים', 120, 300))).toBeInTheDocument()
     expect(r.queryByRole('button')).not.toBeInTheDocument()
   })
 

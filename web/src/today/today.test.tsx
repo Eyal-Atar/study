@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { codeText, unscheduledText } from '../i18n/codes'
 import { he } from '../i18n/he'
 import { todayKey } from '../board/api'
-import { dateIn, dayLabel, formatDay } from '../board/time'
+import { dayLabel, formatDay } from '../board/time'
 import type { Block, Plan, Today } from '../board/types'
 import { EXAMS, makeBlock, makeMe, makePlan, makePreview, makeToday, USER_ID } from '../test/boardFixtures'
 import { createFakeApi, problem } from '../test/fakeApi'
@@ -189,13 +189,14 @@ describe('the today screen', () => {
   it('defer shows where the task went, and the undo sends POST /plan/undo', async () => {
     const user = userEvent.setup()
     const { fake } = setup({ today: makeToday([LATER]) })
-    const moved = makeBlock({ ...LATER, study_date: '2026-11-17', starts_at: '2026-11-17T07:00:00Z', ends_at: '2026-11-17T08:00:00Z' })
+    // The server releases the deferred block and writes the minutes as a new block (a new id).
+    const moved = makeBlock({ ...LATER, id: 'block-moved', study_date: '2026-11-17', starts_at: '2026-11-17T07:00:00Z', ends_at: '2026-11-17T08:00:00Z' })
     fake.on(`POST /blocks/${LATER.id}/defer`, { blocks: [moved], version_id: 'v-2' })
     fake.on('POST /plan/undo', { version_id: 'v-2' })
 
     await user.click(await screen.findByRole('button', { name: he.board.deferLabel(LATER.task_title) }))
     const region = await toasts()
-    expect(await region.findByText(he.board.deferred(dayLabel('2026-11-17', dateIn('Asia/Jerusalem')), '09:00'))).toBeInTheDocument()
+    expect(await region.findByText(he.board.deferred(dayLabel('2026-11-17', '2026-11-16'), '09:00'))).toBeInTheDocument()
     await user.click(region.getByRole('button', { name: he.common.undo }))
     await waitFor(() => {
       expect(fake.calls('POST', '/plan/undo')).toEqual([{ method: 'POST', path: '/plan/undo', body: { version_id: 'v-2' } }])

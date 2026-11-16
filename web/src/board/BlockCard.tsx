@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
@@ -62,10 +61,9 @@ export interface BlockCardProps {
 export function BlockCard({ block, tz, variant = 'full' }: BlockCardProps) {
   const actions = useBlockActions()
   const pending = actions.pending(block.id)
-  const [started, setStarted] = useState<BlockAction | null>(null)
-  const deferring = pending && started === 'defer'
+  // Only a defer of this block says "דוחה…", whichever screen or toast started it.
+  const deferring = actions.deferring(block.id)
   const start = (action: BlockAction) => {
-    setStarted(action)
     run(actions, block, action)
   }
   const available = actionsFor(block)

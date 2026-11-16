@@ -141,6 +141,12 @@ describe('the week screen', () => {
     expect(planCalls(fake).every((p) => p === planPath(SUNDAY, SATURDAY))).toBe(true)
   })
 
+  it('a ?from= further than the API accepts shows the current week', async () => {
+    const { fake } = setup('/week?from=2099-01-04')
+    await weekShown()
+    expect(planCalls(fake).every((p) => p === planPath(SUNDAY, SATURDAY))).toBe(true)
+  })
+
   it('a menu action updates the week, and today has the block done without waiting for a request', async () => {
     const user = userEvent.setup()
     const block = makeBlock({ study_date: TODAY, starts_at: '2026-11-18T12:00:00Z', ends_at: '2026-11-18T13:00:00Z' })

@@ -1,9 +1,8 @@
-import { useQueryClient } from '@tanstack/react-query'
 import { shortfallText, unscheduledText } from '../i18n/codes'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
-import { boardKey, useBoardExams, useBoardUserId, usePlan, useRaiseDailyMinutes, useReport } from './api'
-import { useOfferReplan } from './offerReplan'
+import { useBoardExams, usePlan, useRaiseDailyMinutes, useReport } from './api'
+import { CAN_REPLAN, useOfferReplan } from './offerReplan'
 import { durationText } from './time'
 
 // "What did not fit" (decision 6 of the S14 plan). GET /plan says which tasks are missing minutes;
@@ -17,8 +16,6 @@ export function PlanReport() {
   const exams = useBoardExams()
   const raise = useRaiseDailyMinutes()
   const offerReplan = useOfferReplan()
-  const queryClient = useQueryClient()
-  const userId = useBoardUserId()
 
   if (!missing) return null
 
@@ -68,14 +65,13 @@ export function PlanReport() {
           })}
         </ul>
       </div>
-      {target === null ? null : (
+      {target === null || !CAN_REPLAN ? null : (
         <Button
           isDisabled={raise.isPending}
           onPress={() => {
             raise.mutate(target, {
               onSuccess: () => {
                 offerReplan(he.board.report.raised(durationText(target)))
-                void queryClient.invalidateQueries({ queryKey: boardKey(userId) })
               },
             })
           }}

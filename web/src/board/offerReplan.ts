@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router'
 import { he } from '../i18n/he'
 import { UNDO_TIMEOUT_MS, useToast } from '../ui/useToast'
 
+// Whether the offer can actually replan (preview, then apply). Until S13's ReplanOffer is in main it
+// cannot, so actions that only make sense with a replan after them (raising the daily minutes from the
+// report) stay hidden: PATCH /me alone does not move the board. After S13 merges this becomes true.
+export const CAN_REPLAN: boolean = false
+
 export const REPORT_PATH = '/today'
 export const REPORT_HASH = '#report'
 

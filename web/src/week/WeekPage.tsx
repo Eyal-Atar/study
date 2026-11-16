@@ -10,9 +10,15 @@ import { WeekDay } from './WeekDay'
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 
 // A real calendar day 'YYYY-MM-DD' (2026-02-31 is not), else null.
+// The API accepts dates within five years of today (plan_views.MAX_DAYS_FROM_TODAY); a date
+// further away would only bring a 422 that no retry fixes, so it means the current week.
+const MAX_DAYS_AWAY = 1800
+
 function parseDate(value: string | null): string | null {
   if (value === null || !DATE.test(value)) return null
-  return addDays(value, 0) === value ? value : null
+  if (addDays(value, 0) !== value) return null
+  const away = Math.abs(Date.parse(`${value}T00:00:00Z`) - Date.now()) / 86_400_000
+  return away <= MAX_DAYS_AWAY ? value : null
 }
 
 // The server's study_date decides the day of every block (spec 7.3); the times only order a day.
