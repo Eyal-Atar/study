@@ -6,8 +6,9 @@ import { codeText, unscheduledText } from '../i18n/codes'
 import { he } from '../i18n/he'
 import { UNDO_TIMEOUT_MS, useToast } from '../ui/useToast'
 import { boardKey, todayKey, useBoardUserId } from './api'
+import { requestFocus } from './focus'
 import { useOfferReplan } from './offerReplan'
-import { dateIn, dayLabel, formatTime, useProfileTimezone } from './time'
+import { blockMinutes, dateIn, dayLabel, formatTime, useProfileTimezone } from './time'
 import type { Block, BlockState, CompleteResult, DeferResult, Today } from './types'
 
 // The actions on one block, shared by "today" and "week".
@@ -21,6 +22,10 @@ import type { Block, BlockState, CompleteResult, DeferResult, Today } from './ty
 // button shows "דוחה…" until the answer; the undo is POST /plan/undo with the version it created.
 //
 // After every action the whole board (['board', userId]) is refetched.
+//
+// The optimistic actions also keep "today"'s planned_minutes and done_minutes in step with the
+// block's status, so the meter moves at once (S18 decision 14b), and they ask for the focus to come
+// back to the block's card, wherever it shows next (focus.ts, decision 14a).
 
 export interface BlockActions {
   complete(block: Block): void
@@ -36,6 +41,8 @@ export interface BlockActions {
 interface Vars {
   block: Block
   pinned?: boolean
+  // What had the focus when the action started (focus.ts).
+  origin?: Element | null
 }
 
 type Snapshot = [QueryKey, unknown][]
@@ -55,6 +62,38 @@ interface DeferContext {
 
 function hasBlocks(data: unknown): data is { blocks: Block[] } {
   return typeof data === 'object' && data !== null && Array.isArray((data as { blocks?: unknown }).blocks)
+}
+
+// GET /today: the only board answer with minutes. Plan ranges have blocks but no minutes.
+function isToday(data: unknown): data is Today {
+  return (
+    hasBlocks(data) &&
+    typeof (data as { planned_minutes?: unknown }).planned_minutes === 'number' &&
+    typeof (data as { done_minutes?: unknown }).done_minutes === 'number'
+  )
+}
+
+function minutesIf(block: Block, status: Block['status']): number {
+  return block.status === status ? blockMinutes(block) : 0
+}
+
+// One board answer with the block `id` replaced by `next(block)`. In "today" its minutes move with
+// it: out of planned or done by what it was, into them by what it is now. The change is relative,
+// so the totals stay right whatever else changed in the cache in between.
+function replaceBlock(data: unknown, id: string, next: (block: Block) => Block): unknown {
+  if (!hasBlocks(data)) return data
+  const index = data.blocks.findIndex((b) => b.id === id)
+  const before = data.blocks[index]
+  if (before === undefined) return data
+  const after = next(before)
+  const blocks = data.blocks.with(index, after)
+  if (!isToday(data)) return { ...data, blocks }
+  return {
+    ...data,
+    blocks,
+    planned_minutes: Math.max(0, data.planned_minutes - minutesIf(before, 'planned') + minutesIf(after, 'planned')),
+    done_minutes: Math.max(0, data.done_minutes - minutesIf(before, 'done') + minutesIf(after, 'done')),
+  }
 }
 
 // A planned block's state by the clock, as the server derives it (plan_views.block_state).
@@ -87,26 +126,30 @@ export function useBlockActions(): BlockActions {
   const fail = (error: unknown) => {
     toast.show({ text: errorMessage(error), tone: 'error' })
   }
+  // The optimistic actions remember what had the focus when they started, and once they settled
+  // (done or rolled back) ask for the focus to go to the block's card from there (focus.ts).
+  const started = (block: Block, pinned?: boolean): Vars => ({ block, pinned, origin: document.activeElement })
+  const settleAndFocus = (_data: unknown, _error: unknown, { block, origin }: Vars) => {
+    requestFocus(queryClient, block.id, origin ?? null)
+    return settle()
+  }
 
   async function patchBlock(id: string, patch: (block: Block) => Block): Promise<Snapshot> {
     await queryClient.cancelQueries({ queryKey: key })
     const snapshot = queryClient.getQueriesData({ queryKey: key })
-    queryClient.setQueriesData({ queryKey: key }, (data: unknown) =>
-      hasBlocks(data) ? { ...data, blocks: data.blocks.map((b) => (b.id === id ? patch(b) : b)) } : data,
-    )
+    queryClient.setQueriesData({ queryKey: key }, (data: unknown) => replaceBlock(data, id, patch))
     return snapshot
   }
 
   // Put back only this block, as the snapshot had it: another action, or a refetch that landed in
-  // between, may have changed the rest of the board since, and that stays.
+  // between, may have changed the rest of the board since, and that stays. Today's minutes move
+  // back with the block (replaceBlock), so they agree with whatever the rest of the board is now.
   function restore(id: string, snapshot: Snapshot | undefined) {
     for (const [queryKey, saved] of snapshot ?? []) {
       if (!hasBlocks(saved)) continue
       const before = saved.blocks.find((b) => b.id === id)
       if (before === undefined) continue
-      queryClient.setQueryData(queryKey, (data: unknown) =>
-        hasBlocks(data) ? { ...data, blocks: data.blocks.map((b) => (b.id === id ? before : b)) } : data,
-      )
+      queryClient.setQueryData(queryKey, (data: unknown) => replaceBlock(data, id, () => before))
     }
   }
 
@@ -126,10 +169,10 @@ export function useBlockActions(): BlockActions {
     },
     onSuccess: (result) => {
       undoToast(he.board.completed, () => {
-        uncompleteMutation.mutate({ block: result.block })
+        uncompleteMutation.mutate(started(result.block))
       })
     },
-    onSettled: settle,
+    onSettled: settleAndFocus,
   })
 
   const uncompleteMutation = useMutation<CompleteResult, ApiError, Vars, Snapshot>({
@@ -142,10 +185,10 @@ export function useBlockActions(): BlockActions {
     },
     onSuccess: (result) => {
       undoToast(he.board.uncompleted, () => {
-        completeMutation.mutate({ block: result.block })
+        completeMutation.mutate(started(result.block))
       })
     },
-    onSettled: settle,
+    onSettled: settleAndFocus,
   })
 
   const pinMutation = useMutation<Block, ApiError, Vars, Snapshot>({
@@ -158,10 +201,10 @@ export function useBlockActions(): BlockActions {
     },
     onSuccess: (result) => {
       undoToast(result.pinned ? he.board.pinnedDone : he.board.unpinnedDone, () => {
-        pinMutation.mutate({ block: result, pinned: !result.pinned })
+        pinMutation.mutate(started(result, !result.pinned))
       })
     },
-    onSettled: settle,
+    onSettled: settleAndFocus,
   })
 
   function undoDefer(versionId: string) {
@@ -231,16 +274,16 @@ export function useBlockActions(): BlockActions {
 
   return {
     complete: (block) => {
-      completeMutation.mutate({ block })
+      completeMutation.mutate(started(block))
     },
     uncomplete: (block) => {
-      uncompleteMutation.mutate({ block })
+      uncompleteMutation.mutate(started(block))
     },
     defer: (block) => {
       deferMutation.mutate({ block })
     },
     setPinned: (block, pinned) => {
-      pinMutation.mutate({ block, pinned })
+      pinMutation.mutate(started(block, pinned))
     },
     pending,
     deferring,

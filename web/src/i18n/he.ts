@@ -283,6 +283,8 @@ export const he = {
       skipped: 'דולג',
     },
     part: (index: number, count: number) => `חלק ${String(index)} מתוך ${String(count)}`,
+    // blockName (blockName.ts): two parts of one task on one day must not share a button name.
+    partName: (title: string, part: string) => `${title} (${part})`,
     pinned: 'נעול',
     complete: 'בוצע',
     uncomplete: 'ביטול הסימון',
@@ -346,7 +348,30 @@ export const he = {
     stale: 'לא הצלחנו לרענן, ולכן ייתכן שהלוח לא עדכני.',
   },
   // S18: the morning review card in "today" (web/src/today/ReviewCard.tsx).
-  review: {},
+  review: {
+    title: 'סקירת בוקר',
+    lead: (count: number) =>
+      count === 1 ? 'בלוק אחד עבר בלי סימון. מה קרה איתו?' : `${String(count)} בלוקים עברו בלי סימון. מה קרה איתם?`,
+    // After the last block was handled, until the screen is left: the heading keeps the focus.
+    allDone: 'סימנתם את כל הבלוקים שעברו.',
+    // "אתמול, 14:00–15:00" (the time range is shown left to right).
+    when: (day: string) => `${day}, `,
+    complete: 'בוצע',
+    moveToday: 'העבר להיום',
+    moving: 'מעביר…',
+    skip: 'דלג',
+    // Every row has the same three buttons, so the accessible name says which block (and which part).
+    completeLabel: (name: string) => `בוצע: ${name}`,
+    moveTodayLabel: (name: string) => `העברה להיום: ${name}`,
+    skipLabel: (name: string) => `דילוג: ${name}`,
+    moved: (day: string, time: string) => `הועבר ל${day} בשעה ${time}`,
+    movedSomewhere: 'המשימה הועברה',
+    moveUndone: 'ההעברה בוטלה',
+    // The action of the no_time_today toast: POST reschedule {today_only: false}.
+    moveNext: 'למקום הפנוי הבא',
+    skipped: (title: string) => `דילגת על ${title}`,
+    skipUndone: 'הדילוג בוטל',
+  },
   // S18: moving a block within its day: drag, keyboard and the "move" dialog.
   move: {},
   // S14: the week screen (web/src/week).

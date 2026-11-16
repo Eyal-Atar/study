@@ -5,6 +5,7 @@ import { he } from '../i18n/he'
 import { makeBlock, makeMe, makePlan, makeToday, renderBoard } from '../test/boardFixtures'
 import { createFakeApi } from '../test/fakeApi'
 import { BlockCard } from './BlockCard'
+import { blockName } from './blockName'
 import type { Block, BlockState } from './types'
 
 const TITLE = 'פרק 3: גרפים'
@@ -95,6 +96,14 @@ describe('BlockCard (full)', () => {
     unmount()
     setup(makeBlock())
     expect(card().queryByText(/מתוך/)).not.toBeInTheDocument()
+  })
+
+  it('a split block names every button with its part, and the article keeps the title', () => {
+    setup(makeBlock({ part_index: 2, part_count: 3 }))
+    const name = 'פרק 3: גרפים (חלק 2 מתוך 3)'
+    expect(blockName(makeBlock({ part_index: 2, part_count: 3 }))).toBe(name)
+    expect(buttonNames()).toEqual([he.board.completeLabel(name), he.board.deferLabel(name), he.board.pinLabel(name)])
+    expect(blockName(makeBlock())).toBe(TITLE)
   })
 
   it('shows the exam, the kind and the duration', () => {
@@ -247,6 +256,14 @@ describe('BlockCard (compact)', () => {
       expect(trigger).toHaveTextContent(he.board.deferring)
     })
     deferring.resolve({ blocks: [], version_id: null })
+  })
+
+  it('a split block names the actions button and its menu with its part', async () => {
+    const user = userEvent.setup()
+    setup(makeBlock({ part_index: 1, part_count: 2 }), { variant: 'compact' })
+    const name = 'פרק 3: גרפים (חלק 1 מתוך 2)'
+    await user.click(card().getByRole('button', { name: he.board.actionsLabel(name) }))
+    expect(await screen.findByRole('menu', { name: he.board.actionsLabel(name) })).toBeInTheDocument()
   })
 
   it('shows the time in the given timezone, the part and the pinned tag', () => {

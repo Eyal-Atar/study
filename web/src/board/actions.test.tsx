@@ -9,15 +9,17 @@ import { createFakeApi, problem } from '../test/fakeApi'
 import { useBlockActions } from './actions'
 import { planKey, todayKey, usePlan, useToday } from './api'
 import { dayLabel, useProfileTimezone } from './time'
-import type { Block } from './types'
+import type { Block, Today } from './types'
 
 // A promise the test resolves or rejects when it wants.
 function deferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>((r) => {
-    resolve = r
+  let reject!: (error: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
   })
-  return { promise, resolve }
+  return { promise, resolve, reject }
 }
 
 function show(block: Block | undefined) {
@@ -140,6 +142,41 @@ describe('useBlockActions', () => {
     await ready()
     expect(queryClient.getQueryData<{ blocks: Block[] }>(todayKey(USER_ID))?.blocks[0]?.status).toBe('planned')
     expect(queryClient.getQueryData<{ blocks: Block[] }>(planKey(USER_ID, '2026-11-15', '2026-11-21'))?.blocks[0]?.state).toBe('upcoming')
+  })
+
+  it("complete moves today's minutes from planned to done at once, and a failure moves them back", async () => {
+    const user = userEvent.setup()
+    const { fake, state, queryClient } = setup()
+    await ready()
+    const minutes = () => {
+      const today = queryClient.getQueryData<Today>(todayKey(USER_ID))
+      return [today?.planned_minutes, today?.done_minutes]
+    }
+    expect(minutes()).toEqual([60, 0])
+    const answer = deferred<unknown>()
+    fake.on('POST /blocks/block-1/complete', () => answer.promise)
+
+    await user.click(screen.getByRole('button', { name: 'complete' }))
+    await ready('done/done/free')
+    expect(minutes()).toEqual([0, 60])
+
+    state.frozen = true
+    answer.reject(problem(0, 'network'))
+    await ready()
+    expect(minutes()).toEqual([60, 0])
+  })
+
+  it('a pin does not touch the minutes of today', async () => {
+    const user = userEvent.setup()
+    const { fake, state, queryClient } = setup()
+    await ready()
+    state.frozen = true
+    fake.on('PATCH /blocks/block-1', () => new Promise<never>(() => undefined))
+
+    await user.click(screen.getByRole('button', { name: 'pin' }))
+    await ready('planned/upcoming/pinned')
+    const today = queryClient.getQueryData<Today>(todayKey(USER_ID))
+    expect([today?.planned_minutes, today?.done_minutes]).toEqual([60, 0])
   })
 
   it('uncomplete marks the block planned again, and its undo sends complete', async () => {

@@ -1,8 +1,11 @@
+import { useRef } from 'react'
 import { Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
 import { useBlockActions, type BlockActions } from './actions'
 import { actionsFor, type BlockAction } from './actionsFor'
+import { blockName } from './blockName'
+import { useFocusRequest } from './focus'
 import { blockMinutes, durationText, formatRange } from './time'
 import type { Block } from './types'
 
@@ -32,7 +35,7 @@ function label(action: BlockAction, deferring: boolean): string {
   return he.board[action]
 }
 
-function ariaLabel(action: BlockAction, title: string): string {
+function ariaLabel(action: BlockAction, name: string): string {
   const labels = {
     complete: he.board.completeLabel,
     uncomplete: he.board.uncompleteLabel,
@@ -40,7 +43,7 @@ function ariaLabel(action: BlockAction, title: string): string {
     pin: he.board.pinLabel,
     unpin: he.board.unpinLabel,
   } as const
-  return labels[action](title)
+  return labels[action](name)
 }
 
 const STATE_BADGE = {
@@ -70,6 +73,11 @@ export function BlockCard({ block, tz, variant = 'full' }: BlockCardProps) {
   const done = block.state === 'done'
   const badge = block.state === 'upcoming' ? null : block.state
   const titleId = `block-${block.id}-title`
+  // The buttons' names; the article keeps the plain title (aria-labelledby).
+  const name = blockName(block)
+  // After an action on this block, the focus comes back to this card's first button (focus.ts).
+  const ref = useRef<HTMLElement>(null)
+  useFocusRequest(block.id, ref)
 
   const meta = (
     <p className="text-sm text-ink-muted">
@@ -106,19 +114,19 @@ export function BlockCard({ block, tz, variant = 'full' }: BlockCardProps) {
 
   if (variant === 'compact') {
     return (
-      <article aria-labelledby={titleId} className="flex items-start justify-between gap-3 rounded-lg border border-line bg-surface p-3">
+      <article ref={ref} aria-labelledby={titleId} className="flex items-start justify-between gap-3 rounded-lg border border-line bg-surface p-3">
         <div className="min-w-0 space-y-1">
           {title}
           {meta}
           {tags}
         </div>
         <MenuTrigger>
-          <Button variant="secondary" aria-label={he.board.actionsLabel(block.task_title)} isDisabled={pending} className="shrink-0">
+          <Button variant="secondary" aria-label={he.board.actionsLabel(name)} isDisabled={pending} className="shrink-0">
             {deferring ? he.board.deferring : he.board.actions}
           </Button>
           <Popover placement="bottom end" className="min-w-40 rounded-lg border border-line bg-surface p-1 shadow-lg">
             <Menu
-              aria-label={he.board.actionsLabel(block.task_title)}
+              aria-label={he.board.actionsLabel(name)}
               className="outline-none"
               onAction={(key) => {
                 start(key as BlockAction)
@@ -141,7 +149,7 @@ export function BlockCard({ block, tz, variant = 'full' }: BlockCardProps) {
   }
 
   return (
-    <article aria-labelledby={titleId} className="space-y-3 rounded-xl border border-line bg-surface p-4">
+    <article ref={ref} aria-labelledby={titleId} className="space-y-3 rounded-xl border border-line bg-surface p-4">
       <div className="space-y-1">
         {title}
         {meta}
@@ -152,7 +160,7 @@ export function BlockCard({ block, tz, variant = 'full' }: BlockCardProps) {
           <Button
             key={action}
             variant={action === 'complete' ? 'primary' : 'secondary'}
-            aria-label={ariaLabel(action, block.task_title)}
+            aria-label={ariaLabel(action, name)}
             isDisabled={pending}
             onPress={() => {
               start(action)

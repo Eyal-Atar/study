@@ -171,6 +171,21 @@ describe('the week screen', () => {
     expect(queryClient.getQueryData<{ blocks: Block[] }>(todayKey(USER_ID))?.blocks[0]?.state).toBe('done')
   })
 
+  it('two parts of one task on the same day have actions buttons with different names', async () => {
+    const part1 = makeBlock({ study_date: TODAY, part_index: 1, part_count: 2, starts_at: '2026-11-18T08:00:00Z', ends_at: '2026-11-18T09:00:00Z' })
+    const part2 = makeBlock({ id: 'block-2', study_date: TODAY, part_index: 2, part_count: 2, starts_at: '2026-11-18T12:00:00Z', ends_at: '2026-11-18T13:00:00Z' })
+    setup('/week', { blocks: [part1, part2] })
+    await weekShown()
+
+    const names = within(day(TODAY))
+      .getAllByRole('button')
+      .map((b) => b.getAttribute('aria-label'))
+    expect(names).toEqual([
+      he.board.actionsLabel(`${part1.task_title} (${he.board.part(1, 2)})`),
+      he.board.actionsLabel(`${part1.task_title} (${he.board.part(2, 2)})`),
+    ])
+  })
+
   it('a network error with no data shows an alert, and retry loads the week', async () => {
     const user = userEvent.setup()
     const failure = problem(0, 'network')

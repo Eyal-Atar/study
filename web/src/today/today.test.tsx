@@ -34,10 +34,12 @@ function setup({
 
 function deferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>((r) => {
-    resolve = r
+  let reject!: (error: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
   })
-  return { promise, resolve }
+  return { promise, resolve, reject }
 }
 
 async function region(name: string) {
@@ -184,6 +186,110 @@ describe('the today screen', () => {
     await waitFor(() => {
       expect(fake.calls('POST', `/blocks/${NOW.id}/uncomplete`)).toHaveLength(1)
     })
+  })
+
+  it('complete moves the meter before the server answers, and a failure puts it back', async () => {
+    const user = userEvent.setup()
+    const { fake } = setup({ today: makeToday([NOW, LATER], { planned_minutes: 120, done_minutes: 0 }) })
+    const answer = deferred<unknown>()
+    fake.on(`POST /blocks/${NOW.id}/complete`, () => answer.promise)
+
+    const meter = await screen.findByRole('meter', { name: he.today.progressLabel })
+    expect(meter).toHaveAttribute('aria-valuenow', '0')
+    await user.click(screen.getByRole('button', { name: he.board.completeLabel(NOW.task_title) }))
+    await waitFor(() => {
+      expect(meter).toHaveAttribute('aria-valuenow', '60')
+    })
+    expect(meter).toHaveAttribute('aria-valuemax', '120')
+    expect(screen.getByText('60 מתוך 120 דקות')).toBeInTheDocument()
+
+    // The refetch after the failure never answers, so what shows is the rollback.
+    fake.on('GET /today', () => new Promise<never>(() => undefined))
+    answer.reject(problem(0, 'network'))
+    await waitFor(() => {
+      expect(meter).toHaveAttribute('aria-valuenow', '0')
+    })
+    expect(meter).toHaveAttribute('aria-valuemax', '120')
+    expect(screen.getByText('0 מתוך 120 דקות')).toBeInTheDocument()
+  })
+
+  it('uncomplete moves the meter back at once', async () => {
+    const user = userEvent.setup()
+    const { fake } = setup({ today: makeToday([NOW, DONE], { planned_minutes: 60, done_minutes: 60 }) })
+    fake.on(`POST /blocks/${DONE.id}/uncomplete`, () => new Promise<never>(() => undefined))
+
+    const meter = await screen.findByRole('meter', { name: he.today.progressLabel })
+    expect(meter).toHaveAttribute('aria-valuenow', '60')
+    await user.click(screen.getByRole('button', { name: he.board.uncompleteLabel(DONE.task_title) }))
+    await waitFor(() => {
+      expect(meter).toHaveAttribute('aria-valuenow', '0')
+    })
+    expect(meter).toHaveAttribute('aria-valuemax', '120')
+  })
+
+  it('after complete on the next block, the focus is on its uncomplete button in the list', async () => {
+    const user = userEvent.setup()
+    const { fake, state } = setup({ today: makeToday([NOW, LATER]) })
+    const answer = deferred<unknown>()
+    fake.on(`POST /blocks/${NOW.id}/complete`, () => answer.promise)
+
+    const next = await region(he.today.next)
+    await user.click(next.getByRole('button', { name: he.board.completeLabel(NOW.task_title) }))
+    const done: Block = { ...NOW, status: 'done', state: 'done' }
+    state.today = makeToday([done, LATER])
+    answer.resolve({ block: done, task_status: 'done' })
+
+    const list = await region(he.today.moreBlocks)
+    await waitFor(() => {
+      expect(list.getByRole('button', { name: he.board.uncompleteLabel(NOW.task_title) })).toHaveFocus()
+    })
+  })
+
+  it('after uncomplete the focus stays on the card of the block', async () => {
+    const user = userEvent.setup()
+    const { fake, state } = setup({ today: makeToday([NOW, DONE]) })
+    const planned: Block = { ...DONE, status: 'planned', state: 'overdue' }
+    fake.on(`POST /blocks/${DONE.id}/uncomplete`, () => {
+      state.today = makeToday([NOW, planned])
+      return { block: planned, task_status: 'todo' }
+    })
+
+    await user.click(await screen.findByRole('button', { name: he.board.uncompleteLabel(DONE.task_title) }))
+    await waitFor(() => {
+      expect(within(card(DONE.task_title)).getAllByRole('button')[0]).toHaveFocus()
+    })
+  })
+
+  it('after pin the focus stays on the card of the block', async () => {
+    const user = userEvent.setup()
+    const { fake, state } = setup({ today: makeToday([NOW, LATER]) })
+    fake.on(`PATCH /blocks/${LATER.id}`, () => {
+      state.today = makeToday([NOW, { ...LATER, pinned: true }])
+      return { ...LATER, pinned: true }
+    })
+
+    await user.click(await screen.findByRole('button', { name: he.board.pinLabel(LATER.task_title) }))
+    await waitFor(() => {
+      expect(within(card(LATER.task_title)).getByText(he.board.pinned)).toBeInTheDocument()
+    })
+    await waitFor(() => {
+      expect(within(card(LATER.task_title)).getByRole('button', { name: he.board.completeLabel(LATER.task_title) })).toHaveFocus()
+    })
+  })
+
+  it('two parts of one task on the same day have buttons with different names', async () => {
+    const part1 = makeBlock({ ...LATER, id: 'b-part-1', part_index: 1, part_count: 2 })
+    const part2 = makeBlock({ ...LATER, id: 'b-part-2', part_index: 2, part_count: 2, starts_at: '2026-11-16T09:30:00Z', ends_at: '2026-11-16T10:30:00Z' })
+    setup({ today: makeToday([part1, part2]) })
+
+    const first = `${LATER.task_title} (${he.board.part(1, 2)})`
+    const second = `${LATER.task_title} (${he.board.part(2, 2)})`
+    expect(await screen.findByRole('button', { name: he.board.completeLabel(first) })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: he.board.completeLabel(second) })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: he.board.pinLabel(first) })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: he.board.deferLabel(second) })).toBeInTheDocument()
+    // The articles keep the title as their name.
+    expect(screen.getAllByRole('article', { name: LATER.task_title })).toHaveLength(2)
   })
 
   it('defer shows where the task went, and the undo sends POST /plan/undo', async () => {
