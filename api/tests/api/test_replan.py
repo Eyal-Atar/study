@@ -164,3 +164,39 @@ def test_apply_returns_the_basis_of_the_board_it_wrote(
     assert replan_preview(api, user)["basis"] == applied["basis"]
     again = replan_apply(api, user, applied["basis"])
     assert again["changed"] is False
+
+
+# --- S13: the first plan ends the onboarding ----------------------------------------------
+
+
+def _onboarded_at(db: psycopg.Connection, user: ApiUser) -> dt.datetime | None:
+    value: dt.datetime | None = scalar(
+        db, "SELECT onboarding_completed_at FROM app.profiles WHERE id = %s", user.id
+    )
+    return value
+
+
+def test_preview_leaves_the_onboarding_open(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    insert_task(db, user.id, exam, minutes=120)
+    replan_preview(api, user)
+    assert _onboarded_at(db, user) is None
+
+
+def test_apply_completes_the_onboarding_and_keeps_it(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, clock: FrozenClock
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    insert_task(db, user.id, exam, minutes=120)
+    replan_apply(api, user)
+    assert _onboarded_at(db, user) == NOW
+    me = api.get("/me", headers=user.headers)
+    assert me.status_code == 200, me.text
+    assert me.json()["onboarding_completed_at"] is not None
+
+    clock.advance(hours=1)
+    insert_task(db, user.id, exam, minutes=60, title="עוד משימה")
+    replan_apply(api, user)
+    assert _onboarded_at(db, user) == NOW

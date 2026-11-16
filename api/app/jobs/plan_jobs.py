@@ -2,7 +2,10 @@
 
 `generate_plan` analyzes each exam of its payload in turn (a first analysis, saved with its
 topics and tasks), then plans the whole board in one transaction of the user and saves it
-as a `plan_generated` version. Failures fall in three groups:
+as a `plan_generated` version. The same transaction ends the user's onboarding
+(`profiles.onboarding_completed_at`, written only while it is still null) at the planning
+time, so a student who closed the browser during the job finds the plan when back.
+Failures fall in three groups:
 
 - the account's (`ai_not_configured`, `ai_no_credit`): the job fails at once with that code,
   without a retry and without planning;
@@ -61,7 +64,7 @@ from app.services.analysis import (
 )
 from app.services.board import load_board
 from app.services.plan_writes import VersionReason, apply_result
-from app.services.profiles import Conn
+from app.services.profiles import Conn, complete_onboarding
 
 logger = logging.getLogger(__name__)
 
@@ -400,6 +403,7 @@ def generate_plan(ctx: JobContext) -> dict[str, Any]:
         result = replan(board.profile, board.exams, board.tasks, board.existing, board.now)
         logger.info("job %s plan took %d ms", ctx.job.id, (time.perf_counter() - started) * 1000)
         version_id = apply_result(conn, user_id, board, result, VersionReason.PLAN_GENERATED)
+        complete_onboarding(conn, user_id, now)
     return fit_result({"exams": exams, "plan": _plan_result(version_id, result)})
 
 

@@ -112,6 +112,15 @@ def update_profile(
     return after, plan_affected
 
 
+def complete_onboarding(conn: Conn, user_id: UUID, now: dt.datetime) -> None:
+    """Mark the onboarding done at `now`, the time of the first plan; a later plan keeps it."""
+    conn.execute(
+        "UPDATE app.profiles SET onboarding_completed_at = %(now)s "
+        "WHERE id = %(user_id)s AND onboarding_completed_at IS NULL",
+        {"now": now, "user_id": user_id},
+    )
+
+
 def to_planner_profile(row: ProfileRow) -> Profile:
     return Profile(
         timezone=parse_timezone(row.timezone),

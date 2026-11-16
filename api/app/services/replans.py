@@ -15,7 +15,7 @@ from app.errors import ApiError
 from app.services.board import Board, fingerprint, load_board
 from app.services.plan_views import BlockView, blocks_by_id
 from app.services.plan_writes import VersionReason, apply_result, has_changes
-from app.services.profiles import Conn
+from app.services.profiles import Conn, complete_onboarding
 
 
 @dataclass(frozen=True)
@@ -81,6 +81,8 @@ def apply_replan(conn: Conn, user_id: UUID, now: dt.datetime, basis: str) -> Rep
     # Read before apply_result deletes them.
     removed = blocks_by_id(conn, user_id, result.removed, board.profile, now)
     version_id = apply_result(conn, user_id, board, result, VersionReason.REPLAN)
+    # An applied plan ends the onboarding, also when it changed nothing: the board is set.
+    complete_onboarding(conn, user_id, now)
     after = board if version_id is None else load_board(conn, user_id, now)
     return _outcome(
         fingerprint(after),

@@ -1040,3 +1040,71 @@ def test_planning_alone_needs_no_client(
     assert job.status == "done", job.error
     assert job.result is not None
     assert job.result["exams"][0]["status"] == "skipped"
+
+
+# --- S13: the first plan ends the onboarding ----------------------------------------------
+
+
+def _onboarded_at(db: psycopg.Connection, user: Any) -> dt.datetime | None:
+    value: dt.datetime | None = scalar(
+        db, "SELECT onboarding_completed_at FROM app.profiles WHERE id = %s", user.id
+    )
+    return value
+
+
+def test_generate_completes_the_onboarding_at_the_planning_time(
+    run: Callable[..., JobRow],
+    new_exam: Callable[..., UUID],
+    db: psycopg.Connection,
+    clock: FrozenClock,
+    user: Any,
+) -> None:
+    a = new_exam(EXAM_A)
+    assert _onboarded_at(db, user) is None
+
+    def hook(_keepalive: Callable[[], None] | None) -> None:
+        clock.advance(minutes=20)
+
+    job = run(HookedClient([valid()], hook), _generate(a))
+
+    assert job.status == "done", job.error
+    assert _onboarded_at(db, user) == NOW + dt.timedelta(minutes=20)
+
+
+def test_generate_with_one_failed_exam_completes_the_onboarding(
+    run: Callable[..., JobRow], new_exam: Callable[..., UUID], db: psycopg.Connection, user: Any
+) -> None:
+    a, b = new_exam(EXAM_A), new_exam(EXAM_B)
+
+    job = run(FakeAnalysisClient([valid(), invalid(), invalid()]), _generate(a, b))
+
+    assert job.status == "done", job.error
+    assert job.result is not None
+    assert [e["status"] for e in job.result["exams"]] == ["analyzed", "failed"]
+    assert _onboarded_at(db, user) == NOW
+
+
+def test_failed_generate_leaves_the_onboarding_open(
+    run: Callable[..., JobRow], new_exam: Callable[..., UUID], db: psycopg.Connection, user: Any
+) -> None:
+    a = new_exam(EXAM_A)
+
+    job = run(FakeAnalysisClient([invalid(), invalid()]), _generate(a))
+
+    assert job.status == "failed"
+    assert _onboarded_at(db, user) is None
+
+
+def test_generate_keeps_an_earlier_onboarding_time(
+    run: Callable[..., JobRow], new_exam: Callable[..., UUID], db: psycopg.Connection, user: Any
+) -> None:
+    earlier = NOW - dt.timedelta(days=3)
+    db.execute(
+        "UPDATE app.profiles SET onboarding_completed_at = %s WHERE id = %s", (earlier, user.id)
+    )
+    a = new_exam(EXAM_A)
+
+    job = run(FakeAnalysisClient([valid()]), _generate(a))
+
+    assert job.status == "done", job.error
+    assert _onboarded_at(db, user) == earlier
