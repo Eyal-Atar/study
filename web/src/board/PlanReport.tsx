@@ -2,7 +2,7 @@ import { shortfallText, unscheduledText } from '../i18n/codes'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
 import { useBoardExams, usePlan, useRaiseDailyMinutes, useReport } from './api'
-import { CAN_REPLAN, useOfferReplan } from './offerReplan'
+import { useOfferReplan } from './offerReplan'
 import { durationText } from './time'
 
 // "What did not fit" (decision 6 of the S14 plan). GET /plan says which tasks are missing minutes;
@@ -65,7 +65,7 @@ export function PlanReport() {
           })}
         </ul>
       </div>
-      {target === null || !CAN_REPLAN ? null : (
+      {target === null ? null : (
         <Button
           isDisabled={raise.isPending}
           onPress={() => {

@@ -209,9 +209,10 @@ describe('the today screen', () => {
     fake.on(`POST /blocks/${LATER.id}/defer`, problem(409, 'placement_failed', { reason: 'not_enough_time' }))
 
     await user.click(await screen.findByRole('button', { name: he.board.deferLabel(LATER.task_title) }))
-    const region = await toasts()
-    expect(await region.findByText(`${codeText('placement_failed')} ${unscheduledText('not_enough_time')}`)).toBeInTheDocument()
-    expect(card(LATER.task_title)).toBeInTheDocument()
+    const dialog = within(await screen.findByRole('dialog', { name: he.replan.title }))
+    expect(dialog.getByText(`${codeText('placement_failed')} ${unscheduledText('not_enough_time')}`)).toBeInTheDocument()
+    // The open dialog hides the page from assistive tech; the card is still there, unchanged.
+    expect(screen.getByRole('article', { name: LATER.task_title, hidden: true })).toBeInTheDocument()
   })
 
   it('pin marks the block pinned and sends PATCH', async () => {

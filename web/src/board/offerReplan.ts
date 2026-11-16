@@ -1,35 +1,10 @@
-import { useCallback } from 'react'
-import { useNavigate } from 'react-router'
-import { he } from '../i18n/he'
-import { UNDO_TIMEOUT_MS, useToast } from '../ui/useToast'
+import { useReplanOffer } from '../plan/replanOfferContext'
 
-// Whether the offer can actually replan (preview, then apply). Until S13's ReplanOffer is in main it
-// cannot, so actions that only make sense with a replan after them (raising the daily minutes from the
-// report) stay hidden: PATCH /me alone does not move the board. After S13 merges this becomes true.
-export const CAN_REPLAN: boolean = false
-
-export const REPORT_PATH = '/today'
+// /today#report scrolls to the report (a link can point there).
 export const REPORT_HASH = '#report'
 
-// The one place the board offers a replan (decision 5 of the S14 plan). S13's ReplanOffer is not in
-// main yet, so for now the offer is a toast with the reason and a link to the report on /today.
-// After S13 merges this becomes: `return useReplanOffer().offer`.
+// The one place the board offers a replan (decision 5 of the S14 plan): S13's ReplanOffer, which
+// shows the preview and applies it with its basis.
 export function useOfferReplan(): (reasonText?: string) => void {
-  const toast = useToast()
-  const navigate = useNavigate()
-  return useCallback(
-    (reasonText?: string) => {
-      toast.show({
-        text: reasonText ?? he.board.replanOffer,
-        action: {
-          label: he.board.toReport,
-          onAction: () => {
-            void navigate({ pathname: REPORT_PATH, hash: REPORT_HASH })
-          },
-        },
-        timeoutMs: UNDO_TIMEOUT_MS,
-      })
-    },
-    [toast, navigate],
-  )
+  return useReplanOffer().offer
 }

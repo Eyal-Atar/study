@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient, type UseMutationResult, type Use
 import { useApi } from '../api/ApiContext'
 import type { ApiError } from '../api/client'
 import { meKey, useUserId, type Me, type MePatch, type MePatchResponse } from '../api/me'
+import { boardKey } from '../board/api'
 import type {
   Exam,
   ExamCreate,
@@ -35,6 +36,8 @@ function invalidatePlan(queryClient: ReturnType<typeof useQueryClient>, userId: 
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: planKey(userId) }),
     queryClient.invalidateQueries({ queryKey: todayKey(userId) }),
+    // The today and week screens (S14) keep the board under one key.
+    queryClient.invalidateQueries({ queryKey: boardKey(userId) }),
   ])
 }
 

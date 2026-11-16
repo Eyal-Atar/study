@@ -296,8 +296,6 @@ export const he = {
     deferred: (day: string, time: string) => `נדחה ל${day} בשעה ${time}`,
     deferredSomewhere: 'המשימה נדחתה',
     deferUndone: 'הדחייה בוטלה',
-    toReport: 'לדוח',
-    replanOffer: 'חלק מהמשימות לא נכנסו ללוח. אפשר לתכנן מחדש.',
     weekdays: ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'],
     day: (weekday: string, day: number, month: number) => `יום ${weekday}, ${String(day)}.${String(month)}`,
     today: 'היום',

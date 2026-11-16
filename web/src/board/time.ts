@@ -26,8 +26,8 @@ export function pickTimezone(me: unknown, fallback: string): string {
   return typeof value === 'string' && isTimezone(value) ? value : fallback
 }
 
-// The server already returns `timezone` from GET /me, but the web Me type does not declare it
-// until S13 widens it. After that rebase this reads the typed field: useMe().data?.timezone.
+// The profile's timezone from GET /me (checked, since a bad name would throw in Intl), else the
+// browser's until /me answers.
 export function useProfileTimezone(): string {
   const me = useMe()
   return pickTimezone(me.data, browserTimezone())

@@ -262,21 +262,19 @@ describe('useBlockActions', () => {
     })
   })
 
-  it('a defer that finds no place says why, offers the report, and leaves the board as it was', async () => {
+  it('a defer that finds no place offers a replan with the reason, and leaves the board as it was', async () => {
     const user = userEvent.setup()
-    const { fake, router } = setup()
+    const { fake } = setup()
     await ready()
     fake.on('POST /blocks/block-1/defer', problem(409, 'placement_failed', { reason: 'not_enough_time', blocked_by: null }))
 
     await user.click(screen.getByRole('button', { name: 'defer' }))
     const text = `${codeText('placement_failed')} ${unscheduledText('not_enough_time')}`
-    expect(await (await toasts()).findByText(text)).toBeInTheDocument()
+    // S13's ReplanOffer: a dialog with the reason, which runs the preview itself.
+    const dialog = within(await screen.findByRole('dialog', { name: he.replan.title }))
+    expect(dialog.getByText(text)).toBeInTheDocument()
     expect(screen.getByTestId('today')).toHaveTextContent('planned/upcoming/free')
     expect(screen.getByTestId('week')).toHaveTextContent('planned/upcoming/free')
-
-    await user.click((await toasts()).getByRole('button', { name: he.board.toReport }))
-    expect(router.state.location.pathname).toBe('/today')
-    expect(router.state.location.hash).toBe('#report')
   })
 
   it('pin sets pinned at once, and undo unpins', async () => {

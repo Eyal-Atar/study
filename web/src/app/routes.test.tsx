@@ -40,7 +40,8 @@ describe('routes', () => {
 
   it('the main navigation marks the current screen, and moves between today and week', async () => {
     const user = userEvent.setup()
-    const { router } = renderRoute('/today', { auth: createFakeAuth(fakeSession()) })
+    const api = createFakeApi().on('GET /me', meFixture({ onboarding_completed_at: COMPLETED_AT })).api
+    const { router } = renderRoute('/today', { auth: createFakeAuth(fakeSession()), api })
 
     const nav = within(await screen.findByRole('navigation', { name: he.shell.mainNav }))
     expect(nav.getByRole('link', { name: he.shell.today })).toHaveAttribute('aria-current', 'page')

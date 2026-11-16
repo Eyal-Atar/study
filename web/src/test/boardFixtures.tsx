@@ -4,9 +4,12 @@ import { StrictMode, type ReactNode } from 'react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import type { ApiClient } from '../api/client'
+import type { Me } from '../api/me'
 import { AppProviders } from '../app/AppProviders'
 import type { Block, ExamSummary, Plan, ReplanPreview, Today } from '../board/types'
+import { ReplanOfferProvider } from '../plan/ReplanOffer'
 import { ToastRegion } from '../ui/toast'
+import { createFakeStorage } from './fakeStorage'
 import { createFakeAuth, fakeSession } from './fakeAuth'
 
 // Sample board data in the shape of the API. Every id is stable, so a test can refer to it.
@@ -58,12 +61,26 @@ export function makePreview(overrides: Partial<ReplanPreview> = {}): ReplanPrevi
 
 export const EXAMS: ExamSummary[] = [{ id: EXAM_ID, name: 'אלגוריתמים' }]
 
-// GET /me as the server returns it (the web Me type declares only id and email until S13).
-export function makeMe(timezone = 'Asia/Jerusalem') {
-  return { id: USER_ID, email: 'a@example.com', timezone, daily_study_minutes: 180 }
+// GET /me as the server returns it.
+export function makeMe(timezone = 'Asia/Jerusalem'): Me {
+  return {
+    id: USER_ID,
+    email: 'a@example.com',
+    display_name: null,
+    timezone,
+    wake_time: '08:00',
+    sleep_time: '23:00',
+    daily_study_minutes: 180,
+    study_windows: ['morning', 'afternoon'],
+    rest_days_before_exam: 1,
+    notify_lead_minutes: 10,
+    // A user past the onboarding: OnboardingGate (S13) lets them into /today and /week.
+    onboarding_completed_at: '2026-11-10T08:00:00Z',
+  }
 }
 
-// Renders `ui` inside the real providers, a memory router and the toast region, signed in as USER_ID.
+// Renders `ui` inside the real providers, a memory router, the replan offer (as AppShell has it) and
+// the toast region, signed in as USER_ID.
 export function renderBoard(ui: ReactNode, { api, queryClient }: { api: ApiClient; queryClient?: QueryClient }) {
   const client = queryClient ?? new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const auth = createFakeAuth(fakeSession({ id: USER_ID }))
@@ -72,10 +89,10 @@ export function renderBoard(ui: ReactNode, { api, queryClient }: { api: ApiClien
       {
         path: '*',
         element: (
-          <>
+          <ReplanOfferProvider>
             {ui}
             <ToastRegion />
-          </>
+          </ReplanOfferProvider>
         ),
       },
     ],
@@ -83,7 +100,7 @@ export function renderBoard(ui: ReactNode, { api, queryClient }: { api: ApiClien
   )
   const result = render(
     <StrictMode>
-      <AppProviders auth={auth.client} api={api} queryClient={client}>
+      <AppProviders auth={auth.client} api={api} storage={createFakeStorage().client} queryClient={client}>
         <RouterProvider router={router} />
       </AppProviders>
     </StrictMode>,
