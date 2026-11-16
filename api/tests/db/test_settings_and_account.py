@@ -23,6 +23,8 @@ _USER_COLUMN = {
     "topics": "user_id",
     "analyses": "user_id",
     "ai_usage": "user_id",
+    "xp_events": "user_id",
+    "badges": "user_id",
 }
 
 
@@ -78,11 +80,19 @@ def _fill(db: psycopg.Connection, user_id: UUID) -> None:
         "VALUES (%s, 'replan', '{\"v\": 1, \"blocks\": []}') RETURNING id",
         (user_id,),
     )
-    db.execute(
+    block = _one(
+        db,
         "INSERT INTO app.blocks (user_id, task_id, starts_at, ends_at, part_index, part_count, "
-        "plan_version_id) VALUES (%s, %s, '2026-12-01T08:00Z', '2026-12-01T09:00Z', 1, 1, %s)",
+        "plan_version_id) VALUES (%s, %s, '2026-12-01T08:00Z', '2026-12-01T09:00Z', 1, 1, %s) "
+        "RETURNING id",
         (user_id, task, version),
     )
+    db.execute(
+        "INSERT INTO app.xp_events (user_id, block_id, xp, study_date) "
+        "VALUES (%s, %s, 50, '2026-12-01')",
+        (user_id, block),
+    )
+    db.execute("INSERT INTO app.badges (user_id, badge_key) VALUES (%s, 'first_task')", (user_id,))
     db.execute(
         "INSERT INTO app.ai_usage (user_id, job_id, exam_id, model) VALUES (%s, %s, %s, 'm')",
         (user_id, job, exam),
