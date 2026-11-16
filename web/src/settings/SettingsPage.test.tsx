@@ -355,14 +355,12 @@ describe('SettingsPage preferences', () => {
 })
 
 describe('SettingsPage other sections', () => {
-  it('shows the notifications placeholder without a control', async () => {
+  it('hosts the reminder settings of S16', async () => {
     open(server())
     await ready()
-    const section = screen.getByRole('region', {
-      name: he.settings.notifications.title,
-    })
-    expect(within(section).getByText(he.settings.notifications.soon)).toBeInTheDocument()
-    expect(within(section).queryByRole('button')).not.toBeInTheDocument()
+    // Without a VAPID key in the test env, the card says reminders are not set up here.
+    const section = screen.getByRole('region', { name: he.notifications.deviceTitle })
+    expect(within(section).getByText(he.notifications.notConfigured)).toBeInTheDocument()
   })
 
   it('export downloads the JSON as studyflow-export-<local date>.json', async () => {

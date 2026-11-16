@@ -613,10 +613,6 @@ export const he = {
       replanReason: 'ההעדפות השתנו. לעדכן את התוכנית לפיהן?',
       invalidField: 'הערך הזה לא תקין.',
     },
-    notifications: {
-      title: 'התראות',
-      soon: 'התראות יגיעו בקרוב',
-    },
     export: {
       title: 'ייצוא הנתונים',
       description:
@@ -654,6 +650,7 @@ export const he = {
       body: 'כל הנתונים שלכם נמחקו.',
       login: 'לדף הכניסה',
     },
+  },
   // S16: push reminders (web/src/notifications).
   notifications: {
     title: 'תזכורות',

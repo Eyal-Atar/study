@@ -7,7 +7,6 @@ import { ProgressPage } from '../progress/ProgressPage'
 import { AuthCallbackPage } from '../pages/AuthCallbackPage'
 import { LoginPage } from '../pages/LoginPage'
 import { onboardingRoutes } from '../onboarding/routes'
-import { NotificationsPage } from '../notifications/NotificationsPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { TodayPage } from '../pages/TodayPage'
 import { WeekPage } from '../week/WeekPage'
@@ -25,8 +24,6 @@ export const PROGRESS_PATH = '/progress'
 export const DELETE_ACCOUNT_PATH = '/settings/delete-account'
 // Outside RequireAuth: the page a deleted account lands on, signed out.
 export const GOODBYE_PATH = '/goodbye'
-// The same value as notifications/paths.ts (a literal here, for fast refresh; AppShell.test checks they match).
-export const NOTIFICATIONS_PATH = '/settings/notifications'
 
 // Only in the dev build: Vite replaces import.meta.env.DEV with false in a production build, so the
 // branch, the import() and the page's chunk are all dropped. Outside RequireAuth, so the page opens
@@ -64,7 +61,6 @@ export const routes: RouteObject[] = [
               { path: PROGRESS_PATH, Component: ProgressPage },
               { path: SETTINGS_PATH, Component: SettingsPage },
               { path: DELETE_ACCOUNT_PATH, Component: DeleteAccountPage },
-              { path: NOTIFICATIONS_PATH, Component: NotificationsPage },
               ...onboardingRoutes,
             ],
           },

@@ -7,6 +7,7 @@ import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
 import { ExportSection } from './ExportSection'
 import { PreferencesForm } from './PreferencesForm'
+import { NotificationSettings } from '../notifications/NotificationSettings'
 
 const t = he.settings
 
@@ -92,10 +93,8 @@ export function SettingsPage() {
         )}
       </Section>
 
-      {/* S15 decision 14: a placeholder only; S16 builds the notifications. */}
-      <Section title={t.notifications.title}>
-        <p className="text-sm text-ink-muted">{t.notifications.soon}</p>
-      </Section>
+      {/* S16: reminders on this device and the lead time; the component brings its own card. */}
+      <NotificationSettings />
 
       <Section id={EXPORT_SECTION_ID} title={t.export.title}>
         <ExportSection />
