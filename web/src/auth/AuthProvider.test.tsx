@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { silentApi } from '../test/fakeApi'
 import { AppProviders } from '../app/AppProviders'
 import { createFakeAuth, fakeSession, type FakeAuth } from '../test/fakeAuth'
+import { createFakeStorage } from '../test/fakeStorage'
 import { useAuth } from './AuthContext'
 
 function Status() {
@@ -14,7 +15,7 @@ function Status() {
 
 function renderProvider(auth: FakeAuth, queryClient = new QueryClient()) {
   const result = render(
-    <AppProviders auth={auth.client} api={silentApi()} queryClient={queryClient}>
+    <AppProviders auth={auth.client} api={silentApi()} storage={createFakeStorage().client} queryClient={queryClient}>
       <Status />
     </AppProviders>,
   )

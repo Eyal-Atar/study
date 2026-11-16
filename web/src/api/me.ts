@@ -3,18 +3,61 @@ import { useAuth } from '../auth/AuthContext'
 import { useApi } from './ApiContext'
 import type { ApiError } from './client'
 
+export type StudyWindow = 'morning' | 'afternoon' | 'evening' | 'night'
+
+// GET /me (MeResponse in api/app/schemas/me.py).
 export interface Me {
   id: string
   email: string | null
+  display_name: string | null
+  // An IANA zone name, like 'Asia/Jerusalem'.
+  timezone: string
+  // 'HH:MM'
+  wake_time: string
+  sleep_time: string
+  daily_study_minutes: number
+  study_windows: StudyWindow[]
+  rest_days_before_exam: number
+  notify_lead_minutes: number
+  // null until the first plan is written (the API sets it, S13 decision 1).
+  onboarding_completed_at: string | null
 }
 
-// The signed-in user as the API sees them. The user id is in the key, so a different user never sees a cached answer.
-export function useMe(): UseQueryResult<Me, ApiError> {
+// PATCH /me: any of the editable fields, at least one.
+export type MePatch = Partial<
+  Pick<
+    Me,
+    | 'display_name'
+    | 'timezone'
+    | 'wake_time'
+    | 'sleep_time'
+    | 'daily_study_minutes'
+    | 'study_windows'
+    | 'rest_days_before_exam'
+    | 'notify_lead_minutes'
+  >
+>
+
+export interface MePatchResponse extends Me {
+  plan_affected: boolean
+}
+
+// The id of the signed-in user, or null. Every query key holds it, so a different user never sees a cached answer.
+export function useUserId(): string | null {
   const auth = useAuth()
+  return auth.status === 'signed_in' ? auth.session.user.id : null
+}
+
+export function meKey(userId: string | null) {
+  return ['me', userId] as const
+}
+
+// The signed-in user as the API sees them.
+export function useMe(): UseQueryResult<Me, ApiError> {
   const api = useApi()
-  const userId = auth.status === 'signed_in' ? auth.session.user.id : null
+  const userId = useUserId()
   return useQuery<Me, ApiError>({
-    queryKey: ['me', userId],
+    queryKey: meKey(userId),
     queryFn: ({ signal }) => api.get<Me>('/me', { signal }),
     enabled: userId !== null,
   })

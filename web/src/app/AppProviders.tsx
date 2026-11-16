@@ -4,6 +4,7 @@ import { I18nProvider } from 'react-aria-components'
 import { ApiContext } from '../api/ApiContext'
 import type { ApiClient } from '../api/client'
 import { AuthProvider } from '../auth/AuthProvider'
+import { StorageContext, type StorageClient } from '../auth/storage'
 import type { AuthClient } from '../auth/supabase'
 import { ToastProvider } from '../ui/toast'
 
@@ -12,11 +13,13 @@ import { ToastProvider } from '../ui/toast'
 export function AppProviders({
   auth,
   api,
+  storage,
   queryClient,
   children,
 }: {
   auth: AuthClient
   api: ApiClient
+  storage: StorageClient
   queryClient: QueryClient
   children: ReactNode
 }) {
@@ -24,9 +27,11 @@ export function AppProviders({
     <QueryClientProvider client={queryClient}>
       <I18nProvider locale="he-IL">
         <ApiContext value={api}>
-          <AuthProvider auth={auth}>
-            <ToastProvider>{children}</ToastProvider>
-          </AuthProvider>
+          <StorageContext value={storage}>
+            <AuthProvider auth={auth}>
+              <ToastProvider>{children}</ToastProvider>
+            </AuthProvider>
+          </StorageContext>
         </ApiContext>
       </I18nProvider>
     </QueryClientProvider>

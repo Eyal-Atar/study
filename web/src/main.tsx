@@ -6,6 +6,7 @@ import { AppProviders } from './app/AppProviders'
 import { createAppApi } from './app/createAppApi'
 import { createQueryClient } from './app/queryClient'
 import { routes } from './app/routes'
+import { createStorage } from './auth/storage'
 import { createSupabase } from './auth/supabase'
 import { EnvError, readEnv, type WebEnv } from './config/env'
 import { ConfigErrorScreen } from './pages/ConfigErrorScreen'
@@ -22,10 +23,11 @@ function createApp(): ReactNode {
   }
   const supabase = createSupabase(env)
   const api = createAppApi(env.apiUrl, supabase.auth)
+  const storage = createStorage(supabase)
   const queryClient = createQueryClient()
   const router = createBrowserRouter(routes)
   return (
-    <AppProviders auth={supabase.auth} api={api} queryClient={queryClient}>
+    <AppProviders auth={supabase.auth} api={api} storage={storage} queryClient={queryClient}>
       <RouterProvider router={router} />
     </AppProviders>
   )
