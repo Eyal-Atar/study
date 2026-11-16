@@ -32,8 +32,9 @@ describe('TodayPage', () => {
     const { api } = fakeApi(() => new Promise(() => undefined))
     renderRoute('/', { auth: createFakeAuth(fakeSession()), api })
 
-    // The heading is TodayPage's, so the status is not the one RequireAuth shows while auth loads.
-    expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
+    // The banner is the shell's, so the status is not the one RequireAuth shows while auth loads.
+    // OnboardingGate (S13) holds the screen until /me answers, and announces the loading itself.
+    expect(await screen.findByRole('banner')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent(he.common.loading)
   })
 

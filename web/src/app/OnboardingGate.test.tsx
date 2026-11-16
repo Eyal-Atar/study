@@ -1,0 +1,94 @@
+import { screen, waitFor } from '@testing-library/react'
+import { userEvent } from '@testing-library/user-event'
+import { describe, expect, it } from 'vitest'
+import { codeText } from '../i18n/codes'
+import { he } from '../i18n/he'
+import { COMPLETED_AT, examFixture, jobFixture, meFixture } from '../onboarding/testFixtures'
+import { createFakeApi, problem, type FakeApi } from '../test/fakeApi'
+import { createFakeAuth, fakeSession } from '../test/fakeAuth'
+import { renderRoute } from '../test/renderRoute'
+
+function server(completedAt: string | null) {
+  return createFakeApi()
+    .on('GET /me', meFixture({ onboarding_completed_at: completedAt }))
+    .on('GET /exams', [examFixture()])
+    .on('GET /exams/e1/materials', [])
+    .on({ method: 'GET', path: /^\/jobs\// }, jobFixture({ stage: 'analyzing', percent: 30 }))
+}
+
+function open(fake: FakeApi, path: string) {
+  return renderRoute(path, { auth: createFakeAuth(fakeSession()), api: fake.api })
+}
+
+describe('OnboardingGate', () => {
+  it('sends a user without a plan from /today to the onboarding', async () => {
+    const { router } = open(server(null), '/today')
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/onboarding/exams')
+    })
+  })
+
+  it('sends a user without a plan from / to the first step', async () => {
+    const { router } = open(server(null), '/')
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/onboarding/exams')
+    })
+  })
+
+  it('/onboarding goes to the first step', async () => {
+    const { router } = open(server(null), '/onboarding')
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/onboarding/exams')
+    })
+  })
+
+  it('keeps a user without a plan on the step in the URL', async () => {
+    const { router } = open(server(null), '/onboarding/schedule')
+    await screen.findByRole('heading', { level: 1 })
+    expect(router.state.location.pathname).toBe('/onboarding/schedule')
+  })
+
+  it('sends a user with a plan from the onboarding to /today', async () => {
+    const { router } = open(server(COMPLETED_AT), '/onboarding/materials')
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/today')
+    })
+    expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
+  })
+
+  it('lets a user with a plan see the building screen of a job (its summary)', async () => {
+    const { router } = open(server(COMPLETED_AT), '/onboarding/building?job=j1')
+    expect(await screen.findByRole('progressbar')).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/onboarding/building')
+  })
+
+  it('sends a user with a plan from the building screen without a job to /today', async () => {
+    const { router } = open(server(COMPLETED_AT), '/onboarding/building')
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/today')
+    })
+  })
+
+  it('shows loading while /me is pending', async () => {
+    const fake = createFakeApi().on('GET /me', () => new Promise(() => undefined))
+    const { router } = open(fake, '/today')
+    // The shell is up (the auth check passed), and the gate holds the screen.
+    expect(await screen.findByRole('banner')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(he.common.loading)
+    expect(router.state.location.pathname).toBe('/today')
+  })
+
+  it('a failed /me shows the error and retries on demand', async () => {
+    const user = userEvent.setup()
+    let fail = true
+    const fake = createFakeApi()
+      .on('GET /me', () => (fail ? problem(503, 'database_unavailable') : meFixture({ onboarding_completed_at: COMPLETED_AT })))
+    const { router } = open(fake, '/today')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(codeText('database_unavailable'))
+    fail = false
+    await user.click(screen.getByRole('button', { name: he.common.retry }))
+    expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/today')
+  })
+})

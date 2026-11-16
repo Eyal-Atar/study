@@ -1,6 +1,8 @@
 import { screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { he } from '../i18n/he'
+import { COMPLETED_AT, meFixture } from '../onboarding/testFixtures'
+import { createFakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
 
@@ -24,8 +26,9 @@ describe('routes', () => {
     })
   })
 
-  it('the home route of a signed-in user is today, inside the app shell', async () => {
-    const { router } = renderRoute('/', { auth: createFakeAuth(fakeSession()) })
+  it('the home route of a signed-in user with a plan is today, inside the app shell', async () => {
+    const api = createFakeApi().on('GET /me', meFixture({ onboarding_completed_at: COMPLETED_AT })).api
+    const { router } = renderRoute('/', { auth: createFakeAuth(fakeSession()), api })
 
     expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/today')
