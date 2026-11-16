@@ -1,8 +1,10 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { loadEnv, type Plugin } from 'vite'
+import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
 import { findSecretKeys } from './src/config/env.ts'
+import { manifest } from './src/pwa/manifest.ts'
 import { PRODUCT_NAME } from './src/product.ts'
 
 // Writes the product name into index.html, so it is written only in src/product.ts.
@@ -31,7 +33,28 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [react(), tailwindcss(), productName()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      productName(),
+      // The PWA (decisions 14-16): our own worker (src/sw.ts) with the build's file list injected,
+      // and the manifest. src/pwa/register.ts registers the worker, in production builds only.
+      VitePWA({
+        strategies: 'injectManifest',
+        srcDir: 'src',
+        filename: 'sw.ts',
+        injectRegister: false,
+        manifest,
+        // The plugin precaches the manifest and its icons; this adds the notification badge and
+        // the apple-touch-icon (duplicates are dropped), so every icon works offline.
+        includeAssets: ['icons/*.png'],
+        injectManifest: {
+          // One classic script: every browser runs it, including those without module workers.
+          rollupFormat: 'iife',
+        },
+        devOptions: { enabled: false },
+      }),
+    ],
     // Google, Supabase and CORS_ORIGINS allow exactly http://localhost:5173: fail rather than move to another port.
     server: { port: 5173, strictPort: true },
     build: {
