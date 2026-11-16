@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components'
 import { errorMessage } from '../api/client'
+import { useMe } from '../api/me'
 import { codeText, shortfallText, unscheduledText } from '../i18n/codes'
 import { he } from '../i18n/he'
 import { useExams, useReplanApply, useReplanPreview } from '../onboarding/api'
@@ -50,8 +51,14 @@ function ReplanContent({
   onApplied: (() => void) | undefined
 }) {
   const preview = useReplanPreview()
-  const apply = useReplanApply()
   const toast = useToast()
+  const apply = useReplanApply({
+    onApplied: () => {
+      toast.show({ text: he.replan.applied, tone: 'success' })
+      onApplied?.()
+      onClose()
+    },
+  })
   const [note, setNote] = useState<string | null>(null)
   const { mutate: runPreview } = preview
 
@@ -66,11 +73,6 @@ function ReplanContent({
   function confirm(basis: string) {
     setNote(null)
     apply.mutate(basis, {
-      onSuccess: () => {
-        toast.show({ text: he.replan.applied, tone: 'success' })
-        onApplied?.()
-        onClose()
-      },
       onError: (error) => {
         if (error.code === 'stale_plan') {
           setNote(codeText('stale_plan'))
@@ -83,6 +85,8 @@ function ReplanContent({
 
   const busy = preview.isPending || apply.isPending
   const applyFailed = apply.isError && apply.error.code !== 'stale_plan'
+  // Nothing to place, move or report: "אישור" would write nothing, so only closing is offered.
+  const empty = preview.isSuccess && isEmpty(preview.data)
 
   return (
     <div className="flex flex-col gap-4">
@@ -115,27 +119,40 @@ function ReplanContent({
           </Button>
         </div>
       ) : null}
-      {preview.isSuccess ? <PreviewSummary preview={preview.data} /> : null}
+      {preview.isSuccess ? empty ? <EmptyBoard /> : <PreviewSummary preview={preview.data} /> : null}
       {applyFailed ? (
         <p role="alert" className="text-danger">
           {errorMessage(apply.error)}
         </p>
       ) : null}
       <div className="flex flex-wrap gap-2 pt-2">
-        <Button
-          isDisabled={busy || !preview.isSuccess}
-          onPress={() => {
-            if (preview.data !== undefined) confirm(preview.data.basis)
-          }}
-        >
-          {he.replan.confirm}
-        </Button>
+        {empty ? null : (
+          <Button
+            isDisabled={busy || !preview.isSuccess}
+            onPress={() => {
+              if (preview.data !== undefined) confirm(preview.data.basis)
+            }}
+          >
+            {he.replan.confirm}
+          </Button>
+        )}
         <Button variant="secondary" onPress={onClose}>
-          {he.replan.notNow}
+          {empty ? he.common.close : he.replan.notNow}
         </Button>
       </div>
     </div>
   )
+}
+
+function isEmpty(preview: ReplanPreview): boolean {
+  return !preview.changed && preview.added.length === 0 && preview.removed.length === 0 && preview.unscheduled.length === 0
+}
+
+// An empty preview during the onboarding means there are no tasks on the board yet (the API needs one
+// to end the onboarding); after it, the board simply needs no change.
+function EmptyBoard() {
+  const me = useMe()
+  return <p>{me.data?.onboarding_completed_at === null ? he.replan.nothingToSchedule : he.replan.noChange}</p>
 }
 
 function PreviewSummary({ preview }: { preview: ReplanPreview }) {

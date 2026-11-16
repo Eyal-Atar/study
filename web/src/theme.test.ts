@@ -41,8 +41,20 @@ const PAIRS: [string, string][] = [
   ['warning', 'warning-soft'],
 ]
 
+// WCAG 1.4.11 for the parts of controls (field and choice borders, the focus ring): 3:1.
+const NON_TEXT_PAIRS: [string, string][] = [
+  ['line-strong', 'surface'],
+  ['line-strong', 'surface-muted'],
+  ['brand', 'surface'],
+  ['brand', 'surface-muted'],
+]
+
 describe('theme colours', () => {
   it.each(PAIRS)('%s on %s passes AA', (fg, bg) => {
     expect(contrast(color(fg), color(bg))).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it.each(NON_TEXT_PAIRS)('%s on %s passes 3:1 for non-text contrast', (fg, bg) => {
+    expect(contrast(color(fg), color(bg))).toBeGreaterThanOrEqual(3)
   })
 })

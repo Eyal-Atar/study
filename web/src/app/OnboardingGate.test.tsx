@@ -1,6 +1,6 @@
 import { screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { codeText } from '../i18n/codes'
 import { he } from '../i18n/he'
 import { COMPLETED_AT, examFixture, jobFixture, meFixture } from '../onboarding/testFixtures'
@@ -20,7 +20,48 @@ function open(fake: FakeApi, path: string) {
   return renderRoute(path, { auth: createFakeAuth(fakeSession()), api: fake.api })
 }
 
+const JOB_KEY = 'studyflow:onboarding-job:user-a'
+
+beforeEach(() => {
+  sessionStorage.clear()
+})
+
 describe('OnboardingGate', () => {
+  it('sends a user without a plan whose job still runs to the building screen of that job', async () => {
+    sessionStorage.setItem(JOB_KEY, 'j7')
+    const fake = server(null)
+    const { router } = open(fake, '/')
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/onboarding/building')
+    })
+    expect(router.state.location.search).toBe('?job=j7')
+    expect(await screen.findByRole('progressbar')).toBeInTheDocument()
+    expect(fake.calls('POST', '/plans/generate')).toHaveLength(0)
+  })
+
+  it('/onboarding with a remembered job goes to that job', async () => {
+    sessionStorage.setItem(JOB_KEY, 'j7')
+    const { router } = open(server(null), '/onboarding')
+    await waitFor(() => {
+      expect(router.state.location.search).toBe('?job=j7')
+    })
+  })
+
+  it('a job remembered for another user is not followed', async () => {
+    sessionStorage.setItem('studyflow:onboarding-job:user-b', 'j7')
+    const { router } = open(server(null), '/')
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/onboarding/exams')
+    })
+  })
+
+  it('a step the user opened stays, also with a remembered job', async () => {
+    sessionStorage.setItem(JOB_KEY, 'j7')
+    const { router } = open(server(null), '/onboarding/exams')
+    await screen.findByRole('heading', { level: 1 })
+    expect(router.state.location.pathname).toBe('/onboarding/exams')
+  })
+
   it('sends a user without a plan from /today to the onboarding', async () => {
     const { router } = open(server(null), '/today')
     await waitFor(() => {

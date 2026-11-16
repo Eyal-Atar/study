@@ -8,6 +8,7 @@ import { CheckboxCards } from '../ui/CheckboxCards'
 import { RadioCards } from '../ui/RadioCards'
 import { useUpdateMe } from './api'
 import { OnboardingLayout } from './OnboardingLayout'
+import { flushDeletes } from './pendingDeletes'
 import { STEP_PATHS } from './steps'
 
 const t = he.onboardingSchedule
@@ -83,6 +84,9 @@ function ScheduleForm({ me }: { me: Me }) {
     }
     updateMe
       .mutateAsync({ daily_study_minutes: Number(minutes), study_windows: windows })
+      // Material deletes sent when the materials step went away may still be on their way; the plan
+      // must not be built while the deleted files still exist.
+      .then(() => flushDeletes())
       .then(() => navigate(STEP_PATHS.building))
       .catch(() => {
         // The error is shown from updateMe.error.

@@ -185,13 +185,19 @@ export function useReplanPreview() {
 
 // POST /plan/replan {preview: false, basis}. stale_plan means the board changed since the preview.
 // Applying writes the plan, and the first plan also ends the onboarding, so me is refetched too.
-export function useReplanApply(): UseMutationResult<ReplanPreview, ApiError, string> {
+// onApplied runs here, before me is invalidated, and not in mutate's callbacks: a fresh me can end the
+// onboarding, the gate then navigates away, and mutate's callbacks never run once the screen unmounts.
+export function useReplanApply({
+  onApplied,
+}: { onApplied?: (answer: ReplanPreview) => void } = {}): UseMutationResult<ReplanPreview, ApiError, string> {
   const api = useApi()
   const userId = useUserId()
   const queryClient = useQueryClient()
   return useMutation<ReplanPreview, ApiError, string>({
     mutationFn: (basis) => api.post<ReplanPreview>('/plan/replan', { preview: false, basis }),
-    onSuccess: () =>
-      Promise.all([queryClient.invalidateQueries({ queryKey: meKey(userId) }), invalidatePlan(queryClient, userId)]),
+    onSuccess: (answer) => {
+      onApplied?.(answer)
+      return Promise.all([queryClient.invalidateQueries({ queryKey: meKey(userId) }), invalidatePlan(queryClient, userId)])
+    },
   })
 }

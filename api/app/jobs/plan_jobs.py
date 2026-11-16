@@ -403,7 +403,10 @@ def generate_plan(ctx: JobContext) -> dict[str, Any]:
         result = replan(board.profile, board.exams, board.tasks, board.existing, board.now)
         logger.info("job %s plan took %d ms", ctx.job.id, (time.perf_counter() - started) * 1000)
         version_id = apply_result(conn, user_id, board, result, VersionReason.PLAN_GENERATED)
-        complete_onboarding(conn, user_id, now)
+        # Only a board with a task ends the onboarding: a job whose exams were all deleted
+        # or past (all skipped) plans nothing.
+        if board.tasks:
+            complete_onboarding(conn, user_id, now)
     return fit_result({"exams": exams, "plan": _plan_result(version_id, result)})
 
 

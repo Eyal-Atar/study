@@ -42,14 +42,16 @@ const TONES = {
   error: 'border-danger bg-danger-soft text-danger',
 } as const
 
-// Sits once in the app shell, at the bottom of the screen.
+// Sits once in the app shell, at the bottom of the screen. On phones the onboarding action bar is
+// fixed at the bottom, so below md the toasts sit above it (6rem plus the safe area the bar
+// also adds); from md up, where the bar is static, 1rem.
 export function ToastRegion() {
   const { queue } = useToastContext()
   return (
     <AriaToastRegion
       queue={queue}
       aria-label={he.common.notifications}
-      className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-md flex-col gap-2 outline-none"
+      className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+6rem)] z-50 mx-auto md:bottom-4 flex max-w-md flex-col gap-2 outline-none"
     >
       {({ toast }) => (
         <AriaToast

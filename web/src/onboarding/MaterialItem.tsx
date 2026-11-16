@@ -28,9 +28,10 @@ export function MaterialItem({ filename, kind, status, tone, warnings = [], acti
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
       <div className="min-w-0 flex-1 basis-48">
-        {/* A file name can be in any language, so its direction comes from its first letters. */}
-        <p dir="auto" className="truncate text-start text-sm font-medium text-ink">
-          {filename}
+        {/* A file name can be in any language: <bdi> isolates its direction, while the line itself
+            stays aligned with the rest of the (RTL) row. */}
+        <p className="truncate text-start text-sm font-medium text-ink">
+          <bdi>{filename}</bdi>
         </p>
         <p className="text-xs text-ink-muted">{he.onboardingMaterials.kinds[kind]}</p>
         <p className={`mt-1 text-sm ${TONES[tone]}`}>{status}</p>

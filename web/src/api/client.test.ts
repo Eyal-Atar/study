@@ -145,6 +145,40 @@ describe('createApiClient', () => {
   })
 })
 
+describe('createApiClient token lookup', () => {
+  it('a token lookup that hangs ends as a timeout and does not call the API', async () => {
+    const onUnauthenticated = vi.fn()
+    const fetchMock = vi.fn<typeof fetch>()
+    const api = createApiClient({
+      baseUrl: 'http://api.test',
+      // auth-js sleeps between its refresh retries for up to 30 s, even when fetch fails at once.
+      getAccessToken: () => new Promise<string | null>(() => undefined),
+      onUnauthenticated,
+      fetch: fetchMock,
+      timeoutMs: 10,
+    })
+    await expect(api.get('/me')).rejects.toMatchObject({ status: 0, code: 'timeout' })
+    expect(onUnauthenticated).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('a refresh that hangs ends as a timeout and keeps the user signed in', async () => {
+    const onUnauthenticated = vi.fn()
+    const fetchMock = vi.fn<typeof fetch>(() => Promise.resolve(problem(401, { code: 'unauthenticated' })))
+    const api = createApiClient({
+      baseUrl: 'http://api.test',
+      getAccessToken: () => Promise.resolve('old'),
+      refreshAccessToken: () => new Promise<string | null>(() => undefined),
+      onUnauthenticated,
+      fetch: fetchMock,
+      timeoutMs: 10,
+    })
+    await expect(api.get('/me')).rejects.toMatchObject({ status: 0, code: 'timeout' })
+    expect(onUnauthenticated).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('createApiClient writes', () => {
   it('post, patch and delete send the method, the JSON body and the token', async () => {
     const { api, fetchMock } = setup(() => Promise.resolve(problem(200, { ok: true }, 'application/json')))
@@ -238,6 +272,151 @@ describe('createApiClient on 401', () => {
     const { api, onUnauthenticated } = withRefresh([unauthorized()], () => Promise.reject(new Error('offline')))
     await expect(api.get('/me')).rejects.toMatchObject({ status: 0, code: 'network' })
     expect(onUnauthenticated).not.toHaveBeenCalled()
+  })
+})
+
+describe('createApiClient on concurrent 401s', () => {
+  function deferred<T>() {
+    let resolve: (value: T) => void = () => undefined
+    const promise = new Promise<T>((r) => {
+      resolve = r
+    })
+    return { promise, resolve }
+  }
+  const unauthorized = () => problem(401, { code: 'unauthenticated', title: 't', status: 401 })
+  const ok = () => problem(200, { ok: true }, 'application/json')
+  const authOf = (init: Parameters<typeof fetch>[1]) => new Headers(init?.headers).get('Authorization')
+
+  it('parallel 401s share one refresh', async () => {
+    const refresh = deferred<string | null>()
+    const refreshAccessToken = vi.fn(() => refresh.promise)
+    const fetchMock = vi.fn<typeof fetch>((_url, init) =>
+      Promise.resolve(authOf(init) === 'Bearer new' ? ok() : unauthorized()),
+    )
+    const api = createApiClient({
+      baseUrl: 'http://api.test',
+      getAccessToken: () => Promise.resolve('old'),
+      refreshAccessToken,
+      onUnauthenticated: vi.fn(),
+      fetch: fetchMock,
+    })
+    const pending = Promise.all([api.get('/a'), api.get('/b'), api.get('/c')])
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(3)
+    })
+    refresh.resolve('new')
+    await expect(pending).resolves.toEqual([{ ok: true }, { ok: true }, { ok: true }])
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1)
+  })
+
+  it('a 401 that arrives just after the refresh ended reuses its token', async () => {
+    const refreshAccessToken = vi.fn(() => Promise.resolve('new'))
+    const late = deferred<Response>()
+    let calls = 0
+    const fetchMock = vi.fn<typeof fetch>((_url, init) => {
+      calls += 1
+      if (calls === 2) return late.promise
+      return Promise.resolve(authOf(init) === 'Bearer new' ? ok() : unauthorized())
+    })
+    const api = createApiClient({
+      baseUrl: 'http://api.test',
+      getAccessToken: () => Promise.resolve('old'),
+      refreshAccessToken,
+      onUnauthenticated: vi.fn(),
+      fetch: fetchMock,
+    })
+    const first = api.get('/a')
+    const second = api.get('/b')
+    await expect(first).resolves.toEqual({ ok: true })
+    late.resolve(unauthorized())
+    await expect(second).resolves.toEqual({ ok: true })
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1)
+  })
+
+  it('after a refresh that failed, the next 401 tries again', async () => {
+    const refreshAccessToken = vi
+      .fn<() => Promise<string | null>>()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce('new')
+    const fetchMock = vi.fn<typeof fetch>((_url, init) =>
+      Promise.resolve(authOf(init) === 'Bearer new' ? ok() : unauthorized()),
+    )
+    const api = createApiClient({
+      baseUrl: 'http://api.test',
+      getAccessToken: () => Promise.resolve('old'),
+      refreshAccessToken,
+      onUnauthenticated: vi.fn(),
+      fetch: fetchMock,
+    })
+    await expect(api.get('/a')).rejects.toMatchObject({ status: 0, code: 'network' })
+    await expect(api.get('/a')).resolves.toEqual({ ok: true })
+    expect(refreshAccessToken).toHaveBeenCalledTimes(2)
+  })
+
+  it('the second send gets a fresh timeout, not what is left of the first', async () => {
+    // A timeout of 100 ms: the first send takes 60 and the refresh 60, so the first deadline has
+    // passed when the second send starts, and that send (30 ms) must still go through.
+    const wait = (ms: number, signal: AbortSignal | null | undefined, value: () => Response) =>
+      new Promise<Response>((resolve, reject) => {
+        if (signal?.aborted === true) {
+          reject(new DOMException('aborted', 'AbortError'))
+          return
+        }
+        const timer = setTimeout(() => {
+          resolve(value())
+        }, ms)
+        signal?.addEventListener('abort', () => {
+          clearTimeout(timer)
+          reject(new DOMException('aborted', 'AbortError'))
+        })
+      })
+    let calls = 0
+    const fetchMock = vi.fn<typeof fetch>((_url, init) => {
+      calls += 1
+      return calls === 1 ? wait(60, init?.signal, unauthorized) : wait(30, init?.signal, ok)
+    })
+    const api = createApiClient({
+      baseUrl: 'http://api.test',
+      getAccessToken: () => Promise.resolve('old'),
+      refreshAccessToken: () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve('new')
+          }, 60)
+        }),
+      onUnauthenticated: vi.fn(),
+      fetch: fetchMock,
+      timeoutMs: 100,
+    })
+    await expect(api.get('/me')).resolves.toEqual({ ok: true })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('the caller abort still cancels the second send', async () => {
+    const controller = new AbortController()
+    let calls = 0
+    const fetchMock = vi.fn<typeof fetch>((_url, init) => {
+      calls += 1
+      if (calls === 1) return Promise.resolve(unauthorized())
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('aborted', 'AbortError'))
+        })
+      })
+    })
+    const api = createApiClient({
+      baseUrl: 'http://api.test',
+      getAccessToken: () => Promise.resolve('old'),
+      refreshAccessToken: () => Promise.resolve('new'),
+      onUnauthenticated: vi.fn(),
+      fetch: fetchMock,
+    })
+    const pending = api.get('/me', { signal: controller.signal }).catch((e: unknown) => e)
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+    controller.abort()
+    expect(await pending).toMatchObject({ status: 0, code: 'network' })
   })
 })
 

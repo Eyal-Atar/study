@@ -42,6 +42,7 @@ export interface ApiClientOptions {
   // Called when the API says the session is not valid, so the app can sign the user out.
   onUnauthenticated: () => void
   fetch?: typeof fetch
+  // Bounds each step on its own: the token lookup, each send, and the refresh after a 401.
   timeoutMs?: number
 }
 
@@ -73,6 +74,50 @@ async function readProblem(response: Response): Promise<ApiError> {
   return new ApiError(response.status, code, title, details)
 }
 
+// Waits for an Auth lookup (the token, or a refresh) for at most `ms`. auth-js retries a failed
+// refresh with a backoff of 200 * 2^n ms for up to 30 seconds, and that sleep happens even when
+// fetch fails at once (timeoutFetch's cooldown), so without this bound a dead Auth would cost the
+// user ~28 seconds before any message. A throw from the lookup is a network error; running out of
+// time is a timeout; the caller's abort ends the wait as well. None of these signs the user out.
+function boundAuth<T>(lookup: () => Promise<T>, ms: number, caller: AbortSignal | undefined): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      done()
+      reject(new ApiError(0, 'timeout', null))
+    }, ms)
+    const onAbort = () => {
+      done()
+      reject(new ApiError(0, 'network', null))
+    }
+    function done() {
+      clearTimeout(timer)
+      caller?.removeEventListener('abort', onAbort)
+    }
+    if (caller?.aborted === true) {
+      onAbort()
+      return
+    }
+    caller?.addEventListener('abort', onAbort)
+    lookup().then(
+      (value) => {
+        done()
+        resolve(value)
+      },
+      () => {
+        done()
+        reject(new ApiError(0, 'network', null))
+      },
+    )
+  })
+}
+
+// The signals of one send: its own timeout, joined with the caller's abort.
+function attemptSignals(timeoutMs: number, caller: AbortSignal | undefined) {
+  const timeout = AbortSignal.timeout(timeoutMs)
+  const signal = caller === undefined ? timeout : AbortSignal.any([caller, timeout])
+  return { timeout, signal }
+}
+
 // The one place where the web app talks to our API.
 export function createApiClient({
   baseUrl,
@@ -82,10 +127,35 @@ export function createApiClient({
   fetch: fetchImpl = (input, init) => fetch(input, init),
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }: ApiClientOptions): ApiClient {
+  // The refresh that answers a 401 on `from`, shared by every request that got a 401 with that
+  // token: N parallel requests after the token expired make one refreshSession, not N. It stays
+  // after it resolves, so a 401 that arrives a moment later reuses the new token; a refresh that
+  // throws is dropped, so the next 401 tries again.
+  let refresh: { from: string; promise: Promise<string | null> } | null = null
+
+  function refreshFor(token: string, refreshImpl: () => Promise<string | null>): Promise<string | null> {
+    if (refresh?.from !== token) {
+      const current = { from: token, promise: refreshImpl() }
+      refresh = current
+      current.promise.catch(() => {
+        if (refresh === current) refresh = null
+      })
+    }
+    return refresh.promise
+  }
+
   // One attempt with a given token. Resolves to the response, or throws an ApiError with status 0.
-  async function send(method: string, path: string, token: string, body: unknown, signal: AbortSignal, timeout: AbortSignal) {
+  async function send(
+    method: string,
+    path: string,
+    token: string,
+    body: unknown,
+    { signal, timeout }: { signal: AbortSignal; timeout: AbortSignal },
+  ) {
     const headers: Record<string, string> = { Authorization: `Bearer ${token}` }
     if (body !== undefined) headers['Content-Type'] = 'application/json'
+    // Aborted while the token was looked up or refreshed: do not start the request at all.
+    if (signal.aborted) throw new ApiError(0, timeout.aborted ? 'timeout' : 'network', null)
     try {
       return await fetchImpl(baseUrl + path, {
         method,
@@ -99,41 +169,29 @@ export function createApiClient({
   }
 
   async function request<T>(method: string, path: string, body: unknown, init: RequestInit = {}): Promise<T> {
-    let token: string | null
-    try {
-      token = await getAccessToken()
-    } catch {
-      // The token could not be looked up or refreshed (offline, Auth down). That says nothing about
-      // the session itself, so the user stays signed in.
-      throw new ApiError(0, 'network', null)
-    }
+    // The token lookup may refresh an expired token through Auth (offline, Auth down): bounded, and
+    // a failure says nothing about the session itself, so the user stays signed in.
+    const token = await boundAuth(getAccessToken, timeoutMs, init.signal)
     if (token === null) {
       onUnauthenticated()
       throw new ApiError(401, 'unauthenticated', null)
     }
 
-    const timeout = AbortSignal.timeout(timeoutMs)
-    const signal = init.signal === undefined ? timeout : AbortSignal.any([init.signal, timeout])
-    // The signal also covers reading the body, so a stall after the headers is an abort here too.
-    const noResponse = () => new ApiError(0, timeout.aborted ? 'timeout' : 'network', null)
-
-    let response = await send(method, path, token, body, signal, timeout)
+    let attempt = attemptSignals(timeoutMs, init.signal)
+    let response = await send(method, path, token, body, attempt)
 
     if (response.status === 401 && refreshAccessToken !== undefined) {
       // The token may have expired between the lookup and the request, or been revoked: one refresh,
       // then one more try. Only a second 401 (or a refresh that says the session is gone) signs out.
-      let fresh: string | null
-      try {
-        fresh = await refreshAccessToken()
-      } catch {
-        throw new ApiError(0, 'network', null)
-      }
+      const fresh = await boundAuth(() => refreshFor(token, refreshAccessToken), timeoutMs, init.signal)
       if (fresh === null) {
         const error = await readProblem(response)
         onUnauthenticated()
         throw error
       }
-      response = await send(method, path, fresh, body, signal, timeout)
+      // A new timeout: the time the refresh took does not count against the second send.
+      attempt = attemptSignals(timeoutMs, init.signal)
+      response = await send(method, path, fresh, body, attempt)
     }
 
     if (!response.ok) {
@@ -145,7 +203,9 @@ export function createApiClient({
     try {
       return (await response.json()) as T
     } catch {
-      throw signal.aborted ? noResponse() : new ApiError(response.status, null, null)
+      // The signal also covers reading the body, so a stall after the headers is an abort here too.
+      if (attempt.signal.aborted) throw new ApiError(0, attempt.timeout.aborted ? 'timeout' : 'network', null)
+      throw new ApiError(response.status, null, null)
     }
   }
 

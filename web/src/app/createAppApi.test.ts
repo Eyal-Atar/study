@@ -77,4 +77,15 @@ describe('createAppApi', () => {
     expect(auth.signOut).not.toHaveBeenCalled()
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  it('parallel 401s ask Auth for one refresh', async () => {
+    stubFetch(() => jsonResponse(401, { type: 'x', title: 't', status: 401, code: 'unauthenticated' }))
+    const auth = createFakeAuth(fakeSession())
+    const refresh = vi.spyOn(auth.client, 'refreshSession')
+    const api = createAppApi('http://api.test', auth.client)
+
+    const results = await Promise.allSettled([api.get('/a'), api.get('/b'), api.get('/c')])
+    expect(results.map((r) => r.status)).toEqual(['rejected', 'rejected', 'rejected'])
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
 })

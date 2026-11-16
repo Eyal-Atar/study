@@ -15,9 +15,9 @@ const BASE =
 
 const VARIANTS = {
   primary: 'bg-brand text-on-brand data-[hovered]:bg-brand-strong data-[pressed]:bg-brand-strong',
-  secondary: 'border border-line bg-surface text-ink data-[hovered]:bg-surface-muted data-[pressed]:bg-surface-muted',
+  secondary: 'border border-line-strong bg-surface text-ink data-[hovered]:bg-surface-muted data-[pressed]:bg-surface-muted',
   quiet: 'text-brand data-[hovered]:bg-brand-soft data-[pressed]:bg-brand-soft',
-  danger: 'border border-line bg-surface text-danger data-[hovered]:bg-danger-soft data-[pressed]:bg-danger-soft',
+  danger: 'border border-line-strong bg-surface text-danger data-[hovered]:bg-danger-soft data-[pressed]:bg-danger-soft',
 } as const
 
 export function Button({ variant = 'primary', className, ...props }: ButtonProps) {

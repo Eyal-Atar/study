@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { codeText, shortfallText } from '../i18n/codes'
 import { he } from '../i18n/he'
 import { createFakeApi, problem, type FakeApi } from '../test/fakeApi'
@@ -60,6 +60,12 @@ function open(fake: FakeApi, path = '/onboarding/building') {
 }
 
 const generateCalls = (fake: FakeApi) => fake.calls('POST', '/plans/generate')
+
+const JOB_KEY = 'studyflow:onboarding-job:user-a'
+
+beforeEach(() => {
+  sessionStorage.clear()
+})
 
 describe('BuildingStep', () => {
   it('waits for materials still being read, then starts the job once and puts it in the URL', async () => {
@@ -213,6 +219,100 @@ describe('BuildingStep', () => {
     await user.click(screen.getByRole('button', { name: he.common.retry }))
     await waitFor(() => {
       expect(router.state.location.search).toBe('?job=j1')
+    })
+  })
+
+  it('remembers the running job for this user, and forgets it when the job is done', async () => {
+    const result = resultFixture()
+    const { fake } = server({ jobs: [jobFixture({ stage: 'analyzing', percent: 30 }), jobFixture({ status: 'done', percent: 100, result })] })
+    open(fake)
+
+    await waitFor(() => {
+      expect(sessionStorage.getItem(JOB_KEY)).toBe('j1')
+    })
+    expect(await screen.findByRole('heading', { name: he.building.doneTitle }, POLL)).toBeInTheDocument()
+    expect(sessionStorage.getItem(JOB_KEY)).toBeNull()
+  })
+
+  it('forgets a failed job', async () => {
+    sessionStorage.setItem(JOB_KEY, 'j1')
+    const { fake } = server({ jobs: [jobFixture({ status: 'failed', error: 'analysis_invalid' })] })
+    open(fake, '/onboarding/building?job=j1')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(codeText('analysis_invalid'))
+    expect(sessionStorage.getItem(JOB_KEY)).toBeNull()
+  })
+
+  it('a ?job= that is not found is dropped, and the normal flow starts a job', async () => {
+    sessionStorage.setItem(JOB_KEY, 'gone')
+    const { fake } = server()
+    fake.on('GET /jobs/gone', () => problem(404, 'not_found'))
+    const { router } = open(fake, '/onboarding/building?job=gone')
+
+    await waitFor(() => {
+      expect(router.state.location.search).toBe('?job=j1')
+    })
+    expect(generateCalls(fake)).toHaveLength(1)
+    expect(sessionStorage.getItem(JOB_KEY)).toBe('j1')
+  })
+
+  it('409 nothing_to_analyze without any exam goes back to the exams step', async () => {
+    const { fake } = server()
+    fake.on('GET /exams', [])
+    fake.on('POST /plans/generate', () => problem(409, 'nothing_to_analyze'))
+    const { router } = open(fake)
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/onboarding/exams')
+    })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(fake.calls('POST', '/plan/replan')).toHaveLength(0)
+  })
+
+  it('applying the offer after nothing_to_analyze shows "הלוח עודכן" on /today', async () => {
+    const user = userEvent.setup()
+    const { fake, state } = server()
+    fake.on('POST /plans/generate', () => problem(409, 'nothing_to_analyze'))
+    fake.on('POST /plan/replan', (call: { body: unknown }) => {
+      const body = call.body as { preview: boolean }
+      if (!body.preview) state.done = true
+      return previewFixture({ added: [{ task_id: 't1', starts_at: '2026-11-17T08:00:00Z', ends_at: '2026-11-17T09:00:00Z', part_index: 0, part_count: 1 }], version_id: body.preview ? null : 'v1' })
+    })
+    const { router } = open(fake)
+
+    const dialog = await screen.findByRole('dialog', { name: he.replan.title })
+    await user.click(await within(dialog).findByRole('button', { name: he.replan.confirm }))
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/today')
+    })
+    expect(await screen.findByText(he.replan.applied)).toBeInTheDocument()
+  })
+
+  it.each([
+    ['a failed job', { jobs: [jobFixture({ status: 'failed', error: 'analysis_invalid' })] }, '/onboarding/building?job=j1'],
+    ['an account failure', { jobs: [jobFixture({ status: 'failed', error: 'ai_no_credit' })] }, '/onboarding/building?job=j1'],
+  ])('%s offers "חזרה" to the schedule step', async (_name, options, path) => {
+    const user = userEvent.setup()
+    const { fake } = server(options)
+    const { router } = open(fake, path)
+
+    await screen.findByRole('alert')
+    await user.click(screen.getByRole('button', { name: he.common.back }))
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/onboarding/schedule')
+    })
+  })
+
+  it('429 offers "חזרה" to the schedule step', async () => {
+    const user = userEvent.setup()
+    const { fake } = server()
+    fake.on('POST /plans/generate', () => problem(429, 'ai_quota_exceeded', { limit: 3, resets_at: new Date(Date.now() + 3600000).toISOString() }))
+    const { router } = open(fake)
+
+    await screen.findByRole('alert')
+    await user.click(screen.getByRole('button', { name: he.common.back }))
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/onboarding/schedule')
     })
   })
 })

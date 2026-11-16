@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useState } from 'react'
 import { FileTrigger } from 'react-aria-components'
-import { errorMessage } from '../api/client'
+import { ApiError, errorMessage } from '../api/client'
 import { useUserId } from '../api/me'
 import { codeText } from '../i18n/codes'
 import { he } from '../i18n/he'
@@ -9,31 +9,50 @@ import { Button } from '../ui/Button'
 import { UNDO_TIMEOUT_MS, useToast } from '../ui/useToast'
 import { materialsKey, useDeleteMaterial, useMaterials } from './api'
 import { MaterialItem } from './MaterialItem'
+import { cancelDelete, sendDelete, waitToDelete } from './pendingDeletes'
 import type { Exam, Material, MaterialKind } from './types'
-import { ACCEPTED_FILE_TYPES, guessKind, MAX_MATERIAL_BYTES, UploadError, useUploadMaterial } from './upload'
+import {
+  ACCEPTED_FILE_TYPES,
+  fileProblem,
+  guessKind,
+  MAX_MATERIAL_BYTES,
+  MAX_MATERIALS_PER_EXAM,
+  newMaterialId,
+  UploadError,
+  useUploadMaterial,
+} from './upload'
 
 const t = he.onboardingMaterials
 
 // A file the user picked that is not registered yet: uploading (error null), or failed before the API
 // took it (Storage, the register call, or the checks of uploadMaterial).
+// `id` is the material id, picked once and kept for every retry; `stored` says the file is in Storage
+// already, so a retry sends only the register (no second object, no second material).
 interface PendingUpload {
-  key: string
+  id: string
   file: File
   kind: MaterialKind
+  stored: boolean
   error: unknown
 }
 
 function uploadErrorText(error: unknown): string {
   if (error instanceof UploadError) {
-    // The browser check knows the limit, so the text says it like the API's file_too_large does.
-    return codeText(error.code, error.code === 'file_too_large' ? { limit_bytes: MAX_MATERIAL_BYTES } : {})
+    // The browser checks know the limits, so the texts say them like the API's answers do.
+    if (error.code === 'file_too_large') return codeText(error.code, { limit_bytes: MAX_MATERIAL_BYTES })
+    if (error.code === 'too_many_materials') return codeText(error.code, { limit: MAX_MATERIALS_PER_EXAM })
+    return codeText(error.code)
   }
   return errorMessage(error)
 }
 
-// A file that is the wrong type or too big fails the same way every time: no "לנסות שוב" for it.
+// Answers that a retry would get again: the file's type or size, a full exam, or an exam that is gone.
+// They get only "הסרה".
+const FINAL_CODES: ReadonlySet<string> = new Set(['unsupported_file', 'file_too_large', 'too_many_materials', 'not_found'])
+
 function canRetry(error: unknown): boolean {
-  return !(error instanceof UploadError && (error.code === 'unsupported_file' || error.code === 'file_too_large'))
+  const code = error instanceof UploadError || error instanceof ApiError ? error.code : null
+  return code === null || !FINAL_CODES.has(code)
 }
 
 function materialStatus(material: Material): { status: string; tone: 'muted' | 'success' | 'danger' } {
@@ -70,36 +89,55 @@ export function ExamMaterials({ exam, onCountChange }: { exam: Exam; onCountChan
   }, [exam.id, count, onCountChange])
 
   function start(item: PendingUpload) {
-    upload.mutateAsync({ file: item.file, kind: item.kind }).then(
+    upload.mutateAsync({ id: item.id, file: item.file, kind: item.kind, stored: item.stored }).then(
       (answer) => {
         // The hook already refetched the list; this puts the new material in even if that refetch lost a race,
-        // so the row never blinks out between "מעלה…" and "קוראים את הקובץ…".
-        queryClient.setQueryData<Material[]>(materialsKey(userId, exam.id), (list = []) =>
-          list.some((m) => m.id === answer.material.id) ? list : [...list, answer.material],
-        )
-        setPending((rows) => rows.filter((row) => row.key !== item.key))
+        // so the row never blinks out between "מעלה…" and "קוראים את הקובץ…". A null answer (registered on
+        // an earlier try) has nothing to add: the refetch brought it.
+        if (answer !== null) {
+          queryClient.setQueryData<Material[]>(materialsKey(userId, exam.id), (list = []) =>
+            list.some((m) => m.id === answer.material.id) ? list : [...list, answer.material],
+          )
+        }
+        setPending((rows) => rows.filter((row) => row.id !== item.id))
       },
       (error: unknown) => {
-        setPending((rows) => rows.map((row) => (row.key === item.key ? { ...row, error } : row)))
+        // An ApiError comes from the register, which runs only after the file reached Storage.
+        const stored = item.stored || error instanceof ApiError
+        setPending((rows) => rows.map((row) => (row.id === item.id ? { ...row, stored, error } : row)))
       },
     )
   }
 
+  // Files that still count toward the exam's limit: the materials on screen (failed ones too, as on the
+  // server) and the uploads that may still register.
+  function filesTaken(): number {
+    return visible.length + pending.filter((row) => row.error === null || canRetry(row.error)).length
+  }
+
   function pick(files: FileList | null) {
     if (files === null) return
-    const items = Array.from(files, (file): PendingUpload => ({ key: crypto.randomUUID(), file, kind: guessKind(file.name), error: null }))
+    let room = MAX_MATERIALS_PER_EXAM - filesTaken()
+    const items = Array.from(files, (file): PendingUpload => {
+      const item: PendingUpload = { id: newMaterialId(), file, kind: guessKind(file.name), stored: false, error: null }
+      // A file the API would refuse anyway takes no place; uploadMaterial turns it down without the network.
+      if (fileProblem(file) !== null) return item
+      if (room <= 0) return { ...item, error: new UploadError('too_many_materials') }
+      room -= 1
+      return item
+    })
     setPending((rows) => [...rows, ...items])
-    items.forEach(start)
+    items.filter((item) => item.error === null).forEach(start)
   }
 
   function retry(item: PendingUpload) {
     const again = { ...item, error: null }
-    setPending((rows) => rows.map((row) => (row.key === item.key ? again : row)))
+    setPending((rows) => rows.map((row) => (row.id === item.id ? again : row)))
     start(again)
   }
 
   function drop(item: PendingUpload) {
-    setPending((rows) => rows.filter((row) => row.key !== item.key))
+    setPending((rows) => rows.filter((row) => row.id !== item.id))
   }
 
   // A material delete is hard on the server, so the screen hides the file, offers "בטל" for 10 seconds,
@@ -113,26 +151,41 @@ export function ExamMaterials({ exam, onCountChange }: { exam: Exam; onCountChan
       })
     }
     setHidden((ids) => new Set(ids).add(material.id))
-    toast.show({
+    const key = toast.show({
       text: t.deleted(material.filename),
-      action: { label: he.common.undo, onAction: show },
+      action: {
+        label: he.common.undo,
+        onAction: () => {
+          cancelDelete(material.id)
+          show()
+        },
+      },
       timeoutMs: UNDO_TIMEOUT_MS,
       onExpire: () => {
-        deleteMaterial.mutate(material.id, {
-          onError: (error) => {
-            show()
-            toast.show({ text: `${t.deleteFailed(material.filename)} ${errorMessage(error)}`, tone: 'error' })
-          },
-        })
+        // One promise per delete: the mutation's own onError would reach only the last of two deletes
+        // that expire together. The step waits on it (pendingDeletes) before it moves on.
+        sendDelete(material.id, () =>
+          deleteMaterial.mutateAsync(material.id).then(
+            () => true,
+            (error: unknown) => {
+              show()
+              toast.show({ text: `${t.deleteFailed(material.filename)} ${errorMessage(error)}`, tone: 'error' })
+              return false
+            },
+          ),
+        )
       },
+    })
+    waitToDelete(material.id, () => {
+      toast.close(key)
     })
   }
 
   return (
     <section aria-labelledby={headingId} className="border-t border-line py-6 first:border-t-0 first:pt-0">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id={headingId} dir="auto" className="min-w-0 truncate text-base font-semibold text-ink">
-          {exam.name}
+        <h2 id={headingId} className="min-w-0 truncate text-base font-semibold text-ink">
+          <bdi>{exam.name}</bdi>
         </h2>
         <FileTrigger acceptedFileTypes={[...ACCEPTED_FILE_TYPES]} allowsMultiple onSelect={pick}>
           <Button variant="secondary" aria-label={t.addFilesFor(exam.name)}>
@@ -178,10 +231,10 @@ export function ExamMaterials({ exam, onCountChange }: { exam: Exam; onCountChan
           })}
           {pending.map((item) =>
             item.error === null ? (
-              <MaterialItem key={item.key} filename={item.file.name} kind={item.kind} status={t.uploading} tone="muted" />
+              <MaterialItem key={item.id} filename={item.file.name} kind={item.kind} status={t.uploading} tone="muted" />
             ) : (
               <MaterialItem
-                key={item.key}
+                key={item.id}
                 filename={item.file.name}
                 kind={item.kind}
                 status={uploadErrorText(item.error)}

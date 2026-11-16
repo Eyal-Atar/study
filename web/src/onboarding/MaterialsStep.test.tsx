@@ -6,6 +6,7 @@ import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AppProviders } from '../app/AppProviders'
+import { he } from '../i18n/he'
 import { createFakeApi, problem, type ApiCall, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { createFakeStorage, type FakeStorage } from '../test/fakeStorage'
@@ -107,7 +108,7 @@ describe('MaterialsStep', () => {
     expect(screen.getByText(/לא חובה/)).toBeInTheDocument()
     expect(screen.getByText(/מבחני עבר עם פתרונות/)).toBeInTheDocument()
     expect(screen.getByText(/Anthropic/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'הוספת קבצים לחדו"א' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: he.onboardingMaterials.addFilesFor('חדו"א') })).toBeInTheDocument()
     expect(fileInput(document.body)).toHaveAttribute('accept', expect.stringContaining('application/pdf') as string)
     expect(fileInput(document.body)).toHaveAttribute('multiple')
   })
@@ -256,6 +257,212 @@ describe('MaterialsStep', () => {
     await user.upload(fileInput(container), pdf())
 
     expect(await screen.findByText(/אפשר עד 15 קבצים למבחן/)).toBeInTheDocument()
+  })
+
+  it('retries a failed register with the same id and without a second Storage upload', async () => {
+    const { fake, state } = server()
+    const storage = createFakeStorage()
+    let failOnce = true
+    fake.on('POST /exams/e1/materials', (call: ApiCall) => {
+      if (failOnce) {
+        failOnce = false
+        return problem(500, 'database_unavailable')
+      }
+      const body = call.body as MaterialRegister
+      const created = material({ id: body.id, filename: body.filename })
+      state.list.push(created)
+      return { material: created, job_id: 'j1' }
+    })
+    const { container, user } = setup({ fake, storage })
+    await screen.findByRole('heading', { name: 'חדו"א' })
+
+    await user.upload(fileInput(container), pdf())
+    await user.click(await screen.findByRole('button', { name: 'לנסות שוב: מבחן 2024.pdf' }))
+
+    expect(await screen.findByText('קוראים את הקובץ…')).toBeInTheDocument()
+    expect(storage.upload).toHaveBeenCalledOnce()
+    const ids = fake.calls('POST', '/exams/e1/materials').map((c) => (c.body as MaterialRegister).id)
+    expect(ids).toHaveLength(2)
+    expect(ids[1]).toBe(ids[0])
+    expect(storage.upload.mock.calls[0]?.[0]).toBe(`user-a/e1/${String(ids[0])}`)
+  })
+
+  it('counts already_exists on a retry as registered: one row, no error', async () => {
+    const { fake, state } = server()
+    // The server wrote the material, but its answer was lost.
+    let first = true
+    fake.on('POST /exams/e1/materials', (call: ApiCall) => {
+      const body = call.body as MaterialRegister
+      if (first) {
+        first = false
+        state.list.push(material({ id: body.id, filename: body.filename }))
+        return problem(0, 'network')
+      }
+      return problem(409, 'already_exists')
+    })
+    const { container, user } = setup({ fake })
+    await screen.findByRole('heading', { name: 'חדו"א' })
+
+    await user.upload(fileInput(container), pdf())
+    await user.click(await screen.findByRole('button', { name: 'לנסות שוב: מבחן 2024.pdf' }))
+
+    await waitFor(() => {
+      expect(screen.getAllByText('מבחן 2024.pdf')).toHaveLength(1)
+    })
+    expect(await screen.findByText('קוראים את הקובץ…')).toBeInTheDocument()
+    expect(screen.queryByText('הקובץ הזה כבר נרשם.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /לנסות שוב/ })).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['too_many_materials', problem(422, 'too_many_materials', { limit: 15 })],
+    ['not_found', problem(404, 'not_found')],
+  ])('offers only "הסרה" after %s', async (_code, error) => {
+    const { fake } = server()
+    fake.on('POST /exams/e1/materials', error)
+    const { container, user } = setup({ fake })
+    await screen.findByRole('heading', { name: 'חדו"א' })
+
+    await user.upload(fileInput(container), pdf())
+
+    expect(await screen.findByRole('button', { name: 'הסרה: מבחן 2024.pdf' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'לנסות שוב: מבחן 2024.pdf' })).not.toBeInTheDocument()
+  })
+
+  it('stops at 15 files per exam before the network when several are picked at once', async () => {
+    const existing = Array.from({ length: 13 }, (_, i) => material({ id: `m${String(i)}`, filename: `קובץ ${String(i)}.pdf`, ingest_status: 'ready' }))
+    existing.push(material({ id: 'mf', filename: 'נכשל.pdf', ingest_status: 'failed', ingest_error: 'pdf_unreadable' }))
+    const { fake } = server(existing)
+    const storage = createFakeStorage()
+    const { container, user } = setup({ fake, storage })
+    await screen.findByText('נכשל.pdf')
+
+    await user.upload(fileInput(container), [pdf('א.pdf'), pdf('ב.pdf'), pdf('ג.pdf')])
+
+    await waitFor(() => {
+      expect(fake.calls('POST', '/exams/e1/materials')).toHaveLength(1)
+    })
+    expect(storage.upload).toHaveBeenCalledOnce()
+    expect(await screen.findAllByText(/אפשר עד 15 קבצים למבחן/)).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: /לנסות שוב/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'הסרה: ב.pdf' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'הסרה: ג.pdf' })).toBeInTheDocument()
+  })
+
+  it.each([
+    ['דלג', '/onboarding/schedule'],
+    ['חזרה', '/onboarding/exams'],
+  ])('sends a waiting delete before "%s" leaves the step', async (button, target) => {
+    const { fake, state } = server([material({ ingest_status: 'ready', page_count: 4 })])
+    let finishDelete: () => void = () => undefined
+    fake.on(
+      { method: 'DELETE', path: /^\/materials\// },
+      () =>
+        new Promise((resolve) => {
+          finishDelete = () => {
+            state.list = []
+            resolve(undefined)
+          }
+        }),
+    )
+    const { router, user } = setup({ fake })
+
+    await user.click(await screen.findByRole('button', { name: 'מחיקה: מבחן 2024.pdf' }))
+    await user.click(screen.getByRole('button', { name: button }))
+
+    await waitFor(() => {
+      expect(fake.calls('DELETE')).toEqual([{ method: 'DELETE', path: '/materials/m1', body: undefined }])
+    })
+    // Not before the server took the delete: the next steps would still see the file.
+    expect(router.state.location.pathname).toBe('/onboarding/materials')
+    expect(screen.queryByText('הקובץ "מבחן 2024.pdf" יימחק')).not.toBeInTheDocument()
+
+    await act(async () => {
+      finishDelete()
+      await Promise.resolve()
+    })
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(target)
+    })
+  })
+
+  it('sends a waiting delete before "הבא" too', async () => {
+    const { fake } = server([material({ ingest_status: 'ready', page_count: 4 }), material({ id: 'm2', filename: 'b.pdf', ingest_status: 'ready' })])
+    const { router, user } = setup({ fake })
+
+    await user.click(await screen.findByRole('button', { name: 'מחיקה: מבחן 2024.pdf' }))
+    await user.click(screen.getByRole('button', { name: 'הבא' }))
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/onboarding/schedule')
+    })
+    expect(fake.calls('DELETE').map((c) => c.path)).toEqual(['/materials/m1'])
+  })
+
+  it('stays on the step, with the file back, when a delete sent on leaving fails', async () => {
+    const { fake } = server([material({ ingest_status: 'ready', page_count: 4 })])
+    fake.on({ method: 'DELETE', path: /^\/materials\// }, problem(503, 'database_unavailable'))
+    const { router, user } = setup({ fake })
+
+    await user.click(await screen.findByRole('button', { name: 'מחיקה: מבחן 2024.pdf' }))
+    // The only file is hidden, so the step offers "דלג".
+    await user.click(screen.getByRole('button', { name: 'דלג' }))
+
+    expect(await screen.findByText(/הקובץ "מבחן 2024.pdf" לא נמחק/)).toBeInTheDocument()
+    expect(screen.getByText('מוכן, 4 עמודים')).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/onboarding/materials')
+    // The buttons work again.
+    expect(screen.getByRole('button', { name: 'הבא' })).toBeEnabled()
+  })
+
+  it('brings back each file whose delete failed when two expire together', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const { fake } = server([
+      material({ ingest_status: 'ready', page_count: 4 }),
+      material({ id: 'm2', filename: 'b.pdf', ingest_status: 'ready', page_count: 7 }),
+    ])
+    // Both DELETEs are on their way before either answers.
+    const answers: (() => void)[] = []
+    fake.on(
+      { method: 'DELETE', path: /^\/materials\// },
+      () =>
+        new Promise((resolve) => {
+          answers.push(() => {
+            resolve(problem(503, 'database_unavailable'))
+          })
+        }),
+    )
+    const { user } = setup({ fake })
+
+    await user.click(await screen.findByRole('button', { name: 'מחיקה: מבחן 2024.pdf' }))
+    await user.click(screen.getByRole('button', { name: 'מחיקה: b.pdf' }))
+    await act(() => vi.advanceTimersByTimeAsync(10500))
+
+    await waitFor(() => {
+      expect(fake.calls('DELETE')).toHaveLength(2)
+    })
+    await act(async () => {
+      answers.forEach((answer) => {
+        answer()
+      })
+      await Promise.resolve()
+    })
+    expect(await screen.findByText('מוכן, 4 עמודים')).toBeInTheDocument()
+    expect(await screen.findByText('מוכן, 7 עמודים')).toBeInTheDocument()
+    expect(screen.getByText(/הקובץ "מבחן 2024.pdf" לא נמחק/)).toBeInTheDocument()
+    expect(screen.getByText(/הקובץ "b.pdf" לא נמחק/)).toBeInTheDocument()
+  })
+
+  it('still sends a waiting delete when the step goes away some other way', async () => {
+    const { fake } = server([material({ ingest_status: 'ready', page_count: 4 })])
+    const { router, user } = setup({ fake })
+
+    await user.click(await screen.findByRole('button', { name: 'מחיקה: מבחן 2024.pdf' }))
+    await act(() => router.navigate('/onboarding/exams'))
+
+    await waitFor(() => {
+      expect(fake.calls('DELETE').map((c) => c.path)).toEqual(['/materials/m1'])
+    })
   })
 
   it('skips to the schedule step when there are no materials', async () => {

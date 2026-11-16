@@ -22,7 +22,7 @@ export function TextField({ label, description, placeholder, errorMessage, ...pr
       <Label className="text-sm font-medium text-ink">{label}</Label>
       <Input
         placeholder={placeholder}
-        className="min-h-11 w-full rounded-lg border border-line bg-surface px-3 text-base text-ink outline-none placeholder:text-ink-muted data-[focused]:border-brand data-[focused]:ring-2 data-[focused]:ring-brand data-[invalid]:border-danger"
+        className="min-h-11 w-full rounded-lg border border-line-strong bg-surface px-3 text-base text-ink outline-none placeholder:text-ink-muted data-[focused]:border-brand data-[focused]:ring-2 data-[focused]:ring-brand data-[invalid]:border-danger"
       />
       {description === undefined ? null : (
         <Text slot="description" className="text-sm text-ink-muted">

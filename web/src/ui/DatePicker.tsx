@@ -52,7 +52,7 @@ export function DatePicker({ label, errorMessage, ...props }: DatePickerProps) {
   return (
     <AriaDatePicker {...props} isInvalid={errorMessage !== undefined} className="flex flex-col gap-1.5">
       <Label className="text-sm font-medium text-ink">{label}</Label>
-      <Group className="flex min-h-11 items-center rounded-lg border border-line bg-surface ps-3 data-[focus-within]:border-brand data-[focus-within]:ring-2 data-[focus-within]:ring-brand data-[invalid]:border-danger">
+      <Group className="flex min-h-11 items-center rounded-lg border border-line-strong bg-surface ps-3 data-[focus-within]:border-brand data-[focus-within]:ring-2 data-[focus-within]:ring-brand data-[invalid]:border-danger">
         <DateInput className="flex flex-1 py-2 text-base text-ink">
           {(segment) => (
             <DateSegment

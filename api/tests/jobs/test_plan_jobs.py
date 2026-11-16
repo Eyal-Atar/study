@@ -1108,3 +1108,15 @@ def test_generate_keeps_an_earlier_onboarding_time(
 
     assert job.status == "done", job.error
     assert _onboarded_at(db, user) == earlier
+
+
+def test_generate_with_only_deleted_exams_leaves_the_onboarding_open(
+    run: Callable[..., JobRow], new_exam: Callable[..., UUID], db: psycopg.Connection, user: Any
+) -> None:
+    gone = new_exam(EXAM_A)
+    db.execute("UPDATE app.exams SET deleted_at = now() WHERE id = %s", (gone,))
+
+    job = run(FakeAnalysisClient([]), _generate(gone, uuid4()))
+
+    assert job.status == "done", job.error
+    assert _onboarded_at(db, user) is None

@@ -3,14 +3,19 @@
 /*
   The colours of the app, as Tailwind theme variables: components use only these names
   (bg-surface, text-ink-muted, bg-brand, border-line, ...), so branding (S17) replaces the
-  values here and nothing else. theme.test.ts checks the AA contrast of the text pairs.
+  values here and nothing else. theme.test.ts checks the AA contrast of the text pairs, and 3:1
+  for the parts of controls (WCAG 1.4.11).
 */
 @theme {
   --color-surface: #ffffff;
   --color-surface-muted: #f3f5f8;
   --color-ink: #111827;
   --color-ink-muted: #4b5563;
+  /* Dividers and the edges of containers (cards, popovers): decoration, no contrast rule. */
   --color-line: #d1d5db;
+  /* The border that shows where a control is (fields, choice cards, secondary buttons): 3:1 on
+     surface and surface-muted. */
+  --color-line-strong: #7d8796;
   --color-brand: #1d4ed8;
   --color-brand-strong: #1e3a8a;
   --color-brand-soft: #e8eefc;

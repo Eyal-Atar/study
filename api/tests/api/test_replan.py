@@ -200,3 +200,32 @@ def test_apply_completes_the_onboarding_and_keeps_it(
     insert_task(db, user.id, exam, minutes=60, title="עוד משימה")
     replan_apply(api, user)
     assert _onboarded_at(db, user) == NOW
+
+
+def test_apply_on_a_board_without_tasks_leaves_the_onboarding_open(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    insert_exam(db, user.id, exam_date="2026-11-20")
+    applied = replan_apply(api, user)
+    assert applied["changed"] is False
+    assert _onboarded_at(db, user) is None
+
+
+def test_apply_with_only_unschedulable_tasks_completes_the_onboarding(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    # A task that does not fit is still on the board: the student sees it as unplaced.
+    exam = insert_exam(db, user.id, exam_date="2026-11-17")
+    insert_task(db, user.id, exam, minutes=600)
+    replan_apply(api, user)
+    assert _onboarded_at(db, user) == NOW
+
+
+def test_apply_ignores_the_tasks_of_a_deleted_exam(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    insert_task(db, user.id, exam, minutes=120)
+    db.execute("UPDATE app.exams SET deleted_at = now() WHERE id = %s", (exam,))
+    replan_apply(api, user)
+    assert _onboarded_at(db, user) is None

@@ -81,8 +81,10 @@ def apply_replan(conn: Conn, user_id: UUID, now: dt.datetime, basis: str) -> Rep
     # Read before apply_result deletes them.
     removed = blocks_by_id(conn, user_id, result.removed, board.profile, now)
     version_id = apply_result(conn, user_id, board, result, VersionReason.REPLAN)
-    # An applied plan ends the onboarding, also when it changed nothing: the board is set.
-    complete_onboarding(conn, user_id, now)
+    # An applied plan ends the onboarding, also when it changed nothing, but only when the
+    # board has a task of a live exam (placed or not): an empty board is no plan yet.
+    if board.tasks:
+        complete_onboarding(conn, user_id, now)
     after = board if version_id is None else load_board(conn, user_id, now)
     return _outcome(
         fingerprint(after),

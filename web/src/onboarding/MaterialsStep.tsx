@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { errorMessage } from '../api/client'
 import { he } from '../i18n/he'
@@ -6,6 +6,7 @@ import { Button } from '../ui/Button'
 import { useExams } from './api'
 import { ExamMaterials } from './ExamMaterials'
 import { OnboardingLayout } from './OnboardingLayout'
+import { flushDeletes } from './pendingDeletes'
 import { STEP_PATHS } from './steps'
 
 const t = he.onboardingMaterials
@@ -21,6 +22,27 @@ export function MaterialsStep() {
     setCounts((current) => (current[examId] === count ? current : { ...current, [examId]: count }))
   }, [])
   const hasFiles = (exams.data ?? []).some((exam) => (counts[exam.id] ?? 0) > 0)
+  const [leaving, setLeaving] = useState(false)
+
+  // A file deleted on screen is deleted on the server only when its undo toast expires. Leaving sends those
+  // deletes now and waits for them, so the next steps never analyze a deleted file. One that fails puts its
+  // file back with an error toast, and the user stays here to see it.
+  function leave(path: string) {
+    if (leaving) return
+    setLeaving(true)
+    void flushDeletes().then((done) => {
+      if (done) void navigate(path)
+      else setLeaving(false)
+    })
+  }
+
+  // Any other way out (the browser's back button, a link) still sends the waiting deletes.
+  useEffect(
+    () => () => {
+      void flushDeletes()
+    },
+    [],
+  )
 
   return (
     <OnboardingLayout
@@ -29,13 +51,15 @@ export function MaterialsStep() {
       intro={t.intro}
       actions={
         <>
-          <Button variant="secondary" onPress={() => void navigate(STEP_PATHS.exams)}>
+          <Button variant="secondary" isDisabled={leaving} onPress={() => { leave(STEP_PATHS.exams); }}>
             {he.common.back}
           </Button>
           {hasFiles ? (
-            <Button onPress={() => void navigate(STEP_PATHS.schedule)}>{he.common.next}</Button>
+            <Button isDisabled={leaving} onPress={() => { leave(STEP_PATHS.schedule); }}>
+              {he.common.next}
+            </Button>
           ) : (
-            <Button variant="quiet" onPress={() => void navigate(STEP_PATHS.schedule)}>
+            <Button variant="quiet" isDisabled={leaving} onPress={() => { leave(STEP_PATHS.schedule); }}>
               {he.common.skip}
             </Button>
           )}

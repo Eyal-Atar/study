@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ApiError } from '../api/client'
 import { createFakeApi, problem } from '../test/fakeApi'
 import { createFakeStorage } from '../test/fakeStorage'
-import { guessKind, MAX_MATERIAL_BYTES, uploadMaterial, UploadError } from './upload'
+import { guessKind, MAX_MATERIAL_BYTES, newMaterialId, uploadMaterial, UploadError } from './upload'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
@@ -19,30 +19,37 @@ function setup() {
   return { storage, fake }
 }
 
+const ID = '0b6f1c2e-6a57-4c43-9b1e-6d2f8a4e5c11'
+
+describe('newMaterialId', () => {
+  it('is a v4 UUID', () => {
+    expect(newMaterialId()).toMatch(UUID)
+  })
+})
+
 describe('uploadMaterial', () => {
   it('uploads to {user}/{exam}/{id} without upsert, then registers the same id', async () => {
     const { storage, fake } = setup()
     const file = fileOf('מבחן 2024.pdf', 'application/pdf', 1234)
+    const id = ID
 
-    const result = await uploadMaterial({ storage: storage.client, api: fake.api, userId: 'u1', examId: 'e1', file, kind: 'past_exam' })
+    const result = await uploadMaterial({ storage: storage.client, api: fake.api, userId: 'u1', examId: 'e1', id, file, kind: 'past_exam' })
 
     expect(storage.upload).toHaveBeenCalledOnce()
     const [path, body, options] = storage.upload.mock.calls[0] ?? []
-    const id = path?.split('/')[2] ?? ''
     expect(path).toBe(`u1/e1/${id}`)
-    expect(id).toMatch(UUID)
     expect(body).toBe(file)
     expect(options).toEqual({ contentType: 'application/pdf', upsert: false })
     expect(fake.calls('POST', '/exams/e1/materials').map((c) => c.body)).toEqual([
       { id, filename: 'מבחן 2024.pdf', kind: 'past_exam', mime: 'application/pdf', size_bytes: 1234 },
     ])
-    expect(result.job_id).toBe('j1')
-    expect(result.material.id).toBe(id)
+    expect(result?.job_id).toBe('j1')
+    expect(result?.material.id).toBe(id)
   })
 
   it('takes the mime from the extension when the browser gives none', async () => {
     const { storage, fake } = setup()
-    await uploadMaterial({ storage: storage.client, api: fake.api, userId: 'u1', examId: 'e1', file: fileOf('scan.JPG', ''), kind: 'notes' })
+    await uploadMaterial({ storage: storage.client, api: fake.api, userId: 'u1', examId: 'e1', id: ID, file: fileOf('scan.JPG', ''), kind: 'notes' })
 
     expect(storage.upload.mock.calls[0]?.[2]).toEqual({ contentType: 'image/jpeg', upsert: false })
     expect(fake.calls('POST')[0]?.body).toMatchObject({ mime: 'image/jpeg' })
@@ -52,7 +59,7 @@ describe('uploadMaterial', () => {
     const { storage, fake } = setup()
     const file = fileOf('summary.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
 
-    const error: unknown = await uploadMaterial({ storage: storage.client, api: fake.api, userId: 'u1', examId: 'e1', file, kind: 'summary' }).catch(
+    const error: unknown = await uploadMaterial({ storage: storage.client, api: fake.api, userId: 'u1', examId: 'e1', id: ID, file, kind: 'summary' }).catch(
       (e: unknown) => e,
     )
 
@@ -67,7 +74,7 @@ describe('uploadMaterial', () => {
     const file = fileOf('big.pdf', 'application/pdf', 21 * 1024 * 1024)
 
     await expect(
-      uploadMaterial({ storage: storage.client, api: fake.api, userId: 'u1', examId: 'e1', file, kind: 'past_exam' }),
+      uploadMaterial({ storage: storage.client, api: fake.api, userId: 'u1', examId: 'e1', id: ID, file, kind: 'past_exam' }),
     ).rejects.toMatchObject({ name: 'UploadError', code: 'file_too_large' })
     expect(storage.upload).not.toHaveBeenCalled()
     expect(fake.calls()).toEqual([])
@@ -76,7 +83,7 @@ describe('uploadMaterial', () => {
   it('accepts a file of exactly 20 MiB', async () => {
     const { storage, fake } = setup()
     const file = fileOf('edge.png', 'image/png', MAX_MATERIAL_BYTES)
-    await uploadMaterial({ storage: storage.client, api: fake.api, userId: 'u1', examId: 'e1', file, kind: 'other' })
+    await uploadMaterial({ storage: storage.client, api: fake.api, userId: 'u1', examId: 'e1', id: ID, file, kind: 'other' })
     expect(storage.upload).toHaveBeenCalledOnce()
   })
 
@@ -85,7 +92,7 @@ describe('uploadMaterial', () => {
     storage.upload.mockResolvedValue({ error: new Error('boom') })
 
     await expect(
-      uploadMaterial({ storage: storage.client, api: fake.api, userId: 'u1', examId: 'e1', file: fileOf('a.pdf', 'application/pdf'), kind: 'past_exam' }),
+      uploadMaterial({ storage: storage.client, api: fake.api, userId: 'u1', examId: 'e1', id: ID, file: fileOf('a.pdf', 'application/pdf'), kind: 'past_exam' }),
     ).rejects.toMatchObject({ name: 'UploadError', code: 'storage_unavailable' })
     expect(fake.calls()).toEqual([])
   })
@@ -95,7 +102,7 @@ describe('uploadMaterial', () => {
     storage.upload.mockRejectedValue(new TypeError('Failed to fetch'))
 
     await expect(
-      uploadMaterial({ storage: storage.client, api: fake.api, userId: 'u1', examId: 'e1', file: fileOf('a.pdf', 'application/pdf'), kind: 'past_exam' }),
+      uploadMaterial({ storage: storage.client, api: fake.api, userId: 'u1', examId: 'e1', id: ID, file: fileOf('a.pdf', 'application/pdf'), kind: 'past_exam' }),
     ).rejects.toMatchObject({ code: 'storage_unavailable' })
     expect(fake.calls()).toEqual([])
   })
@@ -109,12 +116,76 @@ describe('uploadMaterial', () => {
       api: fake.api,
       userId: 'u1',
       examId: 'e1',
+      id: ID,
       file: fileOf('a.pdf', 'application/pdf'),
       kind: 'past_exam',
     }).catch((e: unknown) => e)
 
     expect(error).toBeInstanceOf(ApiError)
     expect((error as ApiError).code).toBe('too_many_materials')
+  })
+  it('sends only the register, with the same id, when the file is already in Storage', async () => {
+    const { storage, fake } = setup()
+
+    const result = await uploadMaterial({
+      storage: storage.client,
+      api: fake.api,
+      userId: 'u1',
+      examId: 'e1',
+      id: ID,
+      file: fileOf('a.pdf', 'application/pdf'),
+      kind: 'past_exam',
+      stored: true,
+    })
+
+    expect(storage.upload).not.toHaveBeenCalled()
+    expect(fake.calls('POST', '/exams/e1/materials').map((c) => (c.body as { id: string }).id)).toEqual([ID])
+    expect(result?.material.id).toBe(ID)
+  })
+
+  it('counts already_exists on a register retry as registered (the first answer was lost)', async () => {
+    const { storage, fake } = setup()
+    fake.on('POST /exams/e1/materials', problem(409, 'already_exists'))
+
+    const result = await uploadMaterial({
+      storage: storage.client,
+      api: fake.api,
+      userId: 'u1',
+      examId: 'e1',
+      id: ID,
+      file: fileOf('a.pdf', 'application/pdf'),
+      kind: 'past_exam',
+      stored: true,
+    })
+
+    expect(result).toBeNull()
+  })
+
+  it('lets already_exists through on a first register (the id is not ours)', async () => {
+    const { storage, fake } = setup()
+    fake.on('POST /exams/e1/materials', problem(409, 'already_exists'))
+
+    await expect(
+      uploadMaterial({ storage: storage.client, api: fake.api, userId: 'u1', examId: 'e1', id: ID, file: fileOf('a.pdf', 'application/pdf'), kind: 'past_exam' }),
+    ).rejects.toMatchObject({ name: 'ApiError', code: 'already_exists' })
+  })
+
+  it('treats "the object already exists" in Storage as uploaded (an earlier try of the same id got there)', async () => {
+    const { storage, fake } = setup()
+    storage.upload.mockResolvedValue({ error: Object.assign(new Error('The resource already exists'), { statusCode: '409' }) })
+
+    const result = await uploadMaterial({
+      storage: storage.client,
+      api: fake.api,
+      userId: 'u1',
+      examId: 'e1',
+      id: ID,
+      file: fileOf('a.pdf', 'application/pdf'),
+      kind: 'past_exam',
+    })
+
+    expect(fake.calls('POST', '/exams/e1/materials')).toHaveLength(1)
+    expect(result?.material.id).toBe(ID)
   })
 })
 

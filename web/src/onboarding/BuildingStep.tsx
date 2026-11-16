@@ -9,8 +9,10 @@ import { codeText, shortfallText } from '../i18n/codes'
 import { he } from '../i18n/he'
 import { ReplanOffer } from '../plan/ReplanOffer'
 import { Button } from '../ui/Button'
+import { forgetJob, rememberJob } from './activeJob'
 import { materialsKey, POLL_INTERVAL_MS, useExams, useGenerate, useJob } from './api'
 import { OnboardingLayout } from './OnboardingLayout'
+import { STEP_PATHS } from './steps'
 import type { Exam, GenerateResult, Job, Material } from './types'
 
 // A failed job of the account (no credit, no key) stops before every exam, but an exam analyzed
@@ -64,16 +66,20 @@ export function BuildingStep() {
   const [replanOpen, setReplanOpen] = useState(false)
 
   const { mutate: runGenerate } = generate
+  const examList = exams.data
   const start = useCallback(() => {
     runGenerate(undefined, {
       onSuccess: (answer) => {
         setParams({ job: answer.job_id }, { replace: true })
       },
       onError: (error) => {
-        if (error.code === 'nothing_to_analyze') setReplanOpen(true)
+        if (error.code !== 'nothing_to_analyze') return
+        // No live exam: there is nothing to schedule either, so back to adding one.
+        if (examList?.length === 0) void navigate(STEP_PATHS.exams, { replace: true })
+        else setReplanOpen(true)
       },
     })
-  }, [runGenerate, setParams])
+  }, [runGenerate, setParams, examList, navigate])
 
   // One POST per visit: the ref survives StrictMode's second effect run (and the API returns the
   // active job anyway, created: false).
@@ -89,6 +95,34 @@ export function BuildingStep() {
   useEffect(() => {
     if (status === 'done') void queryClient.invalidateQueries({ queryKey: meKey(userId) })
   }, [status, queryClient, userId])
+
+  // A running job is remembered for this user, so the gate brings a student who comes back to it;
+  // a finished one is forgotten (done ends the onboarding, failed starts over from the steps).
+  const jobGone = job.isError && job.error.code === 'not_found'
+  useEffect(() => {
+    if (jobId === null) return
+    if (status === 'done' || status === 'failed' || jobGone) forgetJob(userId)
+    else rememberJob(userId, jobId)
+  }, [jobId, status, jobGone, userId])
+
+  // A ?job= the API does not know (another user's link, or an old one): drop it, and the normal flow
+  // waits for the materials and starts a job.
+  useEffect(() => {
+    if (!jobGone) return
+    started.current = false
+    setParams({}, { replace: true })
+  }, [jobGone, setParams])
+
+  const back = (
+    <Button
+      variant="secondary"
+      onPress={() => {
+        void navigate(STEP_PATHS.schedule)
+      }}
+    >
+      {he.common.back}
+    </Button>
+  )
 
   const names = useMemo(() => new Map((exams.data ?? []).map((exam) => [exam.id, exam.name])), [exams.data])
   const examName = (id: string) => names.get(id) ?? he.building.unknownExam
@@ -120,6 +154,7 @@ export function BuildingStep() {
         onReplan={() => {
           setReplanOpen(true)
         }}
+        back={back}
       />
     )
   } else if (jobId === null) {
@@ -148,19 +183,22 @@ export function BuildingStep() {
         title={he.building.failedTitle}
         text={codeText(code)}
         action={
-          ACCOUNT_FAILURES.has(code) ? (
-            <Button
-              onPress={() => {
-                setReplanOpen(true)
-              }}
-            >
-              {he.building.scheduleAnalyzed}
-            </Button>
-          ) : (
-            <Button isDisabled={generate.isPending} onPress={start}>
-              {he.common.retry}
-            </Button>
-          )
+          <>
+            {ACCOUNT_FAILURES.has(code) ? (
+              <Button
+                onPress={() => {
+                  setReplanOpen(true)
+                }}
+              >
+                {he.building.scheduleAnalyzed}
+              </Button>
+            ) : (
+              <Button isDisabled={generate.isPending} onPress={start}>
+                {he.common.retry}
+              </Button>
+            )}
+            {back}
+          </>
         }
       />
     )
@@ -202,22 +240,48 @@ function Failure({ title, text, action }: { title?: string; text: string; action
     <div role="alert" className="flex flex-col items-start gap-3 rounded-lg bg-danger-soft p-4">
       {title === undefined ? null : <h2 className="font-bold text-danger">{title}</h2>}
       <p className="text-danger">{text}</p>
-      {action}
+      {action === undefined ? null : <div className="flex flex-wrap gap-2">{action}</div>}
     </div>
   )
 }
 
-function GenerateFailure({ error, onRetry, onReplan }: { error: ApiError; onRetry: () => void; onReplan: () => void }) {
-  if (error.code === 'ai_quota_exceeded') return <Failure text={errorMessage(error)} />
+// `back` returns to the schedule step: the way out of a state that cannot go on by itself.
+function GenerateFailure({
+  error,
+  onRetry,
+  onReplan,
+  back,
+}: {
+  error: ApiError
+  onRetry: () => void
+  onReplan: () => void
+  back: ReactNode
+}) {
+  if (error.code === 'ai_quota_exceeded') return <Failure text={errorMessage(error)} action={back} />
   if (error.code === 'nothing_to_analyze') {
     return (
       <Failure
         text={errorMessage(error)}
-        action={<Button onPress={onReplan}>{he.building.scheduleAnalyzed}</Button>}
+        action={
+          <>
+            <Button onPress={onReplan}>{he.building.scheduleAnalyzed}</Button>
+            {back}
+          </>
+        }
       />
     )
   }
-  return <Failure text={errorMessage(error)} action={<Button onPress={onRetry}>{he.common.retry}</Button>} />
+  return (
+    <Failure
+      text={errorMessage(error)}
+      action={
+        <>
+          <Button onPress={onRetry}>{he.common.retry}</Button>
+          {back}
+        </>
+      }
+    />
+  )
 }
 
 function Summary({

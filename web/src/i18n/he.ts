@@ -1,5 +1,9 @@
 import { PRODUCT_NAME } from '../product'
 
+// A name the user typed (an exam, a file) can be in any language: First Strong Isolate and Pop
+// Directional Isolate keep a Latin name from reordering the Hebrew sentence around it.
+const isolate = (name: string) => `\u2068${name}\u2069`
+
 // Every text the user reads or hears. One section per screen; shared pieces in `common`,
 // `errors` and `codes`. A screen fills only its own section.
 export const he = {
@@ -49,7 +53,7 @@ export const he = {
     invalid_state: 'אי אפשר לבצע את הפעולה הזו במצב הנוכחי.',
     nothing_to_undo: 'אין שינוי לבטל.',
     dependency_cycle: 'התלות הזו יוצרת מעגל בין משימות.',
-    exam_in_past: 'תאריך המבחן כבר עבר. בחרו תאריך מהיום והלאה.',
+    exam_in_past: 'תאריך המבחן כבר עבר. בחרו תאריך עתידי.',
     network: 'לא הצלחנו להגיע לשרת. בדקו את החיבור ונסו שוב.',
     timeout: 'השרת לא ענה בזמן. נסו שוב בעוד רגע.',
     // Materials (S10)
@@ -115,8 +119,8 @@ export const he = {
     },
     shortfall: (exam: string, missing: string, daily: string | null) =>
       daily === null
-        ? `חסרות ${missing} לפני המבחן ב${exam}. אפשר לוותר על משימות, להוסיף חלונות לימוד, או לדחות את המבחן.`
-        : `חסרות ${missing} לפני המבחן ב${exam}. אפשר להעלות ל-${daily} ביום, או לוותר על משימות.`,
+        ? `חסרות ${missing} לפני המבחן ${isolate(exam)}. אפשר לוותר על משימות, להוסיף חלונות לימוד, או לדחות את המבחן.`
+        : `חסרות ${missing} לפני המבחן ${isolate(exam)}. אפשר להעלות ל-${daily} ביום, או לוותר על משימות.`,
   },
   notFound: { title: 'הדף לא נמצא', backHome: 'לדף הבית' },
   config: {
@@ -130,8 +134,8 @@ export const he = {
     steps: ['מבחנים', 'חומרים', 'שאלות', 'בניית התוכנית'],
   },
   onboardingExams: {
-    title: 'אילו מבחנים יש לך?',
-    intro: 'מוסיפים כל מבחן עם התאריך שלו וכמה הוא קשה לך. אפשר לשנות את זה גם אחר כך.',
+    title: 'אילו מבחנים יש לכם?',
+    intro: 'מוסיפים כל מבחן עם התאריך שלו וכמה הוא קשה לכם. אפשר לשנות את זה גם אחר כך.',
     name: 'שם המבחן',
     namePlaceholder: 'למשל: אלגוריתמים',
     nameRequired: 'צריך לכתוב שם למבחן.',
@@ -140,13 +144,13 @@ export const he = {
     dateRequired: 'צריך לבחור תאריך מלא למבחן.',
     dateTooEarly: 'אפשר לבחור תאריך ממחר והלאה.',
     dateTooLate: 'אפשר לבחור תאריך עד שנתיים מהיום.',
-    difficulty: 'כמה המבחן קשה לך?',
+    difficulty: 'כמה המבחן קשה לכם?',
     difficultyLevels: ['קל מאוד', 'קל', 'בינוני', 'קשה', 'קשה מאוד'],
     add: 'הוספת מבחן',
     adding: 'מוסיפים…',
-    listTitle: 'המבחנים שלך',
-    empty: 'עוד לא הוספת מבחנים. מתחילים מהמבחן הקרוב ביותר.',
-    deleteExam: (name: string) => `מחיקה של ${name}`,
+    listTitle: 'המבחנים שלכם',
+    empty: 'עוד לא הוספתם מבחנים. מתחילים מהמבחן הקרוב ביותר.',
+    deleteExam: (name: string) => `מחיקה של ${isolate(name)}`,
     deleted: (name: string) => `המבחן "${name}" נמחק`,
     restored: (name: string) => `המבחן "${name}" חזר`,
     difficultyOf: (label: string) => `קושי: ${label}`,
@@ -158,8 +162,8 @@ export const he = {
     fileTypes: 'PDF, ‏JPG או PNG, עד 20 MB לקובץ ועד 15 קבצים למבחן.',
     addFiles: 'הוספת קבצים',
     // Starts with the visible text, so a screen reader user and a voice control user find the same button.
-    addFilesFor: (exam: string) => `הוספת קבצים ל${exam}`,
-    filesOf: (exam: string) => `הקבצים של ${exam}`,
+    addFilesFor: (exam: string) => `הוספת קבצים למבחן ${isolate(exam)}`,
+    filesOf: (exam: string) => `הקבצים של ${isolate(exam)}`,
     empty: 'עוד לא הוספתם קבצים למבחן הזה.',
     noExams: 'עוד אין מבחנים. חזרו לשלב הקודם כדי להוסיף מבחן.',
     uploading: 'מעלה…',
@@ -186,10 +190,10 @@ export const he = {
   },
   onboardingSchedule: {
     title: 'עוד שתי שאלות',
-    intro: 'לפי התשובות נשבץ את הלימוד בשעות שמתאימות לך.',
+    intro: 'לפי התשובות נשבץ את הלימוד בשעות שמתאימות לכם.',
     hoursQuestion: 'כמה שעות ביום אפשר ללמוד?',
     hours: (hours: number) => (hours === 1 ? 'שעה' : hours === 2 ? 'שעתיים' : `${String(hours)} שעות`),
-    windowsQuestion: 'מתי נוח לך ללמוד?',
+    windowsQuestion: 'מתי נוח לכם ללמוד?',
     windowsHint: 'אפשר לבחור כמה.',
     windows: {
       morning: { label: 'בוקר', range: '06:00–12:00' },
@@ -203,8 +207,8 @@ export const he = {
     saving: 'שומרים…',
   },
   building: {
-    title: 'בונים לך תוכנית',
-    intro: 'זה לוקח כמה דקות. אפשר לסגור את הדף: התוכנית תמשיך להיבנות, ותחכה לך כשתחזרו.',
+    title: 'בונים לכם תוכנית',
+    intro: 'זה לוקח כמה דקות. אפשר לסגור את הדף: התוכנית תמשיך להיבנות, ותחכה לכם כשתחזרו.',
     waitingMaterials: 'קוראים את הקבצים…',
     starting: 'מתחילים…',
     progressLabel: 'התקדמות בניית התוכנית',
@@ -239,6 +243,7 @@ export const he = {
     added: (count: number) => (count === 1 ? 'בלוק לימוד אחד חדש' : `${String(count)} בלוקי לימוד חדשים`),
     removed: (count: number) => (count === 1 ? 'בלוק אחד יוצא מהלוח' : `${String(count)} בלוקים יוצאים מהלוח`),
     noChange: 'הלוח כבר מעודכן. אין מה לשנות.',
+    nothingToSchedule: 'אין עדיין מה לשבץ: אין בלוח משימות של מבחן.',
     unscheduledTitle: 'מה לא נכנס ללוח',
     unscheduledGroup: (count: number, reason: string) =>
       count === 1 ? `משימה אחת: ${reason}` : `${String(count)} משימות: ${reason}`,
@@ -246,7 +251,7 @@ export const he = {
     notNow: 'לא עכשיו',
     applied: 'הלוח עודכן.',
     timezoneChanged: 'עדכנו את אזור הזמן לפי המכשיר. כדאי לתכנן מחדש את הלוח לפי השעות המקומיות.',
-    timezoneReason: 'אזור הזמן במכשיר השתנה, ולכן חלונות הלימוד שלך זזו.',
+    timezoneReason: 'אזור הזמן במכשיר השתנה, ולכן חלונות הלימוד שלכם זזו.',
     showChange: 'הצגת השינוי',
   },
   // S14

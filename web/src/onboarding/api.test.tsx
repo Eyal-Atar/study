@@ -283,9 +283,12 @@ describe('mutations', () => {
       expect(result.current.list.data).toEqual([])
     })
 
-    await act(() => result.current.upload.mutateAsync({ file: new File(['x'], 'a.pdf', { type: 'application/pdf' }), kind: 'past_exam' }))
+    const id = '0b6f1c2e-6a57-4c43-9b1e-6d2f8a4e5c11'
+    await act(() =>
+      result.current.upload.mutateAsync({ id, file: new File(['x'], 'a.pdf', { type: 'application/pdf' }), kind: 'past_exam', stored: false }),
+    )
 
-    expect(storage.upload.mock.calls[0]?.[0]).toMatch(/^user-a\/e1\//)
+    expect(storage.upload.mock.calls[0]?.[0]).toBe(`user-a/e1/${id}`)
     await waitFor(() => {
       expect(result.current.list.data).toHaveLength(1)
     })

@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { AppProviders } from '../app/AppProviders'
 import { codeText, shortfallText, unscheduledText } from '../i18n/codes'
 import { he } from '../i18n/he'
-import { examFixture, previewFixture } from '../onboarding/testFixtures'
+import { COMPLETED_AT, examFixture, meFixture, previewFixture } from '../onboarding/testFixtures'
 import type { Block, ReplanPreview } from '../onboarding/types'
 import { createFakeApi, problem, type ApiCall, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
@@ -15,16 +15,30 @@ import { ToastRegion } from '../ui/toast'
 import { ReplanOffer, ReplanOfferProvider } from './ReplanOffer'
 import { useReplanOffer } from './replanOfferContext'
 
-function wrap(fake: FakeApi, children: ReactNode) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
+const auth = createFakeAuth(fakeSession()).client
+const storage = createFakeStorage().client
+
+function tree(fake: FakeApi, children: ReactNode, queryClient: QueryClient) {
+  return (
     <StrictMode>
-      <AppProviders auth={createFakeAuth(fakeSession()).client} api={fake.api} storage={createFakeStorage().client} queryClient={queryClient}>
+      <AppProviders auth={auth} api={fake.api} storage={storage} queryClient={queryClient}>
         {children}
         <ToastRegion />
       </AppProviders>
-    </StrictMode>,
+    </StrictMode>
   )
+}
+
+function wrap(fake: FakeApi, children: ReactNode) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const view = render(tree(fake, children, queryClient))
+  return {
+    ...view,
+    // Renders other children in the same providers (the same query client).
+    show: (next: ReactNode) => {
+      view.rerender(tree(fake, next, queryClient))
+    },
+  }
 }
 
 const added = (n: number) =>
@@ -80,10 +94,35 @@ describe('ReplanOffer', () => {
     expect(previewCalls(fake)).toHaveLength(1)
   })
 
-  it('says so when nothing would change', async () => {
+  it('says so when nothing would change, and offers only to close', async () => {
+    const user = userEvent.setup()
     const fake = server([previewFixture({ changed: false })])
-    wrap(fake, <ReplanOffer isOpen onClose={vi.fn()} />)
+    fake.on('GET /me', meFixture({ onboarding_completed_at: COMPLETED_AT }))
+    const onClose = vi.fn()
+    wrap(fake, <ReplanOffer isOpen onClose={onClose} />)
     expect(await screen.findByText(he.replan.noChange)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: he.replan.confirm })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: he.common.close }))
+    expect(onClose).toHaveBeenCalled()
+    expect(fake.calls('POST', '/plan/replan')).toHaveLength(1)
+  })
+
+  it('during the onboarding, an empty board says there is nothing to schedule yet, without "אישור"', async () => {
+    const fake = server([previewFixture({ changed: false })])
+    fake.on('GET /me', meFixture({ onboarding_completed_at: null }))
+    wrap(fake, <ReplanOffer isOpen onClose={vi.fn()} />)
+    expect(await screen.findByText(he.replan.nothingToSchedule)).toBeInTheDocument()
+    expect(screen.queryByText(he.replan.noChange)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: he.replan.confirm })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: he.common.close })).toBeInTheDocument()
+  })
+
+  it('a board with unscheduled tasks still offers "אישור" although nothing is placed', async () => {
+    const fake = server([
+      previewFixture({ changed: false, unscheduled: [{ task_id: 't7', minutes: 60, reason: 'not_enough_time', blocked_by: null }] }),
+    ])
+    wrap(fake, <ReplanOffer isOpen onClose={vi.fn()} />)
+    expect(await screen.findByRole('button', { name: he.replan.confirm })).toBeEnabled()
   })
 
   it('"אישור" applies with the basis of the preview, then closes', async () => {
@@ -101,6 +140,32 @@ describe('ReplanOffer', () => {
     })
     expect(onApplied).toHaveBeenCalledOnce()
     expect(fake.calls('POST', '/plan/replan').at(-1)?.body).toEqual({ preview: false, basis: 'b1' })
+    expect(await screen.findByText(he.replan.applied)).toBeInTheDocument()
+  })
+
+  it('"הלוח עודכן" shows also when the offer is gone before the apply answers', async () => {
+    const user = userEvent.setup()
+    const fake = server()
+    let answer: (value: unknown) => void = () => undefined
+    fake.on('POST /plan/replan', (call: ApiCall) => {
+      const body = call.body as { preview: boolean }
+      if (body.preview) return preview
+      return new Promise((resolve) => {
+        answer = resolve
+      })
+    })
+    const onApplied = vi.fn()
+    const view = wrap(fake, <ReplanOffer isOpen onClose={vi.fn()} onApplied={onApplied} />)
+
+    await screen.findByText(he.replan.added(2))
+    await user.click(screen.getByRole('button', { name: he.replan.confirm }))
+    await waitFor(() => {
+      expect(fake.calls('POST', '/plan/replan')).toHaveLength(2)
+    })
+    // The screen behind it navigated away (the gate saw the onboarding end).
+    view.show(null)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    answer({ ...preview, version_id: 'v2' })
     expect(await screen.findByText(he.replan.applied)).toBeInTheDocument()
   })
 

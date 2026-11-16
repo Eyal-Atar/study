@@ -8,7 +8,9 @@ function isTemporary(error: Error): boolean {
 }
 
 // Connects the API client to the session: it sends the current access token, refreshes it once when
-// the API answers 401, and signs the user out in this browser only when the session is not valid.
+// the API answers 401 (one refreshSession for all the requests that got that 401 together, and
+// bounded by the client's timeout), and signs the user out in this browser only when the session is
+// not valid.
 export function createAppApi(apiUrl: string, auth: AuthClient): ApiClient {
   return createApiClient({
     baseUrl: apiUrl,

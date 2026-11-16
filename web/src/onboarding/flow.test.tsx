@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { he } from '../i18n/he'
 import { createFakeApi, type ApiCall } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
@@ -42,6 +42,10 @@ function daysFromToday(days: number) {
   const pad = (n: number) => String(n).padStart(2, '0')
   return { iso: `${String(d.getFullYear())}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, typed: pad(d.getDate()) + pad(d.getMonth() + 1) + String(d.getFullYear()) }
 }
+
+beforeEach(() => {
+  sessionStorage.clear()
+})
 
 describe('the onboarding, end to end', () => {
   it('/ → exams → skip materials → the two questions → building → done → /today', async () => {
@@ -92,6 +96,24 @@ describe('the onboarding, end to end', () => {
     await user.click(screen.getByRole('button', { name: he.building.toToday }))
     expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/today')
+    expect(fake.calls('POST', '/plans/generate')).toHaveLength(1)
+  })
+
+  it('a student who leaves while the job runs and comes back to / sees that job, not a new one', async () => {
+    const { fake, state } = server()
+    state.exams = [{ id: 'e1', name: 'חדו"א', exam_date: daysFromToday(30).iso, difficulty: 3, created_at: '2026-11-16T08:00:00Z' }]
+    fake.on('GET /jobs/j1', jobFixture({ stage: 'analyzing', percent: 30 }))
+    const first = renderRoute('/onboarding/building', { auth: createFakeAuth(fakeSession()), api: fake.api })
+    await waitFor(() => {
+      expect(first.router.state.location.search).toBe('?job=j1')
+    })
+    expect(await screen.findByText(he.building.stages.analyzing)).toBeInTheDocument()
+    first.unmount()
+
+    const { router } = renderRoute('/', { auth: createFakeAuth(fakeSession()), api: fake.api })
+    expect(await screen.findByText(he.building.stages.analyzing)).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/onboarding/building')
+    expect(router.state.location.search).toBe('?job=j1')
     expect(fake.calls('POST', '/plans/generate')).toHaveLength(1)
   })
 })
