@@ -110,3 +110,18 @@ def delete_material(conn: Conn, user_id: UUID, material_id: UUID) -> UUID:
     if row is None:
         raise ApiError("not_found")
     return enqueue(conn, user_id, JOB_DELETE_MATERIAL_FILE, {"storage_path": row["storage_path"]})
+
+
+def update_kind(conn: Conn, user_id: UUID, material_id: UUID, kind: MaterialKind) -> Row:
+    """Set the kind of a material whose exam is live; no re-analysis, the board is untouched."""
+    row = conn.execute(
+        "UPDATE app.materials SET kind = %s "  # noqa: S608 - a constant column list
+        "WHERE user_id = %s AND id = %s AND EXISTS ("
+        "SELECT 1 FROM app.exams WHERE app.exams.id = app.materials.exam_id "
+        "AND app.exams.user_id = %s AND app.exams.deleted_at IS NULL) "
+        f"RETURNING {MATERIAL_COLUMNS}",
+        (kind, user_id, material_id, user_id),
+    ).fetchone()
+    if row is None:
+        raise ApiError("not_found")
+    return row

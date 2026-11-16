@@ -24,6 +24,14 @@ class MaterialRegister(BaseModel):
     size_bytes: Annotated[int, Field(ge=1)]
 
 
+class MaterialKindUpdate(BaseModel):
+    """Change only the material's kind; the file is not re-analyzed."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: MaterialKind
+
+
 class MaterialOut(BaseModel):
     """A material as the web sees it: never the extracted text or the storage path."""
 
