@@ -25,6 +25,7 @@ _USER_COLUMN = {
     "ai_usage": "user_id",
     "xp_events": "user_id",
     "badges": "user_id",
+    "push_subscriptions": "user_id",
 }
 
 
@@ -96,6 +97,11 @@ def _fill(db: psycopg.Connection, user_id: UUID) -> None:
     db.execute(
         "INSERT INTO app.ai_usage (user_id, job_id, exam_id, model) VALUES (%s, %s, %s, 'm')",
         (user_id, job, exam),
+    )
+    db.execute(
+        "INSERT INTO app.push_subscriptions (user_id, endpoint, p256dh, auth) "
+        "VALUES (%s, %s, %s, %s)",
+        (user_id, f"https://fcm.googleapis.com/fcm/send/{user_id}", "B" * 87, "A" * 22),
     )
 
 

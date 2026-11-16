@@ -413,13 +413,23 @@ def test_notify_lead_minutes_rejects_other_values(
 # --- the migration itself, on a database of its own ---
 
 
+def _delete_account_body(url: str) -> str:
+    with psycopg.connect(url, autocommit=True) as conn:
+        row = conn.execute(
+            "SELECT pg_get_functiondef('app.delete_account_data()'::regprocedure)"
+        ).fetchone()
+    assert row is not None
+    body: str = row[0]
+    return body
+
+
 def test_migration_resets_lead_minutes_and_downgrade_restores_the_old_rules() -> None:
     admin_url = admin_database_url()
     name = "studyflow_push_migration_test"
     url = create_database(admin_url, name)
     try:
         config = alembic_config(url)
-        command.upgrade(config, "0008")
+        command.upgrade(config, "0009")
         users = {minutes: uuid4() for minutes in (10, 5, 15, 30)}
         with psycopg.connect(url, autocommit=True) as conn:
             for minutes, user_id in users.items():
@@ -436,8 +446,10 @@ def test_migration_resets_lead_minutes_and_downgrade_restores_the_old_rules() ->
             )
         # 10 was the old default that nobody chose; 30 is outside the new choices.
         assert after == {users[10]: 0, users[5]: 5, users[15]: 15, users[30]: 0}
+        assert "app.push_subscriptions" in _delete_account_body(url)
 
-        command.downgrade(config, "0008")
+        command.downgrade(config, "0009")
+        assert "push_subscriptions" not in _delete_account_body(url)
         with psycopg.connect(url, autocommit=True) as conn:
             fresh = uuid4()
             conn.execute("INSERT INTO auth.users (id) VALUES (%s)", (fresh,))

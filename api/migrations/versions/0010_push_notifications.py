@@ -29,10 +29,41 @@ values.
 from alembic import op
 
 revision = "0010"
-# 0009 is reserved for a parallel scope; the chain is fixed when the branches are merged.
-down_revision = "0008"
+down_revision = "0009"
 branch_labels = None
 depends_on = None
+
+# app.delete_account_data() from 0009 (DELETE /me), with or without the user's push
+# subscriptions. Account deletion must remove them at once too: an endpoint and its keys are
+# the user's data, and otherwise reminders could still reach the device until the worker
+# deletes the auth user and the cascade runs.
+_DELETE_ACCOUNT_DATA = """
+    CREATE OR REPLACE FUNCTION app.delete_account_data() RETURNS void
+        LANGUAGE plpgsql
+        SECURITY DEFINER
+        SET search_path = ''
+    AS $$
+    DECLARE
+        uid uuid := auth.uid();
+    BEGIN
+        IF uid IS NULL THEN
+            RAISE EXCEPTION 'delete_account_data needs a signed-in user'
+                USING ERRCODE = 'insufficient_privilege';
+        END IF;
+        {push}DELETE FROM app.blocks WHERE user_id = uid;
+        DELETE FROM app.plan_versions WHERE user_id = uid;
+        DELETE FROM app.tasks WHERE user_id = uid;
+        DELETE FROM app.topics WHERE user_id = uid;
+        DELETE FROM app.analyses WHERE user_id = uid;
+        DELETE FROM app.ai_usage WHERE user_id = uid;
+        DELETE FROM app.materials WHERE user_id = uid;
+        DELETE FROM app.jobs WHERE user_id = uid;
+        DELETE FROM app.exams WHERE user_id = uid;
+        DELETE FROM app.profiles WHERE id = uid;
+    END
+    $$
+"""
+_PUSH_DELETE = "DELETE FROM app.push_subscriptions WHERE user_id = uid;\n        "
 
 
 def upgrade() -> None:
@@ -139,8 +170,12 @@ def upgrade() -> None:
             CHECK (notify_lead_minutes IN (0, 5, 10, 15))
     """)
 
+    # CREATE OR REPLACE keeps the owner, the REVOKE from PUBLIC and the GRANT of 0009.
+    op.execute(_DELETE_ACCOUNT_DATA.replace("{push}", _PUSH_DELETE))
+
 
 def downgrade() -> None:
+    op.execute(_DELETE_ACCOUNT_DATA.replace("{push}", ""))
     op.execute("ALTER TABLE app.profiles DROP CONSTRAINT profiles_notify_lead_minutes_valid")
     op.execute("ALTER TABLE app.profiles ALTER COLUMN notify_lead_minutes SET DEFAULT 10")
     op.execute("""
