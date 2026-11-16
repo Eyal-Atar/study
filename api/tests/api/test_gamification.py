@@ -316,8 +316,9 @@ def test_the_streak_runs_through_a_clock_change(
 ) -> None:
     set_profile(db, user.id, **{**JERUSALEM, "sleep_time": "02:00", "wake_time": "08:00"})
     for day in days:
-        # 00:30-01:30 local, the night after `day`: on the change night it is the hour that
-        # repeats (winter) or right before the gap (summer). It counts for `day`.
+        # 00:30-01:30 local, the night after `day` (sleep at 02:00): on the change night it
+        # ends where the hour repeats (winter) or where the gap starts (summer). It counts
+        # for `day`.
         local = dt.datetime.combine(day + dt.timedelta(days=1), dt.time(0, 30))
         starts = local.replace(tzinfo=ZoneInfo("Asia/Jerusalem")).astimezone(dt.UTC)
         _complete_at(api, db, user, clock, starts)
@@ -325,6 +326,17 @@ def test_the_streak_runs_through_a_clock_change(
     assert [row[2] for row in _ledger(db, user)] == list(days), label
     assert _progress(api, user)["streak"]["current"] == 3
     assert _progress(api, user)["streak"]["longest"] == 3
+
+
+def test_a_block_in_the_repeated_hour_counts_for_the_evening_before(
+    api: TestClient, db: psycopg.Connection, user: ApiUser, clock: FrozenClock
+) -> None:
+    # On 2026-10-25 Jerusalem goes from 02:00 summer time back to 01:00: 01:30 happens
+    # twice. 23:30 UTC on the 24th is the second 01:30 (UTC+2), still before the 02:00 bedtime.
+    set_profile(db, user.id, **{**JERUSALEM, "sleep_time": "02:00", "wake_time": "08:00"})
+    _complete_at(api, db, user, clock, Z(2026, 10, 24, 23, 30), minutes=20)
+
+    assert _ledger(db, user)[0][2] == dt.date(2026, 10, 24)
 
 
 def test_a_block_marked_late_counts_for_its_own_day(
