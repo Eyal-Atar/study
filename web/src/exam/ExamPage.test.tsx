@@ -1,8 +1,8 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { he } from '../i18n/he'
-import { examFixture } from '../onboarding/testFixtures'
+import { COMPLETED_AT, examFixture, meFixture } from '../onboarding/testFixtures'
 import { addDays, dayMonth, longDate, weekdayShort } from './dates'
 import { EXAM, TODAY, blockFixture, examServer, openRoute } from './testFixtures'
 
@@ -12,6 +12,49 @@ const f = he.onboardingExams
 function dayName(day: string) {
   return t.timeline.day(weekdayShort(day), dayMonth(day))
 }
+
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+// The study day (S09): before the wake time it is still the day before, and GET /plan filters by it.
+describe('ExamPage study day', () => {
+  function atJerusalem(utc: string) {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(utc))
+    const fake = examServer({ exams: [examFixture({ exam_date: '2026-11-26' })] }).on(
+      'GET /me',
+      meFixture({ onboarding_completed_at: COMPLETED_AT, timezone: 'Asia/Jerusalem', wake_time: '08:00' }),
+    )
+    openRoute(fake, '/exams/e1')
+    return fake
+  }
+
+  it('at 01:00 with wake 08:00 the timeline asks GET /plan from yesterday', async () => {
+    // 23:00Z on 20.11 is 01:00 on 21.11 in Jerusalem.
+    const fake = atJerusalem('2026-11-20T23:00:00Z')
+    await waitFor(() => {
+      expect(fake.calls('GET', '/plan?from=2026-11-20&to=2026-11-25')).toHaveLength(1)
+    })
+    const list = await screen.findByRole('list', { name: t.timeline.listLabel })
+    expect(within(list).getAllByRole('listitem')).toHaveLength(7)
+  })
+
+  it('at 09:00 the timeline asks GET /plan from today', async () => {
+    const fake = atJerusalem('2026-11-21T07:00:00Z')
+    await waitFor(() => {
+      expect(fake.calls('GET', '/plan?from=2026-11-21&to=2026-11-25')).toHaveLength(1)
+    })
+    expect(fake.calls('GET').some((c) => c.path.startsWith('/plan?from=2026-11-20'))).toBe(false)
+  })
+
+  it('at 01:00 the days left and the edit form still count calendar days (the API checks exam_date > calendar today)', async () => {
+    atJerusalem('2026-11-20T23:00:00Z')
+    // 21.11 to 26.11: 5 calendar days, not 6.
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
+    expect(screen.getAllByText(t.inDays(5)).length).toBeGreaterThan(0)
+  })
+})
 
 describe('ExamPage', () => {
   it('an unknown exam shows a not-found message with a link back to the list', async () => {

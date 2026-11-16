@@ -23,6 +23,10 @@ describe('codeText', () => {
     expect(text).toMatch(/[א-ת]/)
   })
 
+  it('no_study_time also names the daily time for yourself, which the planner subtracts too', () => {
+    expect(codeText('no_study_time')).toContain('הזמן לעצמי')
+  })
+
   it('an unknown code gets the generic text, never the code', () => {
     expect(codeText('something_new')).toBe(he.errors.generic)
   })

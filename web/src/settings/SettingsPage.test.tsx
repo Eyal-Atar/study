@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -24,10 +25,11 @@ function server(overrides: Partial<Me> = {}, planAffected = false) {
     .on('POST /plan/replan', previewFixture())
 }
 
-function open(fake: FakeApi, path = '/settings') {
+function open(fake: FakeApi, path = '/settings', queryClient?: QueryClient) {
   return renderRoute(path, {
     auth: createFakeAuth(fakeSession()),
     api: fake.api,
+    ...(queryClient === undefined ? {} : { queryClient }),
   })
 }
 
@@ -147,6 +149,24 @@ describe('SettingsPage preferences', () => {
       study_start_delay_minutes: 15,
       rest_days_before_exam: 0,
     })
+  })
+
+  it('a profile changed elsewhere refreshes the form, so a save does not send the old values back', async () => {
+    const user = userEvent.setup()
+    const fake = server()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    open(fake, '/settings', queryClient)
+    await ready()
+    expect(within(group(t.hoursQuestion)).getByRole('radio', { name: he.onboardingSchedule.hours(4) })).toBeChecked()
+
+    fake.on('GET /me', meFixture({ onboarding_completed_at: COMPLETED_AT, daily_study_minutes: 120 }))
+    await queryClient.invalidateQueries()
+    await waitFor(() => {
+      expect(within(group(t.hoursQuestion)).getByRole('radio', { name: he.onboardingSchedule.hours(2) })).toBeChecked()
+    })
+    expect(saveButton()).toBeDisabled()
+    await user.click(saveButton())
+    expect(patches(fake)).toHaveLength(0)
   })
 
   it('a change back to the current value sends nothing', async () => {

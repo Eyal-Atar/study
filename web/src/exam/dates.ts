@@ -21,6 +21,24 @@ export function todayIn(timeZone: string, at: Date = new Date()): string {
   }
 }
 
+// The local wall time of `at` in `timeZone` as 'HH:MM'.
+function timeIn(timeZone: string, at: Date): string {
+  const options: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }
+  try {
+    return new Intl.DateTimeFormat('en-GB', { ...options, timeZone }).format(at)
+  } catch {
+    return new Intl.DateTimeFormat('en-GB', options).format(at)
+  }
+}
+
+// The study day of `at` (the API's study_date, S09): a study day runs from wake_time to sleep_time,
+// so until the wake time it is still the day before, for an ordinary day and for a sleep time
+// after midnight alike. GET /plan filters its blocks by this day.
+export function studyDateIn(timeZone: string, wakeTime: string, at: Date = new Date()): string {
+  const day = todayIn(timeZone, at)
+  return timeIn(timeZone, at) < wakeTime.slice(0, 5) ? addDays(day, -1) : day
+}
+
 export function addDays(day: string, days: number): string {
   return iso(new Date(utc(day).getTime() + days * DAY_MS))
 }

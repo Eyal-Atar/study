@@ -207,6 +207,29 @@ describe('TaskList', () => {
     expect(await screen.findByText('שאלות של המתרגל')).toBeInTheDocument()
   })
 
+  it('a task write and its undo refetch the topics (an old topic shows only while a live task points at it)', async () => {
+    const user = userEvent.setup()
+    const fake = server()
+      .on('DELETE /tasks/t3', { version_id: 'v9' })
+      .on('POST /plan/undo', { restored: 1, deleted: 0, replaced: [], unplaced: [] })
+    await open(fake)
+    const topicCalls = () => fake.calls('GET', '/exams/e1/topics').length
+    const initial = topicCalls()
+    await user.click(within(row('שאלות של המתרגל')).getByRole('button', { name: t.deleteNamed('שאלות של המתרגל') }))
+    await waitFor(() => {
+      expect(topicCalls()).toBeGreaterThan(initial)
+    })
+    const afterWrite = topicCalls()
+    const toast = await screen.findByRole('region', { name: he.common.notifications })
+    await user.click(await within(toast).findByRole('button', { name: he.common.undo }))
+    await waitFor(() => {
+      expect(fake.calls('POST', '/plan/undo')).toHaveLength(1)
+    })
+    await waitFor(() => {
+      expect(topicCalls()).toBeGreaterThan(afterWrite)
+    })
+  })
+
   it('a mutation error is a toast, and a 404 refetches the tasks', async () => {
     const user = userEvent.setup()
     const fake = server().on('PATCH /tasks/t1', problem(404, 'not_found'))

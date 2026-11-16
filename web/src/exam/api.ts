@@ -16,7 +16,7 @@ import type {
   TopicPatch,
   TopicsResponse,
 } from './types'
-import { todayIn } from './dates'
+import { studyDateIn, todayIn } from './dates'
 
 // New keys (S15 Global Constraints). The exam's slice of the board sits under planKey, so every
 // board change that invalidates ['plan', userId] refreshes the timeline too.
@@ -91,7 +91,8 @@ export function useUpdateExam(): UseMutationResult<ExamResponse, ApiError, ExamP
   })
 }
 
-// Every task write touches the board (a placement) and the exam's task list.
+// Every task write touches the board (a placement), the exam's task list and its topics (an old
+// topic is listed only while a live task points at it).
 function useTaskWrite<V, R>(mutationFn: (vars: V) => Promise<R>, examOf: (vars: V) => string) {
   const userId = useUserId()
   const queryClient = useQueryClient()
@@ -100,6 +101,7 @@ function useTaskWrite<V, R>(mutationFn: (vars: V) => Promise<R>, examOf: (vars: 
     onSuccess: (_answer, vars) =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: tasksKey(userId, examOf(vars)) }),
+        queryClient.invalidateQueries({ queryKey: topicsKey(userId, examOf(vars)) }),
         invalidateBoard(queryClient, userId),
       ]),
     onError: (error, vars) => {
@@ -139,15 +141,18 @@ export function useDeleteTask() {
   )
 }
 
-// POST /plan/undo (useUndo), then the exam's tasks too: an undo brings a deleted task back or puts
-// an edited one where it was.
+// POST /plan/undo (useUndo), then the tasks and topics too: an undo brings a deleted task back or
+// puts an edited one where it was, and an old topic comes and goes with its tasks.
 export function useTaskUndo(): (versionId: string) => Promise<UndoResponse> {
   const { mutateAsync } = useUndo()
   const userId = useUserId()
   const queryClient = useQueryClient()
   return async (versionId) => {
     const answer = await mutateAsync(versionId)
-    await queryClient.invalidateQueries({ queryKey: tasksKey(userId) })
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: tasksKey(userId) }),
+      queryClient.invalidateQueries({ queryKey: topicsKey(userId) }),
+    ])
     return answer
   }
 }
@@ -170,8 +175,14 @@ export function useUpdateTopic(): UseMutationResult<Topic, ApiError, TopicPatchV
 }
 
 // Today in the profile's zone (spec 7.3); the browser's until the profile has loaded.
-export function useToday(): { today: string; timeZone: string } {
+// today: the calendar day, which the exam date rules use (the API refuses exam_date <= it).
+// studyDay: the study day (before wake_time still the day before), which GET /plan filters by,
+// so the timeline starts from it.
+export function useToday(): { today: string; studyDay: string; timeZone: string } {
   const me = useMe()
   const timeZone = me.data?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
-  return { today: todayIn(timeZone), timeZone }
+  const now = new Date()
+  const today = todayIn(timeZone, now)
+  const studyDay = me.data === undefined ? today : studyDateIn(timeZone, me.data.wake_time, now)
+  return { today, studyDay, timeZone }
 }

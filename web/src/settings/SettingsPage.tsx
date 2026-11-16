@@ -1,7 +1,7 @@
 import { useId, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { errorMessage } from '../api/client'
-import { useMe } from '../api/me'
+import { useMe, type Me } from '../api/me'
 import { DELETE_ACCOUNT_PATH } from '../app/routes'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
@@ -46,6 +46,20 @@ function Section({
   )
 }
 
+// The preference values PreferencesForm edits: a change in any of them remounts it.
+function preferencesKey(me: Me): string {
+  return JSON.stringify([
+    me.daily_study_minutes,
+    me.study_windows,
+    me.wake_time,
+    me.sleep_time,
+    me.study_start_delay_minutes,
+    me.hobby_start,
+    me.hobby_minutes,
+    me.rest_days_before_exam,
+  ])
+}
+
 // /settings (spec 7.9): preferences, notifications (S16), export and account deletion.
 export function SettingsPage() {
   const me = useMe()
@@ -73,7 +87,8 @@ export function SettingsPage() {
             </Button>
           </div>
         ) : (
-          <PreferencesForm me={me.data} />
+          // A profile changed elsewhere remounts the form with its values (unsaved edits drop).
+          <PreferencesForm key={preferencesKey(me.data)} me={me.data} />
         )}
       </Section>
 

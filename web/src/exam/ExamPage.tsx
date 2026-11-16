@@ -34,9 +34,11 @@ export function ExamPage() {
   const { examId = '' } = useParams()
   const exams = useExams()
   const me = useMe()
-  const { today, timeZone } = useToday()
+  // The header (days left, the date rule) counts calendar days; the timeline counts study days,
+  // as GET /plan does.
+  const { today, studyDay, timeZone } = useToday()
   const exam = exams.data?.find((e) => e.id === examId)
-  const range = timelineRange(today, exam?.exam_date ?? today)
+  const range = timelineRange(studyDay, exam?.exam_date ?? studyDay)
   const plan = useExamPlan(examId, exam === undefined ? null : range.query)
 
   if (exams.isPending) return <p className="text-ink-muted">{he.common.loading}</p>
@@ -75,7 +77,7 @@ export function ExamPage() {
       <Timeline
         examId={exam.id}
         examDate={exam.exam_date}
-        today={today}
+        today={studyDay}
         restDays={me.data?.rest_days_before_exam ?? 0}
         range={range}
         blocks={plan.data?.blocks ?? []}

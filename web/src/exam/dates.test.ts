@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, daysBetween, dayMonth, todayIn, weekdayShort } from './dates'
+import { addDays, daysBetween, dayMonth, studyDateIn, todayIn, weekdayShort } from './dates'
 
 describe('exam dates', () => {
   it('todayIn reads the calendar day in the given zone, not the browser zone', () => {
@@ -7,6 +7,16 @@ describe('exam dates', () => {
     const at = new Date('2026-11-16T23:30:00Z')
     expect(todayIn('UTC', at)).toBe('2026-11-16')
     expect(todayIn('Asia/Jerusalem', at)).toBe('2026-11-17')
+  })
+
+  it('studyDateIn is the day before until the wake time, in the given zone', () => {
+    // 23:00Z on 20.11 is 01:00 on 21.11 in Jerusalem; 07:00Z on 21.11 is 09:00 there.
+    expect(studyDateIn('Asia/Jerusalem', '08:00', new Date('2026-11-20T23:00:00Z'))).toBe('2026-11-20')
+    expect(studyDateIn('Asia/Jerusalem', '08:00', new Date('2026-11-21T07:00:00Z'))).toBe('2026-11-21')
+    // Exactly at the wake time the new day has begun.
+    expect(studyDateIn('Asia/Jerusalem', '08:00', new Date('2026-11-21T06:00:00Z'))).toBe('2026-11-21')
+    // A sleep time after midnight: 01:30 still belongs to the day before.
+    expect(studyDateIn('Asia/Jerusalem', '10:00', new Date('2026-11-20T23:30:00Z'))).toBe('2026-11-20')
   })
 
   it('addDays crosses months and years', () => {

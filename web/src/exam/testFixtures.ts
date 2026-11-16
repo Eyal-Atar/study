@@ -73,7 +73,8 @@ export function examServer({
   blocks = [],
 }: { exams?: Exam[]; tasks?: ExamTask[]; topics?: TopicsResponse; blocks?: Block[] } = {}): FakeApi {
   return createFakeApi()
-    .on('GET /me', meFixture({ onboarding_completed_at: COMPLETED_AT }))
+    // Wake at 00:00: the study day is the calendar day at any hour the tests run.
+    .on('GET /me', meFixture({ onboarding_completed_at: COMPLETED_AT, wake_time: '00:00' }))
     .on('GET /exams', exams)
     .on({ method: 'GET', path: /^\/exams\/[^/]+\/tasks$/ }, tasks)
     .on({ method: 'GET', path: /^\/exams\/[^/]+\/topics$/ }, topics)
