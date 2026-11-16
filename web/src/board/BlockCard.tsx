@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
@@ -6,10 +6,12 @@ import { useBlockActions, type BlockActions } from './actions'
 import { actionsFor, type BlockAction } from './actionsFor'
 import { blockName } from './blockName'
 import { useFocusRequest } from './focus'
+import { MoveDialog } from './MoveDialog'
 import { blockMinutes, durationText, formatRange } from './time'
 import type { Block } from './types'
 
-function run(actions: BlockActions, block: Block, action: BlockAction) {
+// "move" opens MoveDialog, so the card handles it itself.
+function run(actions: BlockActions, block: Block, action: Exclude<BlockAction, 'move'>) {
   switch (action) {
     case 'complete':
       actions.complete(block)
@@ -32,6 +34,7 @@ function run(actions: BlockActions, block: Block, action: BlockAction) {
 // the block, and a pending complete must not read "דוחה…".
 function label(action: BlockAction, deferring: boolean): string {
   if (action === 'defer' && deferring) return he.board.deferring
+  if (action === 'move') return he.move.move
   return he.board[action]
 }
 
@@ -40,6 +43,7 @@ function ariaLabel(action: BlockAction, name: string): string {
     complete: he.board.completeLabel,
     uncomplete: he.board.uncompleteLabel,
     defer: he.board.deferLabel,
+    move: he.move.moveLabel,
     pin: he.board.pinLabel,
     unpin: he.board.unpinLabel,
   } as const
@@ -66,9 +70,24 @@ export function BlockCard({ block, tz, variant = 'full' }: BlockCardProps) {
   const pending = actions.pending(block.id)
   // Only a defer of this block says "דוחה…", whichever screen or toast started it.
   const deferring = actions.deferring(block.id)
+  const [moveOpen, setMoveOpen] = useState(false)
   const start = (action: BlockAction) => {
+    if (action === 'move') {
+      setMoveOpen(true)
+      return
+    }
     run(actions, block, action)
   }
+  const moveDialog = (
+    <MoveDialog
+      block={block}
+      tz={tz}
+      isOpen={moveOpen}
+      onClose={() => {
+        setMoveOpen(false)
+      }}
+    />
+  )
   const available = actionsFor(block)
   const done = block.state === 'done'
   const badge = block.state === 'upcoming' ? null : block.state
@@ -138,12 +157,13 @@ export function BlockCard({ block, tz, variant = 'full' }: BlockCardProps) {
                   id={action}
                   className="min-h-11 cursor-pointer rounded-md px-3 py-2 text-sm outline-none data-[focused]:bg-surface-muted"
                 >
-                  {he.board[action]}
+                  {label(action, false)}
                 </MenuItem>
               ))}
             </Menu>
           </Popover>
         </MenuTrigger>
+        {moveDialog}
       </article>
     )
   }
@@ -170,6 +190,7 @@ export function BlockCard({ block, tz, variant = 'full' }: BlockCardProps) {
           </Button>
         ))}
       </div>
+      {moveDialog}
     </article>
   )
 }

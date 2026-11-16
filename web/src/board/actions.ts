@@ -1,4 +1,4 @@
-import { useMutation, useMutationState, useQueryClient, type QueryKey } from '@tanstack/react-query'
+import { useMutation, useMutationState, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { useApi } from '../api/ApiContext'
 import { ApiError, errorMessage } from '../api/client'
@@ -45,9 +45,10 @@ interface Vars {
   origin?: Element | null
 }
 
-type Snapshot = [QueryKey, unknown][]
+export type Snapshot = [QueryKey, unknown][]
 
-function actionKey(userId: string | null) {
+// Every block action's mutation key starts with this, so pending(id) covers them all (move.ts too).
+export function actionKey(userId: string | null) {
   return ['blockAction', userId] as const
 }
 function deferKey(userId: string | null) {
@@ -96,6 +97,32 @@ function replaceBlock(data: unknown, id: string, next: (block: Block) => Block):
   }
 }
 
+// Change the block `id` in every board query at once; the snapshot taken before is returned for
+// restoreBoardBlock.
+export async function patchBoardBlock(
+  queryClient: QueryClient,
+  key: QueryKey,
+  id: string,
+  patch: (block: Block) => Block,
+): Promise<Snapshot> {
+  await queryClient.cancelQueries({ queryKey: key })
+  const snapshot = queryClient.getQueriesData({ queryKey: key })
+  queryClient.setQueriesData({ queryKey: key }, (data: unknown) => replaceBlock(data, id, patch))
+  return snapshot
+}
+
+// Put back only this block, as the snapshot had it: another action, or a refetch that landed in
+// between, may have changed the rest of the board since, and that stays. Today's minutes move
+// back with the block (replaceBlock), so they agree with whatever the rest of the board is now.
+export function restoreBoardBlock(queryClient: QueryClient, id: string, snapshot: Snapshot | undefined): void {
+  for (const [queryKey, saved] of snapshot ?? []) {
+    if (!hasBlocks(saved)) continue
+    const before = saved.blocks.find((b) => b.id === id)
+    if (before === undefined) continue
+    queryClient.setQueryData(queryKey, (data: unknown) => replaceBlock(data, id, () => before))
+  }
+}
+
 // A planned block's state by the clock, as the server derives it (plan_views.block_state).
 function plannedState(block: Block, now: number = Date.now()): BlockState {
   if (Date.parse(block.ends_at) <= now) return 'overdue'
@@ -134,23 +161,9 @@ export function useBlockActions(): BlockActions {
     return settle()
   }
 
-  async function patchBlock(id: string, patch: (block: Block) => Block): Promise<Snapshot> {
-    await queryClient.cancelQueries({ queryKey: key })
-    const snapshot = queryClient.getQueriesData({ queryKey: key })
-    queryClient.setQueriesData({ queryKey: key }, (data: unknown) => replaceBlock(data, id, patch))
-    return snapshot
-  }
-
-  // Put back only this block, as the snapshot had it: another action, or a refetch that landed in
-  // between, may have changed the rest of the board since, and that stays. Today's minutes move
-  // back with the block (replaceBlock), so they agree with whatever the rest of the board is now.
-  function restore(id: string, snapshot: Snapshot | undefined) {
-    for (const [queryKey, saved] of snapshot ?? []) {
-      if (!hasBlocks(saved)) continue
-      const before = saved.blocks.find((b) => b.id === id)
-      if (before === undefined) continue
-      queryClient.setQueryData(queryKey, (data: unknown) => replaceBlock(data, id, () => before))
-    }
+  const patchBlock = (id: string, patch: (block: Block) => Block) => patchBoardBlock(queryClient, key, id, patch)
+  const restore = (id: string, snapshot: Snapshot | undefined) => {
+    restoreBoardBlock(queryClient, id, snapshot)
   }
 
   function undoToast(text: string, onUndo: () => void) {

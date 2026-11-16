@@ -26,6 +26,7 @@ function setup({
     .on({ method: 'GET', path: /^\/plan/ }, () => state.plan)
     .on('GET /exams', EXAMS)
     .on('POST /plan/replan', makePreview())
+    .on('GET /review', { blocks: [] })
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const auth = createFakeAuth(fakeSession({ id: USER_ID }))
   const rendered = renderRoute(path, { auth, api: fake.api, queryClient })
@@ -120,19 +121,64 @@ describe('the today screen', () => {
     expect(next.queryByRole('article', { name: LATE.task_title })).not.toBeInTheDocument()
   })
 
-  it("lists today's other blocks in order, with their states", async () => {
+  it("lists today's other blocks in order, with their states, but not the overdue one", async () => {
     setup({ today: makeToday([NOW, LATE, DONE, LATER]) })
 
     const list = await region(he.today.moreBlocks)
     const titles = list.getAllByRole('article').map((a) => a.getAttribute('aria-labelledby'))
     // The next block (in progress) is in its own card, so the list has the others, by start time.
-    expect(titles).toEqual([`block-${DONE.id}-title`, `block-${LATE.id}-title`, `block-${LATER.id}-title`])
-    expect(within(card(LATE.task_title)).getByText(he.board.states.overdue)).toBeInTheDocument()
+    // The overdue block waits in the morning review card (S18 decision 13).
+    expect(titles).toEqual([`block-${DONE.id}-title`, `block-${LATER.id}-title`])
     expect(within(card(DONE.task_title)).getByText(he.board.states.done)).toBeInTheDocument()
-    // An overdue block can only be marked done (decision 2).
-    expect(within(card(LATE.task_title)).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
-      he.board.completeLabel(LATE.task_title),
-    ])
+  })
+
+  it('an overdue block is in the review card, above the next block, and not in the list', async () => {
+    const { fake } = setup({ today: makeToday([NOW, LATE, LATER]) })
+    fake.on('GET /review', { blocks: [LATE] })
+
+    const review = await region(he.review.title)
+    expect(review.getByRole('heading', { name: LATE.task_title })).toBeInTheDocument()
+    expect((await region(he.today.moreBlocks)).queryByRole('article', { name: LATE.task_title })).not.toBeInTheDocument()
+    const reviewRegion = screen.getByRole('region', { name: he.review.title })
+    const nextRegion = screen.getByRole('region', { name: he.today.next })
+    expect(reviewRegion.compareDocumentPosition(nextRegion) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('the view switch shows the timeline, and the choice is remembered', async () => {
+    const user = userEvent.setup()
+    onTestFinished(() => {
+      window.localStorage.clear()
+    })
+    const first = setup({ today: makeToday([NOW, LATER]) })
+    await region(he.today.moreBlocks)
+    expect(screen.getByRole('radio', { name: he.move.list })).toBeChecked()
+    await user.click(screen.getByRole('radio', { name: he.move.timeline }))
+
+    const timeline = await region(he.today.blocks)
+    expect(timeline.getByRole('list', { name: he.move.timelineLabel })).toBeInTheDocument()
+    expect(timeline.getByRole('button', { name: he.move.handleLabel(LATER.task_title) })).toBeInTheDocument()
+    // The next block keeps its card above.
+    expect((await region(he.today.next)).getByRole('article', { name: NOW.task_title })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: he.today.moreBlocks })).not.toBeInTheDocument()
+    expect(window.localStorage.getItem('studyflow.todayView')).toBe('timeline')
+    first.unmount()
+
+    setup({ today: makeToday([NOW, LATER]) })
+    expect(await screen.findByRole('list', { name: he.move.timelineLabel })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: he.move.timeline })).toBeChecked()
+    await user.click(screen.getByRole('radio', { name: he.move.list }))
+    expect(await region(he.today.moreBlocks)).toBeTruthy()
+    expect(window.localStorage.getItem('studyflow.todayView')).toBe('list')
+  })
+
+  it('without waking hours today there is no timeline to switch to', async () => {
+    onTestFinished(() => {
+      window.localStorage.clear()
+    })
+    window.localStorage.setItem('studyflow.todayView', 'timeline')
+    setup({ today: makeToday([NOW, LATER], { day_starts_at: null, day_ends_at: null }) })
+    expect(await region(he.today.moreBlocks)).toBeTruthy()
+    expect(screen.queryByRole('radio', { name: he.move.timeline })).not.toBeInTheDocument()
   })
 
   it('with no next block today, takes the first one of the plan, labelled with its day and time', async () => {
@@ -143,8 +189,8 @@ describe('the today screen', () => {
     expect(next.getByRole('article', { name: TOMORROW.task_title })).toBeInTheDocument()
     // GET /plan without a range: the server's seven days from today.
     expect(fake.calls('GET', '/plan').length).toBeGreaterThan(0)
-    // The overdue block stays in the list of today.
-    expect((await region(he.today.blocks)).getByRole('article', { name: LATE.task_title })).toBeInTheDocument()
+    // The overdue block is not in the list of today: it waits for the morning review.
+    expect(screen.queryByRole('article', { name: LATE.task_title })).not.toBeInTheDocument()
   })
 
   it('an empty day with a block tomorrow says so and shows the block', async () => {
@@ -246,9 +292,16 @@ describe('the today screen', () => {
   })
 
   it('after uncomplete the focus stays on the card of the block', async () => {
+    // Before the block's time, so it comes back as upcoming and stays in the list (an overdue one
+    // would go to the review card).
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-16T04:00:00Z'))
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
     const user = userEvent.setup()
     const { fake, state } = setup({ today: makeToday([NOW, DONE]) })
-    const planned: Block = { ...DONE, status: 'planned', state: 'overdue' }
+    const planned: Block = { ...DONE, status: 'planned', state: 'upcoming' }
     fake.on(`POST /blocks/${DONE.id}/uncomplete`, () => {
       state.today = makeToday([NOW, planned])
       return { block: planned, task_status: 'todo' }

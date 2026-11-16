@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useToday } from '../board/api'
-import { reviewName, useReview, useReviewActions } from '../board/review'
+import { blockName } from '../board/blockName'
+import { useReview, useReviewActions } from '../board/review'
 import { dateIn, dayLabel, formatRange, useProfileTimezone } from '../board/time'
 import type { Block } from '../board/types'
 import { he } from '../i18n/he'
@@ -69,7 +70,7 @@ export function ReviewCard() {
         <ul className="divide-y divide-line">
           {blocks.map((block) => {
             const titleId = `review-${block.id}-title`
-            const name = reviewName(block)
+            const name = blockName(block)
             const pending = actions.pending(block.id)
             return (
               <li key={block.id} data-review-row={block.id} aria-labelledby={titleId} className="space-y-3 py-3 first:pt-1 last:pb-0">

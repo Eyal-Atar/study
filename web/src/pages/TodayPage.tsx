@@ -7,9 +7,13 @@ import { PlanReport } from '../board/PlanReport'
 import { dayLabel, formatDay, formatTime, useProfileTimezone } from '../board/time'
 import { he } from '../i18n/he'
 import { DayProgress } from '../today/DayProgress'
+import { DayTimeline } from '../today/DayTimeline'
 import { NextBlock } from '../today/NextBlock'
 import { nextLater, nextToday, sortByStart } from '../today/chooseNext'
+import { ReviewCard } from '../today/ReviewCard'
 import { TodayBlocks } from '../today/TodayBlocks'
+import { useTodayView } from '../today/todayView'
+import { TodayViewSwitch } from '../today/TodayViewSwitch'
 import { Button } from '../ui/Button'
 
 // offerReplan sends the user to /today#report; the report renders only after GET /plan answers, so
@@ -26,9 +30,11 @@ function useScrollToReport(ready: boolean) {
   }, [ready, location.hash, location.key])
 }
 
-// "Today" (S14): what to do now, the rest of today, the minutes done, and what did not fit.
+// "Today" (S14): what to do now, the rest of today, the minutes done, and what did not fit. S18:
+// the morning review above, and today's blocks as a list or as a timeline.
 export function TodayPage() {
   const today = useToday()
+  const [view, setView] = useTodayView()
   const plan = usePlan()
   const tz = useProfileTimezone()
   useScrollToReport((plan.data?.unplaced.length ?? 0) > 0)
@@ -76,7 +82,12 @@ export function TodayPage() {
   const planUnknown = nowBlock === undefined && plan.data === undefined
   // The next block is today's, so it has its own card above and is left out of the list: the same
   // card twice would repeat its element ids and give two buttons the same accessible name.
-  const rest = nowBlock === undefined ? todays : todays.filter((b) => b.id !== nowBlock.id)
+  // An overdue block is in the review card (S18 decision 13), so the list leaves it out.
+  const rest = todays.filter((b) => b.id !== nowBlock?.id && b.state !== 'overdue')
+  // The timeline needs the waking hours; without them (or without blocks) only the list is offered.
+  const hasTimeline = today.data.day_starts_at !== null && today.data.day_ends_at !== null && todays.length > 0
+  const shown = hasTimeline ? view : 'list'
+  const toolbar = hasTimeline ? <TodayViewSwitch view={shown} onChange={setView} /> : undefined
 
   return (
     <div className="space-y-6">
@@ -97,6 +108,8 @@ export function TodayPage() {
       ) : null}
 
       <DayProgress done={done_minutes} planned={planned_minutes} />
+
+      <ReviewCard />
 
       {todays.length === 0 && (next !== undefined || planUnknown) ? <p className="text-ink-muted">{he.today.noBlocksToday}</p> : null}
 
@@ -133,7 +146,11 @@ export function TodayPage() {
         </p>
       ) : null}
 
-      <TodayBlocks title={nowBlock === undefined ? he.today.blocks : he.today.moreBlocks} blocks={rest} tz={tz} />
+      {shown === 'timeline' ? (
+        <DayTimeline today={today.data} tz={tz} toolbar={toolbar} />
+      ) : (
+        <TodayBlocks title={nowBlock === undefined ? he.today.blocks : he.today.moreBlocks} blocks={rest} tz={tz} toolbar={toolbar} />
+      )}
 
       <PlanReport />
     </div>

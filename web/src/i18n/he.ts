@@ -373,7 +373,38 @@ export const he = {
     skipUndone: 'הדילוג בוטל',
   },
   // S18: moving a block within its day: drag, keyboard and the "move" dialog.
-  move: {},
+  move: {
+    // The action on a block's card (BlockCard), next to "דחייה" and "נעילה".
+    move: 'הזזה',
+    moveLabel: (name: string) => `הזזה: ${name}`,
+    moved: (time: string) => `הבלוק זז ל-${time} ונעול`,
+    undone: 'ההזזה בוטלה',
+    // MoveDialog: the times on the 15-minute grid the block can move to (GET /blocks/{id}/slots).
+    dialogTitle: (name: string) => `הזזה של ${name}`,
+    dialogLead: 'בחרו שעה פנויה באותו יום. הבלוק יינעל בשעה החדשה.',
+    // Before the block's current time range (shown left to right).
+    current: 'השעה עכשיו: ',
+    slotsLabel: 'שעות פנויות',
+    loading: 'מחפשים שעות פנויות…',
+    loadFailed: 'לא הצלחנו לטעון את השעות הפנויות.',
+    empty: 'אין שעה פנויה אחרת ביום הזה.',
+    confirm: 'הזזה',
+    // The view switch above today's blocks.
+    viewLabel: 'תצוגת הבלוקים',
+    list: 'רשימה',
+    timeline: 'ציר',
+    // DayTimeline: the day from waking to sleep; an upcoming block has a drag handle.
+    timelineLabel: 'ציר היום',
+    nowLine: 'עכשיו',
+    handleLabel: (name: string) => `הזזת ${name}`,
+    instructions:
+      'גוררים את הידית למעלה או למטה. במקלדת: Enter או רווח מתחילים הזזה, חץ למעלה או למטה זז רבע שעה, PageUp או PageDown זזים שעה, Enter מאשר ו-Escape מבטל.',
+    // The live region while moving: "14:30–15:30, פנוי".
+    candidate: (range: string, free: boolean) => `${range}, ${free ? 'פנוי' : 'תפוס'}`,
+    cancelled: 'ההזזה בוטלה, הבלוק נשאר במקומו.',
+    // The live region after a release on a time the block cannot take (the toast says why).
+    refused: 'הבלוק חזר למקומו.',
+  },
   // S14: the week screen (web/src/week).
   week: {
     title: 'שבוע',

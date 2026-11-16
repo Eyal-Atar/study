@@ -41,16 +41,35 @@ function buttonNames(): string[] {
 const planned = (state: BlockState, pinned = false) => makeBlock({ status: 'planned', state, pinned })
 
 describe('BlockCard (full)', () => {
+  it('upcoming offers complete, defer, move and pin', () => {
+    setup(planned('upcoming'))
+    expect(buttonNames()).toEqual([
+      he.board.completeLabel(TITLE),
+      he.board.deferLabel(TITLE),
+      he.move.moveLabel(TITLE),
+      he.board.pinLabel(TITLE),
+    ])
+    expect(card().getByRole('button', { name: he.move.moveLabel(TITLE) })).toHaveTextContent(he.move.move)
+  })
+
   it.each(['upcoming', 'in_progress'] as const)('%s offers complete, defer and pin', (state) => {
     setup(planned(state))
-    expect(buttonNames()).toEqual([he.board.completeLabel(TITLE), he.board.deferLabel(TITLE), he.board.pinLabel(TITLE)])
+    expect(buttonNames().filter((n) => n !== he.move.moveLabel(TITLE))).toEqual([
+      he.board.completeLabel(TITLE),
+      he.board.deferLabel(TITLE),
+      he.board.pinLabel(TITLE),
+    ])
     expect(card().getByRole('button', { name: he.board.completeLabel(TITLE) })).toHaveTextContent(he.board.complete)
     expect(card().getByRole('button', { name: he.board.pinLabel(TITLE) })).toHaveTextContent(he.board.pin)
   })
 
   it.each(['upcoming', 'in_progress'] as const)('a pinned %s block offers unpin and shows the pinned tag', (state) => {
     setup(planned(state, true))
-    expect(buttonNames()).toEqual([he.board.completeLabel(TITLE), he.board.deferLabel(TITLE), he.board.unpinLabel(TITLE)])
+    expect(buttonNames().filter((n) => n !== he.move.moveLabel(TITLE))).toEqual([
+      he.board.completeLabel(TITLE),
+      he.board.deferLabel(TITLE),
+      he.board.unpinLabel(TITLE),
+    ])
     expect(card().getByRole('button', { name: he.board.unpinLabel(TITLE) })).toHaveTextContent(he.board.unpin)
     expect(card().getByText(he.board.pinned)).toBeInTheDocument()
   })
@@ -102,7 +121,12 @@ describe('BlockCard (full)', () => {
     setup(makeBlock({ part_index: 2, part_count: 3 }))
     const name = 'פרק 3: גרפים (חלק 2 מתוך 3)'
     expect(blockName(makeBlock({ part_index: 2, part_count: 3 }))).toBe(name)
-    expect(buttonNames()).toEqual([he.board.completeLabel(name), he.board.deferLabel(name), he.board.pinLabel(name)])
+    expect(buttonNames()).toEqual([
+      he.board.completeLabel(name),
+      he.board.deferLabel(name),
+      he.move.moveLabel(name),
+      he.board.pinLabel(name),
+    ])
     expect(blockName(makeBlock())).toBe(TITLE)
   })
 
@@ -176,6 +200,7 @@ describe('BlockCard (compact)', () => {
     expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
       he.board.complete,
       he.board.defer,
+      he.move.move,
       he.board.pin,
     ])
   })
@@ -188,6 +213,7 @@ describe('BlockCard (compact)', () => {
     expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
       he.board.complete,
       he.board.defer,
+      he.move.move,
       he.board.unpin,
     ])
     unmount()

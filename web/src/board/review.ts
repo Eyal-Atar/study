@@ -38,12 +38,6 @@ export function useReview(): UseQueryResult<Review, ApiError> {
   })
 }
 
-// The block's name in accessible labels: with several parts, the part too, so two parts of one task
-// never share a button name.
-export function reviewName(block: Block): string {
-  return block.part_count > 1 ? `${block.task_title} (${he.board.part(block.part_index, block.part_count)})` : block.task_title
-}
-
 export interface ReviewActions {
   complete(block: Block): void
   moveToday(block: Block): void
