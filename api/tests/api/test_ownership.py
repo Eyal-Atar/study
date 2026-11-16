@@ -56,6 +56,7 @@ class Ids:
     a_material: UUID
     a_job: UUID
     a_analysis: UUID
+    a_topic: UUID
     b_exam: UUID
     b_task: UUID
 
@@ -204,6 +205,41 @@ CASES: tuple[Case, ...] = (
         lambda i: {"material_id": i.a_material},
         _none,
     ),
+    Case(
+        "change_material_kind",
+        "PATCH",
+        "/materials/{material_id}",
+        lambda i: {"material_id": i.a_material},
+        lambda _: {"kind": "solution"},
+    ),
+    Case(
+        "list_exam_topics",
+        "GET",
+        "/exams/{exam_id}/topics",
+        lambda i: {"exam_id": i.a_exam},
+        _none,
+    ),
+    Case(
+        "patch_topic",
+        "PATCH",
+        "/topics/{topic_id}",
+        lambda i: {"topic_id": i.a_topic},
+        lambda _: {"name": "נגנב", "weight": 5},
+    ),
+    Case(
+        "create_task_in_a_topic",
+        "POST",
+        "/tasks",
+        _no_params,
+        lambda i: {**_new_task(i.b_exam), "topic_id": str(i.a_topic)},
+    ),
+    Case(
+        "patch_own_task_into_a_topic",
+        "PATCH",
+        "/tasks/{task_id}",
+        lambda i: {"task_id": i.b_task},
+        lambda i: {"topic_id": str(i.a_topic)},
+    ),
     Case("get_job", "GET", "/jobs/{job_id}", lambda i: {"job_id": i.a_job}, _none),
     Case(
         "reanalyze_a_exam",
@@ -239,6 +275,10 @@ WITHOUT_ID = frozenset(
         ("GET", "/today"),
         ("POST", "/plan/replan"),
         ("POST", "/plans/generate"),
+        # S15: the caller's own account; test_lists_show_only_own_rows checks the export, and
+        # tests/api/test_account.py that deleting B leaves A whole.
+        ("GET", "/me/export"),
+        ("DELETE", "/me"),
     }
 )
 
@@ -383,6 +423,17 @@ def world(
     a_version = UUID(a_other["version_id"])
     a_registered = register_material(api, a, a_exam)
     a_analysis = _draft(db, a.id, a_exam)
+    a_topic = UUID(
+        str(
+            scalar(
+                db,
+                "INSERT INTO app.topics (user_id, exam_id, name, weight, position) "
+                "VALUES (%s, %s, 'נושא של א', 3, 1) RETURNING id",
+                a.id,
+                a_exam,
+            )
+        )
+    )
 
     b_exam = _post_exam(api, b, "מבחן של ב")
     b_task = _post_task(api, b, b_exam)
@@ -396,6 +447,7 @@ def world(
         a_material=UUID(a_registered["material"]["id"]),
         a_job=UUID(a_registered["job_id"]),
         a_analysis=a_analysis,
+        a_topic=a_topic,
         b_exam=b_exam,
         b_task=UUID(b_task["task"]["id"]),
     )
@@ -449,7 +501,16 @@ def test_lists_show_only_own_rows(
     a_rows = dump(db, a.id)
     forbidden = {str(a.id)} | {
         str(row[0])
-        for table in ("exams", "tasks", "blocks", "plan_versions", "materials", "jobs")
+        for table in (
+            "exams",
+            "tasks",
+            "blocks",
+            "plan_versions",
+            "materials",
+            "jobs",
+            "topics",
+            "analyses",
+        )
         for row in a_rows[table]
     }
     assert {str(ids.a_exam), str(ids.a_task), str(ids.a_block), str(ids.a_version)} <= forbidden
@@ -468,6 +529,7 @@ def test_lists_show_only_own_rows(
     assert {block["task_id"] for block in plan.json()["blocks"]} == {str(ids.b_task)}
     assert_clean(api.get("/plan", headers=b.headers))
     assert_clean(api.get("/today", headers=b.headers))
+    assert_clean(api.get("/me/export", headers=b.headers))
     me = api.get("/me", headers=b.headers)
     assert_clean(me)
     assert me.json()["id"] == str(b.id)
@@ -552,6 +614,7 @@ def test_unauthenticated_everywhere(
         material_id=uuid4(),
         job_id=uuid4(),
         analysis_id=uuid4(),
+        topic_id=uuid4(),
     )
     for headers in ({}, {"Authorization": "Bearer not-a-token"}):
         response = api.request(method, url, headers=headers)
