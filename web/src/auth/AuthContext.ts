@@ -1,4 +1,4 @@
-import type { Session } from '@supabase/supabase-js'
+import type { Session } from '@supabase/auth-js'
 import { createContext, useContext } from 'react'
 
 // Supabase sends the browser back here with ?code=... (or ?error=...). Also listed in the

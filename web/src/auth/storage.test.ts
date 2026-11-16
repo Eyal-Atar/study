@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { StorageClient as SupabaseStorageClient } from '@supabase/storage-js'
 import { expect, expectTypeOf, it, vi } from 'vitest'
 import { createStorage, type StorageClient } from './storage'
 import type { createSupabase } from './supabase'
@@ -6,7 +6,7 @@ import type { createSupabase } from './supabase'
 it('accepts the real materials bucket as a StorageClient, without a cast', () => {
   type Bucket = ReturnType<ReturnType<typeof createSupabase>['storage']['from']>
   expectTypeOf<Bucket>().toExtend<StorageClient>()
-  expectTypeOf<ReturnType<SupabaseClient['storage']['from']>>().toExtend<StorageClient>()
+  expectTypeOf<ReturnType<SupabaseStorageClient['from']>>().toExtend<StorageClient>()
 })
 
 it('uploads into the materials bucket', async () => {

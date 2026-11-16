@@ -1,4 +1,4 @@
-import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
+import type { AuthChangeEvent, Session } from '@supabase/auth-js'
 import { QueryClient } from '@tanstack/react-query'
 import { act, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'

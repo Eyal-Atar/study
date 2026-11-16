@@ -1,4 +1,4 @@
-import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
+import type { AuthChangeEvent, Session } from '@supabase/auth-js'
 import { vi, type Mock } from 'vitest'
 import type { AuthClient } from '../auth/supabase'
 
