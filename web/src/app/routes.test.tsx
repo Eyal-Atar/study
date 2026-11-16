@@ -1,10 +1,12 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
+import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { he } from '../i18n/he'
 import { COMPLETED_AT, meFixture } from '../onboarding/testFixtures'
 import { createFakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
+import { WEEK_PATH } from './routes'
 
 describe('routes', () => {
   it('the home route sends a signed-out user to login', async () => {
@@ -34,6 +36,29 @@ describe('routes', () => {
     expect(router.state.location.pathname).toBe('/today')
     expect(screen.getByRole('banner')).toHaveTextContent(he.appName)
     expect(screen.getByRole('button', { name: he.shell.signOut })).toBeInTheDocument()
+  })
+
+  it('the main navigation marks the current screen, and moves between today and week', async () => {
+    const user = userEvent.setup()
+    const { router } = renderRoute('/today', { auth: createFakeAuth(fakeSession()) })
+
+    const nav = within(await screen.findByRole('navigation', { name: he.shell.mainNav }))
+    expect(nav.getByRole('link', { name: he.shell.today })).toHaveAttribute('aria-current', 'page')
+    expect(nav.getByRole('link', { name: he.shell.week })).not.toHaveAttribute('aria-current')
+
+    await user.click(nav.getByRole('link', { name: he.shell.week }))
+    expect(router.state.location.pathname).toBe(WEEK_PATH)
+    expect(await screen.findByRole('heading', { level: 1, name: he.week.title })).toBeInTheDocument()
+    expect(nav.getByRole('link', { name: he.shell.week })).toHaveAttribute('aria-current', 'page')
+    expect(nav.getByRole('link', { name: he.shell.today })).not.toHaveAttribute('aria-current')
+  })
+
+  it('the week route needs a signed-in user', async () => {
+    const { router } = renderRoute('/week', { auth: createFakeAuth(null) })
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/login')
+    })
   })
 
   it('an unknown path shows not found', async () => {

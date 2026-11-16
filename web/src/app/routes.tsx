@@ -6,10 +6,12 @@ import { LoginPage } from '../pages/LoginPage'
 import { onboardingRoutes } from '../onboarding/routes'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { TodayPage } from '../pages/TodayPage'
+import { WeekPage } from '../week/WeekPage'
 import { AppShell } from './AppShell'
 import { OnboardingGate } from './OnboardingGate'
 
 export const TODAY_PATH = '/today'
+export const WEEK_PATH = '/week'
 
 // main.tsx passes these to createBrowserRouter, and the tests to createMemoryRouter.
 export const routes: RouteObject[] = [
@@ -28,6 +30,7 @@ export const routes: RouteObject[] = [
             children: [
               { index: true, element: <Navigate to={TODAY_PATH} replace /> },
               { path: TODAY_PATH, Component: TodayPage },
+              { path: WEEK_PATH, Component: WeekPage },
               ...onboardingRoutes,
             ],
           },
