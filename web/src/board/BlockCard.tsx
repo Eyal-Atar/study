@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
@@ -25,8 +26,10 @@ function run(actions: BlockActions, block: Block, action: BlockAction) {
   }
 }
 
-function label(action: BlockAction, pending: boolean): string {
-  if (action === 'defer' && pending) return he.board.deferring
+// `deferring` only while this card's own defer is pending: `pending(id)` is true for any action on
+// the block, and a pending complete must not read "דוחה…".
+function label(action: BlockAction, deferring: boolean): string {
+  if (action === 'defer' && deferring) return he.board.deferring
   return he.board[action]
 }
 
@@ -59,6 +62,12 @@ export interface BlockCardProps {
 export function BlockCard({ block, tz, variant = 'full' }: BlockCardProps) {
   const actions = useBlockActions()
   const pending = actions.pending(block.id)
+  const [started, setStarted] = useState<BlockAction | null>(null)
+  const deferring = pending && started === 'defer'
+  const start = (action: BlockAction) => {
+    setStarted(action)
+    run(actions, block, action)
+  }
   const available = actionsFor(block)
   const done = block.state === 'done'
   const badge = block.state === 'upcoming' ? null : block.state
@@ -107,14 +116,14 @@ export function BlockCard({ block, tz, variant = 'full' }: BlockCardProps) {
         </div>
         <MenuTrigger>
           <Button variant="secondary" aria-label={he.board.actionsLabel(block.task_title)} isDisabled={pending} className="shrink-0">
-            {pending ? he.board.deferring : he.board.actions}
+            {deferring ? he.board.deferring : he.board.actions}
           </Button>
           <Popover placement="bottom end" className="min-w-40 rounded-lg border border-line bg-surface p-1 shadow-lg">
             <Menu
               aria-label={he.board.actionsLabel(block.task_title)}
               className="outline-none"
               onAction={(key) => {
-                run(actions, block, key as BlockAction)
+                start(key as BlockAction)
               }}
             >
               {available.map((action) => (
@@ -148,10 +157,10 @@ export function BlockCard({ block, tz, variant = 'full' }: BlockCardProps) {
             aria-label={ariaLabel(action, block.task_title)}
             isDisabled={pending}
             onPress={() => {
-              run(actions, block, action)
+              start(action)
             }}
           >
-            {label(action, pending)}
+            {label(action, deferring)}
           </Button>
         ))}
       </div>
