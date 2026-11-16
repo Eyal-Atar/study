@@ -122,6 +122,8 @@ export const he = {
     no_time_today: 'אין היום מקום פנוי שמחזיק את כל המשימה.',
     slot_taken: 'השעה הזו תפוסה בבלוק אחר.',
     outside_day: 'אפשר להזיז בלוק רק לשעה פנויה בהמשך אותו יום.',
+    // Push reminders (S16)
+    push_endpoint_invalid: 'הדפדפן הזה נתן כתובת תזכורות שאנחנו לא תומכים בה. נסו דפדפן אחר.',
   },
   // "Did not fit" reports, with the exam name (codes.ts).
   report: {
@@ -651,6 +653,48 @@ export const he = {
       body: 'כל הנתונים שלכם נמחקו.',
       login: 'לדף הכניסה',
     },
+  // S16: push reminders (web/src/notifications).
+  notifications: {
+    title: 'תזכורות',
+    intro: 'תזכורת לפני כל בלוק לימוד, גם כשהאפליקציה סגורה.',
+    deviceTitle: 'תזכורות במכשיר הזה',
+    notConfigured: 'התזכורות עוד לא זמינות באתר הזה.',
+    unsupported: 'הדפדפן הזה לא תומך בתזכורות. אפשר לפתוח את האתר ב-Chrome, ‏Edge, ‏Firefox או Safari בגרסה עדכנית.',
+    iosTitle: 'באייפון ובאייפד, תזכורות עובדות רק כשפותחים את האפליקציה ממסך הבית.',
+    iosSteps: [
+      'בספארי, לוחצים על כפתור השיתוף (ריבוע עם חץ למעלה).',
+      'בוחרים "הוסף למסך הבית" ולוחצים "הוסף".',
+      `פותחים את ${isolate(PRODUCT_NAME)} מהאייקון שעל מסך הבית.`,
+      'חוזרים למסך הזה ומפעילים תזכורות.',
+    ],
+    blockedTitle: 'ההתראות חסומות בדפדפן הזה.',
+    blockedBrowser: 'בדפדפן: לוחצים על סמל המנעול או ההגדרות שליד הכתובת, מאפשרים "התראות", וטוענים את הדף מחדש.',
+    blockedApp: `באפליקציה שמותקנת בטלפון: הגדרות הטלפון, ואז ${isolate(PRODUCT_NAME)}, ואז "התראות".`,
+    checking: 'בודקים את מצב התזכורות…',
+    off: 'התזכורות כבויות במכשיר הזה.',
+    on: 'התזכורות פעילות במכשיר הזה.',
+    enable: 'הפעלת תזכורות',
+    disable: 'כיבוי',
+    enabled: 'התזכורות הופעלו במכשיר הזה.',
+    disabled: 'התזכורות כובו במכשיר הזה.',
+    notAllowed: 'לא אישרתם התראות, ולכן התזכורות לא הופעלו.',
+    enableFailed: 'לא הצלחנו להפעיל את התזכורות. נסו שוב.',
+    disableFailed: 'לא הצלחנו לכבות את התזכורות. נסו שוב.',
+    leadLabel: 'מתי להזכיר',
+    leadHint: 'חל על כל המכשירים שבהם התזכורות פעילות.',
+    lead0: 'בתחילת הבלוק',
+    lead5: '5 דקות לפני',
+    lead10: '10 דקות לפני',
+    lead15: '15 דקות לפני',
+    leadSaved: 'זמן התזכורת נשמר.',
+    installTitle: 'רוצים תזכורת לפני כל בלוק?',
+    installText: 'באייפון, תזכורות עובדות רק אחרי שמוסיפים את האפליקציה למסך הבית.',
+    installHow: 'איך מוסיפים',
+    installDismiss: 'הבנתי',
+  },
+  // S16: the service worker (src/sw.ts), when a push arrives without a readable reminder.
+  pwa: {
+    pushFallbackBody: 'יש לך תזכורת חדשה בלוח.',
   },
   // S19: the progress board (web/src/progress). Filled by Task 4.
   progress: {

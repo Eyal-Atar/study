@@ -19,6 +19,7 @@ const env = {
   supabaseUrl: 'https://test-ref.supabase.co',
   supabasePublishableKey: 'sb_publishable_abc123',
   apiUrl: 'http://localhost:8000',
+  vapidPublicKey: null,
 }
 // The key supabase-js stores the session under. It must not change, or every signed-in user is
 // signed out by the deploy that drops supabase-js.

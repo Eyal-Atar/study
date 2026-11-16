@@ -6,6 +6,9 @@ export interface WebEnv {
   supabaseUrl: string
   supabasePublishableKey: string
   apiUrl: string
+  // The VAPID public key the browser subscribes with (pushManager.subscribe). Optional: without it the
+  // app runs, and the reminder settings say reminders are not set up.
+  vapidPublicKey: string | null
 }
 
 export class EnvError extends Error {
@@ -21,6 +24,7 @@ export class EnvError extends Error {
 const SUPABASE_URL = 'VITE_SUPABASE_URL'
 const PUBLISHABLE_KEY = 'VITE_SUPABASE_PUBLISHABLE_KEY'
 const API_URL = 'VITE_API_URL'
+const VAPID_PUBLIC_KEY = 'VITE_VAPID_PUBLIC_KEY'
 
 const SECRET_PREFIX = 'sb_secret_'
 const PUBLISHABLE_PREFIX = 'sb_publishable_'
@@ -99,9 +103,33 @@ export function readEnv(source: Readonly<Record<string, unknown>>): WebEnv {
       expected: 'an http:// or https:// URL without a query or fragment, like http://localhost:8000',
       showValue: true,
     }),
+    vapidPublicKey: null,
+  }
+  const vapid = source[VAPID_PUBLIC_KEY]
+  if (typeof vapid === 'string' && vapid.trim() !== '') {
+    if (isVapidPublicKey(vapid.trim())) {
+      env.vapidPublicKey = vapid.trim()
+    } else {
+      problems.push(
+        `${VAPID_PUBLIC_KEY} must be the VAPID public key (VAPID_PUBLIC_KEY in api/.env): 65 bytes in base64url, starting 0x04, got ${JSON.stringify(vapid)}`,
+      )
+    }
   }
   if (problems.length > 0) throw new EnvError(problems)
   return env
+}
+
+// An uncompressed P-256 point: 65 bytes, the first 0x04. pushManager.subscribe would reject anything
+// else, but only when the user presses the button; checking here fails at startup instead.
+// A public key, so the value may be shown in the problem.
+function isVapidPublicKey(value: string): boolean {
+  if (!BASE64URL.test(value)) return false
+  try {
+    const bytes = atob(value.replaceAll('-', '+').replaceAll('_', '/'))
+    return bytes.length === 65 && bytes.charCodeAt(0) === 4
+  } catch {
+    return false
+  }
 }
 
 function parseHttpUrl(value: string): URL | null {

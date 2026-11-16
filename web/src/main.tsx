@@ -10,6 +10,7 @@ import { createStorage } from './auth/storage'
 import { createSupabase } from './auth/supabase'
 import { EnvError, readEnv, type WebEnv } from './config/env'
 import { ConfigErrorScreen } from './pages/ConfigErrorScreen'
+import { registerServiceWorker } from './pwa/register'
 import './index.css'
 
 // Reads the environment, creates each service once, and wires them into the providers and the router.
@@ -27,7 +28,7 @@ function createApp(): ReactNode {
   const queryClient = createQueryClient()
   const router = createBrowserRouter(routes)
   return (
-    <AppProviders auth={supabase.auth} api={api} storage={storage} queryClient={queryClient}>
+    <AppProviders auth={supabase.auth} api={api} storage={storage} queryClient={queryClient} vapidPublicKey={env.vapidPublicKey}>
       <RouterProvider router={router} />
     </AppProviders>
   )
@@ -39,3 +40,4 @@ if (root === null) {
 }
 
 createRoot(root).render(<StrictMode>{createApp()}</StrictMode>)
+registerServiceWorker()

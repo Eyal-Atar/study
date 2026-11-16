@@ -2,9 +2,13 @@ import { LogOut, Settings, User } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { useAuth } from '../auth/AuthContext'
 import { he } from '../i18n/he'
+import { unsubscribeThisDevice, withTimeout } from '../notifications/push'
 import { IconButton } from '../ui/IconButton'
 import { Menu, MenuItem } from '../ui/Menu'
 import { ICON_STROKE } from '../ui/styles'
+
+// Sign-out waits this long at most for the browser to drop its push subscription.
+const UNSUBSCRIBE_TIMEOUT_MS = 3000
 
 // Not imported from routes.tsx: routes imports AppShell, which imports this file.
 const SETTINGS_PATH = '/settings'
@@ -57,7 +61,12 @@ export function ProfileMenu() {
       <MenuItem
         icon={LogOut}
         onAction={() => {
-          void auth.signOut()
+          // S16 decision 9: the browser drops its push subscription first, so the next user of this
+          // device does not get this user's reminders. Bounded and never blocking: a failure here
+          // must not keep anyone signed in.
+          void withTimeout(unsubscribeThisDevice(), UNSUBSCRIBE_TIMEOUT_MS, undefined)
+            .catch(() => undefined)
+            .then(() => auth.signOut())
         }}
       >
         {he.shell.signOut}

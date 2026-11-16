@@ -19,7 +19,15 @@ export function renderRoute(
     api,
     storage,
     queryClient,
-  }: { auth: FakeAuth; api?: ApiClient; storage?: StorageClient; queryClient?: QueryClient },
+    vapidPublicKey = null,
+  }: {
+    auth: FakeAuth
+    api?: ApiClient
+    storage?: StorageClient
+    queryClient?: QueryClient
+    // null: reminders are not set up, as without VITE_VAPID_PUBLIC_KEY.
+    vapidPublicKey?: string | null
+  },
 ) {
   const client = queryClient ?? new QueryClient({ defaultOptions: { queries: { retry: false } } })
   // Tests that do not care about the API get one that never answers.
@@ -29,7 +37,7 @@ export function renderRoute(
   const router = createMemoryRouter(routes, { initialEntries: [path] })
   const result = render(
     <StrictMode>
-      <AppProviders auth={auth.client} api={apiClient} storage={storageClient} queryClient={client}>
+      <AppProviders auth={auth.client} api={apiClient} storage={storageClient} queryClient={client} vapidPublicKey={vapidPublicKey}>
         <RouterProvider router={router} />
       </AppProviders>
     </StrictMode>,

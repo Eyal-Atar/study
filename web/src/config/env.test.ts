@@ -37,6 +37,7 @@ describe('readEnv', () => {
       supabaseUrl: 'https://test-ref.supabase.co',
       supabasePublishableKey: 'sb_publishable_abc123',
       apiUrl: 'http://localhost:8000',
+      vapidPublicKey: null,
     })
   })
 
@@ -133,5 +134,27 @@ describe('readEnv', () => {
     ['http://localhost:8000/api/?', 'http://localhost:8000/api'],
   ])('normalizes the API URL %s to %s', (url, expected) => {
     expect(readEnv({ ...valid, VITE_API_URL: url }).apiUrl).toBe(expected)
+  })
+
+  // VITE_VAPID_PUBLIC_KEY is optional: without it the app runs, and the reminders say they are not set up.
+  it('without a VAPID key, vapidPublicKey is null', () => {
+    expect(readEnv(valid).vapidPublicKey).toBeNull()
+    expect(readEnv({ ...valid, VITE_VAPID_PUBLIC_KEY: '  ' }).vapidPublicKey).toBeNull()
+  })
+
+  it('reads a VAPID public key: 65 bytes in base64url, starting 0x04', () => {
+    const key = base64url(String.fromCharCode(4, ...Array.from({ length: 64 }, (_, i) => i)))
+    expect(readEnv({ ...valid, VITE_VAPID_PUBLIC_KEY: ` ${key} ` }).vapidPublicKey).toBe(key)
+  })
+
+  it.each([
+    ['too short', base64url(String.fromCharCode(4, 1, 2, 3))],
+    ['not an uncompressed point', base64url(String.fromCharCode(2, ...Array.from({ length: 64 }, () => 1)))],
+    ['standard base64', `${base64url(String.fromCharCode(4, ...Array.from({ length: 63 }, () => 1)))}+/`],
+    ['not base64 at all', 'not a key!'],
+  ])('refuses a VAPID key that is %s', (_name, key) => {
+    const problems = problemsOf({ ...valid, VITE_VAPID_PUBLIC_KEY: key })
+    expect(problems).toHaveLength(1)
+    expect(problems[0]).toContain('VITE_VAPID_PUBLIC_KEY')
   })
 })

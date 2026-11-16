@@ -2,6 +2,8 @@ import { CalendarDays, FileText, Sun, TrendingUp, type LucideIcon } from 'lucide
 import { useRef, type MouseEvent } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { he } from '../i18n/he'
+import { InstallHint } from '../notifications/InstallHint'
+import { PushSync } from '../notifications/PushSync'
 import { ReplanOfferProvider } from '../plan/ReplanOffer'
 import { cx, FOCUS_RING_NATIVE, ICON_STROKE } from '../ui/styles'
 import { ToastRegion } from '../ui/toast'
@@ -44,7 +46,8 @@ function destinationClass({ isActive }: { isActive: boolean }) {
 // profile menu), the screen itself, and the toasts. Screens render inside <main>, which already
 // has the page gutter and width.
 // ReplanOfferProvider: any screen can offer a replan (useReplanOffer); TimezoneSync keeps the
-// profile's timezone in step with the browser (spec 7.3).
+// profile's timezone in step with the browser (spec 7.3); PushSync sends this browser's push
+// subscription again (S16), and InstallHint explains, once, how iOS gets reminders.
 export function AppShell() {
   const onboarding = useLocation().pathname.startsWith('/onboarding')
   const main = useRef<HTMLElement>(null)
@@ -61,6 +64,7 @@ export function AppShell() {
   return (
     <ReplanOfferProvider>
       <TimezoneSync />
+      <PushSync />
       <div className="min-h-dvh">
         {/* The first Tab stop of every screen. Out of sight above the screen until it has the focus. */}
         <a
@@ -107,6 +111,7 @@ export function AppShell() {
           tabIndex={-1}
           className="mx-auto w-full max-w-3xl px-page py-section pb-[calc(7rem+env(safe-area-inset-bottom))] outline-none md:pb-12"
         >
+          {onboarding ? null : <InstallHint />}
           <Outlet />
         </main>
         <ToastRegion />

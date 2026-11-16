@@ -1,4 +1,4 @@
-import type { Session } from '@supabase/supabase-js'
+import type { Session } from '@supabase/auth-js'
 import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -105,7 +105,10 @@ describe('AppShell', () => {
 
     await user.click(await profileButton())
     await user.click(screen.getByRole('menuitem', { name: he.shell.signOut }))
-    expect(auth.signOut).toHaveBeenCalledExactlyOnceWith({ scope: 'local' })
+    // After the push subscription of this device is dropped (S16), so not in the same tick.
+    await waitFor(() => {
+      expect(auth.signOut).toHaveBeenCalledExactlyOnceWith({ scope: 'local' })
+    })
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/login')
     })

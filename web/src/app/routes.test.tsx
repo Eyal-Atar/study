@@ -15,7 +15,8 @@ describe('routes', () => {
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/login')
     })
-    expect(screen.getByRole('button', { name: he.login.google })).toBeInTheDocument()
+    // The router state changes before React commits the new screen (a transition), so wait for it.
+    expect(await screen.findByRole('button', { name: he.login.google })).toBeInTheDocument()
   })
 
   it('the home route shows loading until the session is known', async () => {
