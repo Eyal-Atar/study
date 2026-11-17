@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { he } from '../i18n/he'
 import { COMPLETED_AT, examFixture, meFixture } from '../onboarding/testFixtures'
 import { addDays, dayMonth, longDate, weekdayShort } from './dates'
+import { problem } from '../test/fakeApi'
 import { EXAM, TODAY, blockFixture, examServer, openRoute } from './testFixtures'
 
 const t = he.exam
@@ -51,8 +52,9 @@ describe('ExamPage study day', () => {
   it('at 01:00 the days left and the edit form still count calendar days (the API checks exam_date > calendar today)', async () => {
     atJerusalem('2026-11-20T23:00:00Z')
     // 21.11 to 26.11: 5 calendar days, not 6.
+    // The h1 is on screen from the first render ("מבחן" while loading), so wait for the header itself.
     expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
-    expect(screen.getAllByText(t.inDays(5)).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText(t.inDays(5))).length).toBeGreaterThan(0)
   })
 })
 
@@ -61,6 +63,56 @@ describe('ExamPage', () => {
     openRoute(examServer(), '/exams/nope')
     expect(await screen.findByText(t.notFound)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: t.backToList })).toHaveAttribute('href', '/exams')
+  })
+
+  it('the h1 is there at once: "מבחן" while the exams load, then the name of the exam', async () => {
+    let answer: (value: unknown) => void = () => undefined
+    const fake = examServer().on(
+      'GET /exams',
+      () =>
+        new Promise((resolve) => {
+          answer = resolve
+        }),
+    )
+    openRoute(fake, '/exams/e1')
+    expect(await screen.findByRole('heading', { level: 1, name: t.title })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: t.backToList })).toHaveAttribute('href', '/exams')
+    expect(screen.getAllByRole('status').length).toBeGreaterThan(0)
+    answer([EXAM])
+    expect(await screen.findByRole('heading', { level: 1, name: EXAM.name })).toBeInTheDocument()
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+  })
+
+  it('a failed load keeps the h1 and offers to try again', async () => {
+    const user = userEvent.setup()
+    const fake = examServer().on('GET /exams', problem(500, 'internal'))
+    openRoute(fake, '/exams/e1')
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: t.title })).toBeInTheDocument()
+    const before = fake.calls('GET', '/exams').length
+    await user.click(screen.getByRole('button', { name: he.common.retry }))
+    await waitFor(() => {
+      expect(fake.calls('GET', '/exams').length).toBeGreaterThan(before)
+    })
+  })
+
+  it('the header is one quiet line (date, days left, difficulty), and the edit button shows "עריכה"', async () => {
+    openRoute(examServer(), '/exams/e1')
+    const heading = await screen.findByRole('heading', { level: 1, name: EXAM.name })
+    const line = heading.nextElementSibling
+    expect(line).toHaveTextContent(
+      `${longDate(EXAM.exam_date)}, ${t.inDays(5)}. ${f.difficultyOf(f.difficultyLevels[EXAM.difficulty - 1] ?? '')}`,
+    )
+    expect(screen.getByRole('button', { name: t.header.editLabel })).toHaveTextContent(t.header.edit)
+  })
+
+  it('while editing the h1 stays, the edit button goes, and the form opens under the title', async () => {
+    const user = userEvent.setup()
+    openRoute(examServer(), '/exams/e1')
+    await user.click(await screen.findByRole('button', { name: t.header.editLabel }))
+    expect(screen.getByRole('heading', { level: 1, name: EXAM.name })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: t.header.editLabel })).not.toBeInTheDocument()
+    expect(screen.getByRole('form', { name: t.header.editLabel })).toBeInTheDocument()
   })
 
   it('shows the exam name, date and days left', async () => {

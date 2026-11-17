@@ -1,8 +1,11 @@
+import { Coffee, Flag } from 'lucide-react'
 import { useId } from 'react'
 import { errorMessage, type ApiError } from '../api/client'
 import { he } from '../i18n/he'
 import type { Block } from '../onboarding/types'
-import { Button } from '../ui/Button'
+import { SectionHeading } from '../ui/SectionHeading'
+import { ErrorState } from '../ui/states'
+import { cx, ICON_STROKE } from '../ui/styles'
 import { addDays, dayMonth, weekdayShort } from './dates'
 import { minutesByDay, type TimelineRange } from './timelineDays'
 
@@ -10,6 +13,14 @@ const t = he.exam.timeline
 
 // The bar of a day is at most this tall; the busiest day of the range fills it.
 const BAR_MAX_PX = 72
+// The shortest bar: its outline alone takes 2px, and the done part has to show inside it.
+const BAR_MIN_PX = 8
+
+// A planned day is an outline on white, and the part that was done fills it from the bottom in
+// green: the same language as the check circle of a task (empty = not yet, green = done). Both
+// have 3:1 against the surface, which the old brand-soft fill did not.
+const PLANNED = 'border border-line-strong bg-surface'
+const DONE = 'bg-success'
 
 interface DayInfo {
   day: string
@@ -30,39 +41,62 @@ function dayLabel(info: DayInfo): string {
 }
 
 function Day({ info, max }: { info: DayInfo; max: number }) {
-  const plannedPx = info.planned === 0 ? 0 : Math.max(6, Math.round((info.planned / max) * BAR_MAX_PX))
+  const plannedPx = info.planned === 0 ? 0 : Math.max(BAR_MIN_PX, Math.round((info.planned / max) * BAR_MAX_PX))
   const donePx = info.planned === 0 ? 0 : Math.round((info.done / info.planned) * plannedPx)
-  const column = info.isExam
-    ? 'bg-brand text-on-brand'
-    : info.isRest
-      ? 'bg-surface-muted text-ink-muted'
-      : 'text-ink'
   return (
     // The visible column is a picture of the label; a screen reader reads the label once.
-    <li aria-label={dayLabel(info)} className={`flex w-11 shrink-0 flex-col items-center gap-1 rounded-lg py-2 ${column}`}>
-      <span aria-hidden="true" className={`text-xs ${info.isToday ? 'font-bold text-brand-strong' : ''}`}>
-        {info.isToday ? t.today : weekdayShort(info.day)}
-      </span>
-      <span aria-hidden="true" className="flex w-full flex-col items-center justify-end" style={{ height: BAR_MAX_PX }}>
-        {info.isExam ? (
-          <span className="text-xs font-medium">{t.examDay}</span>
-        ) : info.isRest ? (
-          <span className="text-xs">{t.restDay}</span>
-        ) : plannedPx > 0 ? (
-          <span className="flex w-5 flex-col justify-end overflow-hidden rounded-md bg-brand-soft" style={{ height: plannedPx }}>
-            <span className="w-full bg-brand" style={{ height: donePx }} />
-          </span>
-        ) : (
-          <span className="h-1 w-5 rounded-full bg-line" />
-        )}
-      </span>
+    <li aria-label={dayLabel(info)} className="flex w-12 shrink-0 flex-col items-center gap-1 py-2">
+      {/* "היום" in words, not only in colour. */}
       <span
         aria-hidden="true"
-        className={`text-xs tabular-nums ${info.isToday ? 'rounded-full bg-brand-soft px-1.5 font-bold text-brand-strong' : ''}`}
+        className={cx('text-caption whitespace-nowrap', info.isToday ? 'font-semibold text-brand-strong' : 'text-ink-muted')}
       >
+        {info.isToday ? t.today : weekdayShort(info.day)}
+      </span>
+      <span aria-hidden="true" className="flex w-full items-end justify-center" style={{ height: BAR_MAX_PX }}>
+        {info.isExam ? (
+          // An icon and no words: "יום המבחן" does not fit a 48px column, and used to wrap.
+          <Flag aria-hidden="true" data-mark="exam" size={18} strokeWidth={ICON_STROKE} className="text-brand" />
+        ) : info.isRest ? (
+          <Coffee aria-hidden="true" data-mark="rest" size={18} strokeWidth={ICON_STROKE} className="text-ink-muted" />
+        ) : plannedPx > 0 ? (
+          <span data-mark="planned" className={cx('flex w-5 flex-col justify-end overflow-hidden rounded-badge', PLANNED)} style={{ height: plannedPx }}>
+            {donePx > 0 ? <span data-mark="done" className={cx('w-full', DONE)} style={{ height: donePx }} /> : null}
+          </span>
+        ) : (
+          <span data-mark="none" className="h-1 w-5 rounded-full bg-line" />
+        )}
+      </span>
+      <span aria-hidden="true" className="text-caption whitespace-nowrap tabular-nums text-ink-muted">
         {dayMonth(info.day)}
       </span>
     </li>
+  )
+}
+
+// The four signs of the chart, with their words. Hidden from screen readers: every day carries
+// its full label.
+function Legend() {
+  const item = 'flex items-center gap-1'
+  return (
+    <span aria-hidden="true" data-legend="" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-small text-ink-muted">
+      <span className={item}>
+        <span className={cx('size-3 rounded-badge', PLANNED)} />
+        {t.legendPlanned}
+      </span>
+      <span className={item}>
+        <span className={cx('size-3 rounded-badge', DONE)} />
+        {t.legendDone}
+      </span>
+      <span className={item}>
+        <Coffee aria-hidden="true" size={14} strokeWidth={ICON_STROKE} />
+        {t.legendRest}
+      </span>
+      <span className={item}>
+        <Flag aria-hidden="true" size={14} strokeWidth={ICON_STROKE} className="text-brand" />
+        {t.legendExam}
+      </span>
+    </span>
   )
 }
 
@@ -104,36 +138,16 @@ export function Timeline({
   const max = Math.max(1, ...days.map((d) => d.planned))
 
   return (
-    <section aria-labelledby={titleId} className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id={titleId} className="text-lg font-medium text-ink">
-          {t.title}
-        </h2>
-        <span aria-hidden="true" className="flex items-center gap-3 text-xs text-ink-muted">
-          <span className="flex items-center gap-1">
-            <span className="size-3 rounded-sm bg-brand-soft" />
-            {t.legendPlanned}
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="size-3 rounded-sm bg-brand" />
-            {t.legendDone}
-          </span>
-        </span>
+    <section aria-labelledby={titleId} className="flex min-w-0 flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <SectionHeading id={titleId}>{t.title}</SectionHeading>
+        {days.length === 0 ? null : <Legend />}
       </div>
-      {error === null ? null : (
-        <div className="flex flex-wrap items-center gap-2">
-          <p role="alert" className="text-sm text-danger">
-            {errorMessage(error)}
-          </p>
-          <Button variant="secondary" onPress={onRetry}>
-            {he.common.retry}
-          </Button>
-        </div>
-      )}
+      {error === null ? null : <ErrorState message={errorMessage(error)} onRetry={onRetry} />}
       {days.length === 0 ? (
-        <p className="text-ink-muted">{t.noDays}</p>
+        <p className="text-body text-ink-muted">{t.noDays}</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-surface p-2">
+        <div className="overflow-x-auto rounded-card border border-line bg-surface px-2 py-1">
           <ol aria-label={t.listLabel} className="flex gap-1">
             {days.map((info) => (
               <Day key={info.day} info={info} max={max} />
@@ -141,7 +155,7 @@ export function Timeline({
           </ol>
         </div>
       )}
-      {range.far ? <p className="text-sm text-ink-muted">{t.farNote}</p> : null}
+      {range.far ? <p className="text-small text-ink-muted">{t.farNote}</p> : null}
     </section>
   )
 }

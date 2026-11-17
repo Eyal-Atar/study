@@ -1,3 +1,4 @@
+import { Pencil } from 'lucide-react'
 import { useState } from 'react'
 import { Form } from 'react-aria-components'
 import { errorMessage } from '../api/client'
@@ -5,6 +6,9 @@ import { he } from '../i18n/he'
 import type { Exam } from '../onboarding/types'
 import { useReplanOffer } from '../plan/replanOfferContext'
 import { Button } from '../ui/Button'
+import { Card } from '../ui/Card'
+import { PageHeader } from '../ui/PageHeader'
+import { ICON_STROKE } from '../ui/styles'
 import { useToast } from '../ui/useToast'
 import { useUpdateExam, type ExamPatchVars } from './api'
 import { daysBetween, longDate } from './dates'
@@ -50,66 +54,75 @@ function EditForm({ exam, today, onDone }: { exam: Exam; today: string; onDone: 
   }
 
   return (
-    <Form
-      aria-label={t.header.editLabel}
-      validationBehavior="aria"
-      onSubmit={(event) => {
-        event.preventDefault()
-        submit()
-      }}
-      className="flex flex-col gap-5 rounded-xl border border-line bg-surface p-4"
-    >
-      <ExamFields draft={draft} errors={errors} today={today} onChange={setDraft} onErrors={setErrors} />
-      {updateExam.isError ? (
-        <p role="alert" className="text-sm text-danger">
-          {errorMessage(updateExam.error)}
-        </p>
-      ) : null}
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" isDisabled={updateExam.isPending}>
-          {updateExam.isPending ? t.header.saving : he.common.save}
-        </Button>
-        <Button variant="secondary" onPress={onDone}>
-          {he.common.cancel}
-        </Button>
-      </div>
-    </Form>
+    <Card title={t.header.editLabel}>
+      <Form
+        aria-label={t.header.editLabel}
+        validationBehavior="aria"
+        onSubmit={(event) => {
+          event.preventDefault()
+          submit()
+        }}
+        className="flex flex-col gap-4"
+      >
+        <ExamFields draft={draft} errors={errors} today={today} onChange={setDraft} onErrors={setErrors} />
+        {updateExam.isError ? (
+          <p role="alert" className="text-small text-danger">
+            {errorMessage(updateExam.error)}
+          </p>
+        ) : null}
+        <div className="flex gap-2">
+          <Button type="submit" className="flex-1 sm:flex-none" isPending={updateExam.isPending}>
+            {he.common.save}
+          </Button>
+          <Button variant="secondary" onPress={onDone}>
+            {he.common.cancel}
+          </Button>
+        </div>
+      </Form>
+    </Card>
   )
 }
 
-// The exam's name, date, days left and difficulty; "עריכה" turns it into a small form in place.
+// The exam's name, and under it one quiet line: date, days left, difficulty. "עריכה" opens a small
+// form under the title; the title itself stays, so the screen never loses its h1.
 export function ExamHeader({ exam, today }: { exam: Exam; today: string }) {
   const [editing, setEditing] = useState(false)
-  if (editing) {
-    return (
-      <EditForm
-        exam={exam}
-        today={today}
-        onDone={() => {
-          setEditing(false)
-        }}
-      />
-    )
-  }
   const difficulty = f.difficultyLevels[exam.difficulty - 1] ?? String(exam.difficulty)
   return (
-    <header className="flex flex-wrap items-start justify-between gap-3">
-      <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="break-words text-2xl font-bold text-ink">{exam.name}</h1>
-        <p className="text-ink-muted">
-          {longDate(exam.exam_date)}
-          <span className="mx-2 font-medium text-brand-strong">{t.inDays(daysBetween(today, exam.exam_date))}</span>
-        </p>
-        <p className="text-sm text-ink-muted">{f.difficultyOf(difficulty)}</p>
-      </div>
-      <Button
-        variant="secondary"
-        onPress={() => {
-          setEditing(true)
-        }}
-      >
-        {t.header.editLabel}
-      </Button>
-    </header>
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title={exam.name}
+        subtitle={
+          <>
+            {t.header.dateThen(longDate(exam.exam_date))}
+            <span className="font-semibold text-ink">{t.inDays(daysBetween(today, exam.exam_date))}</span>
+            {t.header.thenDifficulty(f.difficultyOf(difficulty))}
+          </>
+        }
+        action={
+          editing ? null : (
+            <Button
+              variant="secondary"
+              aria-label={t.header.editLabel}
+              onPress={() => {
+                setEditing(true)
+              }}
+            >
+              <Pencil aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+              {t.header.edit}
+            </Button>
+          )
+        }
+      />
+      {editing ? (
+        <EditForm
+          exam={exam}
+          today={today}
+          onDone={() => {
+            setEditing(false)
+          }}
+        />
+      ) : null}
+    </div>
   )
 }

@@ -1,9 +1,14 @@
-import { Link, useParams } from 'react-router'
+import { ChevronRight } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { useParams } from 'react-router'
 import { errorMessage } from '../api/client'
 import { useMe } from '../api/me'
 import { he } from '../i18n/he'
 import { useExams } from '../onboarding/api'
-import { Button } from '../ui/Button'
+import { PageHeader } from '../ui/PageHeader'
+import { EmptyState, ErrorState, LoadingState } from '../ui/states'
+import { ICON_STROKE } from '../ui/styles'
+import { TextLink } from '../ui/TextLink'
 import { AnalysisSection } from './AnalysisSection'
 import { useExamPlan, useToday } from './api'
 import { ExamHeader } from './ExamHeader'
@@ -14,22 +19,32 @@ import { timelineRange } from './timelineDays'
 
 const t = he.exam
 
-const BACK_LINK =
-  'inline-flex min-h-11 items-center gap-1 self-start rounded-lg text-sm font-medium text-brand-strong outline-none hover:underline focus-visible:ring-2 focus-visible:ring-brand'
-
+// In RTL "back" points right, so the chevron needs no flip.
 function BackLink() {
   return (
-    <Link to="/exams" className={BACK_LINK}>
-      <svg viewBox="0 0 20 20" aria-hidden="true" className="size-4 rtl:rotate-180" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12.5 4.5 7 10l5.5 5.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
+    <TextLink to="/exams" className="inline-flex min-h-touch items-center gap-1 self-start text-small">
+      <ChevronRight aria-hidden="true" size={16} strokeWidth={ICON_STROKE} />
       {t.backToList}
-    </Link>
+    </TextLink>
+  )
+}
+
+// The screen before the exam itself is known: the same back link and an h1 at once, so the focus
+// after a navigation has a title to land on, and the content keeps its place when it arrives.
+function Frame({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
+        <BackLink />
+        <PageHeader title={t.title} />
+      </div>
+      {children}
+    </div>
   )
 }
 
 // /exams/:examId: the exam's header, its days until the exam, its topics and tasks (all editable
-// in place), then its materials and analysis (Task 7).
+// in place), then its materials and analysis, which fold.
 export function ExamPage() {
   const { examId = '' } = useParams()
   const exams = useExams()
@@ -41,36 +56,37 @@ export function ExamPage() {
   const range = timelineRange(studyDay, exam?.exam_date ?? studyDay)
   const plan = useExamPlan(examId, exam === undefined ? null : range.query)
 
-  if (exams.isPending) return <p className="text-ink-muted">{he.common.loading}</p>
+  if (exams.isPending) {
+    return (
+      <Frame>
+        <LoadingState shape="card" />
+        <LoadingState shape="list" />
+      </Frame>
+    )
+  }
   if (exams.isError) {
     return (
-      <div className="flex flex-col items-start gap-2">
-        <p role="alert" className="text-danger">
-          {errorMessage(exams.error)}
-        </p>
-        <Button
-          variant="secondary"
-          onPress={() => {
+      <Frame>
+        <ErrorState
+          message={errorMessage(exams.error)}
+          onRetry={() => {
             void exams.refetch()
           }}
-        >
-          {he.common.retry}
-        </Button>
-      </div>
+        />
+      </Frame>
     )
   }
   if (exam === undefined) {
     return (
-      <div className="flex flex-col items-start gap-3">
-        <p className="text-ink">{t.notFound}</p>
-        <BackLink />
-      </div>
+      <Frame>
+        <EmptyState title={t.notFound} description={t.notFoundHint} />
+      </Frame>
     )
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
         <BackLink />
         <ExamHeader exam={exam} today={today} />
       </div>
@@ -87,8 +103,11 @@ export function ExamPage() {
         }}
       />
       <TaskList examId={exam.id} blocks={plan.data?.blocks ?? []} timeZone={timeZone} />
-      <MaterialsSection examId={exam.id} />
-      <AnalysisSection examId={exam.id} />
+      {/* The two folding sections sit together: each draws its own line above, and this closes the last. */}
+      <div className="border-b border-line">
+        <MaterialsSection examId={exam.id} />
+        <AnalysisSection examId={exam.id} />
+      </div>
     </div>
   )
 }
