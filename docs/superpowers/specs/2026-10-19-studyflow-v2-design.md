@@ -424,6 +424,16 @@ flowchart RL
     - **אייקונים:** `lucide-react` (ISC, ‏`sideEffects: false`), בעובי קו 1.75. אייקון אחד עולה כ-1.5KB ב-gzip. ב-S25 יש אייקון אחד, ליד "היום" בניווט, כהוכחה; הניווט עצמו של S26.
     - **בדיקה:** `theme.test.ts` בודק כל זוג טקסט ורקע שהמסמך מתיר (4.5:1), חלקי פקדים (3:1), שכל token קיים, ושהפונט מאוחסן אצלנו, עם `swap`, וקטן מ-60KB לקובץ.
     - **הרכיבים והמסכים לא שונו.** המעבר שלהם ל-tokens החדשים הוא של S26–S28.
+  - **(S26, הושלם ב-17.11.2026):** השלד, הניווט ורכיבי הבסיס. הפירוט, כולל מתי משתמשים בכל רכיב ודוגמת קוד, ב-`docs/design/design-language.md` (5.8, 6, 10).
+  - **(החלטות של מי שבונה, S26):**
+    - **ניווט:** `nav` אחד ב-DOM לשני הרוחבים: קבוע בתחתית מתחת ל-`md` (היום, שבוע, מבחנים, התקדמות, עם אייקון ותווית ו-`safe-area`), ובשורה העליונה מ-`md`. "הגדרות" ו"יציאה" עברו לתפריט פרופיל (האות הראשונה של השם מ-Google). באונבורדינג אין ניווט ואין תפריט.
+    - **נגישות של השלד:** "דלג לתוכן" הוא ה-Tab הראשון; אחרי ניווט שהמשתמש יזם הפוקוס עובר ל-`h1` של המסך החדש (`useRouteFocus`), לא בטעינה ראשונה, לא בהפניה ולא בשינוי של `?query` בלבד; `PageHeader` קובע את שם הלשונית.
+    - **רכיבים (`web/src/ui/`, על React Aria):** `Button` (עם `isPending`), ‏`IconButton`, ‏`ButtonLink`, ‏`Menu`, ‏`TextField`, ‏`Select`, ‏`DatePicker`, ‏`TimeField`, ‏`RadioCards`, ‏`CheckboxCards`, ‏`Card`, ‏`List` ו-`ListRow`, ‏`CheckButton`, ‏`Badge`, ‏`ProgressBar`, ‏`TextLink`, ‏`Disclosure`, ‏`SectionHeading`, ‏`Dialog` (sheet תחתון בטלפון), ‏toast, ‏`PageHeader`, ‏`StandalonePage`, ושלושת המצבים `LoadingState` (שלד בצורת התוכן), ‏`EmptyState` ו-`ErrorState`. לכל שדה אותם `label`, ‏`description` ו-`errorMessage`.
+    - **כבוי** הוא `surface-muted` עם `ink-muted`, בלי שקיפות (במקום `opacity-50`, שהיה חלש מדי על רקעים רכים).
+    - **`Select` של React Aria** החליף את ה-`select` של הדפדפן שהיה ב-`exam/`, כדי שכל השדות ייראו ויתנהגו אותו דבר.
+    - **דף הרכיבים** ב-`/dev/components`, מחוץ ל-`RequireAuth`, רק ב-dev build: ה-route מותנה ב-`import.meta.env.DEV` עם `import()`, והטקסטים שלו ב-`web/src/dev/devText.ts` ולא ב-`he.ts`. ב-build של production אין לו זכר (נמדד).
+    - **`viewport-fit=cover`** ב-`index.html`, ו-`px-page` / `px-safe` ב-`index.css` לשוליים שמכבדים את ה-safe-area גם בצדדים.
+    - **המסכים לא עוצבו מחדש.** `OnboardingGate` עבר ל-`LoadingState` ול-`ErrorState`, ו-404 ל-`TextLink`; כל השאר של S27 ו-S28, לפי הרשימה בסעיף 10 של מסמך העיצוב.
 - **"היום" ו"שבוע" (החלטות של מי שבונה, S14):**
   - **שכבה משותפת** ב-`web/src/board/`: כל ה-queries של הלוח (`GET /today`, ‏`GET /plan`, ‏`GET /exams`, והתצוגה המקדימה של הדוח) תחת המפתח `['board', userId]`, כך שפעולה אחת מעדכנת ומרעננת את שני המסכים. ‏refetch כל דקה וכשחוזרים לחלון, כי `state` של בלוק נגזר בשרת לפי `now`.
   - **הפעולות:** ‏complete, ‏uncomplete ונעילה אופטימיות בכל ה-cache של הלוח, עם rollback ו-toast בשגיאה; ה-"בטל" שלהן הוא הפעולה ההפוכה (הן לא יוצרות גרסה). דחייה לא אופטימית, כי המתכנן בשרת בוחר את המקום; ה-toast אומר לאן היא זזה, וה-"בטל" שולח `POST /plan/undo` עם ה-`version_id`. ‏409 ‏`placement_failed` → ‏toast עם הסיבה והצעה לתכנן מחדש, והלוח לא משתנה. אחרי כל פעולה הלוח כולו מתרענן.
