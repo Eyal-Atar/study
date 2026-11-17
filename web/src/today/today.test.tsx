@@ -481,7 +481,9 @@ describe('the today screen', () => {
     const user = userEvent.setup()
     const { auth, router } = setup()
 
-    await user.click(await screen.findByRole('button', { name: he.shell.signOut }))
+    // S26: sign out lives in the profile menu of the shell.
+    await user.click(await screen.findByRole('button', { name: he.shell.profile }))
+    await user.click(await screen.findByRole('menuitem', { name: he.shell.signOut }))
     expect(auth.signOut).toHaveBeenCalledExactlyOnceWith({ scope: 'local' })
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/login')

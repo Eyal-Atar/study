@@ -43,7 +43,7 @@
 | --- | --- |
 | `ink` | `canvas`, ‏`surface`, ‏`surface-muted`, ‏`brand-soft`, ‏`success-soft`, ‏`warning-soft`, ‏`danger-soft` |
 | `ink-muted` | `canvas`, ‏`surface`, ‏`surface-muted`, ‏`brand-soft` |
-| `brand`, ‏`brand-strong` | `canvas`, ‏`surface`, ‏`surface-muted`; ‏`brand-strong` גם על `brand-soft` |
+| `brand`, ‏`brand-strong` | `canvas`, ‏`surface`, ‏`surface-muted`, ‏`success-soft`, ‏`danger-soft` (הכפתור השקט בתוך toast); ‏`brand-strong` גם על `brand-soft` |
 | `success`, ‏`warning`, ‏`danger` | `canvas`, ‏`surface`, ‏`surface-muted`, והגרסה הרכה של עצמו |
 | `on-brand` | `brand`, ‏`brand-strong`, ‏`success`, ‏`danger` |
 
@@ -138,7 +138,7 @@
 | --- | --- | --- |
 | ראשי | `bg-brand text-on-brand`; ‏hover ולחיצה: `bg-brand-strong` | הפעולה האחת שהמסך קיים בשבילה. **אחד לכל היותר במסך או בכרטיס** |
 | משני | `border border-line-strong bg-surface text-ink`; ‏hover: `bg-surface-muted` | כל פעולה אחרת שיש לה כפתור |
-| שקט | `text-brand`, בלי גבול; ‏hover: `bg-brand-soft` | פעולה בתוך טקסט או בתוך toast ("בטל", "נסו שוב") |
+| שקט | `text-brand`, בלי גבול; ‏hover: `bg-brand-soft` עם `text-brand-strong` | פעולה בתוך טקסט או בתוך toast ("בטל", "נסו שוב") |
 | מסוכן | כמו משני, עם `text-danger`; ‏hover: `bg-danger-soft` | פעולה שאי אפשר לבטל. אף פעם לא במילוי אדום |
 
 - הכפתור הראשי ראשון בסדר הקריאה (בצד ימין), ובשורה של כמה כפתורים הוא מתרחב (`flex-1`).
@@ -183,21 +183,25 @@
 
 | רכיב | מתי משתמשים בו | מתי לא |
 | --- | --- | --- |
-| `Button` | כל פעולה שיש לה טקסט. `primary` פעם אחת במסך או בכרטיס | ניווט למסך אחר (זה `TextLink` או שורה עם `to`) |
+| `Button` | כל פעולה שיש לה טקסט. `primary` פעם אחת במסך או בכרטיס | ניווט למסך אחר (זה `ButtonLink`, ‏`TextLink` או שורה עם `to`) |
+| `ButtonLink` | מעבר למסך אחר שיש לו משקל של פעולה ("מחיקת חשבון" בהגדרות, "חזרה לכניסה"). נראה כמו כפתור, והוא קישור | פעולה שלא מנווטת |
 | `IconButton` | פעולה שהאייקון שלה מובן לבד: סגירה, פתיחת תפריט, לוח שנה | פעולה ראשית; פעולה שצריך לקרוא כדי להבין |
 | `Menu`, ‏`MenuItem` | פעולות נוספות על שורה או על הפרופיל (שתיים ומעלה) | פעולה אחת (כפתור); בחירת ערך (`Select`) |
 | `TextField` | שורת טקסט אחת | בחירה מתוך רשימה סגורה |
 | `Select` | בחירה אחת מרשימה של יותר מחמש אפשרויות, או רשימה שהאורך שלה לא ידוע (נושאים) | עד חמש אפשרויות קצרות: `RadioCards`, שנבחרות בלחיצה אחת |
-| `DatePicker` | תאריך | שעה (אין עדיין רכיב; שעות ההגדרות הן `RadioCards` או `Select`) |
+| `DatePicker` | תאריך | שעה |
+| `TimeField` | שעה ביום. הערך הוא מחרוזת `'HH:MM'` (או `''`), כמו ב-`<input type="time">` שהוא מחליף | משך ("שעה וחצי") |
 | `RadioCards` | בחירה אחת מתוך 2–5 אפשרויות שכדאי לראות את כולן | רשימה ארוכה |
 | `CheckboxCards` | כמה בחירות מתוך קבוצה קטנה (חלונות לימוד) | הסכמה בודדת |
-| `Card` | דבר אחד שעומד בפני עצמו (5.1). ‏`tone` למצב: שגיאה, אזהרה, הצלחה | פריט ברשימה; כרטיס בתוך כרטיס |
-| `List`, ‏`ListRow` | פריטים מאותו סוג (5.2). ‏`to` הופך את השורה לקישור | טבלה של נתונים |
+| `Card` | דבר אחד שעומד בפני עצמו (5.1). ‏`tone` למצב: שגיאה, אזהרה, הצלחה; ‏`title` נותן כותרת בצבע המצב | פריט ברשימה; כרטיס בתוך כרטיס |
+| `List`, ‏`ListRow` | פריטים מאותו סוג (5.2). ‏`to` הופך את השורה לקישור, ‏`onPress` לכפתור (שורה שפותחת דיאלוג). ב-`trailing` אפשר לשים כמה פקדים | טבלה של נתונים |
+| `CheckButton` | כפתור הסימון של משימה (5.2): יעד של 44px ועיגול של 24px | בחירה בטופס (`CheckboxCards`) |
+| `SectionHeading` | הכותרת של קטע במסך (`h2`, "עוד היום") | כותרת המסך (`PageHeader`) |
 | `Badge` | מצב של פריט, עם טקסט (5.5) | מידע שאינו מצב; ספירה |
-| `ProgressBar` | התקדמות עם ערך ידוע (5.6) | טעינה בלי אחוז (זה `LoadingState`, או `isPending` של כפתור) |
-| `TextLink` | קישור בתוך טקסט או קישור משני שעומד לבד ("לדף הבית") | פעולה (זה כפתור) |
+| `ProgressBar` | התקדמות עם ערך ידוע (5.6). בלי תווית גלויה: `aria-label` | טעינה בלי אחוז (זה `LoadingState`, או `isPending` של כפתור) |
+| `TextLink` | קישור בתוך טקסט או קישור משני שעומד לבד ("לדף הבית"). ‏`to` למסך באפליקציה, ‏`href` לכתובת חיצונית או ל-`mailto:` | פעולה (זה כפתור) |
 | `Disclosure` | פרט משני שרוב המשתמשים לא צריכים (הנימוק של משימה) | תוכן שחייבים לקרוא |
-| `Dialog` | שאלה או טופס קצר שעוצרים בשבילו את המסך. בטלפון הוא נפתח מלמטה | הודעה (toast); אישור של מחיקה (הכלל הוא "בטל" ל-10 שניות, לא "בטוח?") |
+| `Dialog` | שאלה או טופס קצר שעוצרים בשבילו את המסך. בטלפון הוא נפתח מלמטה. ‏`onSubmit` עוטף את התוכן ואת הכפתורים בטופס, כך ש-Enter שולח | הודעה (toast); אישור של מחיקה (הכלל הוא "בטל" ל-10 שניות, לא "בטוח?") |
 | `useToast()` | תוצאה של פעולה: נשמר, נכשל, "בטל" | שגיאה של שדה (מתחת לשדה); תוכן שלא נטען (`ErrorState`) |
 | `LoadingState` | מסך או קטע שמחכה לנתונים. ‏`shape` לפי מה שיגיע: `list`, ‏`card`, ‏`text` | פעולה שנשלחה (`isPending` על הכפתור) |
 | `EmptyState` | רשימה או מסך שעוד אין בהם כלום: אייקון, משפט, פעולה | שגיאה |
@@ -234,6 +238,7 @@
 <TextField label="שם המבחן" value={name} onChange={setName} errorMessage={error} />
 <Select label="נושא" value={topicId} options={topics} onChange={setTopicId} />
 <DatePicker label="תאריך המבחן" value={date} onChange={setDate} minValue={tomorrow} />
+<TimeField label="שעת קימה" value={wake} onChange={setWake} errorMessage={wakeError} />
 <RadioCards label="קושי" options={LEVELS} value={level} onChange={setLevel} />
 <CheckboxCards label="מתי נוח ללמוד" options={WINDOWS} value={windows} onChange={setWindows} />
 
@@ -242,8 +247,9 @@
   <p className="text-small font-semibold text-brand-strong">המשימה הבאה</p>
   <h2 className="text-title font-semibold">תרגול תוחלת ושונות</h2>
 </Card>
-<Card tone="warning" role="status">…</Card>
+<Card tone="warning" title="3 משימות לא נכנסו" role="status">…</Card>
 
+<SectionHeading>עוד היום</SectionHeading>
 <List aria-label="עוד היום">
   <ListRow
     leading={<span dir="ltr">10:00</span>}
@@ -252,7 +258,12 @@
     trailing={<Badge tone="brand">עכשיו</Badge>}
   />
   <ListRow title="אלגוריתמים" subtitle="בעוד 12 ימים" to="/exams/e1" />
-  <ListRow title="קריאת פרק 3" done />
+  <ListRow
+    title="קריאת פרק 3"
+    done
+    trailing={<CheckButton isDone aria-label="בוצע: קריאת פרק 3" onChange={toggle} />}
+  />
+  <ListRow title="תרגול 4" subtitle="לחיצה פותחת דיאלוג" onPress={openMove} />
 </List>
 
 // תג ופס התקדמות
@@ -261,6 +272,7 @@
 
 // קישור, ופרט מתקפל
 <TextLink to="/">לדף הבית</TextLink>
+<ButtonLink to="/settings/delete-account" variant="danger">מחיקת חשבון</ButtonLink>
 <Disclosure label="למה המשימה הזו?">הנושא הופיע בשלושה מבחני עבר.</Disclosure>
 
 // שלושת המצבים של מסך
@@ -283,6 +295,8 @@ toast.show({ text: 'המבחן נמחק', action: { label: 'בטל', onAction: u
 **כללים שחוזרים בכל הרכיבים:**
 
 - כבוי הוא תמיד `surface-muted` עם `ink-muted`, אף פעם לא שקיפות.
+- לכל שדה (`TextField`, ‏`Select`, ‏`DatePicker`, ‏`TimeField`, ‏`RadioCards`, ‏`CheckboxCards`) יש אותם שלושה props: ‏`label`, ‏`description` ו-`errorMessage`. השגיאה מוצגת מתחת לשדה ומקושרת אליו, והשדה מסומן לא תקין כל עוד היא קיימת.
+- **סדר המחלקות לא קובע מי מנצח.** Tailwind 4 פולט את `data-[…]` לפי סדר האלף-בית של שם המאפיין (`disabled`, ‏`focus-visible`, ‏`focused`, ‏`hovered`, ‏`invalid`, ‏`placeholder`, ‏`pressed`, ‏`selected`), באותה specificity. כששני מצבים קובעים אותה תכונה, המאוחר באלף-בית מנצח. כדי לקבוע מנצח משרשרים: `data-[focused]:data-[placeholder]:text-on-brand`. כך נמצא ב-S26 טקסט אפור על כחול בשדה תאריך ריק.
 - פוקוס של מקלדת הוא תמיד `ring-2 ring-brand`. לשדה אין רווח בין הגבול לטבעת (הגבול עצמו נהיה כחול); לכפתור יש רווח של 2px.
 - מצב (שגיאה, הצלחה, נבחר) מועבר באייקון או בטקסט, ולא רק בצבע: ‏✓ ליד האפשרות שנבחרה ב-`Select`, אייקון ב-toast של שגיאה וב-`ErrorState`.
 - מה שצף (`Menu`, הרשימה של `Select`, לוח השנה, `Dialog`, ‏toast) הוא `rounded-card border border-line bg-surface shadow-overlay`, ונכנס בשקיפות ב-240ms; הדיאלוג גם עולה 8px.
@@ -315,7 +329,7 @@ toast.show({ text: 'המבחן נמחק', action: { label: 'בטל', onAction: u
 - **פוקוס במעבר בין מסכים** (`useRouteFocus`): אחרי ניווט שהמשתמש יזם, הפוקוס עובר ל-`h1` של המסך החדש, וקורא מסך מקריא אותו. לא בטעינה הראשונה, לא בהפניה (`REPLACE`) ולא כשרק ה-`?query` השתנה. לכן **כל מסך צריך `h1` שמופיע מיד**, גם בזמן טעינה: הכותרת מחוץ לתנאי של הטעינה.
 - **כפתור הפרופיל** מציג את האות הראשונה של השם מ-Google, אחרת של המייל, ואחרת אייקון `User`. השם הנגיש שלו "פרופיל".
 - כשנמצאים ב"הגדרות" אף יעד בסרגל לא מסומן; הכותרת של המסך אומרת איפה נמצאים.
-- **רוחב ושוליים:** `main` של השלד הוא `mx-auto max-w-3xl px-gutter py-section`. מסך לא מוסיף רוחב או שוליים משלו; מסך שמחוץ לשלד עוטף את עצמו ב-`StandalonePage`.
+- **רוחב ושוליים:** `main` של השלד הוא `mx-auto max-w-3xl px-page py-section`. ‏`px-page` הוא `gutter`, או ה-safe-area של הטלפון כשהוא רחב יותר (טלפון עם מגרעת שמוחזק לרוחב). מסך לא מוסיף רוחב או שוליים משלו; מסך שמחוץ לשלד עוטף את עצמו ב-`StandalonePage`.
 - **`index.html`** מבקש `viewport-fit=cover`, אחרת `env(safe-area-inset-bottom)` שווה 0 באייפון.
 
 ## 7. תנועה
@@ -394,7 +408,8 @@ S26 בנה את השלד ואת הרכיבים (סעיפים 5.8 ו-6), והעב
 
 - `plan/ReplanOffer.tsx`: בונה דיאלוג משלו (`ModalOverlay`). עובר ל-`ui/Dialog` (הכותרת, התיאור והכפתורים ב-`footer`).
 - `board/BlockCard.tsx`: התפריט שלו (`MenuTrigger`) עובר ל-`ui/Menu` ו-`MenuItem`; התגים (`STATE_BADGE`, "נעול") ל-`Badge`, ו"נעול" לטקסט עם אייקון `Lock` (5.5); הכרטיס לכל בלוק הופך ל-`ListRow` (5.2).
-- `board/MoveDialog.tsx` (מגיע עם S18): עובר ל-`ui/Dialog`.
+- `board/MoveDialog.tsx` (S18): בונה `ModalOverlay` משלו; עובר ל-`ui/Dialog` עם `onSubmit`.
+- `today/DayTimeline.tsx`, ‏`today/ReviewCard.tsx`, ‏`today/TodayViewSwitch.tsx` (S18): עוד לא בשפה החדשה; `opacity-50` של הבלוק שנגרר הוא מצב של גרירה ולא "כבוי", ונשאר.
 - `week/WeekDay.tsx`: ‏`rounded-xl border` לכל יום ותג "היום" ב-`rounded-full bg-brand`: כותרת קטע ו-`List`, ותג `Badge tone="brand"`.
 - `today/DayProgress.tsx`, ‏`progress/LevelCard.tsx`: פס שמצויר ביד עובר ל-`ProgressBar`. ב-`LevelCard` המילוי היום `bg-brand` על `bg-brand-soft`; לפי 5.6 הוא `success` על `line`.
 - `board/PlanReport.tsx`: ‏`<p role="status">` ו-`<p role="alert">` בלי סגנון; הדוח כולו הוא `Card tone="warning"`.
@@ -411,6 +426,9 @@ S26 בנה את השלד ואת הרכיבים (סעיפים 5.8 ו-6), והעב
 - `exam/ExamsPage.tsx`: רשימת המבחנים ל-`List` עם `ListRow to=…`; התג של הימים שנשארו (`rounded-full px-3`) ל-`Badge` או לטקסט בשורת המשנה.
 - `exam/TaskRow.tsx`: התג המקומי (`rounded-full … text-xs`) ל-`Badge`; `exam/ExamPage.tsx`: ה-SVG של החץ "חזרה" לאייקון של lucide, והקישור ל-`TextLink`.
 - `exam/TopicList.tsx`: נקודות המשקל (`size-2 rounded-full`) נשארות רכיב מקומי; לבדוק ש-`line-strong` מול `brand` מספיק כדי להבדיל בלי צבע.
+- `settings/PreferencesForm.tsx`: ‏`<input type="time">` עובר ל-`TimeField` (אותו ערך `'HH:MM'`).
+- `settings/SettingsPage.tsx`, ‏`DeleteAccountPage.tsx`, ‏`GoodbyePage.tsx`: קישורים שנראים כמו כפתור עוברים ל-`ButtonLink`.
+- `exam/MaterialsSection.tsx` (`KindSelect`): בונה `Select` של React Aria ביד, עם `opacity-50` לכבוי; עובר ל-`ui/Select`. אם לא רוצים שם תווית גלויה, מוסיפים ל-`ui/Select` אפשרות של `aria-label` במקום `label`, כמו ב-`ProgressBar`.
 - `settings/PreferencesForm.tsx`: המתג (`h-7 w-12 rounded-full` עם `shadow-sm`) הוא הרכיב היחיד שאין לו בית ב-`ui/`. S28 מעביר אותו ל-`ui/Switch.tsx` (על `Switch` של React Aria: מסילה `line-strong`, נבחר `brand`, בלי צל) ומוסיף אותו לדף הרכיבים ולסעיף 5.8.
 - `settings/SettingsPage.tsx`, ‏`DeleteAccountPage.tsx`, ‏`GoodbyePage.tsx`, ‏`pages/AuthCallbackPage.tsx`: ‏`<Link className="… underline">` ל-`TextLink`.
 - **(מהבדיקה בדפדפן של S25):** בציר של מסך המבחן העמודות "מתוכנן" והריבוע שלהן במקרא הם `bg-brand-soft` על לבן, וכמעט לא נראים. מילוי שנושא מידע צריך 3:1 מול הרקע שלו (למשל `brand` למתוכנן ו-`success` למבוצע, או קו `line-strong` סביב העמודה).
