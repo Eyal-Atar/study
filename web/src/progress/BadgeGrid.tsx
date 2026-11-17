@@ -1,6 +1,10 @@
+import { Award, CircleDashed } from 'lucide-react'
 import { useId } from 'react'
 import { useProfileTimezone } from '../board/time'
 import { he } from '../i18n/he'
+import { List, ListRow } from '../ui/List'
+import { SectionHeading } from '../ui/SectionHeading'
+import { ICON_STROKE } from '../ui/styles'
 import { formatEarnedDate, formatNumber } from './format'
 import type { Badge, BadgeGroup, Progress } from './types'
 
@@ -27,60 +31,64 @@ function currentFor(group: BadgeGroup, progress: Progress): number {
   }
 }
 
-function BadgeItem({ badge, current, timeZone }: { badge: Badge; current: number; timeZone: string }) {
+// One badge as a row. Earned: a green award and "earned on" with the date under the name.
+// Not earned: a dashed circle, and how far along it is at the end of the row. The two differ in
+// the shape of the icon and in the words, so the colour carries nothing alone.
+function BadgeRow({ badge, current, timeZone }: { badge: Badge; current: number; timeZone: string }) {
   const { name, description } = badgeText(badge.key)
-  const earned = badge.earned
+  if (badge.earned) {
+    const when = badge.earned_at === null ? t.earned : t.earnedOn(formatEarnedDate(badge.earned_at, timeZone))
+    return (
+      <ListRow
+        leading={<Award aria-hidden="true" data-badge="earned" size={18} strokeWidth={ICON_STROKE} className="text-success" />}
+        title={name}
+        subtitle={t.details([description, when])}
+      />
+    )
+  }
   return (
-    <li
-      className={`flex h-full flex-col gap-1 rounded-lg p-3 ${
-        earned ? 'bg-brand-soft' : 'border border-dashed border-line-strong bg-surface'
-      }`}
-    >
-      <h4 className={`font-medium ${earned ? 'text-brand-strong' : 'text-ink-muted'}`}>{name}</h4>
-      {description === '' ? null : <p className={`text-sm ${earned ? 'text-ink' : 'text-ink-muted'}`}>{description}</p>}
-      {earned ? (
-        badge.earned_at === null ? null : (
-          <p className="mt-auto pt-1 text-sm text-brand-strong">{t.earnedOn(formatEarnedDate(badge.earned_at, timeZone))}</p>
-        )
-      ) : (
-        <p className="mt-auto flex flex-wrap justify-between gap-x-2 pt-1 text-sm text-ink-muted">
-          <span>{t.notEarned}</span>
-          <span className="tabular-nums">
+    <ListRow
+      leading={<CircleDashed aria-hidden="true" data-badge="open" size={18} strokeWidth={ICON_STROKE} className="text-ink-muted" />}
+      title={name}
+      subtitle={description === '' ? undefined : description}
+      trailing={
+        <>
+          {/* The count is the visible way of saying "not yet"; a screen reader hears the words first. */}
+          <span className="sr-only">{t.notEarned}</span>
+          <span className="text-small whitespace-nowrap text-ink-muted tabular-nums">
             {t.towards(formatNumber(Math.min(current, badge.threshold)), formatNumber(badge.threshold))}
           </span>
-        </p>
-      )}
-    </li>
+        </>
+      }
+    />
   )
 }
 
-// Every badge, earned or not, grouped as the server orders them: earned ones tinted with the date,
-// the rest dashed and muted, with "not yet" in words and how far along it is.
+// Every badge, earned or not, grouped as the server orders them: a list of rows per group and not
+// a box per badge (design language 5.2), so 18 badges read as one quiet column.
 export function BadgeGrid({ progress }: { progress: Progress }) {
   const titleId = useId()
   const timeZone = useProfileTimezone()
   const earned = progress.badges.filter((b) => b.earned).length
 
   return (
-    <section aria-labelledby={titleId} className="flex flex-col gap-5">
+    <section aria-labelledby={titleId} className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4">
-        <h2 id={titleId} className="text-lg font-medium text-ink">
-          {t.title}
-        </h2>
-        <p className="text-sm text-ink-muted tabular-nums">{t.summary(earned, progress.badges.length)}</p>
+        <SectionHeading id={titleId}>{t.title}</SectionHeading>
+        <p className="text-small text-ink-muted tabular-nums">{t.summary(earned, progress.badges.length)}</p>
       </div>
       {GROUPS.map((group) => {
         const badges = progress.badges.filter((b) => b.group === group)
         if (badges.length === 0) return null
         const current = currentFor(group, progress)
         return (
-          <div key={group} className="flex flex-col gap-2">
-            <h3 className="text-sm font-medium text-ink-muted">{t.groups[group]}</h3>
-            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div key={group}>
+            <SectionHeading level={3}>{t.groups[group]}</SectionHeading>
+            <List aria-label={t.groups[group]}>
               {badges.map((badge) => (
-                <BadgeItem key={badge.key} badge={badge} current={current} timeZone={timeZone} />
+                <BadgeRow key={badge.key} badge={badge} current={current} timeZone={timeZone} />
               ))}
-            </ul>
+            </List>
           </div>
         )
       })}

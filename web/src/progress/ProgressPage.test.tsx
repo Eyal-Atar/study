@@ -21,9 +21,10 @@ function section(name: string) {
   return screen.getByRole('region', { name })
 }
 
+// A badge is a row of the list of its group; its name is plain text, not a heading.
 function badgeItem(name: string) {
-  const heading = screen.getByRole('heading', { name })
-  const item = heading.closest('li')
+  const badges = screen.getByRole('region', { name: t.badges.title })
+  const item = within(badges).getByText(name).closest('li')
   if (item === null) throw new Error(`no badge ${name}`)
   return item
 }
@@ -35,7 +36,9 @@ describe('the progress board', () => {
     const level = await screen.findByRole('region', { name: t.level.title })
     expect(within(level).getByText(t.level.level(2))).toBeInTheDocument()
     expect(within(level).getByText(t.level.totalXp('1,240'))).toBeInTheDocument()
-    expect(within(level).getByText(t.level.toNext('760', 3))).toBeInTheDocument()
+    // The bar says how far along the level is, once: no second sentence with what is left.
+    expect(within(level).getByText(t.level.barValue('240', '1,000'))).toBeInTheDocument()
+    expect(within(level).queryByText(/עוד 760/)).not.toBeInTheDocument()
     expect(within(level).getByText(t.level.blocksDone(12))).toBeInTheDocument()
 
     const streak = section(t.streak.title)
@@ -132,7 +135,31 @@ describe('the progress board', () => {
   it('shows loading until the answer arrives', () => {
     const fake = createFakeApi().on('GET /me', makeMe()).on('GET /progress', new Promise(() => undefined))
     renderBoard(<ProgressPage />, { api: fake.api })
-    expect(screen.getByText(he.common.loading)).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(he.common.loading)
+  })
+
+  it('the title of the screen is there while loading, for the focus after a navigation', () => {
+    const fake = createFakeApi().on('GET /me', makeMe()).on('GET /progress', new Promise(() => undefined))
+    renderBoard(<ProgressPage />, { api: fake.api })
+    expect(screen.getByRole('heading', { level: 1, name: t.title })).toBeInTheDocument()
+    expect(screen.queryByRole('region')).not.toBeInTheDocument()
+  })
+
+  it('earned or not is said by the icon and the words, not by colour', async () => {
+    setup(makeProgress())
+    await screen.findByRole('region', { name: t.badges.title })
+    const earned = badgeItem(t.badges.items.first_task.name)
+    expect(earned.querySelector('svg')).toHaveAttribute('data-badge', 'earned')
+    const open = badgeItem(t.badges.items.task_master_100.name)
+    expect(open.querySelector('svg')).toHaveAttribute('data-badge', 'open')
+    expect(within(open).getByText(t.badges.notEarned)).toBeInTheDocument()
+  })
+
+  it('each group of badges is a named list of rows', async () => {
+    setup(makeProgress())
+    const badges = await screen.findByRole('region', { name: t.badges.title })
+    const streak = within(badges).getByRole('list', { name: t.badges.groups.streak })
+    expect(within(streak).getAllByRole('listitem')).toHaveLength(5)
   })
 
   it('asks again when the board key is invalidated, as every block action does', async () => {
