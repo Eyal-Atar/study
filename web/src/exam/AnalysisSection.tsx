@@ -1,6 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { ProgressBar } from 'react-aria-components'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { errorMessage, type ApiError } from '../api/client'
 import { useUserId } from '../api/me'
 import { codeText } from '../i18n/codes'
@@ -8,6 +7,11 @@ import { he } from '../i18n/he'
 import { useGenerate, useJob, useUndo, type GenerateResult, type Job } from '../onboarding/api'
 import { useReplanOffer } from '../plan/replanOfferContext'
 import { Button } from '../ui/Button'
+import { Card } from '../ui/Card'
+import { CollapsibleSection } from '../ui/CollapsibleSection'
+import { Note } from '../ui/Note'
+import { ProgressBar } from '../ui/ProgressBar'
+import { LoadingState } from '../ui/states'
 import { UNDO_TIMEOUT_MS, useToast } from '../ui/useToast'
 import {
   forgetExamJob,
@@ -49,8 +53,9 @@ function stageText(stage: string | null | undefined): string {
 // (POST /plans/generate, which analyzes exactly such exams and then plans the board). An exam with them
 // gets "ניתוח חוזר": the job writes a draft, and nothing changes until the user approves its preview
 // (AnalysisPreview). A draft that finished while the user was away waits behind a banner.
+// The section is collapsible (S28 decision 2): closed for an exam that already has its plan, and
+// open by itself whenever something in it needs the user.
 export function AnalysisSection({ examId }: AnalysisSectionProps) {
-  const headingId = useId()
   const userId = useUserId()
   const queryClient = useQueryClient()
   const toast = useToast()
@@ -185,7 +190,7 @@ export function AnalysisSection({ examId }: AnalysisSectionProps) {
 
   let body: ReactNode
   if (tasks.isPending || (!following && topics.isPending)) {
-    body = <p className="text-sm text-ink-muted">{he.common.loading}</p>
+    body = <LoadingState shape="text" rows={2} />
   } else if (tasks.isError) {
     body = (
       <Problem
@@ -216,16 +221,15 @@ export function AnalysisSection({ examId }: AnalysisSectionProps) {
     const mutation = analyzed ? reanalyze : generate
     const draft = topics.data?.draft_analysis_id ?? null
     body = (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col items-start gap-4">
         {gone ? (
-          <p role="alert" className="rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning">
+          <Note tone="warning" role="alert">
             {t.draftGone}
-          </p>
+          </Note>
         ) : null}
         {draft === null ? null : (
-          <div className="flex flex-col items-start gap-2 rounded-lg border border-brand bg-brand-soft p-4">
-            <p className="font-bold text-ink">{t.draftWaiting}</p>
-            <p className="text-sm text-ink">{t.draftHint}</p>
+          <Card title={t.draftWaiting} titleLevel={3} className="flex flex-col items-start self-stretch">
+            <p className="mb-3 text-small text-ink-muted">{t.draftHint}</p>
             <Button
               onPress={() => {
                 setGone(false)
@@ -234,9 +238,9 @@ export function AnalysisSection({ examId }: AnalysisSectionProps) {
             >
               {t.showDraft}
             </Button>
-          </div>
+          </Card>
         )}
-        <p className="text-sm text-ink-muted">{analyzed ? t.reanalyzeIntro : t.buildIntro}</p>
+        <p className="max-w-prose text-small text-ink-muted">{analyzed ? t.reanalyzeIntro : t.buildIntro}</p>
         {failure === null ? null : (
           <Problem
             title={t.failedTitle}
@@ -261,30 +265,61 @@ export function AnalysisSection({ examId }: AnalysisSectionProps) {
             }}
           />
         ) : null}
-        <div>
-          <Button
-            variant={draft === null ? 'primary' : 'secondary'}
-            isDisabled={mutation.isPending}
-            onPress={() => {
-              start(kind)
-            }}
-          >
-            {analyzed ? t.reanalyze : t.build}
-          </Button>
-        </div>
+        {/* With a draft waiting, "הצגת השינוי" is the one primary button of the section. */}
+        <Button
+          variant={draft === null ? 'primary' : 'secondary'}
+          isPending={mutation.isPending}
+          onPress={() => {
+            start(kind)
+          }}
+        >
+          {analyzed ? t.reanalyze : t.build}
+        </Button>
       </div>
     )
   }
 
   const analyzed = tasks.isSuccess && hasAiTasks(tasks.data)
+  const draftWaiting = (topics.data?.draft_analysis_id ?? null) !== null
+  const running = following || starting
+  // Why the section may not stay closed: each reason is something the user has to see or act on.
+  // An exam without a plan is one of them, because building it is the main action of the screen.
+  const reasons = [
+    tasks.isSuccess && !analyzed ? 'no-plan' : null,
+    tasks.isError ? 'tasks-error' : null,
+    running ? 'running' : null,
+    failure !== null ? 'failed' : null,
+    tasks.isSuccess && (analyzed ? reanalyze : generate).isError ? 'start-error' : null,
+    gone ? 'gone' : null,
+    draftWaiting ? 'draft' : null,
+  ]
+    .filter((reason) => reason !== null)
+    .join(' ')
+  const needsAttention = reasons !== ''
+  // The user's own choice wins over the default, until a reason that was not there when they chose
+  // appears: a section they closed while the job ran opens again when the job fails or its draft
+  // arrives (state adjusted while rendering, as above).
+  const [userChoice, setUserChoice] = useState<boolean | null>(null)
+  const [seenReasons, setSeenReasons] = useState(reasons)
+  if (seenReasons !== reasons) {
+    setSeenReasons(reasons)
+    const seen = seenReasons.split(' ')
+    if (userChoice === false && reasons.split(' ').some((reason) => reason !== '' && !seen.includes(reason))) setUserChoice(null)
+  }
+
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-3">
-      <h2 id={headingId} className="text-lg font-bold text-ink">
-        {analyzed ? t.title : t.buildTitle}
-      </h2>
-      {body}
+    <>
+      <CollapsibleSection
+        title={analyzed ? t.title : t.buildTitle}
+        summary={running ? t.summaryRunning : failure !== null ? t.summaryFailed : draftWaiting ? t.summaryDraft : undefined}
+        isExpanded={userChoice ?? needsAttention}
+        onExpandedChange={setUserChoice}
+      >
+        {body}
+      </CollapsibleSection>
+      {/* Outside the panel: the dialog does not depend on the section being open. */}
       {preview}
-    </section>
+    </>
   )
 }
 
@@ -305,32 +340,21 @@ function StartError({ error, onReplan }: { error: ApiError; onReplan: () => void
   )
 }
 
+// The stage is the label of the bar. The live region announces a new stage (and the new
+// percentage) politely, as the paragraph under the old bar did.
 function Progress({ percent, text }: { percent: number; text: string }) {
   return (
-    <div className="flex flex-col gap-3">
-      <ProgressBar value={percent} aria-label={t.progressLabel}>
-        {({ percentage }) => (
-          <div className="h-3 w-full overflow-hidden rounded-full bg-brand-soft">
-            <div
-              className="h-full rounded-full bg-brand transition-[width] duration-500"
-              style={{ width: `${String(percentage ?? 0)}%` }}
-            />
-          </div>
-        )}
-      </ProgressBar>
-      <p aria-live="polite" className="text-sm text-ink-muted">
-        {text}
-      </p>
+    <div aria-live="polite">
+      <ProgressBar label={text} value={percent} />
     </div>
   )
 }
 
 function Problem({ title, text, action }: { title?: string; text: string; action?: ReactNode }) {
   return (
-    <div role="alert" className="flex flex-col items-start gap-3 rounded-lg bg-danger-soft p-4">
-      {title === undefined ? null : <p className="font-bold text-danger">{title}</p>}
-      <p className="text-sm text-danger">{text}</p>
-      {action === undefined ? null : <div className="flex flex-wrap gap-2">{action}</div>}
-    </div>
+    <Card tone="danger" role="alert" title={title} titleLevel={3} className="self-stretch">
+      <p className="text-small break-words">{text}</p>
+      {action === undefined ? null : <div className="mt-3 flex flex-wrap gap-2">{action}</div>}
+    </Card>
   )
 }
