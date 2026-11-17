@@ -35,7 +35,9 @@ describe('routes', () => {
     expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/today')
     expect(screen.getByRole('banner')).toHaveTextContent(he.appName)
-    expect(screen.getByRole('button', { name: he.shell.signOut })).toBeInTheDocument()
+    // Sign out moved into the profile menu (S26).
+    expect(screen.getByRole('button', { name: he.shell.profile })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: he.shell.signOut })).not.toBeInTheDocument()
   })
 
   it('the main navigation marks the current screen, and moves between today and week', async () => {

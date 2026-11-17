@@ -1,0 +1,35 @@
+import { useEffect, useRef, type RefObject } from 'react'
+import { NavigationType, useLocation, useNavigationType } from 'react-router'
+
+// In a single-page app a move between screens loads no page: a screen reader announces nothing,
+// and the focus stays on the link that was pressed, in the navigation. After a navigation the user
+// started, this moves the focus to the h1 of the new screen (to <main> while the screen has none
+// yet), so the title is read and the next Tab starts in the content.
+//
+// The focus does not move:
+// - on the first render, where nothing was pressed;
+// - on a redirect (REPLACE, like / to /today or the onboarding gate), which the user did not ask for;
+// - when only the search params changed (?from= of the week): it is the same screen.
+export function useRouteFocus(main: RefObject<HTMLElement | null>): void {
+  const { pathname } = useLocation()
+  const navigationType = useNavigationType()
+  // The pathname the focus was last decided for. It starts as the first one, so the first render
+  // (and the second run of the effect under StrictMode) does nothing.
+  const handled = useRef(pathname)
+
+  useEffect(() => {
+    if (handled.current === pathname) return
+    handled.current = pathname
+    if (navigationType === NavigationType.Replace) return
+    const container = main.current
+    if (container === null) return
+    const heading = container.querySelector('h1')
+    if (heading === null) {
+      container.focus()
+      return
+    }
+    // An h1 is not a control: focusable from code, never a Tab stop.
+    if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1')
+    heading.focus()
+  }, [pathname, navigationType, main])
+}
