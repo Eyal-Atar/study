@@ -429,7 +429,7 @@ def test_migration_resets_lead_minutes_and_downgrade_restores_the_old_rules() ->
     url = create_database(admin_url, name)
     try:
         config = alembic_config(url)
-        command.upgrade(config, "0009")
+        command.upgrade(config, "0011")
         users = {minutes: uuid4() for minutes in (10, 5, 15, 30)}
         with psycopg.connect(url, autocommit=True) as conn:
             for minutes, user_id in users.items():
@@ -448,7 +448,7 @@ def test_migration_resets_lead_minutes_and_downgrade_restores_the_old_rules() ->
         assert after == {users[10]: 0, users[5]: 5, users[15]: 15, users[30]: 0}
         assert "app.push_subscriptions" in _delete_account_body(url)
 
-        command.downgrade(config, "0009")
+        command.downgrade(config, "0011")
         assert "push_subscriptions" not in _delete_account_body(url)
         with psycopg.connect(url, autocommit=True) as conn:
             fresh = uuid4()

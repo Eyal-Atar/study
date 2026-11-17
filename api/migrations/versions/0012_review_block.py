@@ -19,7 +19,7 @@ The INSERT column grant on `plan_versions` was last set in 0008; it is re-issued
 from alembic import op
 
 revision = "0012"
-down_revision = "0011"
+down_revision = "0010"
 branch_labels = None
 depends_on = None
 
