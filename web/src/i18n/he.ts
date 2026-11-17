@@ -21,6 +21,8 @@ export const he = {
     cancel: 'ביטול',
     delete: 'מחיקה',
     notifications: 'הודעות',
+    // S26
+    choose: 'בחירה',
   },
   shell: {
     signOut: 'יציאה',
@@ -32,6 +34,9 @@ export const he = {
     settings: 'הגדרות',
     // S19
     progress: 'התקדמות',
+    // S26
+    skipToContent: 'דלג לתוכן',
+    profile: 'פרופיל',
   },
   login: {
     google: 'התחברות עם Google',
