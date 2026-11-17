@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Form } from 'react-aria-components'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
+import { Select } from '../ui/Select'
 import { TextField } from '../ui/TextField'
-import { SelectField } from './SelectField'
 import { emptyErrors, validateTask, type TaskDraft, type TaskDraftErrors, type TaskValues } from './taskDraft'
 import { TASK_KINDS, type Topic } from './types'
 
@@ -86,7 +86,7 @@ export function TaskForm({
           />
         ) : null}
       </div>
-      <SelectField
+      <Select
         label={t.kind}
         value={draft.kind}
         options={KIND_OPTIONS}
@@ -94,7 +94,7 @@ export function TaskForm({
           set('kind', value as TaskDraft['kind'])
         }}
       />
-      <SelectField
+      <Select
         label={t.topic}
         value={draft.topicId}
         options={topicOptions}

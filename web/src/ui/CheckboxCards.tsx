@@ -1,5 +1,6 @@
 import { CheckboxButton, CheckboxField, CheckboxGroup, Label, Text } from 'react-aria-components'
 import { OPTION_CLASS, type ChoiceOption } from './RadioCards'
+import { FIELD_DESCRIPTION_CLASS, FIELD_LABEL_CLASS } from './TextField'
 
 export interface CheckboxCardsProps {
   label: string
@@ -33,9 +34,9 @@ export function CheckboxCards({
       aria-describedby={errorId}
       className="flex flex-col gap-2"
     >
-      <Label className="text-base font-medium text-ink">{label}</Label>
+      <Label className={FIELD_LABEL_CLASS}>{label}</Label>
       {description === undefined ? null : (
-        <Text slot="description" className="text-sm text-ink-muted">
+        <Text slot="description" className={FIELD_DESCRIPTION_CLASS}>
           {description}
         </Text>
       )}
@@ -45,7 +46,7 @@ export function CheckboxCards({
             <CheckboxButton className={OPTION_CLASS}>
               <span>{option.label}</span>
               {option.description === undefined ? null : (
-                <span className="text-xs text-ink-muted tabular-nums">{option.description}</span>
+                <span className="text-caption font-normal text-ink-muted tabular-nums">{option.description}</span>
               )}
             </CheckboxButton>
           </CheckboxField>

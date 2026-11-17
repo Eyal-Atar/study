@@ -1,3 +1,4 @@
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   Button,
   Calendar,
@@ -15,6 +16,8 @@ import {
   type DatePickerProps as AriaDatePickerProps,
   type DateValue,
 } from 'react-aria-components'
+import { cx, FOCUS_RING, ICON_STROKE } from './styles'
+import { FIELD_BOX_CLASS, FIELD_CLASS, FIELD_ERROR_CLASS, FIELD_LABEL_CLASS } from './TextField'
 
 export type { DateValue }
 
@@ -24,67 +27,67 @@ export interface DatePickerProps extends Omit<AriaDatePickerProps<DateValue>, 'c
   errorMessage?: string
 }
 
-const ICON = 'size-5'
+// The look of a quiet IconButton. The component itself cannot be used here: it requires an
+// aria-label, and a label passed here would replace the Hebrew one React Aria gives the calendar
+// button and the month arrows.
+const ICON_BUTTON = cx(
+  'inline-flex size-touch shrink-0 cursor-pointer items-center justify-center rounded-control text-ink-muted',
+  'transition-colors duration-(--duration-fast)',
+  FOCUS_RING,
+  'data-[hovered]:bg-surface-muted data-[hovered]:text-ink data-[pressed]:bg-surface-muted data-[disabled]:cursor-not-allowed',
+)
 
-function Chevron({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className={`${ICON} ${className ?? ''}`}>
-      <path d="M12.5 4.5 7 10l5.5 5.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
+// The box of a TextField around the segments and the calendar button. The focus is inside it, on a
+// segment or on the button, so the box shows it with data-focus-within.
+const GROUP_CLASS = `${FIELD_BOX_CLASS} flex items-center ps-3 data-[focus-within]:border-brand data-[focus-within]:ring-2 data-[focus-within]:ring-brand`
 
-function CalendarIcon() {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true" className={ICON}>
-      <rect x="3" y="4.5" width="14" height="12.5" rx="2" />
-      <path d="M3 8.5h14M7 2.5v4M13 2.5v4" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-const ICON_BUTTON =
-  'inline-flex size-11 items-center justify-center rounded-lg text-ink-muted outline-none data-[hovered]:bg-surface-muted data-[pressed]:bg-surface-muted data-[focus-visible]:ring-2 data-[focus-visible]:ring-brand data-[disabled]:opacity-40'
+// A day: a 44px circle. Today is not marked, only the chosen day is. A day that cannot be chosen is
+// muted (and crossed out when it is unavailable, not only out of range), never transparent.
+const CELL_CLASS = cx(
+  'flex size-touch cursor-pointer items-center justify-center rounded-full text-small text-ink tabular-nums',
+  'transition-colors duration-(--duration-fast)',
+  FOCUS_RING,
+  'data-[outside-month]:hidden data-[hovered]:bg-brand-soft data-[pressed]:bg-brand-soft',
+  'data-[selected]:bg-brand data-[selected]:font-semibold data-[selected]:text-on-brand',
+  'data-[disabled]:cursor-not-allowed data-[disabled]:text-ink-muted',
+  'data-[unavailable]:cursor-not-allowed data-[unavailable]:text-ink-muted data-[unavailable]:line-through',
+)
 
 // React Aria's DatePicker: typed segments (the locale's order, he-IL: day, month, year) and a calendar
 // in a popover. React Aria gives the calendar button and the month arrows their Hebrew labels.
 export function DatePicker({ label, errorMessage, ...props }: DatePickerProps) {
   return (
-    <AriaDatePicker {...props} isInvalid={errorMessage !== undefined} className="flex flex-col gap-1.5">
-      <Label className="text-sm font-medium text-ink">{label}</Label>
-      <Group className="flex min-h-11 items-center rounded-lg border border-line-strong bg-surface ps-3 data-[focus-within]:border-brand data-[focus-within]:ring-2 data-[focus-within]:ring-brand data-[invalid]:border-danger">
-        <DateInput className="flex flex-1 py-2 text-base text-ink">
+    <AriaDatePicker {...props} isInvalid={errorMessage !== undefined} className={FIELD_CLASS}>
+      <Label className={FIELD_LABEL_CLASS}>{label}</Label>
+      <Group className={GROUP_CLASS}>
+        <DateInput className="flex flex-1 py-2">
           {(segment) => (
             <DateSegment
               segment={segment}
-              className="rounded px-0.5 tabular-nums outline-none data-[placeholder]:text-ink-muted data-[type=literal]:text-ink-muted data-[focused]:bg-brand data-[focused]:text-on-brand"
+              className="rounded-badge px-0.5 tabular-nums outline-none data-[placeholder]:text-ink-muted data-[type=literal]:text-ink-muted data-[focused]:bg-brand data-[focused]:text-on-brand"
             />
           )}
         </DateInput>
         <Button className={ICON_BUTTON}>
-          <CalendarIcon />
+          <CalendarIcon aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
         </Button>
       </Group>
-      <FieldError className="text-sm text-danger">{errorMessage}</FieldError>
-      <Popover className="rounded-xl border border-line bg-surface p-3 shadow-lg outline-none">
+      <FieldError className={FIELD_ERROR_CLASS}>{errorMessage}</FieldError>
+      <Popover className="rounded-card border border-line bg-surface p-3 shadow-overlay transition-opacity duration-(--duration-slow) data-[entering]:opacity-0 data-[exiting]:opacity-0">
         <Dialog className="outline-none">
           <Calendar className="flex flex-col gap-2">
+            {/* The arrows point where the months go: in RTL "previous" points to the right. */}
             <header className="flex items-center justify-between gap-2">
               <Button slot="previous" className={ICON_BUTTON}>
-                <Chevron className="rtl:rotate-180" />
+                <ChevronLeft aria-hidden="true" size={18} strokeWidth={ICON_STROKE} className="rtl:-scale-x-100" />
               </Button>
-              <Heading className="text-base font-medium text-ink" />
+              <Heading className="text-body font-semibold text-ink" />
               <Button slot="next" className={ICON_BUTTON}>
-                <Chevron className="ltr:rotate-180" />
+                <ChevronRight aria-hidden="true" size={18} strokeWidth={ICON_STROKE} className="rtl:-scale-x-100" />
               </Button>
             </header>
             <CalendarGrid className="border-separate border-spacing-0.5">
-              {(date) => (
-                <CalendarCell
-                  date={date}
-                  className="flex size-11 items-center justify-center rounded-full text-sm text-ink outline-none data-[outside-month]:hidden data-[hovered]:bg-brand-soft data-[pressed]:bg-brand-soft data-[unavailable]:text-ink-muted data-[unavailable]:line-through data-[disabled]:text-ink-muted data-[disabled]:opacity-50 data-[selected]:bg-brand data-[selected]:text-on-brand data-[focus-visible]:ring-2 data-[focus-visible]:ring-brand"
-                />
-              )}
+              {(date) => <CalendarCell date={date} className={CELL_CLASS} />}
             </CalendarGrid>
           </Calendar>
         </Dialog>

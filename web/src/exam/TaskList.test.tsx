@@ -42,6 +42,13 @@ function row(title: string) {
   return item
 }
 
+// Picks a topic in the task form. React Aria's Select is a button named by its value and its label
+// ("נגזרות נושא"), which opens a listbox.
+async function chooseTopic(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(screen.getByRole('button', { name: new RegExp(` ${t.topic}$`) }))
+  await user.click(within(screen.getByRole('listbox', { name: t.topic })).getByRole('option', { name }))
+}
+
 describe('TaskList', () => {
   it('groups the tasks under their topics in topic order, then the tasks without a topic', async () => {
     await open()
@@ -124,7 +131,7 @@ describe('TaskList', () => {
     const fake = server().on('PATCH /tasks/t1', written())
     await open(fake)
     await user.click(within(row('גבולות')).getByRole('button', { name: t.editNamed('גבולות') }))
-    await user.selectOptions(screen.getByRole('combobox', { name: t.topic }), tp.noTopic)
+    await chooseTopic(user, tp.noTopic)
     await user.click(screen.getByRole('button', { name: he.common.save }))
     await waitFor(() => {
       expect(fake.calls('PATCH', '/tasks/t1').map((c) => c.body)).toEqual([{ topic_id: null }])
@@ -271,7 +278,7 @@ describe('AddTask', () => {
     const minutes = screen.getByRole('textbox', { name: t.minutesLabel })
     await user.clear(minutes)
     await user.type(minutes, '45')
-    await user.selectOptions(screen.getByRole('combobox', { name: t.topic }), 'נגזרות')
+    await chooseTopic(user, 'נגזרות')
     await user.click(screen.getByRole('button', { name: t.add }))
     await waitFor(() => {
       expect(fake.calls('POST', '/tasks').map((c) => c.body)).toEqual([
