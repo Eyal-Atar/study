@@ -1,10 +1,13 @@
 import { useId, type ReactNode } from 'react'
-import { Link } from 'react-router'
 import { errorMessage } from '../api/client'
 import { useMe, type Me } from '../api/me'
 import { DELETE_ACCOUNT_PATH } from '../app/routes'
 import { he } from '../i18n/he'
-import { Button } from '../ui/Button'
+import { ButtonLink } from '../ui/ButtonLink'
+import { Card } from '../ui/Card'
+import { PageHeader } from '../ui/PageHeader'
+import { SectionHeading } from '../ui/SectionHeading'
+import { ErrorState, LoadingState } from '../ui/states'
 import { ExportSection } from './ExportSection'
 import { PreferencesForm } from './PreferencesForm'
 import { NotificationSettings } from '../notifications/NotificationSettings'
@@ -14,33 +17,19 @@ const t = he.settings
 // The id DeleteAccountPage links to ("export first").
 export const EXPORT_SECTION_ID = 'export'
 
-function Section({
-  title,
-  intro,
-  id,
-  tone = 'plain',
-  children,
-}: {
-  title: string
-  intro?: string
-  id?: string
-  tone?: 'plain' | 'danger'
-  children?: ReactNode
-}) {
+// A section of the screen: a quiet heading over plain content, set apart from the section above it
+// by a thin line and air. No card: the only card of this screen is the danger zone.
+function Section({ title, intro, id, children }: { title: string; intro?: string; id?: string; children?: ReactNode }) {
   const headingId = useId()
   return (
     <section
       id={id}
       aria-labelledby={headingId}
-      className={`flex scroll-mt-4 flex-col gap-4 rounded-xl border p-4 ${
-        tone === 'danger' ? 'border-line bg-danger-soft' : 'border-line bg-surface'
-      }`}
+      className="flex scroll-mt-4 flex-col gap-4 border-t border-line pt-6 first-of-type:border-t-0 first-of-type:pt-0"
     >
       <div className="flex flex-col gap-1">
-        <h2 id={headingId} className={`text-lg font-semibold ${tone === 'danger' ? 'text-danger' : 'text-ink'}`}>
-          {title}
-        </h2>
-        {intro === undefined ? null : <p className="text-sm text-ink-muted">{intro}</p>}
+        <SectionHeading id={headingId}>{title}</SectionHeading>
+        {intro === undefined ? null : <p className="max-w-prose text-small text-ink-muted">{intro}</p>}
       </div>
       {children}
     </section>
@@ -65,49 +54,45 @@ function preferencesKey(me: Me): string {
 export function SettingsPage() {
   const me = useMe()
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-6">
-      <h1 className="text-2xl font-bold text-ink">{t.title}</h1>
+    <div className="flex flex-col gap-6">
+      <PageHeader title={t.title} />
 
       <Section title={t.preferences.title} intro={t.preferences.intro}>
         {me.isPending ? (
-          <p role="status" className="text-ink-muted">
-            {he.common.loading}
-          </p>
+          <LoadingState shape="text" rows={4} />
         ) : me.isError ? (
-          <div className="flex flex-col items-start gap-2">
-            <p role="alert" className="text-danger">
-              {errorMessage(me.error)}
-            </p>
-            <Button
-              variant="secondary"
-              onPress={() => {
-                void me.refetch()
-              }}
-            >
-              {he.common.retry}
-            </Button>
-          </div>
+          <ErrorState
+            message={errorMessage(me.error)}
+            onRetry={() => {
+              void me.refetch()
+            }}
+          />
         ) : (
           // A profile changed elsewhere remounts the form with its values (unsaved edits drop).
           <PreferencesForm key={preferencesKey(me.data)} me={me.data} />
         )}
       </Section>
 
-      {/* S16: reminders on this device and the lead time; the component brings its own card. */}
-      <NotificationSettings />
+      {/* S16: reminders on this device and the lead time. The component draws its own two cards;
+          the section gives them the heading and the line every other part of the screen has. */}
+      <Section title={t.notifications.title}>
+        <NotificationSettings />
+      </Section>
 
       <Section id={EXPORT_SECTION_ID} title={t.export.title}>
         <ExportSection />
       </Section>
 
-      <Section title={t.danger.title} intro={t.danger.description} tone="danger">
-        <Link
-          to={DELETE_ACCOUNT_PATH}
-          className="inline-flex min-h-11 items-center justify-center self-start rounded-lg border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-danger outline-none hover:bg-danger-soft focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-        >
-          {t.danger.link}
-        </Link>
-      </Section>
+      {/* Last, and the only red on the screen. The text is ink: ink-muted is not a checked pair on
+          danger-soft. role="region" lets the title of the card name it. */}
+      <Card tone="danger" role="region" title={t.danger.title}>
+        <div className="flex flex-col items-start gap-3">
+          <p className="max-w-prose text-small text-ink">{t.danger.description}</p>
+          <ButtonLink to={DELETE_ACCOUNT_PATH} variant="danger">
+            {t.danger.link}
+          </ButtonLink>
+        </div>
+      </Card>
     </div>
   )
 }

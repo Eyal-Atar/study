@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query'
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
-import { userEvent } from '@testing-library/user-event'
+import { screen, waitFor, within } from '@testing-library/react'
+import { userEvent, type UserEvent } from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Me, MePatch } from '../api/me'
 import { codeText } from '../i18n/codes'
@@ -41,9 +41,21 @@ function saveButton() {
   return screen.getByRole('button', { name: t.save })
 }
 
+// A TimeField is a group named by its label, holding an hour and a minute segment (spinbuttons).
+function timeField(name: string) {
+  return screen.getByRole('group', { name })
+}
+
+// Types a whole 'HH:MM' into the two segments: the hour segment moves on to the minutes by itself.
+async function setTime(user: UserEvent, name: string, time: string) {
+  const [hour] = within(timeField(name)).getAllByRole('spinbutton') as [HTMLElement, HTMLElement]
+  await user.click(hour)
+  await user.keyboard(time.replace(':', ''))
+}
+
 async function ready() {
   await screen.findByRole('heading', { level: 1, name: he.settings.title })
-  await screen.findByLabelText(t.wakeTime)
+  await screen.findByRole('group', { name: t.wakeTime })
 }
 
 function patches(fake: FakeApi) {
@@ -74,8 +86,8 @@ describe('SettingsPage preferences', () => {
     expect(screen.getByRole('checkbox', { name: /בוקר/ })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: /צהריים/ })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: /ערב/ })).not.toBeChecked()
-    expect(screen.getByLabelText(t.wakeTime)).toHaveValue('07:30')
-    expect(screen.getByLabelText(t.sleepTime)).toHaveValue('23:30')
+    expect(timeField(t.wakeTime)).toHaveTextContent('07:30')
+    expect(timeField(t.sleepTime)).toHaveTextContent('23:30')
     expect(
       within(group(t.delayQuestion)).getByRole('radio', {
         name: he.settings.duration(30),
@@ -83,7 +95,7 @@ describe('SettingsPage preferences', () => {
     ).toBeChecked()
     expect(within(group(t.restQuestion)).getByRole('radio', { name: t.restDays(2) })).toBeChecked()
     expect(screen.getByRole('switch', { name: t.hobbyLabel })).not.toBeChecked()
-    expect(screen.queryByLabelText(t.hobbyStart)).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: t.hobbyStart })).not.toBeInTheDocument()
   })
 
   it('keeps a current value that is not one of the choices selectable', async () => {
@@ -128,9 +140,7 @@ describe('SettingsPage preferences', () => {
         name: he.onboardingSchedule.hours(3),
       }),
     )
-    fireEvent.change(screen.getByLabelText(t.wakeTime), {
-      target: { value: '07:00' },
-    })
+    await setTime(user, t.wakeTime, '07:00')
     await user.click(screen.getByRole('checkbox', { name: /ערב/ }))
     await user.click(
       within(group(t.delayQuestion)).getByRole('radio', {
@@ -220,9 +230,7 @@ describe('SettingsPage preferences', () => {
     open(fake)
     await ready()
     await user.click(screen.getByRole('switch', { name: t.hobbyLabel }))
-    fireEvent.change(screen.getByLabelText(t.hobbyStart), {
-      target: { value: '19:30' },
-    })
+    await setTime(user, t.hobbyStart, '19:30')
     await user.click(
       within(group(t.hobbyMinutes)).getByRole('radio', {
         name: he.settings.duration(45),
@@ -244,7 +252,7 @@ describe('SettingsPage preferences', () => {
     open(fake)
     await ready()
     expect(screen.getByRole('switch', { name: t.hobbyLabel })).toBeChecked()
-    expect(screen.getByLabelText(t.hobbyStart)).toHaveValue('18:00')
+    expect(timeField(t.hobbyStart)).toHaveTextContent('18:00')
     await user.click(
       within(group(t.hobbyMinutes)).getByRole('radio', {
         name: he.settings.duration(90),
@@ -281,9 +289,7 @@ describe('SettingsPage preferences', () => {
     const fake = server()
     open(fake)
     await ready()
-    fireEvent.change(screen.getByLabelText(t.sleepTime), {
-      target: { value: '08:00' },
-    })
+    await setTime(user, t.sleepTime, '08:00')
     await user.click(saveButton())
     expect(await screen.findByText(t.sameTimes)).toBeInTheDocument()
     expect(patches(fake)).toHaveLength(0)
@@ -329,14 +335,73 @@ describe('SettingsPage preferences', () => {
     )
     open(fake)
     await ready()
-    fireEvent.change(screen.getByLabelText(t.wakeTime), {
-      target: { value: '07:00' },
-    })
+    await setTime(user, t.wakeTime, '07:00')
     await user.click(saveButton())
-    const sleep = screen.getByLabelText(t.sleepTime)
+    const sleep = timeField(t.sleepTime)
     await waitFor(() => {
-      expect(sleep).toHaveAccessibleDescription(t.sameTimes)
+      // The description of a TimeField starts with the chosen time (React Aria), then the error.
+      expect(sleep).toHaveAccessibleDescription(expect.stringContaining(t.sameTimes))
     })
+    expect(sleep).toHaveAttribute('data-invalid', 'true')
+    expect(timeField(t.wakeTime)).not.toHaveAccessibleDescription(expect.stringContaining(t.sameTimes))
+  })
+
+  it('a validation_error on a choice field shows under its group', async () => {
+    const user = userEvent.setup()
+    const fake = server().on(
+      'PATCH /me',
+      problem(422, 'validation_error', {
+        errors: [{ loc: ['body', 'rest_days_before_exam'], type: 'less_than_equal' }],
+      }),
+    )
+    open(fake)
+    await ready()
+    await user.click(within(group(t.restQuestion)).getByRole('radio', { name: t.restDays(3) }))
+    await user.click(saveButton())
+    await waitFor(() => {
+      expect(group(t.restQuestion)).toHaveAccessibleDescription(t.invalidField)
+    })
+  })
+
+  // Review Focus 4: the button is pending (not disabled) while the request is out.
+  it('a double press on "שמירה" sends one request, and the button keeps its text', async () => {
+    const user = userEvent.setup()
+    let release: (value: unknown) => void = () => undefined
+    const me = meFixture({ onboarding_completed_at: COMPLETED_AT })
+    const fake = server().on('PATCH /me', () => new Promise((resolve) => (release = resolve)))
+    open(fake)
+    await ready()
+    await user.click(within(group(t.hoursQuestion)).getByRole('radio', { name: he.onboardingSchedule.hours(5) }))
+    await user.dblClick(saveButton())
+    await user.click(saveButton())
+    expect(patches(fake)).toHaveLength(1)
+    expect(saveButton()).toBeInTheDocument()
+    release({ ...me, daily_study_minutes: 300, plan_affected: false })
+    expect(await screen.findByText(t.saved)).toBeInTheDocument()
+  })
+
+  // Decision 13: a cleared segment reports '', and the form keeps the last whole time.
+  it('a cleared time segment does not change what is saved', async () => {
+    const user = userEvent.setup()
+    const fake = server()
+    open(fake)
+    await ready()
+    const [, minute] = within(timeField(t.wakeTime)).getAllByRole('spinbutton') as [HTMLElement, HTMLElement]
+    await user.click(minute)
+    await user.keyboard('{Backspace}{Backspace}')
+    expect(saveButton()).toBeDisabled()
+    await user.click(saveButton())
+    expect(patches(fake)).toHaveLength(0)
+  })
+
+  it('the preferences are four named groups with one save', async () => {
+    open(server())
+    await ready()
+    const section = screen.getByRole('region', { name: t.title })
+    for (const name of Object.values(t.groups)) {
+      expect(within(section).getByRole('heading', { level: 3, name })).toBeInTheDocument()
+    }
+    expect(within(section).getAllByRole('button', { name: t.save })).toHaveLength(1)
   })
 
   it('another failure shows its message', async () => {
@@ -409,6 +474,16 @@ describe('SettingsPage other sections', () => {
     await ready()
     await user.click(screen.getByRole('button', { name: he.settings.export.button }))
     expect(await screen.findByText(codeText('database_unavailable'))).toBeInTheDocument()
+  })
+
+  it('the danger zone is the last section, and the only one drawn as a danger card', async () => {
+    open(server())
+    await ready()
+    const regions = screen.getAllByRole('region')
+    const danger = screen.getByRole('region', { name: he.settings.danger.title })
+    expect(regions.at(-1)).toBe(danger)
+    expect(danger.className).toContain('bg-danger-soft')
+    expect(within(danger).getByText(he.settings.danger.description).className).not.toContain('text-ink-muted')
   })
 
   it('the danger zone links to the account deletion page', async () => {

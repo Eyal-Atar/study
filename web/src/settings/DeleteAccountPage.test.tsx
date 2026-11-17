@@ -38,6 +38,8 @@ describe('DeleteAccountPage', () => {
     for (const item of t.what) expect(screen.getByText(item)).toBeInTheDocument()
     expect(screen.getByText(t.intro)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: t.exportLink })).toHaveAttribute('href', '/settings#export')
+    expect(screen.getByRole('heading', { level: 2, name: t.whatTitle })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: t.back })).toHaveAttribute('href', '/settings')
   })
 
   it('the button stays disabled until the word is typed exactly', async () => {
@@ -96,6 +98,8 @@ describe('DeleteAccountPage', () => {
     await user.dblClick(button)
     await user.click(button)
     expect(fake.calls('DELETE', '/me')).toHaveLength(1)
+    // Pending, not relabelled: the button keeps its text while the request is out.
+    expect(submit()).toBeInTheDocument()
     release({ job_id: 'j9' })
     await screen.findByRole('heading', {
       level: 1,

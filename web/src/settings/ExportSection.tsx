@@ -1,6 +1,8 @@
+import { Download } from 'lucide-react'
 import { errorMessage } from '../api/client'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
+import { ICON_STROKE } from '../ui/styles'
 import { useToast } from '../ui/useToast'
 import { downloadJson, localDate, useExportData } from './api'
 
@@ -12,10 +14,10 @@ export function ExportSection() {
   const toast = useToast()
   return (
     <div className="flex flex-col items-start gap-3">
-      <p className="text-sm text-ink-muted">{t.description}</p>
+      <p className="max-w-prose text-small text-ink-muted">{t.description}</p>
       <Button
         variant="secondary"
-        isDisabled={exportData.isPending}
+        isPending={exportData.isPending}
         onPress={() => {
           exportData.mutate(undefined, {
             onSuccess: (data) => {
@@ -27,7 +29,8 @@ export function ExportSection() {
           })
         }}
       >
-        {exportData.isPending ? t.loading : t.button}
+        <Download aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+        {t.button}
       </Button>
     </div>
   )

@@ -1,5 +1,4 @@
-import { useId, useState } from 'react'
-import { SwitchButton, SwitchField } from 'react-aria-components'
+import { useId, useState, type ReactNode } from 'react'
 import { ApiError, errorMessage } from '../api/client'
 import type { Me, MePatch, StudyWindow } from '../api/me'
 import { he } from '../i18n/he'
@@ -7,7 +6,11 @@ import { useUpdateMe } from '../onboarding/api'
 import { useReplanOffer } from '../plan/replanOfferContext'
 import { Button } from '../ui/Button'
 import { CheckboxCards } from '../ui/CheckboxCards'
+import { Note } from '../ui/Note'
 import { RadioCards, type ChoiceOption } from '../ui/RadioCards'
+import { SectionHeading } from '../ui/SectionHeading'
+import { Switch } from '../ui/Switch'
+import { TimeField } from '../ui/TimeField'
 import { useToast } from '../ui/useToast'
 
 const t = he.settings.preferences
@@ -137,52 +140,17 @@ function serverFieldErrors(error: unknown): FieldErrors | null {
   return Object.keys(found).length > 0 ? found : null
 }
 
-function TimeInput({
-  label,
-  value,
-  onChange,
-  error,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  error?: string | undefined
-}) {
-  const id = useId()
-  const errorId = `${id}-error`
+// One of the four groups of the form: a quiet h3 over its fields, set apart from the group above
+// it by a thin line and air (no card: the settings screen has one card, the danger zone).
+function Group({ title, children }: { title: string; children: ReactNode }) {
+  const headingId = useId()
   return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-ink">
-        {label}
-      </label>
-      <input
-        id={id}
-        type="time"
-        step={60}
-        required
-        value={value}
-        onChange={(event) => {
-          // A cleared time field reports ''; keep the last whole value instead.
-          if (event.target.value !== '') onChange(event.target.value.slice(0, 5))
-        }}
-        aria-invalid={error === undefined ? undefined : true}
-        aria-describedby={error === undefined ? undefined : errorId}
-        className="min-h-11 w-full rounded-lg border border-line-strong bg-surface px-3 text-base text-ink tabular-nums outline-none focus:border-brand focus:ring-2 focus:ring-brand aria-[invalid]:border-danger"
-      />
-      {error === undefined ? null : (
-        <p id={errorId} className="text-sm text-danger">
-          {error}
-        </p>
-      )}
+    <div role="group" aria-labelledby={headingId} className="flex flex-col gap-4 border-t border-line pt-6 first:border-t-0 first:pt-0">
+      <SectionHeading level={3} id={headingId}>
+        {title}
+      </SectionHeading>
+      {children}
     </div>
-  )
-}
-
-function FieldMessage({ text }: { text: string | undefined }) {
-  return text === undefined ? null : (
-    <p role="alert" className="text-sm text-danger">
-      {text}
-    </p>
   )
 }
 
@@ -192,8 +160,6 @@ export function PreferencesForm({ me }: { me: Me }) {
   const updateMe = useUpdateMe()
   const { offer } = useReplanOffer()
   const toast = useToast()
-  const windowsErrorId = useId()
-  const hobbyHintId = useId()
   const [values, setValues] = useState<Values>(() => fromMe(me))
   const [errors, setErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
@@ -239,26 +205,26 @@ export function PreferencesForm({ me }: { me: Me }) {
   const afterMidnight = values.sleep < values.wake
 
   return (
+    // max-w-xl: on a wide screen the choice grids keep the width they have on a phone.
     <form
       noValidate
-      className="flex flex-col gap-6"
+      className="flex max-w-xl flex-col gap-6"
       onSubmit={(event) => {
         event.preventDefault()
         save()
       }}
     >
-      <RadioCards
-        label={t.hoursQuestion}
-        options={choices(HOUR_MINUTES, me.daily_study_minutes, hoursLabel)}
-        value={String(values.minutes)}
-        onChange={(value) => {
-          set('minutes', Number(value), 'daily_study_minutes')
-        }}
-        columns="grid-cols-4"
-      />
-      <FieldMessage text={errors.daily_study_minutes} />
-
-      <div className="flex flex-col gap-2">
+      <Group title={t.groups.amount}>
+        <RadioCards
+          label={t.hoursQuestion}
+          options={choices(HOUR_MINUTES, me.daily_study_minutes, hoursLabel)}
+          value={String(values.minutes)}
+          onChange={(value) => {
+            set('minutes', Number(value), 'daily_study_minutes')
+          }}
+          columns="grid-cols-4"
+          errorMessage={errors.daily_study_minutes}
+        />
         <CheckboxCards
           label={t.windowsQuestion}
           description={t.windowsHint}
@@ -267,84 +233,66 @@ export function PreferencesForm({ me }: { me: Me }) {
           onChange={(value) => {
             set('windows', value.filter(isWindow), 'study_windows')
           }}
-          {...(errors.study_windows === undefined ? {} : { errorId: windowsErrorId })}
+          errorMessage={errors.study_windows}
         />
-        {errors.study_windows === undefined ? null : (
-          <p id={windowsErrorId} role="alert" className="text-sm text-danger">
-            {errors.study_windows}
-          </p>
-        )}
-      </div>
+      </Group>
 
-      <div className="flex flex-col gap-2">
-        <div className="grid grid-cols-2 gap-3">
-          <TimeInput
+      <Group title={t.groups.routine}>
+        <div className="grid grid-cols-2 items-start gap-3">
+          <TimeField
             label={t.wakeTime}
             value={values.wake}
             onChange={(value) => {
-              set('wake', value, 'wake_time', 'sleep_time')
+              // A cleared segment reports ''; keep the last whole value instead (as <input type="time"> did).
+              if (value !== '') set('wake', value, 'wake_time', 'sleep_time')
             }}
-            error={errors.wake_time}
+            errorMessage={errors.wake_time}
           />
-          <TimeInput
+          <TimeField
             label={t.sleepTime}
             value={values.sleep}
             onChange={(value) => {
-              set('sleep', value, 'wake_time', 'sleep_time')
+              if (value !== '') set('sleep', value, 'wake_time', 'sleep_time')
             }}
-            error={errors.sleep_time}
+            errorMessage={errors.sleep_time}
           />
         </div>
         {afterMidnight ? (
-          <div className="flex flex-col gap-1 rounded-lg bg-surface-muted px-3 py-2 text-sm text-ink-muted">
+          <Note className="flex flex-col gap-1">
             <p>{t.afterMidnight}</p>
             {values.rest > 0 ? <p>{t.nightShiftRest}</p> : null}
-          </div>
+          </Note>
         ) : null}
-      </div>
+        <RadioCards
+          label={t.delayQuestion}
+          options={choices(DELAYS, me.study_start_delay_minutes, delayLabel)}
+          value={String(values.delay)}
+          onChange={(value) => {
+            set('delay', Number(value), 'study_start_delay_minutes')
+          }}
+          columns="grid-cols-4"
+          errorMessage={errors.study_start_delay_minutes}
+        />
+      </Group>
 
-      <RadioCards
-        label={t.delayQuestion}
-        options={choices(DELAYS, me.study_start_delay_minutes, delayLabel)}
-        value={String(values.delay)}
-        onChange={(value) => {
-          set('delay', Number(value), 'study_start_delay_minutes')
-        }}
-        columns="grid-cols-4"
-      />
-      <FieldMessage text={errors.study_start_delay_minutes} />
-
-      <div className="flex flex-col gap-4 rounded-lg border border-line p-3">
-        <SwitchField
+      <Group title={t.groups.hobby}>
+        <Switch
+          label={t.hobbyLabel}
+          description={t.hobbyHint}
           isSelected={values.hobbyOn}
           onChange={(on) => {
             set('hobbyOn', on, 'hobby_start', 'hobby_minutes')
           }}
-          aria-describedby={hobbyHintId}
-          className="flex flex-col"
-        >
-          <SwitchButton className="group flex min-h-11 cursor-pointer items-center justify-between gap-3 outline-none">
-            <span className="text-base font-medium text-ink">{t.hobbyLabel}</span>
-            <span
-              aria-hidden="true"
-              className="flex h-7 w-12 shrink-0 items-center rounded-full border border-line-strong bg-surface-muted px-0.5 transition-colors group-data-[focus-visible]:ring-2 group-data-[focus-visible]:ring-brand group-data-[focus-visible]:ring-offset-2 group-data-[selected]:border-brand group-data-[selected]:bg-brand"
-            >
-              <span className="size-5 rounded-full bg-surface shadow-sm transition-transform group-data-[selected]:-translate-x-5 ltr:group-data-[selected]:translate-x-5" />
-            </span>
-          </SwitchButton>
-        </SwitchField>
-        <p id={hobbyHintId} className="-mt-3 text-sm text-ink-muted">
-          {t.hobbyHint}
-        </p>
+        />
         {values.hobbyOn ? (
           <>
-            <TimeInput
+            <TimeField
               label={t.hobbyStart}
               value={values.hobbyStart}
               onChange={(value) => {
-                set('hobbyStart', value, 'hobby_start')
+                if (value !== '') set('hobbyStart', value, 'hobby_start')
               }}
-              error={errors.hobby_start}
+              errorMessage={errors.hobby_start}
             />
             <RadioCards
               label={t.hobbyMinutes}
@@ -354,30 +302,33 @@ export function PreferencesForm({ me }: { me: Me }) {
                 set('hobbyMinutes', Number(value), 'hobby_minutes')
               }}
               columns="grid-cols-3"
+              errorMessage={errors.hobby_minutes}
             />
-            <FieldMessage text={errors.hobby_minutes} />
           </>
         ) : null}
-      </div>
+      </Group>
 
-      <RadioCards
-        label={t.restQuestion}
-        options={choices(REST_DAYS, me.rest_days_before_exam, t.restDays)}
-        value={String(values.rest)}
-        onChange={(value) => {
-          set('rest', Number(value), 'rest_days_before_exam')
-        }}
-        columns="grid-cols-4"
-      />
-      <FieldMessage text={errors.rest_days_before_exam} />
+      <Group title={t.groups.rest}>
+        <RadioCards
+          label={t.restQuestion}
+          options={choices(REST_DAYS, me.rest_days_before_exam, t.restDays)}
+          value={String(values.rest)}
+          onChange={(value) => {
+            set('rest', Number(value), 'rest_days_before_exam')
+          }}
+          columns="grid-cols-4"
+          errorMessage={errors.rest_days_before_exam}
+        />
+      </Group>
 
       {formError === null ? null : (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {formError}
         </p>
       )}
-      <Button type="submit" className="w-full sm:w-auto sm:self-start" isDisabled={!dirty || updateMe.isPending}>
-        {updateMe.isPending ? t.saving : t.save}
+      {/* isPending and not disabled: the button keeps its text and its focus while the save is out. */}
+      <Button type="submit" className="w-full md:w-auto md:self-start" isDisabled={!dirty} isPending={updateMe.isPending}>
+        {t.save}
       </Button>
     </form>
   )
