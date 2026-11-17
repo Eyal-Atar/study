@@ -27,6 +27,7 @@ import {
   TimeFieldSection,
 } from './fieldSections'
 import { DialogSection, PageHeaderSection, ToastSection } from './overlaySections'
+import { NoteSection, OptionGridSection, SegmentedControlSection } from './s27Sections'
 
 // The look of a TextLink, on a plain <a>: these are anchors inside the page (#button), not routes,
 // so the router's Link is not the element for them. 44px high, since each stands alone.
@@ -89,6 +90,9 @@ export function ComponentsPage() {
         <DialogSection />
         <ToastSection />
         <PageHeaderSection />
+        <SegmentedControlSection />
+        <NoteSection />
+        <OptionGridSection />
       </div>
       <ToastRegion />
     </StandalonePage>

@@ -29,6 +29,9 @@ export const SECTIONS = [
   { id: 'dialog', title: 'דיאלוג (Dialog)' },
   { id: 'toast', title: 'הודעה צפה (Toast)' },
   { id: 'page-header', title: 'כותרת מסך (PageHeader)' },
+  { id: 'segmented-control', title: 'מתג תצוגה (SegmentedControl)' },
+  { id: 'note', title: 'הערה (Note)' },
+  { id: 'option-grid', title: 'רשת אפשרויות (OptionGrid)' },
 ] as const
 
 export type SectionId = (typeof SECTIONS)[number]['id']
@@ -322,5 +325,48 @@ export const devText = {
   },
   pageHeader: {
     note: 'הכותרת מוצגת פעם אחת, בראש הדף הזה: שם המסך (ה-h1 היחיד), שורת משנה ופעולה בקצה. היא גם קובעת את שם הלשונית בדפדפן.',
+  },
+  // S27: the three components of the daily screens.
+  segmentedControl: {
+    two: 'שתי תצוגות: הנבחרת היא משטח לבן עם קו, והשנייה טקסט שקט',
+    three: 'שלוש אפשרויות',
+    viewLabel: 'תצוגת היום',
+    list: 'רשימה',
+    timeline: 'ציר',
+    rangeLabel: 'טווח',
+    day: 'יום',
+    week: 'שבוע',
+    month: 'חודש',
+    shown: 'מוצג עכשיו:',
+  },
+  note: {
+    neutral: 'ניטרלית: משפט אחד',
+    withTitle: 'עם כותרת',
+    withAction: 'עם פעולה שקטה בקצה, ועם role="status"',
+    warning: 'אזהרה, עם role="alert"',
+    warningAction: 'אזהרה עם כותרת ועם פעולה: הכפתור משני, לא שקט',
+    long: 'טקסט ארוך בלי רווחים נשבר, והפעולה יורדת מתחתיו במסך צר',
+    neutralText: 'הלוח מתעדכן לבד אחרי כל שינוי במבחנים.',
+    title: 'אין שעה פנויה ביום הזה',
+    titleText: 'אפשר לבחור יום אחר, או לפנות זמן בהגדרות.',
+    refreshText: 'לא הצלחנו לרענן את הלוח. מוצג המצב האחרון שנשמר.',
+    retry: 'לנסות שוב',
+    retried: 'מנסים שוב…',
+    warningText: 'שתי משימות לא נכנסו לשבוע הזה.',
+    warningTitle: 'הלוח לא מעודכן',
+    warningActionText: 'שעות הלימוד השתנו אחרי שהלוח נבנה.',
+    rebuild: 'בנייה מחדש',
+    longText: 'קובץ_סיכום_הרצאות_הסתברות_סמסטר_א_תשפז_גרסה_אחרונה_באמת_סופית.pdf',
+  },
+  optionGrid: {
+    empty: 'עוד לא נבחרה שעה',
+    selected: 'שעה נבחרה: מילוי כחול ו-✓',
+    many: 'הרבה אפשרויות: הרשת נגללת בתוך עצמה',
+    words: 'תוויות במילים, בלי ltr',
+    timeLabel: 'שעה פנויה',
+    dayLabel: 'יום בשבוע',
+    days: ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי'],
+    chosen: 'נבחר:',
+    nothing: 'כלום',
   },
 } as const
