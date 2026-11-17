@@ -1,6 +1,15 @@
-import { BlockCard } from '../board/BlockCard'
+import { Check } from 'lucide-react'
+import { useId, useRef } from 'react'
+import { actionAriaLabel, actionLabel, isExtra, partSuffix, useBlockControls } from '../board/blockControls'
+import { BlockMenu, PinnedMark, StateBadge } from '../board/blockParts'
+import { useFocusRequest } from '../board/focus'
+import { MoveDialog } from '../board/MoveDialog'
+import { blockMinutes, durationText, formatRange } from '../board/time'
 import type { Block } from '../board/types'
 import { he } from '../i18n/he'
+import { Button } from '../ui/Button'
+import { Card } from '../ui/Card'
+import { ICON_STROKE } from '../ui/styles'
 
 export interface NextBlockProps {
   block: Block
@@ -9,17 +18,86 @@ export interface NextBlockProps {
   when?: string
 }
 
-// The one card the eye lands on first: what to do now, with its actions.
+// The one card the eye lands on first: what to do now. A plain white card (design language 5.1):
+// what makes it stand out is the label, the title and the one primary button of the screen, "בוצע".
+// "דחייה" is a button too; of the rest, one action is a third button and two go into a menu, since
+// four buttons do not fit in a row on a phone (S27 decision 2).
 export function NextBlock({ block, tz, when }: NextBlockProps) {
+  const { name, available, pending, deferring, start, move } = useBlockControls(block, tz)
+  const headingId = useId()
+  // The first action is always "בוצע", or its undo for a done block.
+  const main = block.state === 'done' ? 'uncomplete' : 'complete'
+  const canDefer = available.includes('defer')
+  const rest = available.filter(isExtra).filter((action) => action !== 'defer')
+  const [only] = rest
+  // After an action on this block the focus comes back to the card's first button (focus.ts).
+  const buttonsRef = useRef<HTMLDivElement>(null)
+  useFocusRequest(block.id, buttonsRef)
+
   return (
-    <section aria-labelledby="next-title" className="space-y-3 rounded-2xl bg-brand-soft p-3 sm:p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 px-1">
-        <h2 id="next-title" className="text-base font-semibold text-brand-strong">
+    <Card role="region" aria-labelledby={headingId} className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id={headingId} className="text-small font-semibold text-brand-strong">
           {he.today.next}
         </h2>
-        {when === undefined ? null : <p className="text-sm font-medium text-brand-strong">{when}</p>}
+        {when === undefined ? <StateBadge block={block} /> : <p className="text-small font-semibold">{when}</p>}
       </div>
-      <BlockCard block={block} tz={tz} variant="full" />
-    </section>
+      <div className="flex min-w-0 flex-col gap-1">
+        <h3 className="text-title font-semibold break-words">{block.task_title}</h3>
+        <p className="text-small break-words text-ink-muted">
+          <span dir="ltr" className="tabular-nums">
+            {formatRange(block, tz)}
+          </span>
+          {he.board.nextMeta(durationText(blockMinutes(block)), block.exam_name, he.board.kinds[block.task_kind])}
+          {partSuffix(block)}
+          {block.pinned ? (
+            <>
+              {' '}
+              <PinnedMark />
+            </>
+          ) : null}
+        </p>
+      </div>
+      <div ref={buttonsRef} className="mt-2 flex flex-wrap gap-2">
+        <Button
+          variant={main === 'complete' ? 'primary' : 'secondary'}
+          className="flex-1"
+          aria-label={actionAriaLabel(main, name)}
+          isDisabled={pending}
+          onPress={() => {
+            start(main)
+          }}
+        >
+          {main === 'complete' ? <Check aria-hidden="true" size={18} strokeWidth={ICON_STROKE} /> : null}
+          {actionLabel(main)}
+        </Button>
+        {canDefer ? (
+          <Button
+            variant="secondary"
+            aria-label={actionAriaLabel('defer', name)}
+            isDisabled={pending}
+            onPress={() => {
+              start('defer')
+            }}
+          >
+            {deferring ? he.board.deferring : actionLabel('defer')}
+          </Button>
+        ) : null}
+        {only !== undefined && rest.length === 1 ? (
+          <Button
+            variant="secondary"
+            aria-label={actionAriaLabel(only, name)}
+            isDisabled={pending}
+            onPress={() => {
+              start(only)
+            }}
+          >
+            {actionLabel(only)}
+          </Button>
+        ) : null}
+        {rest.length > 1 ? <BlockMenu name={name} actions={rest} onAction={start} isDisabled={pending} variant="secondary" /> : null}
+      </div>
+      <MoveDialog {...move} />
+    </Card>
   )
 }

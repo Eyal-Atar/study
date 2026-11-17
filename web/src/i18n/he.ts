@@ -296,6 +296,13 @@ export const he = {
     part: (index: number, count: number) => `חלק ${String(index)} מתוך ${String(count)}`,
     // blockName (blockName.ts): two parts of one task on one day must not share a button name.
     partName: (title: string, part: string) => `${title} (${part})`,
+    // S27: the subtitle of a block's row (BlockRow): "הסתברות, תרגול. שעה". Commas and full stops,
+    // never a middle dot (design language 5.2).
+    meta: (exam: string, kind: string, duration: string) => `${isolate(exam)}, ${kind}. ${duration}`,
+    // The same in the "next" card (NextBlock), after the time range: ", שעה וחצי. אלגוריתמים, לימוד".
+    nextMeta: (duration: string, exam: string, kind: string) => `, ${duration}. ${isolate(exam)}, ${kind}`,
+    // A split task adds its part to either line: ". חלק 1 מתוך 2".
+    metaPart: (part: string) => `. ${part}`,
     pinned: 'נעול',
     complete: 'בוצע',
     uncomplete: 'ביטול הסימון',
@@ -705,7 +712,6 @@ export const he = {
       totalXp: (xp: string) => `${xp} XP בסך הכול`,
       barLabel: (next: number) => `ההתקדמות לרמה ${String(next)}`,
       barValue: (done: string, total: string) => `${done} מתוך ${total} XP`,
-      toNext: (xp: string, next: number) => `עוד ${xp} XP לרמה ${String(next)}`,
       max: 'זו הרמה הגבוהה ביותר.',
       blocksDone: (count: number) =>
         count === 0 ? 'עוד לא הושלמו בלוקים' : count === 1 ? 'בלוק אחד הושלם' : `${String(count)} בלוקים הושלמו`,
@@ -720,7 +726,6 @@ export const he = {
       keepGoing: 'בלוק אחד היום ממשיך את הרצף.',
     },
     days: {
-      title: '14 הימים האחרונים',
       summary: (studied: number, total: number) =>
         studied === 0
           ? `עוד אין ימי לימוד ב-${String(total)} הימים האחרונים.`
@@ -734,7 +739,11 @@ export const he = {
       title: 'תגים',
       summary: (earned: number, total: number) => `${String(earned)} מתוך ${String(total)} הושגו`,
       earnedOn: (date: string) => `הושג ב-${date}`,
+      // An earned badge whose date is missing.
+      earned: 'הושג',
       notEarned: 'עוד לא הושג',
+      // The line under the name of a badge: "רצף של 7 ימי לימוד. הושג ב-13 בנובמבר 2026".
+      details: (parts: string[]) => parts.filter((part) => part !== '').join('. '),
       towards: (current: string, threshold: string) => `${current} מתוך ${threshold}`,
       groups: {
         first: 'התחלה',
