@@ -26,5 +26,9 @@ bc16ac149a8d5f5cd7bc48976dd5d5eb46e6cb0b:.planning/milestones/phases 10-14/11-pu
 # settings test whose value is a variable name (VAPID_PUBLIC), not a key; the key pair
 # behind it is generated inside the test run and is never the one in api/.env.
 # The fingerprints carry the commit, so a rebase of s16-pwa-push must update them.
+9fd4f911cfc4cc725be4e99948a28f5b1570ff22:web/src/auth/supabase.test.ts:generic-api-key:52
+765a33914611288e6a649e680ee847c259a74032:api/tests/test_config.py:generic-api-key:282
+# The same two values in the commits of s16-pwa-push before its rebase onto S26 (reachable until
+# that branch is deleted on origin).
 7079218aeece7c0dec85848f32c1638f8f579d50:web/src/auth/supabase.test.ts:generic-api-key:52
 e5f9ad8a390e208a980d72ef923de861117cabe0:api/tests/test_config.py:generic-api-key:282
