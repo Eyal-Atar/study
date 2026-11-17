@@ -395,9 +395,12 @@ def test_a_block_that_is_not_in_the_review_is_409(
     passed = insert_exam(db, user.id, exam_date="2026-11-15")
     passed_task = insert_task(db, user.id, passed)
     of_passed_exam = insert_block(db, user.id, passed_task, Z(2026, 11, 14, 9), Z(2026, 11, 14, 10))
+    # Eight study days old: past the review's window, so GET /review does not list it.
+    too_old = insert_block(db, user.id, task, Z(2026, 11, 9, 9), Z(2026, 11, 9, 10))
+    assert str(too_old) not in [b["id"] for b in _review(api, user)]
     before = _all_blocks(db, user.id)
 
-    for block in (ahead, running, done, missed, of_done_task, of_passed_exam):
+    for block in (ahead, running, done, missed, of_done_task, of_passed_exam, too_old):
         response = _post(api, user, block, action)
         assert response.status_code == 409, (block, response.text)
         assert response.json()["code"] == "invalid_state"

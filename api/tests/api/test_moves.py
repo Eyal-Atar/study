@@ -375,3 +375,35 @@ def test_today_has_the_day_bounds(
     assert late["date"] == "2026-11-16"
     assert _instant(late["day_starts_at"]) == Z(2026, 11, 16, 6)
     assert _instant(late["day_ends_at"]) == Z(2026, 11, 17, 1)
+
+
+def test_a_move_to_the_current_minute_is_refused(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, clock: FrozenClock
+) -> None:
+    """At 10:00:30 a block moved to 10:00 would already be running: not before now."""
+    _, task = _setup(db, user)
+    block = insert_block(db, user.id, task, Z(2026, 11, 16, 12), Z(2026, 11, 16, 13))
+    clock.set(Z(2026, 11, 16, 10, 0) + dt.timedelta(seconds=30))
+
+    slots = _slots(api, user, block)
+    assert slots.status_code == 200, slots.text
+    assert _instant(slots.json()["slots"][0]) == Z(2026, 11, 16, 10, 15)
+
+    response = _move(api, user, block, starts_at=Z(2026, 11, 16, 10, 0))
+    assert response.status_code == 422, response.text
+    assert response.json()["code"] == "outside_day"
+    assert _move(api, user, block, starts_at=Z(2026, 11, 16, 10, 1)).status_code == 200
+
+
+def test_a_move_to_now_on_a_whole_minute_fits(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, clock: FrozenClock
+) -> None:
+    """At exactly 10:00 the block may start at 10:00, and 10:00 is a slot."""
+    _, task = _setup(db, user)
+    block = insert_block(db, user.id, task, Z(2026, 11, 16, 12), Z(2026, 11, 16, 13))
+    clock.set(Z(2026, 11, 16, 10))
+
+    slots = _slots(api, user, block)
+    assert _instant(slots.json()["slots"][0]) == Z(2026, 11, 16, 10)
+    response = _move(api, user, block, starts_at=Z(2026, 11, 16, 10))
+    assert response.status_code == 200, response.text

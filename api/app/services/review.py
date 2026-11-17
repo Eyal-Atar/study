@@ -17,6 +17,7 @@ from uuid import UUID
 
 from app.domain.planner import (
     BlockStatus,
+    Profile,
     TaskStatus,
     place_task,
     start_minute,
@@ -49,11 +50,21 @@ class SkipOutcome:
     version_id: UUID
 
 
+def _review_window(profile: Profile, now: dt.datetime) -> tuple[dt.date, dt.date]:
+    """The first and last study day the review holds: the list and the actions share it."""
+    today = study_date(profile, now)
+    return today - dt.timedelta(days=REVIEW_DAYS - 1), today
+
+
+def _in_review_window(profile: Profile, now: dt.datetime, starts_at: dt.datetime) -> bool:
+    first, today = _review_window(profile, now)
+    return first <= study_date(profile, starts_at) <= today
+
+
 def review_blocks(conn: Conn, user_id: UUID, now: dt.datetime) -> tuple[BlockView, ...]:
     """The review blocks of the last REVIEW_DAYS study days, by (starts_at, id)."""
     profile = to_planner_profile(ensure_profile(conn, user_id))
-    today = study_date(profile, now)
-    first = today - dt.timedelta(days=REVIEW_DAYS - 1)
+    first, _ = _review_window(profile, now)
     since = dt.datetime.combine(first, dt.time(), dt.UTC) - _QUERY_MARGIN
     rows = conn.execute(
         "SELECT b.id FROM app.blocks b "
@@ -65,7 +76,7 @@ def review_blocks(conn: Conn, user_id: UUID, now: dt.datetime) -> tuple[BlockVie
         (user_id, start_minute(now), since, local_date(now, profile.timezone)),
     ).fetchall()
     views = blocks_by_id(conn, user_id, [row["id"] for row in rows], profile, now)
-    return tuple(view for view in views if first <= view.study_date <= today)
+    return tuple(view for view in views if _in_review_window(profile, now, view.starts_at))
 
 
 def _review_block(conn: Conn, user_id: UUID, board: Board, block_id: UUID) -> BlockRow:
@@ -73,7 +84,8 @@ def _review_block(conn: Conn, user_id: UUID, board: Board, block_id: UUID) -> Bl
 
     The block is read from the table, not the board: the board holds only the last 48 hours.
     A block of a deleted task or exam is not found; one of a passed exam's task, or of a
-    task that is not todo, is not on the board as todo.
+    task that is not todo, is not on the board as todo. A block older than the review's
+    window is not in GET /review either, so it is invalid_state too.
     """
     row = conn.execute(
         "SELECT "  # noqa: S608 - a constant column list
@@ -87,7 +99,11 @@ def _review_block(conn: Conn, user_id: UUID, board: Board, block_id: UUID) -> Bl
     if row is None:
         raise ApiError("not_found")
     block = to_block_row(row)
-    if block.status is not BlockStatus.PLANNED or block.ends_at > start_minute(board.now):
+    if (
+        block.status is not BlockStatus.PLANNED
+        or block.ends_at > start_minute(board.now)
+        or not _in_review_window(board.profile, board.now, block.starts_at)
+    ):
         raise ApiError("invalid_state")
     if not any(t.id == block.task_id and t.status is TaskStatus.TODO for t in board.tasks):
         raise ApiError("invalid_state")
