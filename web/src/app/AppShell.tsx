@@ -1,3 +1,4 @@
+import { Sun } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { useAuth } from '../auth/AuthContext'
 import { he } from '../i18n/he'
@@ -33,6 +34,7 @@ export function AppShell() {
               {onboarding ? null : (
                 <nav aria-label={he.shell.mainNav} className="order-last -mx-3 flex w-full overflow-x-auto sm:order-none sm:mx-0 sm:w-auto">
                   <NavLink to="/today" className={tabClass}>
+                    <Sun aria-hidden="true" size={18} strokeWidth={1.75} className="me-1.5 shrink-0" />
                     {he.shell.today}
                   </NavLink>
                   <NavLink to="/week" className={tabClass}>
