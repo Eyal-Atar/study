@@ -28,6 +28,7 @@ import {
 } from './fieldSections'
 import { DialogSection, PageHeaderSection, ToastSection } from './overlaySections'
 import { NoteSection, OptionGridSection, SegmentedControlSection } from './s27Sections'
+import { CollapsibleSectionSection, CompactSelectSection, SwitchSection } from './s28Sections'
 
 // The look of a TextLink, on a plain <a>: these are anchors inside the page (#button), not routes,
 // so the router's Link is not the element for them. 44px high, since each stands alone.
@@ -93,6 +94,10 @@ export function ComponentsPage() {
         <SegmentedControlSection />
         <NoteSection />
         <OptionGridSection />
+        {/* S28 */}
+        <SwitchSection />
+        <CompactSelectSection />
+        <CollapsibleSectionSection />
       </div>
       <ToastRegion />
     </StandalonePage>

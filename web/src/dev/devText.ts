@@ -32,6 +32,10 @@ export const SECTIONS = [
   { id: 'segmented-control', title: 'מתג תצוגה (SegmentedControl)' },
   { id: 'note', title: 'הערה (Note)' },
   { id: 'option-grid', title: 'רשת אפשרויות (OptionGrid)' },
+  // S28
+  { id: 'switch', title: 'מתג (Switch)' },
+  { id: 'compact-select', title: 'בחירה בתוך שורה (CompactSelect)' },
+  { id: 'collapsible-section', title: 'קטע מתקפל (CollapsibleSection)' },
 ] as const
 
 export type SectionId = (typeof SECTIONS)[number]['id']
