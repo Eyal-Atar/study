@@ -15,7 +15,7 @@ describe('completeText', () => {
 
   it('adds the XP gained', () => {
     expect(completeText({ block: makeBlock(), task_status: 'done', progress: progress() }, false)).toBe(
-      `${he.board.completed} · ${he.board.xpGained(10)}`,
+      `${he.board.completed}. ${he.board.xpGained(10)}`,
     )
   })
 
@@ -30,7 +30,7 @@ describe('completeText', () => {
         he.board.xpGained(10),
         he.board.levelUp(3),
         he.board.badgeEarned(`${he.progress.badges.items.first_task.name}, ${he.progress.badges.unknown.name}`),
-      ].join(' · '),
+      ].join('. '),
     )
   })
 
@@ -39,7 +39,7 @@ describe('completeText', () => {
       { block: makeBlock(), task_status: 'todo', progress: progress({ xp_change: -10, badges_lost: ['first_task'] }) },
       true,
     )
-    expect(text).toBe(`${he.board.uncompleted} · ${he.board.xpLost(10)}`)
+    expect(text).toBe(`${he.board.uncompleted}. ${he.board.xpLost(10)}`)
   })
 
   it('no XP change adds nothing', () => {

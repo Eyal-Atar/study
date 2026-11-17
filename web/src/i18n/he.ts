@@ -271,7 +271,7 @@ export const he = {
       count === 1 ? `משימה אחת: ${reason}` : `${String(count)} משימות: ${reason}`,
     confirm: 'אישור',
     notNow: 'לא עכשיו',
-    applied: 'הלוח עודכן.',
+    applied: 'הלוח עודכן',
     timezoneChanged: 'עדכנו את אזור הזמן לפי המכשיר. כדאי לתכנן מחדש את הלוח לפי השעות המקומיות.',
     timezoneReason: 'אזור הזמן במכשיר השתנה, ולכן חלונות הלימוד שלכם זזו.',
     showChange: 'הצגת השינוי',
@@ -313,13 +313,13 @@ export const he = {
     actionsLabel: (title: string) => `פעולות: ${title}`,
     completed: 'סומן כבוצע',
     uncompleted: 'הסימון בוטל',
-    // S18: what the "done" toast adds from S19's progress, joined to the text above with " · ".
+    // S18: what the "done" toast adds from S19's progress, joined to the text above with ". ".
     // In words, not "+10 XP", so the sign does not jump sides in RTL.
     xpGained: (xp: number) => `קיבלתם ${String(xp)} XP`,
     xpLost: (xp: number) => `ירדו ${String(xp)} XP`,
     levelUp: (level: number) => `עליתם לרמה ${String(level)}`,
     badgeEarned: (names: string) => `תג חדש: ${names}`,
-    pinnedDone: 'הבלוק ננעל במקומו',
+    pinnedDone: 'ננעל במקומו',
     unpinnedDone: 'הנעילה שוחררה',
     deferred: (day: string, time: string) => `נדחה ל${day} בשעה ${time}`,
     deferredSomewhere: 'המשימה נדחתה',
@@ -386,7 +386,7 @@ export const he = {
     moveUndone: 'ההעברה בוטלה',
     // The action of the no_time_today toast: POST reschedule {today_only: false}.
     moveNext: 'למקום הפנוי הבא',
-    skipped: (title: string) => `דילגת על ${title}`,
+    skipped: (title: string) => `דילגתם על ${title}`,
     skipUndone: 'הדילוג בוטל',
   },
   // S18: moving a block within its day: drag, keyboard and the "move" dialog.
@@ -394,7 +394,7 @@ export const he = {
     // The action on a block's card (BlockCard), next to "דחייה" and "נעילה".
     move: 'הזזה',
     moveLabel: (name: string) => `הזזה: ${name}`,
-    moved: (time: string) => `הבלוק זז ל-${time} ונעול`,
+    moved: (time: string) => `הוזז ל-${time} וננעל`,
     undone: 'ההזזה בוטלה',
     // MoveDialog: the times on the 15-minute grid the block can move to (GET /blocks/{id}/slots).
     dialogTitle: (name: string) => `הזזה של ${name}`,

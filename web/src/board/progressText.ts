@@ -2,7 +2,7 @@ import { he } from '../i18n/he'
 import type { CompleteResult } from './types'
 
 // The "done" and "undone" toasts with what S19's progress says changed (S18, the S19 roadmap row):
-// the XP, a new level and new badges, in one quiet line. A badge lost on undo is not announced:
+// the XP, a new level and new badges, in one quiet line, its parts joined like the details of a row (design language 5.2). A badge lost on undo is not announced:
 // the toast already says the mark was undone, and the progress board shows the badges.
 
 function badgeName(key: string): string {
@@ -19,5 +19,5 @@ export function completeText(result: CompleteResult, undone: boolean): string {
     if (progress.level_up) parts.push(he.board.levelUp(progress.level))
     if (progress.badges_earned.length > 0) parts.push(he.board.badgeEarned(progress.badges_earned.map(badgeName).join(', ')))
   }
-  return parts.join(' · ')
+  return parts.join('. ')
 }
