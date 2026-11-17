@@ -75,7 +75,7 @@ export function SettingsPage() {
 
       {/* S16: reminders on this device and the lead time. The component draws its own two cards;
           the section gives them the heading and the line every other part of the screen has. */}
-      <Section title={t.notifications.title}>
+      <Section title={he.notifications.title} intro={he.notifications.intro}>
         <NotificationSettings />
       </Section>
 
