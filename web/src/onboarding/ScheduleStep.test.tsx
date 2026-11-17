@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
@@ -129,6 +129,43 @@ describe('ScheduleStep', () => {
     await user.click(await screen.findByRole('button', { name: t.build }))
     expect(await screen.findByRole('alert')).toHaveTextContent(he.codes.database_unavailable)
     expect(screen.queryByText('building')).not.toBeInTheDocument()
+  })
+
+  it('a double press on "בניית התוכנית" saves once, and the button keeps its text', async () => {
+    const user = userEvent.setup()
+    const fake = meApi()
+    let answer: () => void = () => undefined
+    fake.on(
+      'PATCH /me',
+      () =>
+        new Promise((resolve) => {
+          answer = () => {
+            resolve(me)
+          }
+        }),
+    )
+    renderSchedule(fake)
+
+    const build = await screen.findByRole('button', { name: t.build })
+    await user.dblClick(build)
+    await user.click(build)
+
+    expect(fake.calls('PATCH', '/me')).toHaveLength(1)
+    expect(build).toHaveTextContent(t.build)
+    answer()
+    expect(await screen.findByText('building')).toBeInTheDocument()
+    expect(fake.calls('PATCH', '/me')).toHaveLength(1)
+  })
+
+  it('the primary button comes first, and each window shows its hours left to right', async () => {
+    renderSchedule(meApi())
+    const build = await screen.findByRole('button', { name: t.build })
+    const bar = build.parentElement
+    if (bar === null) throw new Error('no actions bar')
+    expect(within(bar).getAllByRole('button').map((button) => button.textContent)).toEqual([t.build, he.common.back])
+    // U+2066 … U+2069 isolate the range as left-to-right text inside the Hebrew card.
+    expect(screen.getByText('\u206606:00–12:00\u2069')).toBeInTheDocument()
+    expect(screen.getByText('\u206621:00–02:00\u2069')).toBeInTheDocument()
   })
 
   it('"back" goes to the materials step', async () => {

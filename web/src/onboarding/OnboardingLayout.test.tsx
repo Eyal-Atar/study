@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { he } from '../i18n/he'
+import { Button } from '../ui/Button'
 import { OnboardingLayout } from './OnboardingLayout'
 
 describe('OnboardingLayout', () => {
@@ -28,5 +29,42 @@ describe('OnboardingLayout', () => {
     expect(steps[2]).toHaveAttribute('aria-current', 'step')
     expect(steps[2]).toHaveTextContent(he.onboarding.steps[2])
     expect(steps[0]).not.toHaveAttribute('aria-current')
+  })
+
+  it('names the browser tab after the step, and keeps the intro to a readable width', () => {
+    render(
+      <OnboardingLayout step={1} title="כותרת" intro="הסבר">
+        <p>תוכן</p>
+      </OnboardingLayout>,
+    )
+    expect(document.title).toBe(`כותרת · ${he.appName}`)
+    expect(screen.getByText('הסבר')).toHaveClass('max-w-prose')
+  })
+
+  it('the primary action comes first, so it is first in the reading order and in the Tab order', () => {
+    render(
+      <OnboardingLayout
+        step={2}
+        title="כותרת"
+        actions={
+          <>
+            <Button>המשך</Button>
+            <Button variant="secondary">חזרה</Button>
+          </>
+        }
+      >
+        <p>תוכן</p>
+      </OnboardingLayout>,
+    )
+    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['המשך', 'חזרה'])
+  })
+
+  it('does not narrow itself: the width is the column of the shell', () => {
+    const { container } = render(
+      <OnboardingLayout step={1} title="כותרת" actions={<Button>המשך</Button>}>
+        <p>תוכן</p>
+      </OnboardingLayout>,
+    )
+    expect(container.querySelector('[class*="max-w-xl"]')).toBeNull()
   })
 })

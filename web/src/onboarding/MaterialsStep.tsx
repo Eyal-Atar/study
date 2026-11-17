@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { errorMessage } from '../api/client'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
+import { EmptyState, ErrorState, LoadingState } from '../ui/states'
 import { useExams } from './api'
 import { ExamMaterials } from './ExamMaterials'
 import { OnboardingLayout } from './OnboardingLayout'
@@ -51,44 +52,36 @@ export function MaterialsStep() {
       intro={t.intro}
       actions={
         <>
+          {/* One way forward. Without files the same button says that it skips them, so nobody
+              has to look for a second button. */}
+          <Button className="flex-1 md:flex-none" isDisabled={leaving} onPress={() => { leave(STEP_PATHS.schedule); }}>
+            {hasFiles ? he.onboarding.continue : t.continueWithout}
+          </Button>
           <Button variant="secondary" isDisabled={leaving} onPress={() => { leave(STEP_PATHS.exams); }}>
             {he.common.back}
           </Button>
-          {hasFiles ? (
-            <Button isDisabled={leaving} onPress={() => { leave(STEP_PATHS.schedule); }}>
-              {he.common.next}
-            </Button>
-          ) : (
-            <Button variant="quiet" isDisabled={leaving} onPress={() => { leave(STEP_PATHS.schedule); }}>
-              {he.common.skip}
-            </Button>
-          )}
         </>
       }
     >
-      <div className="flex flex-col gap-1 text-sm text-ink-muted">
+      {/* Before the upload buttons: where the files go is said before a file is picked. */}
+      <div className="flex max-w-prose flex-col gap-1 text-small text-ink-muted">
         <p>{t.privacy}</p>
         <p>{t.fileTypes}</p>
       </div>
 
-      <div>
-        {exams.isPending ? (
-          <p className="text-sm text-ink-muted">{he.common.loading}</p>
-        ) : exams.isError ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <p role="alert" className="text-sm text-danger">
-              {errorMessage(exams.error)}
-            </p>
-            <Button variant="quiet" onPress={() => void exams.refetch()}>
-              {he.common.retry}
-            </Button>
-          </div>
-        ) : exams.data.length === 0 ? (
-          <p className="text-sm text-ink-muted">{t.noExams}</p>
-        ) : (
-          exams.data.map((exam) => <ExamMaterials key={exam.id} exam={exam} onCountChange={onCountChange} />)
-        )}
-      </div>
+      {exams.isPending ? (
+        <LoadingState shape="list" rows={3} />
+      ) : exams.isError ? (
+        <ErrorState message={errorMessage(exams.error)} onRetry={() => void exams.refetch()} />
+      ) : exams.data.length === 0 ? (
+        <EmptyState title={t.noExams} description={t.noExamsHint} />
+      ) : (
+        <div className="flex flex-col gap-section">
+          {exams.data.map((exam) => (
+            <ExamMaterials key={exam.id} exam={exam} onCountChange={onCountChange} />
+          ))}
+        </div>
+      )}
     </OnboardingLayout>
   )
 }

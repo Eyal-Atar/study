@@ -120,8 +120,8 @@ describe('ExamsStep', () => {
     const item = within(list).getByRole('listitem')
     expect(item).toHaveTextContent('אלגוריתמים')
     const hebrewDate = new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'long', year: 'numeric' }).format(date.date)
-    expect(item).toHaveTextContent(hebrewDate)
-    expect(item).toHaveTextContent(t.difficultyOf(t.difficultyLevels[3]))
+    // One subtitle, with a comma-and-period separator and not a middle dot.
+    expect(within(item).getByText(t.details(hebrewDate, t.difficultyLevels[3]))).toBeInTheDocument()
 
     expect(screen.getByRole('textbox', { name: t.name })).toHaveValue('')
     expect(screen.getByRole('radio', { name: t.difficultyLevels[2] })).toBeChecked()
@@ -194,21 +194,85 @@ describe('ExamsStep', () => {
     expect(await screen.findByRole('button', { name: t.deleteExam('שפת C') })).toBeInTheDocument()
   })
 
-  it('"next" is disabled without an exam, and goes to the materials step with one', async () => {
+  it('a double press on "הוספת מבחן" sends one POST, and the button keeps its text while it is sent', async () => {
+    const user = userEvent.setup()
+    const fake = examsApi()
+    let answer: () => void = () => undefined
+    fake.on(
+      'POST /exams',
+      (call: ApiCall) =>
+        new Promise((resolve) => {
+          const body = call.body as ExamCreate
+          answer = () => {
+            resolve({ exam: { id: 'e1', ...body, created_at: '2026-11-16T08:00:00Z' }, plan_affected: false })
+          }
+        }),
+    )
+    renderExams(fake)
+    await screen.findByText(t.empty)
+
+    await fillExam(user, 'אלגוריתמים')
+    const add = screen.getByRole('button', { name: t.add })
+    await user.dblClick(add)
+    await user.click(add)
+
+    await waitFor(() => {
+      expect(fake.calls('POST', '/exams')).toHaveLength(1)
+    })
+    expect(screen.getByRole('button', { name: new RegExp(t.add) })).toHaveTextContent(t.add)
+    answer()
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: t.name })).toHaveValue('')
+    })
+    expect(fake.calls('POST', '/exams')).toHaveLength(1)
+  })
+
+  it('a long exam name without spaces wraps inside its row and does not widen the page', async () => {
+    const name = 'א'.repeat(120)
+    const exam: Exam = { id: 'e1', name, exam_date: daysFromToday(20).iso, difficulty: 3, created_at: '2026-11-16T08:00:00Z' }
+    renderExams(examsApi([exam]))
+
+    const title = await screen.findByText(name)
+    expect(title.closest('.break-words')).not.toBeNull()
+    // The column of the name may shrink, and the delete button keeps its 44px beside it.
+    expect(title.closest('.min-w-0')).not.toBeNull()
+    expect(title.closest('.truncate')).toBeNull()
+    const row = title.closest('li')
+    if (row === null) throw new Error('no row')
+    expect(within(row).getByRole('button', { name: t.deleteExam(name) })).toHaveClass('size-touch', 'shrink-0')
+  })
+
+  it('a failed load of the exams shows the error with a retry, under the title', async () => {
+    const user = userEvent.setup()
+    const fake = createFakeApi().on('GET /exams', problem(503, 'database_unavailable'))
+    renderExams(fake)
+    expect(screen.getByRole('heading', { level: 1, name: t.title })).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(he.codes.database_unavailable)
+    fake.on('GET /exams', [])
+    await user.click(screen.getByRole('button', { name: he.common.retry }))
+    expect(await screen.findByText(t.empty)).toBeInTheDocument()
+  })
+
+  it('"המשך" is disabled without an exam, and goes to the materials step with one', async () => {
     const user = userEvent.setup()
     renderExams(examsApi())
     await screen.findByText(t.empty)
-    expect(screen.getByRole('button', { name: he.common.next })).toBeDisabled()
+    const proceed = () => screen.getByRole('button', { name: he.onboarding.continue })
+    expect(proceed()).toBeDisabled()
+    // One blue button at a time: adding the first exam is the next step, so it is the primary one.
+    expect(screen.getByRole('button', { name: t.add })).toHaveClass('bg-brand')
 
     await fillExam(user, 'אלגוריתמים')
     await user.click(screen.getByRole('button', { name: t.add }))
     await screen.findByRole('list', { name: t.listTitle })
 
-    const next = screen.getByRole('button', { name: he.common.next })
     await waitFor(() => {
-      expect(next).toBeEnabled()
+      expect(proceed()).toBeEnabled()
     })
-    await user.click(next)
+    // Now going on is the next step, and adding another exam is secondary.
+    expect(proceed()).toHaveClass('bg-brand')
+    expect(screen.getByRole('button', { name: t.add })).not.toHaveClass('bg-brand')
+    await user.click(proceed())
     expect(await screen.findByText('materials')).toBeInTheDocument()
   })
 })

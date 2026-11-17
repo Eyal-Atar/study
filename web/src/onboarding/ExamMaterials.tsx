@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { Plus, Trash2 } from 'lucide-react'
 import { useEffect, useId, useState, type ReactNode } from 'react'
 import { FileTrigger } from 'react-aria-components'
 import { ApiError, errorMessage } from '../api/client'
@@ -6,6 +7,11 @@ import { useUserId } from '../api/me'
 import { codeText } from '../i18n/codes'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
+import { IconButton } from '../ui/IconButton'
+import { List } from '../ui/List'
+import { SectionHeading } from '../ui/SectionHeading'
+import { ErrorState, LoadingState } from '../ui/states'
+import { ICON_STROKE } from '../ui/styles'
 import { UNDO_TIMEOUT_MS, useToast } from '../ui/useToast'
 import { materialsKey, useDeleteMaterial, useMaterials } from './api'
 import { MaterialItem } from './MaterialItem'
@@ -75,9 +81,12 @@ export interface ExamMaterialsProps {
   heading?: string
   // A control that changes a registered material's kind, in place of its kind's text (S15).
   kindControl?: (material: Material) => ReactNode
+  // Only the "הוספת קבצים" button and the files, without a heading or a section of its own: the
+  // exam screen puts this inside a collapsible section that already has the heading (S28).
+  bare?: boolean
 }
 
-export function ExamMaterials({ exam, onCountChange, heading, kindControl }: ExamMaterialsProps) {
+export function ExamMaterials({ exam, onCountChange, heading, kindControl, bare = false }: ExamMaterialsProps) {
   const headingId = useId()
   const userId = useUserId()
   const queryClient = useQueryClient()
@@ -92,7 +101,7 @@ export function ExamMaterials({ exam, onCountChange, heading, kindControl }: Exa
   const visible = (materials.data ?? []).filter((m) => !hidden.has(m.id))
   const count = visible.length + pending.length
 
-  // The step shows "הבא" instead of "דלג" once any exam has a file.
+  // The step says "המשך" instead of "המשך בלי חומרים" once any exam has a file.
   useEffect(() => {
     onCountChange(exam.id, count)
   }, [exam.id, count, onCountChange])
@@ -190,36 +199,31 @@ export function ExamMaterials({ exam, onCountChange, heading, kindControl }: Exa
     })
   }
 
-  return (
-    <section aria-labelledby={headingId} className="border-t border-line py-6 first:border-t-0 first:pt-0">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id={headingId} className="min-w-0 truncate text-base font-semibold text-ink">
-          {heading ?? <bdi>{exam.name}</bdi>}
-        </h2>
-        <FileTrigger acceptedFileTypes={[...ACCEPTED_FILE_TYPES]} allowsMultiple onSelect={pick}>
-          <Button variant="secondary" aria-label={t.addFilesFor(exam.name)}>
-            {t.addFiles}
-          </Button>
-        </FileTrigger>
-      </div>
+  const picker = (
+    <FileTrigger acceptedFileTypes={[...ACCEPTED_FILE_TYPES]} allowsMultiple onSelect={pick}>
+      <Button variant="secondary" aria-label={t.addFilesFor(exam.name)}>
+        <Plus aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+        {t.addFiles}
+      </Button>
+    </FileTrigger>
+  )
 
+  const files = (
+    <>
       {materials.isPending ? (
-        <p className="mt-3 text-sm text-ink-muted">{he.common.loading}</p>
+        <LoadingState shape="list" rows={1} />
       ) : materials.isError ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <p role="alert" className="text-sm text-danger">
-            {errorMessage(materials.error)}
-          </p>
-          <Button variant="quiet" onPress={() => void materials.refetch()}>
-            {he.common.retry}
-          </Button>
+        <div className="py-2">
+          <ErrorState message={errorMessage(materials.error)} onRetry={() => void materials.refetch()} />
         </div>
       ) : count === 0 ? (
-        <p className="mt-3 text-sm text-ink-muted">{t.empty}</p>
+        // One quiet line and not an EmptyState: the step lists every exam, and a tall empty block
+        // under each would push the next exam off a phone.
+        <p className="py-2 text-small text-ink-muted">{t.empty}</p>
       ) : null}
 
       {count === 0 ? null : (
-        <ul aria-label={t.filesOf(exam.name)} className="mt-2 divide-y divide-line">
+        <List aria-label={t.filesOf(exam.name)}>
           {visible.map((material) => {
             const { status, tone } = materialStatus(material)
             return (
@@ -232,9 +236,9 @@ export function ExamMaterials({ exam, onCountChange, heading, kindControl }: Exa
                 warnings={material.warnings.map((code) => codeText(code))}
                 kindControl={kindControl?.(material)}
                 actions={
-                  <Button variant="quiet" aria-label={t.deleteNamed(material.filename)} onPress={() => { remove(material); }}>
-                    {he.common.delete}
-                  </Button>
+                  <IconButton aria-label={t.deleteNamed(material.filename)} onPress={() => { remove(material); }}>
+                    <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+                  </IconButton>
                 }
               />
             )
@@ -249,7 +253,7 @@ export function ExamMaterials({ exam, onCountChange, heading, kindControl }: Exa
                 kind={item.kind}
                 status={uploadErrorText(item.error)}
                 tone="danger"
-                actions={
+                recovery={
                   <>
                     {canRetry(item.error) ? (
                       <Button variant="quiet" aria-label={t.retryNamed(item.file.name)} onPress={() => { retry(item); }}>
@@ -264,8 +268,30 @@ export function ExamMaterials({ exam, onCountChange, heading, kindControl }: Exa
               />
             ),
           )}
-        </ul>
+        </List>
       )}
+    </>
+  )
+
+  if (bare) {
+    return (
+      <div className="flex flex-col gap-1">
+        <div>{picker}</div>
+        {files}
+      </div>
+    )
+  }
+
+  return (
+    <section aria-labelledby={headingId} className="flex flex-col gap-1">
+      {/* The name of the exam and its one action share a row; a long name wraps under itself. */}
+      <div className="flex items-center justify-between gap-3">
+        <SectionHeading id={headingId} className="min-w-0 break-words">
+          {heading ?? <bdi>{exam.name}</bdi>}
+        </SectionHeading>
+        <div className="shrink-0">{picker}</div>
+      </div>
+      {files}
     </section>
   )
 }

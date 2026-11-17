@@ -5,7 +5,9 @@ import { useMe, type Me, type StudyWindow } from '../api/me'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
 import { CheckboxCards } from '../ui/CheckboxCards'
+import { Note } from '../ui/Note'
 import { RadioCards } from '../ui/RadioCards'
+import { ErrorState, LoadingState } from '../ui/states'
 import { useUpdateMe } from './api'
 import { OnboardingLayout } from './OnboardingLayout'
 import { flushDeletes } from './pendingDeletes'
@@ -42,26 +44,19 @@ export function ScheduleStep() {
   if (me.isPending) {
     return (
       <OnboardingLayout step={3} title={t.title}>
-        <p className="text-ink-muted">{he.common.loading}</p>
+        <LoadingState shape="card" />
       </OnboardingLayout>
     )
   }
   if (me.isError) {
     return (
       <OnboardingLayout step={3} title={t.title}>
-        <div className="flex flex-col items-start gap-2">
-          <p role="alert" className="text-danger">
-            {errorMessage(me.error)}
-          </p>
-          <Button
-            variant="secondary"
-            onPress={() => {
-              void me.refetch()
-            }}
-          >
-            {he.common.retry}
-          </Button>
-        </div>
+        <ErrorState
+          message={errorMessage(me.error)}
+          onRetry={() => {
+            void me.refetch()
+          }}
+        />
       </OnboardingLayout>
     )
   }
@@ -95,6 +90,10 @@ function ScheduleForm({ me }: { me: Me }) {
 
   const actions = (
     <>
+      {/* The button says what it starts, and keeps saying it while the answers are saved. */}
+      <Button className="flex-1 md:flex-none" isPending={updateMe.isPending} onPress={build}>
+        {t.build}
+      </Button>
       <Button
         variant="secondary"
         onPress={() => {
@@ -102,9 +101,6 @@ function ScheduleForm({ me }: { me: Me }) {
         }}
       >
         {he.common.back}
-      </Button>
-      <Button className="flex-1 md:flex-none" isDisabled={updateMe.isPending} onPress={build}>
-        {updateMe.isPending ? t.saving : t.build}
       </Button>
     </>
   )
@@ -131,16 +127,14 @@ function ScheduleForm({ me }: { me: Me }) {
           {...(missingWindow ? { errorId } : {})}
         />
         {missingWindow ? (
-          <p id={errorId} role="alert" className="text-sm text-danger">
+          <p id={errorId} role="alert" className="text-small text-danger">
             {t.windowsRequired}
           </p>
         ) : null}
-        {windows.includes('night') ? (
-          <p className="rounded-lg bg-surface-muted px-3 py-2 text-sm text-ink-muted">{t.nightNote}</p>
-        ) : null}
+        {windows.includes('night') ? <Note>{t.nightNote}</Note> : null}
       </div>
       {updateMe.isError ? (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {errorMessage(updateMe.error)}
         </p>
       ) : null}

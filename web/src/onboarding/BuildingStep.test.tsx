@@ -123,13 +123,21 @@ describe('BuildingStep', () => {
     const { router } = open(fake, '/onboarding/building?job=j1')
 
     expect(await screen.findByRole('heading', { name: he.building.doneTitle }, POLL)).toBeInTheDocument()
-    const items = screen.getAllByRole('listitem').filter((li) => li.querySelector('p.font-medium') !== null)
-    const calculus = items.find((li) => within(li).queryByText('חדו"א') !== null)
-    const physics = items.find((li) => within(li).queryByText('פיזיקה') !== null)
+    // One row per exam (the gaps of an exam are a list of their own inside its row).
+    const calculus = screen.getByText('חדו"א').closest('li')
+    const physics = screen.getByText('פיזיקה').closest('li')
+    const exams = screen.getByRole('list', { name: he.building.examsTitle })
+    expect(exams).toContainElement(calculus)
+    expect(exams).toContainElement(physics)
     expect(calculus).toHaveTextContent(he.building.examTasks(12))
     expect(calculus).toHaveTextContent(codeText('under_budget'))
     expect(calculus).toHaveTextContent(he.building.gap('אינטגרלים', 'אין מבחני עבר'))
     expect(physics).toHaveTextContent(codeText('analysis_invalid'))
+    // The failed exam is marked by an icon and the words, not only by the red.
+    expect(physics).toHaveTextContent(he.building.examFailed)
+    expect(physics?.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
+    // "למסך היום" is the only primary button of the summary.
+    expect(screen.getAllByRole('button').filter((button) => button.classList.contains('bg-brand'))).toHaveLength(1)
     // A partial failure is not a silent success.
     expect(screen.getByText(he.building.someFailed)).toBeInTheDocument()
     expect(screen.getByText(he.building.unscheduled(3))).toBeInTheDocument()
@@ -142,6 +150,17 @@ describe('BuildingStep', () => {
     })
     expect(fake.calls('GET', '/me').length).toBeGreaterThan(meReads)
     expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
+  })
+
+  it('a failure card holds its buttons, the one that goes on first and primary', async () => {
+    const { fake } = server({ jobs: [jobFixture({ status: 'failed', error: 'analysis_invalid' })] })
+    open(fake, '/onboarding/building?job=j1')
+
+    const alert = await screen.findByRole('alert', { name: he.building.failedTitle })
+    const buttons = within(alert).getAllByRole('button')
+    expect(buttons.map((button) => button.textContent)).toEqual([he.common.retry, he.common.back])
+    expect(buttons[0]).toHaveClass('bg-brand')
+    expect(buttons[1]).not.toHaveClass('bg-brand')
   })
 
   it('failed with analysis_invalid: the reason, and "לנסות שוב" starts a new job', async () => {

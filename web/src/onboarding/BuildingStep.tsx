@@ -1,6 +1,6 @@
 import { useQueries, useQueryClient } from '@tanstack/react-query'
+import { CircleAlert } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { ProgressBar } from 'react-aria-components'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useApi } from '../api/ApiContext'
 import { errorMessage, type ApiError } from '../api/client'
@@ -9,6 +9,13 @@ import { codeText, shortfallText } from '../i18n/codes'
 import { he } from '../i18n/he'
 import { ReplanOffer } from '../plan/ReplanOffer'
 import { Button } from '../ui/Button'
+import { Card } from '../ui/Card'
+import { Disclosure } from '../ui/Disclosure'
+import { List, ListRow } from '../ui/List'
+import { Note } from '../ui/Note'
+import { ProgressBar } from '../ui/ProgressBar'
+import { SectionHeading } from '../ui/SectionHeading'
+import { ICON_STROKE } from '../ui/styles'
 import { forgetJob, rememberJob } from './activeJob'
 import { materialsKey, POLL_INTERVAL_MS, useExams, useGenerate, useJob } from './api'
 import { OnboardingLayout } from './OnboardingLayout'
@@ -146,6 +153,8 @@ export function BuildingStep() {
   )
 
   let body
+  // With the plan ready the step has one action, in the same place as the "המשך" of the other steps.
+  let actions: ReactNode
   if (generate.isError) {
     body = (
       <GenerateFailure
@@ -175,7 +184,12 @@ export function BuildingStep() {
       />
     )
   } else if (job.data?.status === 'done' && job.data.result !== null) {
-    body = <Summary result={job.data.result} examName={examName} onToday={() => void toToday()} />
+    body = <Summary result={job.data.result} examName={examName} />
+    actions = (
+      <Button className="flex-1 md:flex-none" onPress={() => void toToday()}>
+        {he.building.toToday}
+      </Button>
+    )
   } else if (job.data?.status === 'failed' || job.data?.status === 'done') {
     const code = job.data.error ?? ''
     body = (
@@ -193,7 +207,7 @@ export function BuildingStep() {
                 {he.building.scheduleAnalyzed}
               </Button>
             ) : (
-              <Button isDisabled={generate.isPending} onPress={start}>
+              <Button isPending={generate.isPending} onPress={start}>
                 {he.common.retry}
               </Button>
             )}
@@ -208,40 +222,39 @@ export function BuildingStep() {
 
   const done = job.data?.status === 'done'
   return (
-    <OnboardingLayout step={4} title={done ? he.building.doneTitle : he.building.title} {...(done ? {} : { intro: he.building.intro })}>
+    <OnboardingLayout
+      step={4}
+      title={done ? he.building.doneTitle : he.building.title}
+      {...(done ? {} : { intro: he.building.intro })}
+      actions={actions}
+    >
       {body}
       {replan}
     </OnboardingLayout>
   )
 }
 
+// What is happening now, in words, and how far along it is. The stage is the text to read, so it
+// comes first; aria-live reads each new stage, and the bar is not announced on every percent.
 function Progress({ percent, text }: { percent: number; text: string }) {
   return (
     <div className="flex flex-col gap-3">
-      <ProgressBar value={percent} aria-label={he.building.progressLabel}>
-        {({ percentage }) => (
-          <div className="h-3 w-full overflow-hidden rounded-full bg-brand-soft">
-            <div
-              className="h-full rounded-full bg-brand transition-[width] duration-500"
-              style={{ width: `${String(percentage ?? 0)}%` }}
-            />
-          </div>
-        )}
-      </ProgressBar>
-      <p aria-live="polite" className="text-ink-muted">
+      <p aria-live="polite" className="text-body font-semibold text-ink">
         {text}
       </p>
+      <ProgressBar label={he.building.progressLabel} value={percent} />
     </div>
   )
 }
 
+// A failure that stops the step: said at once (role="alert"), with its ways out inside the card,
+// the one that goes on first.
 function Failure({ title, text, action }: { title?: string; text: string; action?: ReactNode }) {
   return (
-    <div role="alert" className="flex flex-col items-start gap-3 rounded-lg bg-danger-soft p-4">
-      {title === undefined ? null : <h2 className="font-bold text-danger">{title}</h2>}
-      <p className="text-danger">{text}</p>
-      {action === undefined ? null : <div className="flex flex-wrap gap-2">{action}</div>}
-    </div>
+    <Card tone="danger" role="alert" title={title}>
+      <p className="text-body break-words">{text}</p>
+      {action === undefined ? null : <div className="mt-3 flex flex-wrap gap-2">{action}</div>}
+    </Card>
   )
 }
 
@@ -284,87 +297,80 @@ function GenerateFailure({
   )
 }
 
-function Summary({
-  result,
-  examName,
-  onToday,
-}: {
-  result: GenerateResult
-  examName: (id: string) => string
-  onToday: () => void
-}) {
+function Summary({ result, examName }: { result: GenerateResult; examName: (id: string) => string }) {
   const anyFailed = result.exams.some((exam) => exam.status === 'failed')
   const { plan } = result
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-section">
+      <p className="text-body text-ink tabular-nums">{he.building.blocks(plan.blocks)}</p>
+
+      {/* A partial failure is not a silent success. */}
       {anyFailed ? (
-        <p role="alert" className="rounded-lg bg-warning-soft px-4 py-3 text-warning">
+        <Note tone="warning" role="alert">
           {he.building.someFailed}
-        </p>
+        </Note>
       ) : null}
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-bold">{he.building.examsTitle}</h2>
-        <ul className="flex flex-col gap-3">
+      <section className="flex flex-col gap-1">
+        <SectionHeading>{he.building.examsTitle}</SectionHeading>
+        <List aria-label={he.building.examsTitle}>
           {result.exams.map((exam) => (
-            <li key={exam.exam_id} className="rounded-lg border border-line bg-surface p-4">
-              <p className="font-medium">{examName(exam.exam_id)}</p>
-              {exam.status === 'analyzed' ? <p className="text-ink-muted">{he.building.examTasks(exam.tasks)}</p> : null}
-              {exam.status === 'skipped' ? <p className="text-ink-muted">{he.building.examSkipped}</p> : null}
-              {exam.status === 'failed' ? (
-                <p className="text-danger">
-                  {he.building.examFailed} {codeText(exam.error ?? '')}
-                </p>
-              ) : null}
-              {exam.warnings.length > 0 ? (
-                <ul className="mt-2 flex flex-col gap-1 text-sm text-ink-muted">
+            <ListRow
+              key={exam.exam_id}
+              title={<bdi>{examName(exam.exam_id)}</bdi>}
+              subtitle={
+                <>
+                  {exam.status === 'analyzed' ? <p className="tabular-nums">{he.building.examTasks(exam.tasks)}</p> : null}
+                  {exam.status === 'skipped' ? <p>{he.building.examSkipped}</p> : null}
+                  {exam.status === 'failed' ? (
+                    // The icon and the words "לא נותח" carry the state; the colour only repeats it.
+                    <p className="text-danger">
+                      <CircleAlert aria-hidden="true" size={14} strokeWidth={ICON_STROKE} className="me-1 inline-block align-[-0.125em]" />
+                      {he.building.examFailed} {codeText(exam.error ?? '')}
+                    </p>
+                  ) : null}
                   {exam.warnings.map((code) => (
-                    <li key={code}>{codeText(code)}</li>
+                    <p key={code} className="mt-1">
+                      {codeText(code)}
+                    </p>
                   ))}
-                </ul>
-              ) : null}
-              {exam.gaps.length > 0 ? (
-                <div className="mt-2">
-                  <p className="text-sm font-medium">{he.building.gapsTitle}</p>
-                  <ul className="flex flex-col gap-1 text-sm text-ink-muted">
-                    {exam.gaps.map((gap, index) => (
-                      // Gaps have no id, and a topic may repeat with another note.
-                      <li key={index}>{he.building.gap(gap.topic, gap.note)}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </li>
+                  {/* Topics without material are worth knowing and not worth reading now. */}
+                  {exam.gaps.length > 0 ? (
+                    <Disclosure label={he.building.gapsTitle}>
+                      <ul role="list" className="flex flex-col gap-1">
+                        {exam.gaps.map((gap, index) => (
+                          // Gaps have no id, and a topic may repeat with another note.
+                          <li key={index}>{he.building.gap(gap.topic, gap.note)}</li>
+                        ))}
+                      </ul>
+                    </Disclosure>
+                  ) : null}
+                </>
+              }
+            />
+          ))}
+        </List>
+      </section>
+
+      {plan.unscheduled_count > 0 ? (
+        <Card tone="warning" title={he.building.unscheduled(plan.unscheduled_count)}>
+          {plan.shortfalls.length > 0 ? (
+            <ul role="list" className="flex flex-col gap-1 text-small">
+              {plan.shortfalls.map((s) => (
+                <li key={s.exam_id}>{shortfallText(examName(s.exam_id), s.minutes, s.daily_minutes)}</li>
+              ))}
+            </ul>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {plan.warnings.length > 0 ? (
+        <ul role="list" className="flex max-w-prose flex-col gap-1 text-small text-ink-muted">
+          {plan.warnings.map((code) => (
+            <li key={code}>{codeText(code)}</li>
           ))}
         </ul>
-      </section>
-
-      <section className="flex flex-col gap-2">
-        <p>{he.building.blocks(plan.blocks)}</p>
-        {plan.unscheduled_count > 0 ? (
-          <div className="rounded-lg bg-warning-soft px-4 py-3">
-            <p className="font-medium">{he.building.unscheduled(plan.unscheduled_count)}</p>
-            {plan.shortfalls.length > 0 ? (
-              <ul className="mt-1 flex flex-col gap-1 text-sm">
-                {plan.shortfalls.map((s) => (
-                  <li key={s.exam_id}>{shortfallText(examName(s.exam_id), s.minutes, s.daily_minutes)}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
-        {plan.warnings.length > 0 ? (
-          <ul className="flex flex-col gap-1 text-sm text-ink-muted">
-            {plan.warnings.map((code) => (
-              <li key={code}>{codeText(code)}</li>
-            ))}
-          </ul>
-        ) : null}
-      </section>
-
-      <div>
-        <Button onPress={onToday}>{he.building.toToday}</Button>
-      </div>
+      ) : null}
     </div>
   )
 }

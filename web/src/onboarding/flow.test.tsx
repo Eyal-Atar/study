@@ -67,13 +67,14 @@ describe('the onboarding, end to end', () => {
     await user.click(screen.getByRole('button', { name: he.onboardingExams.add }))
     expect(await screen.findByRole('list', { name: he.onboardingExams.listTitle })).toHaveTextContent('חדו"א')
     expect(fake.calls('POST', '/exams').at(0)?.body).toEqual({ name: 'חדו"א', exam_date: date.iso, difficulty: 3 })
-    await user.click(screen.getByRole('button', { name: he.common.next }))
+    await user.click(screen.getByRole('button', { name: he.onboarding.continue }))
 
     // Step 2: no materials.
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/onboarding/materials')
     })
-    await user.click(await screen.findByRole('button', { name: he.common.skip }))
+    // The one button says that it goes on without them.
+    await user.click(await screen.findByRole('button', { name: he.onboardingMaterials.continueWithout }))
 
     // Step 3: the defaults, then build.
     await waitFor(() => {

@@ -54,7 +54,7 @@ function server({ aiTasks, materials = () => [material()] }: { aiTasks: boolean;
 function setup(fake: FakeApi) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const auth = createFakeAuth(fakeSession({ id: 'user-a' }))
-  render(
+  const view = render(
     <StrictMode>
       <AppProviders auth={auth.client} api={fake.api} storage={createFakeStorage().client} queryClient={queryClient}>
         <MaterialsSection examId="e1" />
@@ -62,7 +62,19 @@ function setup(fake: FakeApi) {
       </AppProviders>
     </StrictMode>,
   )
-  return { user: userEvent.setup() }
+  return { user: userEvent.setup(), unmount: view.unmount }
+}
+
+const sectionButton = () => screen.findByRole('button', { name: new RegExp(`^${t.title}`) })
+
+// An analyzed exam keeps its materials closed: the test opens them like a user would. The summary
+// appears once the files are loaded.
+async function openSection(user: ReturnType<typeof userEvent.setup>) {
+  await screen.findByText(t.count(1))
+  const button = await sectionButton()
+  expect(button).toHaveAttribute('aria-expanded', 'false')
+  await user.click(button)
+  expect(button).toHaveAttribute('aria-expanded', 'true')
 }
 
 async function chooseKind(user: ReturnType<typeof userEvent.setup>, label: string) {
@@ -73,23 +85,60 @@ async function chooseKind(user: ReturnType<typeof userEvent.setup>, label: strin
 describe('MaterialsSection', () => {
   it('lists the exam files under its heading, with each file kind', async () => {
     setup(server({ aiTasks: false }))
-    expect(await screen.findByRole('heading', { name: t.title })).toBeInTheDocument()
-    const row = (await screen.findByText('מבחן 2024.pdf')).closest('li')
+    // The heading is the button of the section, with the number of files as its summary.
+    expect(await screen.findByRole('heading', { level: 2, name: new RegExp(`^${t.title}`) })).toBeInTheDocument()
+    expect(await screen.findByText(t.count(1))).toBeInTheDocument()
+    // The name without its extension; the type is in the subtitle, where the kind's text would be.
+    const row = (await screen.findByText('מבחן 2024')).closest('li')
     if (row === null) throw new Error('no row')
-    expect(within(row).getByRole('button', { name: new RegExp(t.kindLabel('מבחן 2024.pdf')) })).toHaveTextContent(
+    expect(await within(row).findByRole('button', { name: new RegExp(t.kindLabel('מבחן 2024.pdf')) })).toHaveTextContent(
       kinds.past_exam,
     )
+    expect(within(row).getByText('PDF.')).toBeInTheDocument()
+    expect(within(row).getByRole('button', { name: he.onboardingMaterials.deleteNamed('מבחן 2024.pdf') })).toBeInTheDocument()
+    // The section has the only heading: the list inside brings none of its own.
+    expect(screen.getAllByRole('heading')).toHaveLength(1)
+  })
+
+  it('opens by itself for an exam that was not analyzed, and stays closed for one that was', async () => {
+    const first = setup(server({ aiTasks: false }))
+    await waitFor(async () => {
+      expect(await sectionButton()).toHaveAttribute('aria-expanded', 'true')
+    })
+    first.unmount()
+
+    setup(server({ aiTasks: true }))
+    await screen.findByText(t.count(1))
+    expect(await sectionButton()).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('button', { name: new RegExp(t.kindLabel('מבחן 2024.pdf')) })).not.toBeInTheDocument()
+  })
+
+  it('remembers what the user chose: a section they closed stays closed', async () => {
+    const { user } = setup(server({ aiTasks: false }))
+    const button = await sectionButton()
+    await waitFor(() => {
+      expect(button).toHaveAttribute('aria-expanded', 'true')
+    })
+    await user.click(button)
+    expect(button).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('says how many files there are: none, one, several', () => {
+    expect(t.count(0)).toBe('אין קבצים')
+    expect(t.count(1)).toBe('קובץ אחד')
+    expect(t.count(3)).toBe('3 קבצים')
   })
 
   it('a kind change sends PATCH, shows the new kind, and hints at a reanalysis when the exam has AI tasks', async () => {
     const fake = server({ aiTasks: true })
     const { user } = setup(fake)
+    await openSection(user)
     await chooseKind(user, kinds.summary)
 
     await waitFor(() => {
       expect(fake.calls('PATCH', '/materials/m1').map((c) => c.body)).toEqual([{ kind: 'summary' }])
     })
-    expect(await screen.findByText(t.reanalyzeHint)).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent(t.reanalyzeHint)
     expect(screen.getByRole('button', { name: new RegExp(t.kindLabel('מבחן 2024.pdf')) })).toHaveTextContent(
       kinds.summary,
     )
@@ -112,7 +161,8 @@ describe('MaterialsSection', () => {
       aiTasks: true,
       materials: () => [material({ ingest_status: file.ready ? 'ready' : 'processing' })],
     })
-    setup(fake)
+    const { user } = setup(fake)
+    await openSection(user)
     expect(await screen.findByText(he.onboardingMaterials.processing)).toBeInTheDocument()
     expect(screen.queryByText(t.reanalyzeHint)).not.toBeInTheDocument()
     file.ready = true

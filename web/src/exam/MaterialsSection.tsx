@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button as AriaButton, ListBox, ListBoxItem, Popover, Select, SelectValue } from 'react-aria-components'
 import { errorMessage } from '../api/client'
 import { he } from '../i18n/he'
 import { useExams, useMaterials, type Material, type MaterialKind } from '../onboarding/api'
 import { ExamMaterials } from '../onboarding/ExamMaterials'
+import { CollapsibleSection } from '../ui/CollapsibleSection'
+import { CompactSelect } from '../ui/CompactSelect'
+import { Note } from '../ui/Note'
 import { useToast } from '../ui/useToast'
 import { hasAiTasks, useExamTasks, useUpdateMaterialKind } from './analysis'
 
 const t = he.exam.materials
 const KINDS = Object.keys(he.onboardingMaterials.kinds) as MaterialKind[]
+const KIND_OPTIONS = KINDS.map((kind) => ({ value: kind, label: he.onboardingMaterials.kinds[kind] }))
 
 export interface MaterialsSectionProps {
   examId: string
@@ -18,6 +21,11 @@ export interface MaterialsSectionProps {
 // (PATCH /materials/{id}). A kind change or a new file does not touch the board; it feeds the next
 // analysis (plan decision 8), so an exam that already has AI tasks gets a hint to reanalyze. An exam
 // without them shows "בניית תוכנית" below, which reads the files anyway.
+//
+// The section is collapsible (S28 decision 2): for an exam that already has a plan the files are
+// secondary, so it is closed, with the number of files in its heading. For an exam that was not
+// analyzed yet the files are the next thing to do, so it is open. Once the user opens or closes
+// it, their choice stays.
 export function MaterialsSection({ examId }: MaterialsSectionProps) {
   const exams = useExams()
   const tasks = useExamTasks(examId)
@@ -26,6 +34,15 @@ export function MaterialsSection({ examId }: MaterialsSectionProps) {
   const toast = useToast()
   const [changed, setChanged] = useState(false)
   const analyzed = tasks.isSuccess && hasAiTasks(tasks.data)
+  const [userChoice, setUserChoice] = useState<boolean | null>(null)
+  // Closed until the tasks say whether the exam was analyzed: an analyzed exam (the common case)
+  // then never opens and shuts by itself.
+  const isExpanded = userChoice ?? (!tasks.isPending && !analyzed)
+  // The files on screen, uploads on their way included, as ExamMaterials reports them.
+  const [count, setCount] = useState(0)
+  const onCountChange = useCallback((_examId: string, files: number) => {
+    setCount(files)
+  }, [])
 
   // A file seen while it was still being read, and ready now, is new material for the analysis.
   const reading = useRef(new Set<string>())
@@ -60,74 +77,32 @@ export function MaterialsSection({ examId }: MaterialsSectionProps) {
   if (exam === undefined) return null
 
   return (
-    <div className="flex flex-col gap-3">
-      <ExamMaterials
-        exam={exam}
-        heading={t.title}
-        onCountChange={ignoreCount}
-        kindControl={(material) => (
-          <KindSelect
-            material={material}
-            isDisabled={updateKind.isPending && updateKind.variables.id === material.id}
-            onChange={(kind) => {
-              changeKind(material, kind)
-            }}
-          />
-        )}
-      />
-      {changed && analyzed ? (
-        <p role="status" className="rounded-lg bg-brand-soft px-3 py-2 text-sm text-ink">
-          {t.reanalyzeHint}
-        </p>
-      ) : null}
-    </div>
-  )
-}
-
-// The onboarding counts files to switch "דלג" to "הבא"; the exam screen has no such button.
-function ignoreCount() {
-  // Nothing to do.
-}
-
-function KindSelect({
-  material,
-  isDisabled,
-  onChange,
-}: {
-  material: Material
-  isDisabled: boolean
-  onChange: (kind: MaterialKind) => void
-}) {
-  return (
-    <Select
-      aria-label={t.kindLabel(material.filename)}
-      value={material.kind}
-      onChange={(key) => {
-        if (typeof key === 'string' && KINDS.includes(key as MaterialKind)) onChange(key as MaterialKind)
-      }}
-      isDisabled={isDisabled}
-      className="mt-1"
+    <CollapsibleSection
+      title={t.title}
+      summary={materials.isSuccess ? t.count(count) : undefined}
+      isExpanded={isExpanded}
+      onExpandedChange={setUserChoice}
     >
-      <AriaButton className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-sm text-ink outline-none data-[disabled]:opacity-50 data-[focus-visible]:ring-2 data-[focus-visible]:ring-brand data-[hovered]:bg-surface-muted">
-        <SelectValue />
-        <span aria-hidden="true" className="text-ink-muted">
-          ▾
-        </span>
-      </AriaButton>
-      <Popover className="min-w-(--trigger-width) rounded-lg border border-line bg-surface p-1 shadow-lg outline-none">
-        <ListBox className="outline-none">
-          {KINDS.map((kind) => (
-            <ListBoxItem
-              key={kind}
-              id={kind}
-              textValue={he.onboardingMaterials.kinds[kind]}
-              className="flex min-h-11 cursor-default items-center rounded-md px-3 text-sm text-ink outline-none data-[focused]:bg-brand-soft data-[selected]:font-bold"
-            >
-              {he.onboardingMaterials.kinds[kind]}
-            </ListBoxItem>
-          ))}
-        </ListBox>
-      </Popover>
-    </Select>
+      <div className="flex flex-col gap-3">
+        <ExamMaterials
+          bare
+          exam={exam}
+          heading={t.title}
+          onCountChange={onCountChange}
+          kindControl={(material) => (
+            <CompactSelect
+              aria-label={t.kindLabel(material.filename)}
+              value={material.kind}
+              options={KIND_OPTIONS}
+              isDisabled={updateKind.isPending && updateKind.variables.id === material.id}
+              onChange={(kind) => {
+                if (KINDS.includes(kind as MaterialKind)) changeKind(material, kind as MaterialKind)
+              }}
+            />
+          )}
+        />
+        {changed && analyzed ? <Note role="status">{t.reanalyzeHint}</Note> : null}
+      </div>
+    </CollapsibleSection>
   )
 }

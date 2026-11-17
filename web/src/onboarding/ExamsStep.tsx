@@ -1,11 +1,18 @@
+import { Trash2 } from 'lucide-react'
 import { useId, useState } from 'react'
 import { Form } from 'react-aria-components'
 import { useNavigate } from 'react-router'
 import { errorMessage } from '../api/client'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
+import { Card } from '../ui/Card'
 import { DatePicker, type DateValue } from '../ui/DatePicker'
+import { IconButton } from '../ui/IconButton'
+import { List, ListRow } from '../ui/List'
 import { RadioCards } from '../ui/RadioCards'
+import { SectionHeading } from '../ui/SectionHeading'
+import { EmptyState, ErrorState, LoadingState } from '../ui/states'
+import { ICON_STROKE } from '../ui/styles'
 import { TextField } from '../ui/TextField'
 import { useToast } from '../ui/useToast'
 import { useCreateExam, useDeleteExam, useExams, useUndo, type Exam } from './api'
@@ -143,114 +150,115 @@ export function ExamsStep() {
       })
   }
 
+  // One blue thing at a time, and it is the next step: adding an exam while there is none (the
+  // continue button is disabled then), and going on once there is one.
+  const hasExams = visible.length > 0
+
   const actions = (
     <Button
       className="flex-1 md:flex-none"
-      isDisabled={visible.length === 0}
+      isDisabled={!hasExams}
       onPress={() => {
         void navigate(STEP_PATHS.materials)
       }}
     >
-      {he.common.next}
+      {he.onboarding.continue}
     </Button>
   )
 
   return (
     <OnboardingLayout step={1} title={t.title} intro={t.intro} actions={actions}>
-      <Form
-        validationBehavior="aria"
-        onSubmit={(event) => {
-          event.preventDefault()
-          submit()
-        }}
-        className="flex flex-col gap-5 rounded-xl border border-line bg-surface p-4"
-      >
-        <TextField
-          label={t.name}
-          placeholder={t.namePlaceholder}
-          value={name}
-          onChange={(value) => {
-            setName(value)
-            if (errors.name !== undefined) setErrors((e) => ({ ...e, name: undefined }))
+      <Card>
+        <Form
+          validationBehavior="aria"
+          onSubmit={(event) => {
+            event.preventDefault()
+            submit()
           }}
-          maxLength={NAME_MAX}
-          isRequired
-          autoComplete="off"
-          {...(errors.name === undefined ? {} : { errorMessage: errors.name })}
-        />
-        <DatePicker
-          label={t.date}
-          value={date}
-          onChange={(value) => {
-            setDate(value)
-            // A full date out of range is flagged at once; a missing one only when adding.
-            setErrors((e) => ({ ...e, date: value === null ? undefined : dateRangeError(value.toString().slice(0, 10)) }))
-          }}
-          isDateUnavailable={(value) => dateRangeError(value.toString().slice(0, 10)) !== undefined}
-          isRequired
-          {...(errors.date === undefined ? {} : { errorMessage: errors.date })}
-        />
-        <RadioCards
-          label={t.difficulty}
-          options={DIFFICULTY_OPTIONS}
-          value={difficulty}
-          onChange={setDifficulty}
-          columns="grid-cols-5"
-        />
-        {createExam.isError ? (
-          <p role="alert" className="text-sm text-danger">
-            {errorMessage(createExam.error)}
-          </p>
-        ) : null}
-        <Button type="submit" variant="secondary" isDisabled={createExam.isPending}>
-          {createExam.isPending ? t.adding : t.add}
-        </Button>
-      </Form>
-
-      <section className="flex flex-col gap-3" aria-labelledby={listTitleId}>
-        <h2 id={listTitleId} className="text-lg font-medium text-ink">
-          {t.listTitle}
-        </h2>
-        {exams.isPending ? (
-          <p className="text-ink-muted">{he.common.loading}</p>
-        ) : exams.isError ? (
-          <div className="flex flex-col items-start gap-2">
-            <p role="alert" className="text-danger">
-              {errorMessage(exams.error)}
+          className="flex flex-col gap-5"
+        >
+          <TextField
+            label={t.name}
+            placeholder={t.namePlaceholder}
+            value={name}
+            onChange={(value) => {
+              setName(value)
+              if (errors.name !== undefined) setErrors((e) => ({ ...e, name: undefined }))
+            }}
+            maxLength={NAME_MAX}
+            isRequired
+            autoComplete="off"
+            {...(errors.name === undefined ? {} : { errorMessage: errors.name })}
+          />
+          <DatePicker
+            label={t.date}
+            value={date}
+            onChange={(value) => {
+              setDate(value)
+              // A full date out of range is flagged at once; a missing one only when adding.
+              setErrors((e) => ({ ...e, date: value === null ? undefined : dateRangeError(value.toString().slice(0, 10)) }))
+            }}
+            isDateUnavailable={(value) => dateRangeError(value.toString().slice(0, 10)) !== undefined}
+            isRequired
+            {...(errors.date === undefined ? {} : { errorMessage: errors.date })}
+          />
+          <RadioCards
+            label={t.difficulty}
+            options={DIFFICULTY_OPTIONS}
+            value={difficulty}
+            onChange={setDifficulty}
+            columns="grid-cols-5"
+          />
+          {createExam.isError ? (
+            <p role="alert" className="text-small text-danger">
+              {errorMessage(createExam.error)}
             </p>
-            <Button
-              variant="secondary"
-              onPress={() => {
+          ) : null}
+          {/* isPending keeps the text and ignores presses, so a double press sends one exam. */}
+          <Button type="submit" variant={hasExams ? 'secondary' : 'primary'} isPending={createExam.isPending}>
+            {t.add}
+          </Button>
+        </Form>
+      </Card>
+
+      <section className="flex flex-col gap-1" aria-labelledby={listTitleId}>
+        <SectionHeading id={listTitleId}>{t.listTitle}</SectionHeading>
+        {exams.isPending ? (
+          <LoadingState shape="list" rows={2} />
+        ) : exams.isError ? (
+          <div className="pt-2">
+            <ErrorState
+              message={errorMessage(exams.error)}
+              onRetry={() => {
                 void exams.refetch()
               }}
-            >
-              {he.common.retry}
-            </Button>
+            />
           </div>
-        ) : visible.length === 0 ? (
-          <p className="text-ink-muted">{t.empty}</p>
+        ) : !hasExams ? (
+          <EmptyState title={t.empty} />
         ) : (
-          <ul aria-labelledby={listTitleId} className="divide-y divide-line rounded-xl border border-line bg-surface">
+          <List aria-label={t.listTitle}>
             {visible.map((exam) => (
-              <li key={exam.id} className="flex items-center gap-3 px-4 py-3">
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate font-medium text-ink">{exam.name}</span>
-                  <span className="text-sm text-ink-muted">
-                    {hebrewDate(exam.exam_date)} · {t.difficultyOf(difficultyLabel(exam.difficulty))}
-                  </span>
-                </div>
-                <Button
-                  variant="danger"
-                  aria-label={t.deleteExam(exam.name)}
-                  onPress={() => {
-                    remove(exam)
-                  }}
-                >
-                  {he.common.delete}
-                </Button>
-              </li>
+              <ListRow
+                key={exam.id}
+                // An exam name can be in any language: <bdi> isolates its direction.
+                title={<bdi>{exam.name}</bdi>}
+                subtitle={
+                  <span className="tabular-nums">{t.details(hebrewDate(exam.exam_date), difficultyLabel(exam.difficulty))}</span>
+                }
+                trailing={
+                  <IconButton
+                    aria-label={t.deleteExam(exam.name)}
+                    onPress={() => {
+                      remove(exam)
+                    }}
+                  >
+                    <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+                  </IconButton>
+                }
+              />
             ))}
-          </ul>
+          </List>
         )}
       </section>
     </OnboardingLayout>
