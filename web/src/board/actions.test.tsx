@@ -106,7 +106,7 @@ describe('useBlockActions', () => {
     })
     // S19's progress in the toast: the XP and the new level.
     expect(
-      await (await toasts()).findByText(`${he.board.completed} · ${he.board.xpGained(15)} · ${he.board.levelUp(2)}`),
+      await (await toasts()).findByText(`${he.board.completed}. ${he.board.xpGained(15)}. ${he.board.levelUp(2)}`),
     ).toBeInTheDocument()
     await waitFor(() => {
       expect(fake.calls('GET', '/today').length).toBeGreaterThan(todayCalls)
