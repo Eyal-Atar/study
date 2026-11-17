@@ -84,6 +84,7 @@ describe('ReplanOffer', () => {
 
     const dialog = await screen.findByRole('dialog', { name: he.replan.title })
     expect(within(dialog).getByText('סיבה')).toBeInTheDocument()
+    expect(dialog).toHaveAccessibleDescription('סיבה')
     expect(await within(dialog).findByText(he.replan.added(2))).toBeInTheDocument()
     expect(within(dialog).getByText(he.replan.removed(1))).toBeInTheDocument()
     expect(within(dialog).getByText(he.replan.unscheduledGroup(2, unscheduledText('not_enough_time')))).toBeInTheDocument()
@@ -102,8 +103,12 @@ describe('ReplanOffer', () => {
     wrap(fake, <ReplanOffer isOpen onClose={onClose} />)
     expect(await screen.findByText(he.replan.noChange)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: he.replan.confirm })).not.toBeInTheDocument()
+    // One "סגירה" (the dialog's own); the button under the text has another name.
     await user.click(screen.getByRole('button', { name: he.common.close }))
-    expect(onClose).toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalledOnce()
+    await user.click(screen.getByRole('button', { name: he.replan.understood }))
+    expect(onClose).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('button', { name: he.replan.notNow })).not.toBeInTheDocument()
     expect(fake.calls('POST', '/plan/replan')).toHaveLength(1)
   })
 
@@ -115,6 +120,7 @@ describe('ReplanOffer', () => {
     expect(screen.queryByText(he.replan.noChange)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: he.replan.confirm })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: he.common.close })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: he.replan.understood })).toBeInTheDocument()
   })
 
   it('a board with unscheduled tasks still offers "אישור" although nothing is placed', async () => {
@@ -221,6 +227,96 @@ describe('ReplanOffer', () => {
     fail = false
     await user.click(screen.getByRole('button', { name: he.common.retry }))
     expect(await screen.findByText(he.replan.added(2))).toBeInTheDocument()
+  })
+})
+
+describe('ReplanOffer as a dialog', () => {
+  it('says it is computing while the preview is on its way, with "אישור" disabled', async () => {
+    const fake = server()
+    fake.on('POST /plan/replan', () => new Promise(() => undefined))
+    wrap(fake, <ReplanOffer isOpen onClose={vi.fn()} />)
+    const dialog = within(await screen.findByRole('dialog', { name: he.replan.title }))
+    expect(dialog.getByRole('status')).toHaveTextContent(he.replan.loading)
+    expect(dialog.getByRole('button', { name: he.replan.confirm })).toBeDisabled()
+    expect(dialog.getByRole('button', { name: he.replan.notNow })).toBeEnabled()
+  })
+
+  it('"אישור" shows that it is on its way and is sent once', async () => {
+    const user = userEvent.setup()
+    const fake = server()
+    fake.on('POST /plan/replan', (call: ApiCall) => ((call.body as { preview: boolean }).preview ? preview : new Promise(() => undefined)))
+    wrap(fake, <ReplanOffer isOpen onClose={vi.fn()} />)
+    await screen.findByText(he.replan.added(2))
+    const confirm = screen.getByRole('button', { name: he.replan.confirm })
+    await user.click(confirm)
+    await waitFor(() => {
+      expect(confirm).toHaveAttribute('data-pending')
+    })
+    await user.click(confirm)
+    expect(fake.calls('POST', '/plan/replan')).toHaveLength(2)
+  })
+
+  it('a failed apply says why under the summary, and "אישור" can be pressed again', async () => {
+    const user = userEvent.setup()
+    const fake = server()
+    const failure = problem(503, 'database_unavailable')
+    fake.on('POST /plan/replan', (call: ApiCall) => ((call.body as { preview: boolean }).preview ? preview : failure))
+    const onClose = vi.fn()
+    wrap(fake, <ReplanOffer isOpen onClose={onClose} />)
+    await screen.findByText(he.replan.added(2))
+    await user.click(screen.getByRole('button', { name: he.replan.confirm }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(codeText('database_unavailable'))
+    expect(screen.getByText(he.replan.added(2))).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: he.replan.confirm })).toBeEnabled()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('the close button and Escape close without applying', async () => {
+    const user = userEvent.setup()
+    const fake = server()
+    const onClose = vi.fn()
+    wrap(fake, <ReplanOffer isOpen onClose={onClose} />)
+    await screen.findByText(he.replan.added(2))
+    await user.click(screen.getByRole('button', { name: he.common.close }))
+    expect(onClose).toHaveBeenCalledOnce()
+    await user.keyboard('{Escape}')
+    expect(onClose).toHaveBeenCalledTimes(2)
+    expect(fake.calls('POST', '/plan/replan')).toHaveLength(1)
+  })
+
+  it('each opening previews anew', async () => {
+    const fake = server()
+    const view = wrap(fake, <ReplanOffer isOpen onClose={vi.fn()} />)
+    await screen.findByText(he.replan.added(2))
+    view.show(<ReplanOffer isOpen={false} onClose={vi.fn()} />)
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    expect(previewCalls(fake)).toHaveLength(1)
+    view.show(<ReplanOffer isOpen onClose={vi.fn()} />)
+    expect(await screen.findByText(he.replan.added(2))).toBeInTheDocument()
+    expect(previewCalls(fake)).toHaveLength(2)
+  })
+
+  it('what did not fit is a note with its title, and the stale-plan remark is a status', async () => {
+    const user = userEvent.setup()
+    const fake = server()
+    let applies = 0
+    fake.on('POST /plan/replan', (call: ApiCall) => {
+      if ((call.body as { preview: boolean }).preview) return preview
+      applies += 1
+      return applies === 1 ? problem(409, 'stale_plan') : { ...preview, version_id: 'v2' }
+    })
+    wrap(fake, <ReplanOffer isOpen onClose={vi.fn()} />)
+    await screen.findByText(he.replan.added(2))
+    const note = screen.getByText(he.replan.unscheduledTitle).closest('.rounded-control')
+    expect(note).toHaveClass('bg-warning-soft')
+    expect(note).toHaveTextContent(unscheduledText('dependency_cycle'))
+    expect(note?.querySelector('.text-ink-muted')).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: he.replan.confirm }))
+    const remark = await screen.findByText(codeText('stale_plan'))
+    expect(remark.closest('[role="status"]')).toHaveClass('bg-warning-soft')
   })
 })
 

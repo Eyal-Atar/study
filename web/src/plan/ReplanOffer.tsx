@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components'
 import { errorMessage } from '../api/client'
 import { useMe } from '../api/me'
 import { codeText, shortfallText, unscheduledText } from '../i18n/codes'
@@ -7,6 +6,9 @@ import { he } from '../i18n/he'
 import { useExams, useReplanApply, useReplanPreview } from '../onboarding/api'
 import type { ReplanPreview } from '../onboarding/types'
 import { Button } from '../ui/Button'
+import { Dialog } from '../ui/Dialog'
+import { Note } from '../ui/Note'
+import { ErrorState, LoadingState } from '../ui/states'
 import { useToast } from '../ui/useToast'
 import { ReplanOfferContext, type ReplanOfferApi } from './replanOfferContext'
 
@@ -21,31 +23,29 @@ export interface ReplanOfferProps {
 
 // The offer to replan the board: POST /plan/replan {preview: true} when it opens, a summary of what
 // would change, and "אישור" that sends {preview: false, basis}. A board that changed in between
-// (stale_plan) gets a fresh preview. The content mounts only while open, so each opening previews anew.
+// (stale_plan) gets a fresh preview.
+// The buttons of ui/Dialog are a prop of it and not its children, and they depend on the preview,
+// so the preview cannot live in a child of the dialog. ReplanSession holds it, and gets a new key
+// on each opening: it mounts when the offer opens (never before the first opening), so each
+// opening previews anew, and it stays through the closing so the dialog can fade out.
 export function ReplanOffer({ isOpen, onClose, reasonText, onApplied }: ReplanOfferProps) {
-  return (
-    <ModalOverlay
-      isOpen={isOpen}
-      onOpenChange={(open) => {
-        if (!open) onClose()
-      }}
-      isDismissable
-      className="fixed inset-0 z-40 flex items-end justify-center bg-ink/40 sm:items-center sm:p-4"
-    >
-      <Modal className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-6 shadow-xl outline-none sm:rounded-2xl">
-        <Dialog className="outline-none">
-          <ReplanContent reasonText={reasonText} onClose={onClose} onApplied={onApplied} />
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
-  )
+  const [opening, setOpening] = useState(0)
+  const [wasOpen, setWasOpen] = useState(false)
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen)
+    if (isOpen) setOpening(opening + 1)
+  }
+  if (opening === 0) return null
+  return <ReplanSession key={opening} isOpen={isOpen} reasonText={reasonText} onClose={onClose} onApplied={onApplied} />
 }
 
-function ReplanContent({
+function ReplanSession({
+  isOpen,
   reasonText,
   onClose,
   onApplied,
 }: {
+  isOpen: boolean
   reasonText: string | undefined
   onClose: () => void
   onApplied: (() => void) | undefined
@@ -83,64 +83,65 @@ function ReplanContent({
     })
   }
 
-  const busy = preview.isPending || apply.isPending
   const applyFailed = apply.isError && apply.error.code !== 'stale_plan'
   // Nothing to place, move or report: "אישור" would write nothing, so only closing is offered.
   const empty = preview.isSuccess && isEmpty(preview.data)
 
   return (
-    <div className="flex flex-col gap-4">
-      <Heading slot="title" className="text-xl font-bold">
-        {he.replan.title}
-      </Heading>
-      {reasonText === undefined ? null : <p className="text-ink-muted">{reasonText}</p>}
-      {note === null ? null : (
-        <p role="status" className="rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning">
-          {note}
-        </p>
-      )}
-      {preview.isPending || preview.isIdle ? (
-        <p role="status" className="text-ink-muted">
-          {he.replan.loading}
-        </p>
-      ) : null}
-      {preview.isError ? (
-        <div className="flex flex-col items-start gap-2">
-          <p role="alert" className="text-danger">
-            {errorMessage(preview.error)}
-          </p>
-          <Button
-            variant="secondary"
-            onPress={() => {
-              runPreview()
-            }}
-          >
-            {he.common.retry}
+    <Dialog
+      title={he.replan.title}
+      description={reasonText}
+      isOpen={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
+      footer={
+        empty ? (
+          <Button variant="secondary" onPress={onClose}>
+            {he.replan.understood}
           </Button>
-        </div>
+        ) : (
+          <>
+            <Button
+              className="flex-1"
+              // Disabled until there is a preview to confirm; while the apply is on its way the
+              // button keeps its place and shows it.
+              isDisabled={!preview.isSuccess}
+              isPending={apply.isPending}
+              onPress={() => {
+                if (preview.data !== undefined) confirm(preview.data.basis)
+              }}
+            >
+              {he.replan.confirm}
+            </Button>
+            <Button variant="secondary" onPress={onClose}>
+              {he.replan.notNow}
+            </Button>
+          </>
+        )
+      }
+    >
+      {note === null ? null : (
+        <Note tone="warning" role="status">
+          {note}
+        </Note>
+      )}
+      {preview.isPending || preview.isIdle ? <LoadingState shape="text" rows={2} label={he.replan.loading} /> : null}
+      {preview.isError ? (
+        <ErrorState
+          message={errorMessage(preview.error)}
+          onRetry={() => {
+            runPreview()
+          }}
+        />
       ) : null}
       {preview.isSuccess ? empty ? <EmptyBoard /> : <PreviewSummary preview={preview.data} /> : null}
       {applyFailed ? (
-        <p role="alert" className="text-danger">
+        <p role="alert" className="text-small text-danger">
           {errorMessage(apply.error)}
         </p>
       ) : null}
-      <div className="flex flex-wrap gap-2 pt-2">
-        {empty ? null : (
-          <Button
-            isDisabled={busy || !preview.isSuccess}
-            onPress={() => {
-              if (preview.data !== undefined) confirm(preview.data.basis)
-            }}
-          >
-            {he.replan.confirm}
-          </Button>
-        )}
-        <Button variant="secondary" onPress={onClose}>
-          {empty ? he.common.close : he.replan.notNow}
-        </Button>
-      </div>
-    </div>
+    </Dialog>
   )
 }
 
@@ -152,7 +153,7 @@ function isEmpty(preview: ReplanPreview): boolean {
 // to end the onboarding); after it, the board simply needs no change.
 function EmptyBoard() {
   const me = useMe()
-  return <p>{me.data?.onboarding_completed_at === null ? he.replan.nothingToSchedule : he.replan.noChange}</p>
+  return <p className="text-body text-ink">{me.data?.onboarding_completed_at === null ? he.replan.nothingToSchedule : he.replan.noChange}</p>
 }
 
 function PreviewSummary({ preview }: { preview: ReplanPreview }) {
@@ -170,41 +171,35 @@ function PreviewSummary({ preview }: { preview: ReplanPreview }) {
   const nothing = preview.added.length === 0 && preview.removed.length === 0
   return (
     <div className="flex flex-col gap-3">
+      {/* What "אישור" would do is the one thing to read here, so it alone is body text in semibold. */}
       {nothing ? (
-        <p>{he.replan.noChange}</p>
+        <p className="text-body text-ink">{he.replan.noChange}</p>
       ) : (
-        <ul className="flex flex-col gap-1">
+        <ul className="flex flex-col gap-1 text-body font-semibold text-ink">
           {preview.added.length > 0 ? <li>{he.replan.added(preview.added.length)}</li> : null}
           {preview.removed.length > 0 ? <li>{he.replan.removed(preview.removed.length)}</li> : null}
         </ul>
       )}
       {byReason.length > 0 || preview.shortfalls.length > 0 ? (
-        <Section title={he.replan.unscheduledTitle}>
-          {byReason.map(([reason, count]) => (
-            <li key={reason}>{he.replan.unscheduledGroup(count, unscheduledText(reason))}</li>
-          ))}
-          {preview.shortfalls.map((s) => (
-            <li key={s.exam_id}>{shortfallText(examName(s.exam_id), s.minutes, s.daily_minutes)}</li>
-          ))}
-        </Section>
+        <Note tone="warning" title={he.replan.unscheduledTitle}>
+          <ul className="mt-1 flex flex-col gap-1">
+            {byReason.map(([reason, count]) => (
+              <li key={reason}>{he.replan.unscheduledGroup(count, unscheduledText(reason))}</li>
+            ))}
+            {preview.shortfalls.map((s) => (
+              <li key={s.exam_id}>{shortfallText(examName(s.exam_id), s.minutes, s.daily_minutes)}</li>
+            ))}
+          </ul>
+        </Note>
       ) : null}
       {preview.warnings.length > 0 ? (
-        <ul className="flex flex-col gap-1 text-sm text-ink-muted">
+        <ul className="flex flex-col gap-1 text-small text-ink-muted">
           {preview.warnings.map((code) => (
             <li key={code}>{codeText(code)}</li>
           ))}
         </ul>
       ) : null}
     </div>
-  )
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="rounded-lg bg-warning-soft px-3 py-2">
-      <h3 className="text-sm font-bold">{title}</h3>
-      <ul className="mt-1 flex flex-col gap-1 text-sm">{children}</ul>
-    </section>
   )
 }
 

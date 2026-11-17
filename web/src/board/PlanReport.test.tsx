@@ -70,6 +70,47 @@ describe('PlanReport', () => {
     expect(unscheduledText('not_enough_time')).toBe(he.codes.not_enough_time)
     expect(items[1]).toHaveTextContent(he.board.report.task('סימולציה 1', durationText(180)))
     expect(items[1]).toHaveTextContent(unscheduledText('dependency_cycle'))
+    // The reason follows a colon (design language 5.2: no dash between the details).
+    expect(items[0]).toHaveTextContent(
+      `${he.board.report.task('פרק 3: גרפים', durationText(90))}${he.board.report.reason(unscheduledText('not_enough_time'))}`,
+    )
+    expect(items[0]?.textContent).not.toContain('—')
+  })
+
+  it('is a warning card that holds no muted text (ink-muted is not a pair on a state fill)', async () => {
+    const { container } = setup({ preview: withReasons })
+    const r = await report()
+    await r.findByText(shortfallText('אלגוריתמים', 270, 300))
+    const card = container.querySelector('#report')
+    expect(card).toHaveClass('border-warning', 'bg-warning-soft')
+    expect(card?.querySelector('.text-ink-muted')).toBeNull()
+    expect(r.getByRole('heading', { level: 2, name: he.board.report.title })).toBeInTheDocument()
+  })
+
+  it('says it is checking why while the preview is on its way', async () => {
+    const fake = createFakeApi()
+      .on('GET /me', makeMe())
+      .on({ method: 'GET', path: /^\/plan/ }, makePlan([], { unplaced: UNPLACED }))
+      .on('GET /exams', exams)
+      .on('POST /plan/replan', () => new Promise(() => undefined))
+    renderBoard(<PlanReport />, { api: fake.api })
+    const r = await report()
+    expect(await r.findByRole('status')).toHaveTextContent(he.board.report.loading)
+    expect(r.getByText(he.board.report.task('סימולציה 1', durationText(180)))).toBeInTheDocument()
+  })
+
+  it('the raise button shows that it is on its way and cannot be sent twice', async () => {
+    const user = userEvent.setup()
+    const { fake } = setup({ preview: withReasons })
+    fake.on('PATCH /me', () => new Promise(() => undefined))
+    const r = await report()
+    const raise = await r.findByRole('button', { name: he.board.report.raise(durationText(300)) })
+    await user.click(raise)
+    await waitFor(() => {
+      expect(raise).toHaveAttribute('data-pending')
+    })
+    await user.click(raise)
+    expect(fake.calls('PATCH', '/me')).toHaveLength(1)
   })
 
   it('raises the daily minutes, then offers a replan', async () => {

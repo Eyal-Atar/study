@@ -6,7 +6,8 @@ import { he } from '../i18n/he'
 import { makeBlock, makeMe, makePlan, makeToday, renderBoard, USER_ID } from '../test/boardFixtures'
 import { createFakeApi, problem } from '../test/fakeApi'
 import { todayKey } from './api'
-import { BlockCard } from './BlockCard'
+import { BlockRow } from './BlockRow'
+import { formatRange } from './time'
 import type { Block, Slots, Today } from './types'
 
 const TITLE = 'פרק 3: גרפים'
@@ -16,13 +17,19 @@ function slots(list: string[]): Slots {
   return { study_date: '2026-11-16', day_starts_at: '2026-11-16T05:00:00Z', day_ends_at: '2026-11-16T21:00:00Z', slots: list }
 }
 
-function setup({ variant = 'full', reply = slots(['2026-11-16T13:00:00Z', '2026-11-16T13:30:00Z']) }: { variant?: 'full' | 'compact'; reply?: unknown } = {}) {
+function setup({ reply = slots(['2026-11-16T13:00:00Z', '2026-11-16T13:30:00Z']) }: { reply?: unknown } = {}) {
   const fake = createFakeApi()
     .on('GET /me', makeMe())
     .on('GET /today', makeToday([BLOCK]))
     .on({ method: 'GET', path: /^\/plan/ }, makePlan([BLOCK]))
     .on(`GET /blocks/${BLOCK.id}/slots`, reply)
-  const rendered = renderBoard(<BlockCard block={BLOCK} tz="Asia/Jerusalem" variant={variant} />, { api: fake.api })
+  // A row is an <li>: it sits in a list.
+  const rendered = renderBoard(
+    <ul>
+      <BlockRow block={BLOCK} tz="Asia/Jerusalem" />
+    </ul>,
+    { api: fake.api },
+  )
   return { fake, ...rendered }
 }
 
@@ -30,9 +37,15 @@ async function toasts() {
   return within(await screen.findByRole('region', { name: he.common.notifications }))
 }
 
+// "הזזה" is in the row's menu (S27): the menu button, then the item.
+async function openMenuItem(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: he.board.actionsLabel(TITLE) }))
+  await user.click(await screen.findByRole('menuitem', { name: he.move.move }))
+}
+
 async function openDialog() {
   const user = userEvent.setup()
-  await user.click(screen.getByRole('button', { name: he.move.moveLabel(TITLE) }))
+  await openMenuItem(user)
   const dialog = await screen.findByRole('dialog', { name: he.move.dialogTitle(TITLE) })
   return { user, dialog: within(dialog) }
 }
@@ -119,12 +132,58 @@ describe('MoveDialog', () => {
     expect(back?.pinned).toBe(false)
   })
 
-  it('opens from the actions menu of the compact card', async () => {
-    const user = userEvent.setup()
-    setup({ variant: 'compact' })
-    await user.click(screen.getByRole('button', { name: he.board.actionsLabel(TITLE) }))
-    await user.click(await screen.findByRole('menuitem', { name: he.move.move }))
-    const dialog = within(await screen.findByRole('dialog', { name: he.move.dialogTitle(TITLE) }))
-    expect(await dialog.findByRole('option', { name: '15:30' })).toBeInTheDocument()
+  it('names itself after the block, says what moving does, and shows the time the block has now', async () => {
+    setup()
+    await openDialog()
+    const dialog = screen.getByRole('dialog', { name: he.move.dialogTitle(TITLE) })
+    expect(dialog).toHaveAccessibleDescription(he.move.dialogLead)
+    expect(within(dialog).getByText(formatRange(BLOCK, 'Asia/Jerusalem'))).toHaveAttribute('dir', 'ltr')
+  })
+
+  it('pressing the chosen time again leaves nothing chosen', async () => {
+    const { fake } = setup()
+    const { user, dialog } = await openDialog()
+    const option = await dialog.findByRole('option', { name: '15:00' })
+    await user.click(option)
+    expect(option).toHaveAttribute('aria-selected', 'true')
+    expect(dialog.getByRole('button', { name: he.move.confirm })).toBeEnabled()
+
+    await user.click(option)
+    expect(option).toHaveAttribute('aria-selected', 'false')
+    expect(dialog.getByRole('button', { name: he.move.confirm })).toBeDisabled()
+    expect(fake.calls('PATCH')).toHaveLength(0)
+  })
+
+  it('the close button closes without a request', async () => {
+    const { fake } = setup()
+    const { user, dialog } = await openDialog()
+    await dialog.findByRole('listbox')
+    await user.click(dialog.getByRole('button', { name: he.common.close }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    expect(fake.calls('PATCH')).toHaveLength(0)
+  })
+
+  it('every opening asks the server anew and starts with nothing chosen', async () => {
+    const { fake } = setup()
+    const { user, dialog } = await openDialog()
+    await user.click(await dialog.findByRole('option', { name: '15:00' }))
+    await user.click(dialog.getByRole('button', { name: he.common.cancel }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    // How many requests one opening makes depends on the harness (StrictMode mounts twice, and the
+    // first request is cancelled), so the count is compared and not fixed.
+    const before = fake.calls('GET', `/blocks/${BLOCK.id}/slots`).length
+    expect(before).toBeGreaterThan(0)
+
+    await openMenuItem(user)
+    const again = within(await screen.findByRole('dialog', { name: he.move.dialogTitle(TITLE) }))
+    await waitFor(() => {
+      expect(fake.calls('GET', `/blocks/${BLOCK.id}/slots`).length).toBeGreaterThan(before)
+    })
+    expect(await again.findByRole('option', { name: '15:00' })).toHaveAttribute('aria-selected', 'false')
+    expect(again.getByRole('button', { name: he.move.confirm })).toBeDisabled()
   })
 })

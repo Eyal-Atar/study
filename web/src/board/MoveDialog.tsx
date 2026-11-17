@@ -1,10 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Dialog, Heading, ListBox, ListBoxItem, Modal, ModalOverlay, type Key } from 'react-aria-components'
 import { useApi } from '../api/ApiContext'
 import type { ApiError } from '../api/client'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
+import { Dialog } from '../ui/Dialog'
+import { Note } from '../ui/Note'
+import { OptionGrid } from '../ui/OptionGrid'
+import { ErrorState, LoadingState } from '../ui/states'
 import { boardKey, useBoardUserId } from './api'
 import { blockName } from './blockName'
 import { useMoveBlock } from './move'
@@ -20,24 +23,37 @@ export interface MoveDialogProps {
 
 // "הזזה" without dragging (S18 decision 10, and spec 7.9: every gesture has a visible button): the
 // times on the local 15-minute grid the block can move to on its own day, from the server, as a
-// list to choose from. Works in "week" for any day. The content mounts only while open, so every
-// opening asks the server anew.
+// grid to choose from. Works in "week" for any day.
+// The dialog is a form: "הזזה" submits it. The times and the buttons are two children of ui/Dialog,
+// which mounts them only while it is open, so every opening asks the server anew. Both read the
+// same query; the chosen time lives here, where the submit is.
 export function MoveDialog({ block, tz, isOpen, onClose }: MoveDialogProps) {
+  const { move } = useMoveBlock()
+  const [chosen, setChosen] = useState<string | null>(null)
+
+  // Every way out forgets the choice: this component stays mounted between openings.
+  function close() {
+    setChosen(null)
+    onClose()
+  }
+
   return (
-    <ModalOverlay
+    <Dialog
+      title={he.move.dialogTitle(blockName(block))}
+      description={he.move.dialogLead}
       isOpen={isOpen}
       onOpenChange={(open) => {
-        if (!open) onClose()
+        if (!open) close()
       }}
-      isDismissable
-      className="fixed inset-0 z-40 flex items-end justify-center bg-ink/40 sm:items-center sm:p-4"
+      onSubmit={() => {
+        if (chosen === null) return
+        close()
+        move(block, chosen)
+      }}
+      footer={<MoveActions blockId={block.id} chosen={chosen} onCancel={close} />}
     >
-      <Modal className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-6 shadow-xl outline-none sm:rounded-2xl">
-        <Dialog className="outline-none">
-          <MoveContent block={block} tz={tz} onClose={onClose} />
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
+      <MoveSlots block={block} tz={tz} chosen={chosen} onChoose={setChosen} />
+    </Dialog>
   )
 }
 
@@ -54,97 +70,71 @@ function useSlots(blockId: string) {
   })
 }
 
-function MoveContent({ block, tz, onClose }: { block: Block; tz: string; onClose: () => void }) {
+function MoveSlots({
+  block,
+  tz,
+  chosen,
+  onChoose,
+}: {
+  block: Block
+  tz: string
+  chosen: string | null
+  onChoose: (slot: string | null) => void
+}) {
   const slots = useSlots(block.id)
-  const { move } = useMoveBlock()
-  const [chosen, setChosen] = useState<string | null>(null)
   const list = slots.data?.slots ?? []
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="space-y-1">
-        <Heading slot="title" className="text-xl font-bold">
-          {he.move.dialogTitle(blockName(block))}
-        </Heading>
-        <p className="text-ink-muted">{he.move.dialogLead}</p>
-        <p className="text-sm text-ink-muted">
-          {he.move.current}
-          <span dir="ltr" className="tabular-nums">
-            {formatRange(block, tz)}
-          </span>
-        </p>
-      </div>
+    <>
+      <p className="text-small text-ink">
+        {he.move.current}
+        <span dir="ltr" className="font-semibold tabular-nums">
+          {formatRange(block, tz)}
+        </span>
+      </p>
 
-      {slots.isPending ? (
-        <p role="status" className="text-ink-muted">
-          {he.move.loading}
-        </p>
-      ) : null}
+      {slots.isPending ? <LoadingState shape="text" rows={2} label={he.move.loading} /> : null}
 
       {slots.isError ? (
-        <div className="flex flex-col items-start gap-2">
-          <p role="alert" className="text-danger">
-            {he.move.loadFailed}
-          </p>
-          <Button
-            variant="secondary"
-            onPress={() => {
-              void slots.refetch()
-            }}
-          >
-            {he.common.retry}
-          </Button>
-        </div>
+        <ErrorState
+          message={he.move.loadFailed}
+          onRetry={() => {
+            void slots.refetch()
+          }}
+        />
       ) : null}
 
-      {slots.isSuccess && list.length === 0 ? <p className="rounded-lg bg-surface-muted px-3 py-2">{he.move.empty}</p> : null}
+      {slots.isSuccess && list.length === 0 ? <Note>{he.move.empty}</Note> : null}
 
       {slots.isSuccess && list.length > 0 ? (
-        <ListBox
+        <OptionGrid
           aria-label={he.move.slotsLabel}
-          layout="grid"
-          selectionMode="single"
-          selectedKeys={chosen === null ? [] : [chosen]}
-          onSelectionChange={(keys) => {
-            if (keys === 'all') return
-            const [first] = [...keys] as Key[]
-            setChosen(first === undefined ? null : String(first))
-          }}
-          className="grid max-h-72 grid-cols-3 gap-2 overflow-y-auto p-1 outline-none sm:grid-cols-4"
-        >
-          {list.map((slot) => {
-            const time = formatTime(slot, tz)
-            return (
-              <ListBoxItem
-                key={slot}
-                id={slot}
-                textValue={time}
-                className="flex min-h-11 cursor-pointer items-center justify-center rounded-lg border border-line-strong bg-surface text-sm font-medium tabular-nums outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-brand data-[hovered]:bg-surface-muted data-[selected]:border-brand data-[selected]:bg-brand data-[selected]:text-on-brand"
-              >
-                <span dir="ltr">{time}</span>
-              </ListBoxItem>
-            )
-          })}
-        </ListBox>
+          options={list.map((slot) => ({ id: slot, label: formatTime(slot, tz) }))}
+          value={chosen}
+          // Pressing the chosen time again gives null: nothing is chosen, and "הזזה" is disabled.
+          onChange={onChoose}
+          ltr
+        />
       ) : null}
+    </>
+  )
+}
 
-      <div className="flex flex-wrap gap-2 pt-2">
-        {slots.isSuccess && list.length > 0 ? (
-          <Button
-            isDisabled={chosen === null}
-            onPress={() => {
-              if (chosen === null) return
-              onClose()
-              move(block, chosen)
-            }}
-          >
-            {he.move.confirm}
-          </Button>
-        ) : null}
-        <Button variant="secondary" onPress={onClose}>
-          {he.common.cancel}
+// "הזזה" exists only when there is a time to choose, and is disabled until one is chosen.
+function MoveActions({ blockId, chosen, onCancel }: { blockId: string; chosen: string | null; onCancel: () => void }) {
+  // The query of MoveSlots, read a second time: both mount together, so it is one request.
+  const slots = useSlots(blockId)
+  const canMove = slots.isSuccess && slots.data.slots.length > 0
+  return (
+    <>
+      {canMove ? (
+        <Button type="submit" className="flex-1" isDisabled={chosen === null}>
+          {he.move.confirm}
         </Button>
-      </div>
-    </div>
+      ) : null}
+      <Button variant="secondary" onPress={onCancel}>
+        {he.common.cancel}
+      </Button>
+    </>
   )
 }
