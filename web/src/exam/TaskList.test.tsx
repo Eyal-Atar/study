@@ -12,6 +12,8 @@ import type { TaskWriteResponse } from './types'
 const t = he.exam.tasks
 const tp = he.exam.topics
 
+const LONG_TITLE = 'א'.repeat(120)
+
 const TASKS = [
   taskFixture({ id: 't1', title: 'גבולות', topic_id: 'p1', reason: 'מופיע בכל מבחן עבר.', estimated_minutes: 60, focus: 7 }),
   taskFixture({ id: 't2', title: 'כלל השרשרת', topic_id: 'p2', kind: 'practice', status: 'done' }),
@@ -42,9 +44,17 @@ function row(title: string) {
   return item
 }
 
+type User = ReturnType<typeof userEvent.setup>
+
+// The actions of a row other than the check button live in its menu ("פעולות: …").
+async function choose(user: User, title: string, action: string) {
+  await user.click(within(row(title)).getByRole('button', { name: t.actionsNamed(title) }))
+  await user.click(await screen.findByRole('menuitem', { name: action }))
+}
+
 // Picks a topic in the task form. React Aria's Select is a button named by its value and its label
 // ("נגזרות נושא"), which opens a listbox.
-async function chooseTopic(user: ReturnType<typeof userEvent.setup>, name: string) {
+async function chooseTopic(user: User, name: string) {
   await user.click(screen.getByRole('button', { name: new RegExp(` ${t.topic}$`) }))
   await user.click(within(screen.getByRole('listbox', { name: t.topic })).getByRole('option', { name }))
 }
@@ -53,7 +63,8 @@ describe('TaskList', () => {
   it('groups the tasks under their topics in topic order, then the tasks without a topic', async () => {
     await open()
     const groups = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
-    expect(groups).toEqual(['נגזרות', 'גבולות ורציפות', tp.noTopic])
+    // The card of the gaps is the last part of the section, with a heading of the same level.
+    expect(groups).toEqual(['נגזרות', 'גבולות ורציפות', tp.noTopic, tp.gapsTitle])
     const limits = screen.getByRole('list', { name: 'גבולות ורציפות' })
     expect(within(limits).getByText('גבולות')).toBeInTheDocument()
     const none = screen.getByRole('list', { name: tp.noTopic })
@@ -67,6 +78,9 @@ describe('TaskList', () => {
     expect(item).toHaveTextContent(t.kinds.learn)
     expect(item).toHaveTextContent(t.minutes(60))
     expect(item).toHaveTextContent(t.focus(7))
+    // One line of details, with a comma and a period and no middle dot.
+    expect(item).toHaveTextContent(`${t.kinds.learn}, ${t.minutes(60)}. ${t.focus(7)}. `)
+    expect(item).not.toHaveTextContent('·')
     expect(item).toHaveTextContent(t.next(momentIn(blockFixture().starts_at, BROWSER_ZONE)))
     const disclosure = within(item).getByRole('button', { name: t.reason })
     expect(disclosure).toHaveAttribute('aria-expanded', 'false')
@@ -78,15 +92,44 @@ describe('TaskList', () => {
   })
 
   it('marks a done task and offers to take it back to todo', async () => {
+    const user = userEvent.setup()
     await open()
     const item = row('כלל השרשרת')
-    expect(item).toHaveTextContent(t.statuses.done)
-    expect(within(item).getByRole('button', { name: t.backToTodoNamed('כלל השרשרת') })).toBeInTheDocument()
+    // Done is the pressed check and the struck-through title, not a colour alone.
+    expect(within(item).getByRole('button', { name: t.markDoneNamed('כלל השרשרת') })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(item).getByText('כלל השרשרת')).toHaveClass('line-through')
+    expect(within(row('גבולות')).getByRole('button', { name: t.markDoneNamed('גבולות') })).toHaveAttribute('aria-pressed', 'false')
+    // A finished task says nothing about the board.
+    expect(item).not.toHaveTextContent(t.notOnBoard)
+    await user.click(within(item).getByRole('button', { name: t.actionsNamed('כלל השרשרת') }))
+    expect(await screen.findByRole('menuitem', { name: t.backToTodo })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: t.skip })).not.toBeInTheDocument()
+  })
+
+  it('a skipped task shows the badge instead of the check, and goes back to todo from the menu', async () => {
+    const user = userEvent.setup()
+    const fake = examServer({ tasks: [taskFixture({ id: 't9', title: 'חזרה כללית', status: 'skipped' })], topics: TOPICS }).on(
+      'PATCH /tasks/t9',
+      written(),
+    )
+    openRoute(fake, '/exams/e1')
+    await screen.findByText('חזרה כללית')
+    const item = row('חזרה כללית')
+    expect(item).toHaveTextContent(t.skipped)
+    expect(within(item).getByText('חזרה כללית')).toHaveClass('line-through')
+    expect(within(item).queryByRole('button', { name: t.markDoneNamed('חזרה כללית') })).not.toBeInTheDocument()
+    await choose(user, 'חזרה כללית', t.backToTodo)
+    await waitFor(() => {
+      expect(fake.calls('PATCH', '/tasks/t9').map((c) => c.body)).toEqual([{ status: 'todo' }])
+    })
   })
 
   it('shows the topic weight as text and the gaps', async () => {
     await open()
-    expect(screen.getByText(tp.weight(5))).toBeInTheDocument()
+    // Visible words beside the dots: the weight is not carried by colour alone.
+    expect(screen.getByText(tp.weight(5))).toBeVisible()
+    expect(screen.getByText(tp.weight(5))).not.toHaveClass('sr-only')
+    expect(screen.getByRole('region', { name: tp.gapsTitle })).toBeInTheDocument()
     const gaps = screen.getByRole('list', { name: tp.gapsTitle })
     expect(gaps).toHaveTextContent(tp.gap('אינטגרלים', 'אין עליהם חומר'))
   })
@@ -97,7 +140,7 @@ describe('TaskList', () => {
       .on('PATCH /tasks/t1', written({ placement: { placed: true, reason: null, blocked_by: null }, version_id: 'v7' }))
       .on('POST /plan/undo', { restored: 1, deleted: 1, replaced: [], unplaced: [] })
     await open(fake)
-    await user.click(within(row('גבולות')).getByRole('button', { name: t.editNamed('גבולות') }))
+    await choose(user, 'גבולות', t.edit)
     const form = screen.getByRole('form', { name: t.formLabel('גבולות') })
     const minutes = within(form).getByRole('textbox', { name: t.minutesLabel })
     await user.clear(minutes)
@@ -118,7 +161,7 @@ describe('TaskList', () => {
   it('an unchanged save sends nothing', async () => {
     const user = userEvent.setup()
     const fake = await open()
-    await user.click(within(row('גבולות')).getByRole('button', { name: t.editNamed('גבולות') }))
+    await choose(user, 'גבולות', t.edit)
     await user.click(screen.getByRole('button', { name: he.common.save }))
     await waitFor(() => {
       expect(screen.queryByRole('form', { name: t.formLabel('גבולות') })).not.toBeInTheDocument()
@@ -130,7 +173,7 @@ describe('TaskList', () => {
     const user = userEvent.setup()
     const fake = server().on('PATCH /tasks/t1', written())
     await open(fake)
-    await user.click(within(row('גבולות')).getByRole('button', { name: t.editNamed('גבולות') }))
+    await choose(user, 'גבולות', t.edit)
     await chooseTopic(user, tp.noTopic)
     await user.click(screen.getByRole('button', { name: he.common.save }))
     await waitFor(() => {
@@ -146,7 +189,7 @@ describe('TaskList', () => {
       written({ placement: { placed: false, reason: 'not_enough_time', blocked_by: null }, version_id: null }),
     )
     await open(fake)
-    await user.click(within(row('גבולות')).getByRole('button', { name: t.editNamed('גבולות') }))
+    await choose(user, 'גבולות', t.edit)
     const minutes = screen.getByRole('textbox', { name: t.minutesLabel })
     await user.clear(minutes)
     await user.type(minutes, '300')
@@ -161,7 +204,7 @@ describe('TaskList', () => {
   it('out-of-range minutes show an error and send nothing', async () => {
     const user = userEvent.setup()
     const fake = await open()
-    await user.click(within(row('גבולות')).getByRole('button', { name: t.editNamed('גבולות') }))
+    await choose(user, 'גבולות', t.edit)
     const minutes = screen.getByRole('textbox', { name: t.minutesLabel })
     await user.clear(minutes)
     await user.type(minutes, '2')
@@ -175,13 +218,142 @@ describe('TaskList', () => {
     const fake = server().on({ method: 'PATCH', path: /^\/tasks\// }, written())
     await open(fake)
     await user.click(within(row('גבולות')).getByRole('button', { name: t.markDoneNamed('גבולות') }))
-    await user.click(within(row('כלל השרשרת')).getByRole('button', { name: t.backToTodoNamed('כלל השרשרת') }))
+    // The check of a done task has the same name, and takes it back.
+    await user.click(within(row('כלל השרשרת')).getByRole('button', { name: t.markDoneNamed('כלל השרשרת') }))
     await waitFor(() => {
       expect(fake.calls('PATCH').map((c) => [c.path, c.body])).toEqual([
         ['/tasks/t1', { status: 'done' }],
         ['/tasks/t2', { status: 'todo' }],
       ])
     })
+  })
+
+  it('the menu of a row skips a task, and takes a done task back', async () => {
+    const user = userEvent.setup()
+    const fake = server().on({ method: 'PATCH', path: /^\/tasks\// }, written())
+    await open(fake)
+    await choose(user, 'שאלות של המתרגל', t.skip)
+    await waitFor(() => {
+      expect(fake.calls('PATCH')).toHaveLength(1)
+    })
+    await choose(user, 'כלל השרשרת', t.backToTodo)
+    await waitFor(() => {
+      expect(fake.calls('PATCH').map((c) => [c.path, c.body])).toEqual([
+        ['/tasks/t3', { status: 'skipped' }],
+        ['/tasks/t2', { status: 'todo' }],
+      ])
+    })
+  })
+
+  // Review Focus 1. jsdom has no layout, so this checks what keeps the row inside 390px: the text
+  // column may shrink and breaks a word, and the controls at the end never shrink.
+  it('a long title without spaces wraps, and the check and the menu stay in the row', async () => {
+    openRoute(examServer({ tasks: [taskFixture({ id: 't8', title: LONG_TITLE, reason: 'כי כך' })], topics: TOPICS }), '/exams/e1')
+    const title = await screen.findByText(LONG_TITLE)
+    expect(title).toHaveClass('break-words')
+    expect(title.parentElement).toHaveClass('min-w-0', 'flex-1')
+    const item = row(LONG_TITLE)
+    const check = within(item).getByRole('button', { name: t.markDoneNamed(LONG_TITLE) })
+    const menu = within(item).getByRole('button', { name: t.actionsNamed(LONG_TITLE) })
+    // Both sit in the end column of the row.
+    expect(check.parentElement).toContainElement(menu)
+    expect(check.parentElement).toHaveClass('shrink-0')
+    expect(check).toHaveClass('size-touch', 'shrink-0')
+    expect(menu).toHaveClass('size-touch', 'shrink-0')
+    // Nothing of the row forbids wrapping around the title.
+    for (let el: HTMLElement | null = title; el !== null && el !== item; el = el.parentElement) {
+      expect(el.className).not.toMatch(/whitespace-nowrap|truncate|overflow-x/)
+    }
+  })
+
+  it('a long topic name without spaces wraps beside its edit button', async () => {
+    const topics = topicsFixture({ topics: [topicFixture({ id: 'p1', name: LONG_TITLE })] })
+    openRoute(examServer({ tasks: [taskFixture()], topics }), '/exams/e1')
+    const heading = await screen.findByRole('heading', { level: 3, name: LONG_TITLE })
+    expect(heading).toHaveClass('break-words')
+    expect(heading.parentElement).toHaveClass('min-w-0', 'flex-1')
+    expect(screen.getByRole('button', { name: tp.editNamed(LONG_TITLE) })).toHaveClass('size-touch', 'shrink-0')
+  })
+
+  // Review Focus 2.
+  it('keyboard: Tab reaches the check and then the menu, Enter opens it, and after עריכה and ביטול the row is back with the focus', async () => {
+    const user = userEvent.setup()
+    const fake = await open()
+    const item = row('גבולות')
+    within(item).getByRole('button', { name: t.reason }).focus()
+    await user.tab()
+    expect(within(item).getByRole('button', { name: t.markDoneNamed('גבולות') })).toHaveFocus()
+    await user.tab()
+    expect(within(item).getByRole('button', { name: t.actionsNamed('גבולות') })).toHaveFocus()
+    await user.keyboard('{Enter}')
+    const edit = await screen.findByRole('menuitem', { name: t.edit })
+    await waitFor(() => {
+      expect(edit).toHaveFocus()
+    })
+    await user.keyboard('{Enter}')
+    const form = await screen.findByRole('form', { name: t.formLabel('גבולות') })
+    // The form opens with the keyboard in its first field.
+    await waitFor(() => {
+      expect(within(form).getByRole('textbox', { name: t.title })).toHaveFocus()
+    })
+    within(form).getByRole('button', { name: he.common.cancel }).focus()
+    await user.keyboard('{Enter}')
+    await waitFor(() => {
+      expect(screen.queryByRole('form', { name: t.formLabel('גבולות') })).not.toBeInTheDocument()
+    })
+    // The row is back, and the keyboard is on its menu, not at the top of the page.
+    const actions = within(row('גבולות')).getByRole('button', { name: t.actionsNamed('גבולות') })
+    await waitFor(() => {
+      expect(actions).toHaveFocus()
+    })
+    await user.keyboard('{Enter}')
+    expect(await screen.findByRole('menuitem', { name: t.delete })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await waitFor(() => {
+      expect(within(row('גבולות')).getByRole('button', { name: t.actionsNamed('גבולות') })).toHaveFocus()
+    })
+    await user.tab({ shift: true })
+    expect(within(row('גבולות')).getByRole('button', { name: t.markDoneNamed('גבולות') })).toHaveFocus()
+    expect(fake.calls('PATCH')).toHaveLength(0)
+  })
+
+  it('the check is disabled while the update of its task is on its way, so a second press sends nothing', async () => {
+    const user = userEvent.setup()
+    let release: (value: TaskWriteResponse) => void = () => undefined
+    const fake = server().on('PATCH /tasks/t1', () => new Promise<TaskWriteResponse>((resolve) => (release = resolve)))
+    await open(fake)
+    const check = () => within(row('גבולות')).getByRole('button', { name: t.markDoneNamed('גבולות') })
+    await user.click(check())
+    await waitFor(() => {
+      expect(check()).toBeDisabled()
+    })
+    await user.click(check())
+    release(written())
+    await waitFor(() => {
+      expect(check()).toBeEnabled()
+    })
+    expect(fake.calls('PATCH', '/tasks/t1')).toHaveLength(1)
+  })
+
+  it('shows the shape of the list while loading, and an empty state when there is nothing', async () => {
+    openRoute(examServer({ tasks: [], topics: topicsFixture({ topics: [] }) }), '/exams/e1')
+    expect(await screen.findByText(tp.empty)).toBeInTheDocument()
+    expect(screen.getByText(tp.emptyHint)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: tp.title })).toBeInTheDocument()
+  })
+
+  it('a failed load of the tasks is an error state with retry', async () => {
+    const user = userEvent.setup()
+    let fail = true
+    const fake = server().on({ method: 'GET', path: /^\/exams\/e1\/tasks$/ }, () => (fail ? problem(500, 'internal_error') : TASKS))
+    openRoute(fake, '/exams/e1')
+    // The analysis section reads the same tasks and has a retry of its own: this is the one of the list.
+    const section = await screen.findByRole('region', { name: tp.title })
+    const retry = await within(section).findByRole('button', { name: he.common.retry })
+    expect(within(section).getByRole('alert')).toHaveTextContent(he.codes.internal_error)
+    fail = false
+    await user.click(retry)
+    expect(await within(section).findByText('גבולות')).toBeInTheDocument()
   })
 
   it('deletes a task at once, and בטל sends the undo with its version', async () => {
@@ -198,7 +370,7 @@ describe('TaskList', () => {
         return { restored: 1, deleted: 0, replaced: [], unplaced: [] }
       })
     await open(fake)
-    await user.click(within(row('שאלות של המתרגל')).getByRole('button', { name: t.deleteNamed('שאלות של המתרגל') }))
+    await choose(user, 'שאלות של המתרגל', t.delete)
     await waitFor(() => {
       expect(fake.calls('DELETE', '/tasks/t3')).toHaveLength(1)
     })
@@ -222,7 +394,7 @@ describe('TaskList', () => {
     await open(fake)
     const topicCalls = () => fake.calls('GET', '/exams/e1/topics').length
     const initial = topicCalls()
-    await user.click(within(row('שאלות של המתרגל')).getByRole('button', { name: t.deleteNamed('שאלות של המתרגל') }))
+    await choose(user, 'שאלות של המתרגל', t.delete)
     await waitFor(() => {
       expect(topicCalls()).toBeGreaterThan(initial)
     })

@@ -12,7 +12,8 @@ const t = he.exam.tasks
 const KIND_OPTIONS = TASK_KINDS.map((kind) => ({ value: kind, label: t.kinds[kind] }))
 
 // The fields of a task, for the in-place edit (with focus) and for "add task" (without).
-// Nothing is sent until "שמירה" or Enter; the caller decides what to send.
+// Nothing is sent until "שמירה" or Enter; the caller decides what to send. The form always opens
+// in the place of the button that asked for it, so the keyboard starts in its first field.
 export function TaskForm({
   label,
   initial,
@@ -61,6 +62,7 @@ export function TaskForm({
         }}
         maxLength={200}
         isRequired
+        autoFocus
         autoComplete="off"
         {...(errors.title === undefined ? {} : { errorMessage: errors.title })}
       />
@@ -102,8 +104,8 @@ export function TaskForm({
           set('topicId', value)
         }}
       />
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" isDisabled={isPending}>
+      <div className="flex gap-2">
+        <Button type="submit" isPending={isPending} className="flex-1 sm:flex-none">
           {submitLabel}
         </Button>
         <Button variant="secondary" onPress={onCancel}>

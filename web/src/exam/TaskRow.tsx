@@ -1,35 +1,32 @@
-import { useState } from 'react'
+import { Ellipsis, Pencil, SkipForward, Trash2, Undo2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { errorMessage } from '../api/client'
 import { he } from '../i18n/he'
 import type { Block } from '../onboarding/types'
-import { Button } from '../ui/Button'
+import { Badge } from '../ui/Badge'
+import { CheckButton } from '../ui/CheckButton'
+import { Disclosure } from '../ui/Disclosure'
+import { IconButton } from '../ui/IconButton'
+import { ListRow } from '../ui/List'
+import { Menu, MenuItem } from '../ui/Menu'
+import { ICON_STROKE } from '../ui/styles'
 import { useToast } from '../ui/useToast'
 import { useUpdateTask } from './api'
 import { momentIn } from './dates'
-import { Disclosure } from '../ui/Disclosure'
 import { usePlacementFeedback } from './placement'
 import { draftOfTask, taskPatch, type TaskValues } from './taskDraft'
 import { TaskForm } from './TaskForm'
-import type { ExamTask, TaskPatch, TaskStatus, Topic } from './types'
+import type { ExamTask, TaskPatch, Topic } from './types'
 
 const t = he.exam.tasks
-
-const STATUS_BADGE: Record<TaskStatus, string> = {
-  todo: 'bg-surface-muted text-ink-muted',
-  done: 'bg-success-soft text-success',
-  skipped: 'bg-warning-soft text-warning',
-}
 
 function kindLabel(kind: string): string {
   return Object.hasOwn(t.kinds, kind) ? t.kinds[kind as keyof typeof t.kinds] : kind
 }
 
-function Chip({ children, className = 'bg-surface-muted text-ink-muted' }: { children: string; className?: string }) {
-  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium tabular-nums ${className}`}>{children}</span>
-}
-
-// One task: what it is, when it is next on the board, why it is there, and its actions. "עריכה"
-// turns the row into a form; nothing is sent before "שמירה", and only the changed fields.
+// One task, as a row: its name, one line of details, why it is there, the check button and a menu
+// with the rest of the actions (design language 5.2). "עריכה" turns the row into a form; nothing is
+// sent before "שמירה", and only the changed fields.
 export function TaskRow({
   task,
   topics,
@@ -47,6 +44,23 @@ export function TaskRow({
   const toast = useToast()
   const feedback = usePlacementFeedback()
   const [editing, setEditing] = useState(false)
+  // ui/Button and ui/IconButton take no ref, so the ref is on a wrapper that adds no box
+  // (display: contents) and the button is found inside it.
+  const menuWrap = useRef<HTMLSpanElement>(null)
+  // The form replaces the row, so the button that opened it is gone while it is open. When the
+  // form closes, the keyboard goes back to the menu of the row instead of to the top of the page.
+  const returnFocus = useRef(false)
+
+  useEffect(() => {
+    if (editing || !returnFocus.current) return
+    returnFocus.current = false
+    menuWrap.current?.querySelector('button')?.focus()
+  }, [editing])
+
+  function closeForm() {
+    returnFocus.current = true
+    setEditing(false)
+  }
 
   function send(body: TaskPatch, after?: () => void) {
     update
@@ -63,110 +77,119 @@ export function TaskRow({
   function save(values: TaskValues) {
     const body = taskPatch(task, values)
     if (Object.keys(body).length === 0) {
-      setEditing(false)
+      closeForm()
       return
     }
-    send(body, () => {
-      setEditing(false)
-    })
+    send(body, closeForm)
   }
 
   if (editing) {
     return (
-      <li className="bg-surface-muted px-4 py-4">
-        <TaskForm
-          label={t.formLabel(task.title)}
-          initial={draftOfTask(task)}
-          topics={topics}
-          withFocus
-          submitLabel={he.common.save}
-          isPending={update.isPending}
-          onSubmit={save}
-          onCancel={() => {
-            setEditing(false)
-          }}
-        />
+      // The same line under it as a row, so the list keeps its rhythm while one row is a form.
+      <li className="border-b border-line py-2">
+        <div className="rounded-control bg-surface-muted p-card">
+          <TaskForm
+            label={t.formLabel(task.title)}
+            initial={draftOfTask(task)}
+            topics={topics}
+            withFocus
+            submitLabel={he.common.save}
+            isPending={update.isPending}
+            onSubmit={save}
+            onCancel={closeForm}
+          />
+        </div>
       </li>
     )
   }
 
   const finished = task.status !== 'todo'
+  const hasReason = task.reason !== null && task.reason !== ''
   return (
-    <li className="flex flex-col gap-2 px-4 py-3">
-      <div className="flex items-start gap-2">
-        <span
-          className={`min-w-0 flex-1 break-words font-medium ${finished ? 'text-ink-muted line-through decoration-1' : 'text-ink'}`}
-        >
-          {task.title}
-        </span>
-        <Chip className={STATUS_BADGE[task.status]}>{t.statuses[task.status]}</Chip>
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        <Chip>{kindLabel(task.kind)}</Chip>
-        <Chip>{t.minutes(task.estimated_minutes)}</Chip>
-        <Chip>{t.focus(task.focus)}</Chip>
-      </div>
-      {finished ? null : (
-        <p className="text-sm text-ink-muted">
-          {nextBlock === undefined ? t.notOnBoard : t.next(momentIn(nextBlock.starts_at, timeZone))}
-        </p>
-      )}
-      {task.reason === null || task.reason === '' ? null : <Disclosure label={t.reason}>{task.reason}</Disclosure>}
-      <div className="flex flex-wrap gap-2">
-        {finished ? (
-          <Button
-            variant="secondary"
-            aria-label={t.backToTodoNamed(task.title)}
-            isDisabled={update.isPending}
-            onPress={() => {
-              send({ status: 'todo' })
-            }}
-          >
-            {t.backToTodo}
-          </Button>
-        ) : (
-          <>
-            <Button
-              variant="secondary"
+    <ListRow
+      title={task.title}
+      done={finished}
+      subtitle={
+        <>
+          <p className="tabular-nums">
+            {t.details(kindLabel(task.kind), t.minutes(task.estimated_minutes), t.focus(task.focus))}
+            {finished ? null : (
+              <>
+                {'. '}
+                {/* One piece: the day and the hour of the block are never split over two lines. */}
+                <span className="whitespace-nowrap">
+                  {nextBlock === undefined ? t.notOnBoard : t.next(momentIn(nextBlock.starts_at, timeZone))}
+                </span>
+              </>
+            )}
+          </p>
+          {hasReason ? <Disclosure label={t.reason}>{task.reason}</Disclosure> : null}
+        </>
+      }
+      trailing={
+        <>
+          {task.status === 'skipped' ? (
+            <Badge tone="neutral">{t.skipped}</Badge>
+          ) : (
+            <CheckButton
+              isDone={task.status === 'done'}
               aria-label={t.markDoneNamed(task.title)}
               isDisabled={update.isPending}
-              onPress={() => {
-                send({ status: 'done' })
+              onChange={(isDone) => {
+                send({ status: isDone ? 'done' : 'todo' })
               }}
+            />
+          )}
+          <span ref={menuWrap} className="contents">
+            <Menu
+              trigger={
+                <IconButton aria-label={t.actionsNamed(task.title)}>
+                  <Ellipsis aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+                </IconButton>
+              }
             >
-              {t.markDone}
-            </Button>
-            <Button
-              variant="secondary"
-              aria-label={t.skipNamed(task.title)}
-              isDisabled={update.isPending}
-              onPress={() => {
-                send({ status: 'skipped' })
-              }}
-            >
-              {t.skip}
-            </Button>
-          </>
-        )}
-        <Button
-          variant="quiet"
-          aria-label={t.editNamed(task.title)}
-          onPress={() => {
-            setEditing(true)
-          }}
-        >
-          {t.edit}
-        </Button>
-        <Button
-          variant="danger"
-          aria-label={t.deleteNamed(task.title)}
-          onPress={() => {
-            onDelete(task)
-          }}
-        >
-          {t.delete}
-        </Button>
-      </div>
-    </li>
+              <MenuItem
+                icon={Pencil}
+                onAction={() => {
+                  setEditing(true)
+                }}
+              >
+                {t.edit}
+              </MenuItem>
+              {finished ? (
+                <MenuItem
+                  icon={Undo2}
+                  isDisabled={update.isPending}
+                  onAction={() => {
+                    send({ status: 'todo' })
+                  }}
+                >
+                  {t.backToTodo}
+                </MenuItem>
+              ) : (
+                <MenuItem
+                  icon={SkipForward}
+                  isDisabled={update.isPending}
+                  onAction={() => {
+                    send({ status: 'skipped' })
+                  }}
+                >
+                  {t.skip}
+                </MenuItem>
+              )}
+              <MenuItem
+                icon={Trash2}
+                tone="danger"
+                onAction={() => {
+                  onDelete(task)
+                }}
+              >
+                {t.delete}
+              </MenuItem>
+            </Menu>
+          </span>
+        </>
+      }
+    />
   )
 }

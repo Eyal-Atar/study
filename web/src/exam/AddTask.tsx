@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { Plus } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { errorMessage } from '../api/client'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
+import { Card } from '../ui/Card'
+import { ICON_STROKE } from '../ui/styles'
 import { useToast } from '../ui/useToast'
 import { useCreateTask } from './api'
 import { usePlacementFeedback } from './placement'
@@ -17,18 +20,36 @@ export function AddTask({ examId, topics }: { examId: string; topics: readonly T
   const toast = useToast()
   const feedback = usePlacementFeedback()
   const [open, setOpen] = useState(false)
+  // ui/Button takes no ref, so the ref is on a wrapper that adds no box (display: contents).
+  const opener = useRef<HTMLSpanElement>(null)
+  // The card replaces the button; when it closes, the keyboard goes back to the button.
+  const returnFocus = useRef(false)
+
+  useEffect(() => {
+    if (open || !returnFocus.current) return
+    returnFocus.current = false
+    opener.current?.querySelector('button')?.focus()
+  }, [open])
+
+  function close() {
+    returnFocus.current = true
+    setOpen(false)
+  }
 
   if (!open) {
     return (
-      <Button
-        variant="secondary"
-        className="self-start"
-        onPress={() => {
-          setOpen(true)
-        }}
-      >
-        {t.add}
-      </Button>
+      <span ref={opener} className="contents">
+        <Button
+          variant="secondary"
+          className="self-start"
+          onPress={() => {
+            setOpen(true)
+          }}
+        >
+          <Plus aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+          {t.add}
+        </Button>
+      </span>
     )
   }
 
@@ -38,7 +59,7 @@ export function AddTask({ examId, topics }: { examId: string; topics: readonly T
     create
       .mutateAsync(body)
       .then((answer) => {
-        setOpen(false)
+        close()
         feedback(answer, { saved: t.added, placed: t.addedPlaced })
       })
       .catch((error: unknown) => {
@@ -47,20 +68,17 @@ export function AddTask({ examId, topics }: { examId: string; topics: readonly T
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4">
-      <h3 className="text-base font-semibold text-ink">{t.addTitle}</h3>
+    <Card title={t.addTitle} titleLevel={3}>
       <TaskForm
         label={t.addTitle}
         initial={NEW_TASK_DRAFT}
         topics={topics}
         withFocus={false}
-        submitLabel={create.isPending ? t.adding : t.add}
+        submitLabel={t.add}
         isPending={create.isPending}
         onSubmit={submit}
-        onCancel={() => {
-          setOpen(false)
-        }}
+        onCancel={close}
       />
-    </div>
+    </Card>
   )
 }

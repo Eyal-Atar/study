@@ -1,13 +1,18 @@
-import { useId, useState } from 'react'
+import { Pencil } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { Form } from 'react-aria-components'
 import { errorMessage } from '../api/client'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
+import { Card } from '../ui/Card'
+import { Disclosure } from '../ui/Disclosure'
+import { IconButton } from '../ui/IconButton'
+import { List } from '../ui/List'
 import { RadioCards } from '../ui/RadioCards'
+import { ICON_STROKE } from '../ui/styles'
 import { TextField } from '../ui/TextField'
 import { useToast } from '../ui/useToast'
 import { useUpdateTopic } from './api'
-import { Disclosure } from '../ui/Disclosure'
 import type { Gap, Topic, TopicPatch } from './types'
 
 const tp = he.exam.topics
@@ -15,17 +20,18 @@ const tp = he.exam.topics
 const NAME_MAX = 120
 const WEIGHT_OPTIONS = [1, 2, 3, 4, 5].map((w) => ({ value: String(w), label: String(w) }))
 
-// 1–5 filled dots; the text next to it is what a screen reader hears.
-function WeightDots({ weight }: { weight: number }) {
+// 1–5 filled dots, and the same thing in words beside them: the dots alone would carry the weight
+// by colour only.
+function Weight({ weight }: { weight: number }) {
   return (
-    <span className="flex items-center gap-1">
+    <p className="flex items-center gap-2 text-small text-ink-muted">
       <span aria-hidden="true" className="flex gap-0.5">
         {[1, 2, 3, 4, 5].map((n) => (
           <span key={n} className={`size-2 rounded-full ${n <= weight ? 'bg-brand' : 'bg-line-strong'}`} />
         ))}
       </span>
-      <span className="sr-only">{tp.weight(weight)}</span>
-    </span>
+      <span className="tabular-nums">{tp.weight(weight)}</span>
+    </p>
   )
 }
 
@@ -71,7 +77,8 @@ function TopicForm({ topic, onDone }: { topic: Topic; onDone: () => void }) {
         event.preventDefault()
         submit()
       }}
-      className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-4"
+      // A quiet fill and no border: the form sits in the place of the head, it is not a card.
+      className="flex flex-col gap-4 rounded-control bg-surface-muted p-card"
     >
       <TextField
         label={tp.name}
@@ -82,12 +89,13 @@ function TopicForm({ topic, onDone }: { topic: Topic; onDone: () => void }) {
         }}
         maxLength={NAME_MAX}
         isRequired
+        autoFocus
         autoComplete="off"
         {...(nameError === undefined ? {} : { errorMessage: nameError })}
       />
       <RadioCards label={tp.weightLabel} options={WEIGHT_OPTIONS} value={weight} onChange={setWeight} columns="grid-cols-5" />
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" isDisabled={update.isPending}>
+      <div className="flex gap-2">
+        <Button type="submit" isPending={update.isPending} className="flex-1 sm:flex-none">
           {he.common.save}
         </Button>
         <Button variant="secondary" onPress={onDone}>
@@ -101,52 +109,62 @@ function TopicForm({ topic, onDone }: { topic: Topic; onDone: () => void }) {
 // The head of a topic group: name, weight and evidence, with "עריכה" for name and weight.
 export function TopicHeader({ topic, headingId }: { topic: Topic; headingId: string }) {
   const [editing, setEditing] = useState(false)
+  // ui/IconButton takes no ref, so the ref is on the head and the button is found inside it.
+  const head = useRef<HTMLDivElement>(null)
+  // The form replaces the head; when it closes, the keyboard goes back to the pencil.
+  const returnFocus = useRef(false)
+
+  useEffect(() => {
+    if (editing || !returnFocus.current) return
+    returnFocus.current = false
+    head.current?.querySelector('button')?.focus()
+  }, [editing])
+
   if (editing) {
     return (
       <TopicForm
         topic={topic}
         onDone={() => {
+          returnFocus.current = true
           setEditing(false)
         }}
       />
     )
   }
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-3">
-        <h3 id={headingId} className="min-w-0 flex-1 break-words text-base font-semibold text-ink">
-          {topic.name}
-        </h3>
-        <WeightDots weight={topic.weight} />
-        <Button
-          variant="quiet"
+    <div className="flex flex-col">
+      <div ref={head} className="flex items-start gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <h3 id={headingId} className="text-body font-semibold break-words text-ink">
+            {topic.name}
+          </h3>
+          <Weight weight={topic.weight} />
+        </div>
+        <IconButton
           aria-label={tp.editNamed(topic.name)}
           onPress={() => {
             setEditing(true)
           }}
         >
-          {tp.edit}
-        </Button>
+          <Pencil aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+        </IconButton>
       </div>
       {topic.evidence === null || topic.evidence === '' ? null : <Disclosure label={tp.evidence}>{topic.evidence}</Disclosure>}
     </div>
   )
 }
 
-// Topics the analysis found no material for.
+// Topics the analysis found no material for. The card is a region named by its heading, and the
+// list carries the same name.
 export function GapList({ gaps }: { gaps: readonly Gap[] }) {
-  const titleId = useId()
   if (gaps.length === 0) return null
   return (
-    <section aria-labelledby={titleId} className="flex flex-col gap-2 rounded-xl bg-warning-soft p-4">
-      <h2 id={titleId} className="text-base font-semibold text-warning">
-        {tp.gapsTitle}
-      </h2>
-      <ul aria-labelledby={titleId} className="flex list-disc flex-col gap-1 ps-5 text-sm text-ink">
+    <Card tone="warning" title={tp.gapsTitle} titleLevel={3} role="region">
+      <List aria-label={tp.gapsTitle} className="flex list-disc flex-col gap-1 ps-5 text-small break-words text-ink">
         {gaps.map((gap) => (
           <li key={gap.topic}>{tp.gap(gap.topic, gap.note)}</li>
         ))}
-      </ul>
-    </section>
+      </List>
+    </Card>
   )
 }

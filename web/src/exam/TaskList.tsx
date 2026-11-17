@@ -1,8 +1,11 @@
+import { ListChecks } from 'lucide-react'
 import { useId, useState } from 'react'
-import { errorMessage, type ApiError } from '../api/client'
+import { errorMessage } from '../api/client'
 import { he } from '../i18n/he'
 import type { Block } from '../onboarding/types'
-import { Button } from '../ui/Button'
+import { List } from '../ui/List'
+import { SectionHeading } from '../ui/SectionHeading'
+import { EmptyState, ErrorState, LoadingState } from '../ui/states'
 import { useToast } from '../ui/useToast'
 import { AddTask } from './AddTask'
 import { useDeleteTask, useExamTasks, useExamTopics } from './api'
@@ -13,19 +16,6 @@ import { GapList, TopicHeader } from './TopicList'
 import type { ExamTask, Topic } from './types'
 
 const tp = he.exam.topics
-
-function LoadError({ error, onRetry }: { error: ApiError; onRetry: () => void }) {
-  return (
-    <div className="flex flex-col items-start gap-2">
-      <p role="alert" className="text-danger">
-        {errorMessage(error)}
-      </p>
-      <Button variant="secondary" onPress={onRetry}>
-        {he.common.retry}
-      </Button>
-    </div>
-  )
-}
 
 function Group({
   topic,
@@ -40,16 +30,17 @@ function Group({
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-2">
       {topic === null ? (
-        <h3 id={headingId} className="text-base font-semibold text-ink">
+        <h3 id={headingId} className="text-body font-semibold text-ink">
           {tp.noTopic}
         </h3>
       ) : (
         <TopicHeader topic={topic} headingId={headingId} />
       )}
       {tasks.length === 0 ? null : (
-        <ul aria-labelledby={headingId} className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
+        // The line above the first row closes the head of the group, like the line under each row.
+        <List aria-label={topic === null ? tp.noTopic : topic.name} className="border-t border-line">
           {tasks.map(render)}
-        </ul>
+        </List>
       )}
     </section>
   )
@@ -102,11 +93,11 @@ export function TaskList({ examId, blocks, timeZone }: { examId: string; blocks:
   )
 
   let body: React.ReactNode
-  if (tasks.isPending || topics.isPending) body = <p className="text-ink-muted">{he.common.loading}</p>
+  if (tasks.isPending || topics.isPending) body = <LoadingState shape="list" rows={4} />
   else if (tasks.isError)
     body = (
-      <LoadError
-        error={tasks.error}
+      <ErrorState
+        message={errorMessage(tasks.error)}
         onRetry={() => {
           void tasks.refetch()
         }}
@@ -114,29 +105,27 @@ export function TaskList({ examId, blocks, timeZone }: { examId: string; blocks:
     )
   else if (topics.isError)
     body = (
-      <LoadError
-        error={topics.error}
+      <ErrorState
+        message={errorMessage(topics.error)}
         onRetry={() => {
           void topics.refetch()
         }}
       />
     )
-  else if (visible.length === 0 && topicList.length === 0) body = <p className="text-ink-muted">{tp.empty}</p>
+  else if (visible.length === 0 && topicList.length === 0) body = <EmptyState icon={ListChecks} title={tp.empty} description={tp.emptyHint} />
   else
     body = (
-      <>
+      <div className="flex flex-col gap-6">
         {topicList.map((topic) => (
           <Group key={topic.id} topic={topic} tasks={visible.filter((task) => task.topic_id === topic.id)} render={render} />
         ))}
         {orphan.length === 0 ? null : <Group topic={null} tasks={orphan} render={render} />}
-      </>
+      </div>
     )
 
   return (
-    <section aria-labelledby={titleId} className="flex flex-col gap-5">
-      <h2 id={titleId} className="text-lg font-medium text-ink">
-        {tp.title}
-      </h2>
+    <section aria-labelledby={titleId} className="flex flex-col gap-4">
+      <SectionHeading id={titleId}>{tp.title}</SectionHeading>
       {body}
       <GapList gaps={topics.data?.gaps ?? []} />
       <AddTask examId={examId} topics={topicList} />
