@@ -32,6 +32,43 @@ describe('LoginPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(he.login.failed)
   })
 
+  // The first impression: the name as the only h1, one sentence, and one button.
+  it('shows the name as the h1, the tagline, and a single button', async () => {
+    renderRoute('/login', { auth: createFakeAuth(null) })
+
+    expect(await screen.findByRole('heading', { level: 1, name: he.appName })).toBeInTheDocument()
+    expect(screen.getAllByRole('heading')).toHaveLength(1)
+    expect(screen.getByText(he.tagline)).toBeInTheDocument()
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.getByRole('main')).toBeInTheDocument()
+  })
+
+  it('is pending while the request is on its way, sends it once, and comes back when it fails', async () => {
+    const user = userEvent.setup()
+    const auth = createFakeAuth(null)
+    let fail: (error: Error) => void = () => {}
+    auth.signInWithOAuth.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        fail = reject
+      }),
+    )
+    renderRoute('/login', { auth })
+
+    const button = await screen.findByRole('button', { name: he.login.google })
+    await user.click(button)
+    // React Aria: a pending button keeps its name and its focus, and ignores presses.
+    expect(button).toHaveAttribute('data-pending', 'true')
+    await user.click(button)
+    expect(auth.signInWithOAuth).toHaveBeenCalledOnce()
+
+    fail(new Error('x'))
+    expect(await screen.findByRole('alert')).toHaveTextContent(he.login.failed)
+    expect(button).not.toHaveAttribute('data-pending')
+
+    await user.click(button)
+    expect(auth.signInWithOAuth).toHaveBeenCalledTimes(2)
+  })
+
   it('sends a signed-in user home', async () => {
     const { router } = renderRoute('/login', { auth: createFakeAuth(fakeSession()) })
 

@@ -40,7 +40,8 @@ export function CollapsibleSection({ title, summary, isExpanded, onExpandedChang
           )}
         >
           <span className="min-w-0 flex-1 text-body font-semibold break-words text-ink">{title}</span>
-          {summary === undefined ? null : <span className="shrink-0 text-small font-normal text-ink-muted">{summary}</span>}
+          {/* The space is for the accessible name, which joins the two texts: "חומרים 3 קבצים". */}
+          {summary === undefined ? null : <span className="shrink-0 text-small font-normal text-ink-muted"> {summary}</span>}
           <ChevronDown
             aria-hidden="true"
             size={18}

@@ -8,4 +8,7 @@ it('shows the title, the explanation and every problem', () => {
   expect(screen.getByRole('heading', { level: 1, name: he.config.title })).toBeInTheDocument()
   expect(screen.getByText(he.config.body)).toBeInTheDocument()
   expect(screen.getByRole('listitem')).toHaveTextContent(/^VITE_API_URL is missing$/)
+  // The problems are in English.
+  expect(screen.getByRole('list')).toHaveAttribute('dir', 'ltr')
+  expect(screen.getByRole('main')).toBeInTheDocument()
 })

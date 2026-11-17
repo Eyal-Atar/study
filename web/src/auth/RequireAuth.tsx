@@ -1,17 +1,18 @@
 import { Navigate, Outlet } from 'react-router'
-import { he } from '../i18n/he'
+import { StandalonePage } from '../ui/PageContainer'
+import { LoadingState } from '../ui/states'
 import { useAuth } from './AuthContext'
 
 // The layout route of every screen that needs a signed-in user.
 export function RequireAuth() {
   const auth = useAuth()
   if (auth.status === 'loading') {
+    // Before the session is known there is no shell and no screen yet: one card in the column
+    // where the screen will be.
     return (
-      <main className="mx-auto max-w-2xl px-4 py-16">
-        <p role="status" className="text-slate-600">
-          {he.common.loading}
-        </p>
-      </main>
+      <StandalonePage>
+        <LoadingState shape="card" />
+      </StandalonePage>
     )
   }
   if (auth.status === 'signed_out') return <Navigate to="/login" replace />

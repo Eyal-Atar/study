@@ -10,7 +10,7 @@ const isolate = (name: string) => `\u2068${name}\u2069`
 // `errors` and `codes`. A screen fills only its own section.
 export const he = {
   appName: PRODUCT_NAME,
-  tagline: 'תוכנית לימודים יומית לתקופת המבחנים',
+  tagline: 'תוכנית לימוד יומית לתקופת המבחנים, שנבנית מהמבחנים ומהחומרים שלכם.',
   common: {
     loading: 'טוען…',
     retry: 'לנסות שוב',
@@ -47,6 +47,7 @@ export const he = {
     failed: 'לא הצלחנו להתחיל את ההתחברות. נסו שוב.',
   },
   callback: {
+    title: 'התחברות',
     working: 'מסיימים את ההתחברות…',
     failed: 'ההתחברות לא הושלמה. אפשר לנסות שוב.',
     backToLogin: 'חזרה למסך הכניסה',
@@ -144,7 +145,7 @@ export const he = {
         ? `חסרות ${missing} לפני המבחן ${isolate(exam)}. אפשר לוותר על משימות, להוסיף חלונות לימוד, או לדחות את המבחן.`
         : `חסרות ${missing} לפני המבחן ${isolate(exam)}. אפשר להעלות ל-${daily} ביום, או לוותר על משימות.`,
   },
-  notFound: { title: 'הדף לא נמצא', backHome: 'לדף הבית' },
+  notFound: { title: 'הדף לא נמצא', body: 'הכתובת לא קיימת, או שהדף הועבר.', backHome: 'לדף הבית' },
   config: {
     title: 'האפליקציה לא מוגדרת',
     body: 'חסרים משתני סביבה ב-web/.env, או שהערכים שלהם לא תקינים:',
@@ -154,6 +155,8 @@ export const he = {
     stepOf: (step: number, total: number) => `שלב ${String(step)} מתוך ${String(total)}`,
     stepsLabel: 'שלבי ההרשמה',
     steps: ['מבחנים', 'חומרים', 'שאלות', 'בניית התוכנית'],
+    // S28: the one button of steps 1 and 2 (step 3 says what it starts: "בניית התוכנית").
+    continue: 'המשך',
   },
   onboardingExams: {
     title: 'אילו מבחנים יש לכם?',
@@ -169,17 +172,20 @@ export const he = {
     difficulty: 'כמה המבחן קשה לכם?',
     difficultyLevels: ['קל מאוד', 'קל', 'בינוני', 'קשה', 'קשה מאוד'],
     add: 'הוספת מבחן',
-    adding: 'מוסיפים…',
     listTitle: 'המבחנים שלכם',
-    empty: 'עוד לא הוספתם מבחנים. מתחילים מהמבחן הקרוב ביותר.',
+    empty: 'עוד לא הוספתם מבחנים',
     deleteExam: (name: string) => `מחיקה של ${isolate(name)}`,
     deleted: (name: string) => `המבחן "${name}" נמחק`,
     restored: (name: string) => `המבחן "${name}" חזר`,
     difficultyOf: (label: string) => `קושי: ${label}`,
+    // The subtitle of an exam's row: "20 בינואר 2027. קושי: קשה".
+    details: (date: string, difficulty: string) => `${date}. קושי: ${difficulty}`,
   },
   onboardingMaterials: {
-    title: 'חומרי לימוד',
+    title: 'יש לכם חומרים מהקורס?',
     intro: 'זה לא חובה, אבל עם חומרים התוכנית מתאימה לקורס שלכם. הכי עוזרים מבחני עבר עם פתרונות.',
+    // S28: the same button as "המשך", when no exam has a file: the skip is said in the button itself.
+    continueWithout: 'המשך בלי חומרים',
     privacy: 'הקבצים נשלחים לעיבוד אצל Anthropic, כדי לבנות מהם משימות.',
     fileTypes: 'PDF, ‏JPG או PNG, עד 20 MB לקובץ ועד 15 קבצים למבחן.',
     addFiles: 'הוספת קבצים',
@@ -187,7 +193,14 @@ export const he = {
     addFilesFor: (exam: string) => `הוספת קבצים למבחן ${isolate(exam)}`,
     filesOf: (exam: string) => `הקבצים של ${isolate(exam)}`,
     empty: 'עוד לא הוספתם קבצים למבחן הזה.',
-    noExams: 'עוד אין מבחנים. חזרו לשלב הקודם כדי להוסיף מבחן.',
+    noExams: 'עוד אין מבחנים',
+    noExamsHint: 'חזרו לשלב הקודם כדי להוסיף מבחן.',
+    // The start of a file's subtitle, before its status: "מבחן עבר, PDF." The kind is missing when a
+    // control shows it, and the type when the name has no extension.
+    fileLead: (kind: string | null, type: string | null) => {
+      const parts = [kind, type].filter((part) => part !== null)
+      return parts.length === 0 ? '' : `${parts.join(', ')}.`
+    },
     uploading: 'מעלה…',
     processing: 'קוראים את הקובץ…',
     ready: (pages: number | null) => {
@@ -217,16 +230,17 @@ export const he = {
     hours: (hours: number) => (hours === 1 ? 'שעה' : hours === 2 ? 'שעתיים' : `${String(hours)} שעות`),
     windowsQuestion: 'מתי נוח לכם ללמוד?',
     windowsHint: 'אפשר לבחור כמה.',
+    // A range of hours reads left to right inside Hebrew text: U+2066 (LRI) and U+2069 (PDI) are
+    // dir="ltr" for a plain string, so "06:00–12:00" is not shown as "12:00–06:00" (S28 decision 6).
     windows: {
-      morning: { label: 'בוקר', range: '06:00–12:00' },
-      afternoon: { label: 'צהריים', range: '12:00–17:00' },
-      evening: { label: 'ערב', range: '17:00–21:00' },
-      night: { label: 'לילה', range: '21:00–02:00' },
+      morning: { label: 'בוקר', range: '\u206606:00–12:00\u2069' },
+      afternoon: { label: 'צהריים', range: '\u206612:00–17:00\u2069' },
+      evening: { label: 'ערב', range: '\u206617:00–21:00\u2069' },
+      night: { label: 'לילה', range: '\u206621:00–02:00\u2069' },
     },
     windowsRequired: 'צריך לבחור לפחות זמן אחד ביום.',
     nightNote: 'הלילה שלפני מבחן או יום מנוחה נגמר בחצות.',
     build: 'בניית התוכנית',
-    saving: 'שומרים…',
   },
   building: {
     title: 'בונים לכם תוכנית',
@@ -460,15 +474,18 @@ export const he = {
   },
   // S15: the exams list and the exam screen (Task 6); analysis and materials (Task 7).
   exam: {
+    // The h1 of the exam screen until the exam itself is known (loading, failed, not found).
+    title: 'מבחן',
     // The exams list (/exams).
     list: {
       title: 'מבחנים',
       listTitle: 'המבחנים שלכם',
-      empty: 'עוד אין מבחנים. מוסיפים את המבחן הקרוב ביותר, ובונים לו תוכנית.',
+      count: (count: number) => (count === 1 ? 'מבחן אחד' : `${String(count)} מבחנים`),
+      empty: 'עוד אין מבחנים',
+      emptyHint: 'מוסיפים את המבחן הקרוב ביותר, ובונים לו תוכנית.',
       newExam: 'מבחן חדש',
       formTitle: 'מבחן חדש',
       create: 'הוספת מבחן',
-      creating: 'מוסיפים…',
     },
     // 0 = today, 1 = tomorrow; a negative count is an exam that already took place.
     inDays: (days: number) => {
@@ -477,11 +494,15 @@ export const he = {
       if (days === 1) return 'מחר'
       return `בעוד ${String(days)} ימים`
     },
-    notFound: 'לא מצאנו את המבחן הזה. אולי הוא נמחק.',
+    notFound: 'לא מצאנו את המבחן הזה',
+    notFoundHint: 'אולי הוא נמחק.',
     backToList: 'לכל המבחנים',
     header: {
+      edit: 'עריכה',
       editLabel: 'עריכת פרטי המבחן',
-      saving: 'שומרים…',
+      // "23 בנובמבר 2026, בעוד 6 ימים. קושי: קשה": the parts around the days left, which are emphasised.
+      dateThen: (date: string) => `${date}, `,
+      thenDifficulty: (difficulty: string) => `. ${difficulty}`,
       saved: 'פרטי המבחן נשמרו',
       replanReason: 'פרטי המבחן השתנו, ולכן כדאי לתכנן מחדש את הלוח.',
     },
@@ -497,17 +518,19 @@ export const he = {
       examDay: 'יום המבחן',
       legendPlanned: 'מתוכנן',
       legendDone: 'בוצע',
+      legendRest: 'מנוחה',
+      legendExam: 'מבחן',
       farNote: 'המבחן רחוק: הציר מראה את 62 הימים הקרובים.',
       noDays: 'המבחן כבר עבר, ואין ימים להציג.',
     },
     topics: {
       title: 'נושאים ומשימות',
-      empty: 'עוד אין משימות למבחן הזה. אפשר להוסיף משימה, או לבנות תוכנית מהחומרים.',
+      empty: 'עוד אין משימות למבחן הזה',
+      emptyHint: 'אפשר להוסיף משימה, או לבנות תוכנית מהחומרים.',
       noTopic: 'בלי נושא',
       weight: (weight: number) => `חשיבות ${String(weight)} מתוך 5`,
       weightLabel: 'חשיבות הנושא',
       evidence: 'על מה זה מבוסס?',
-      edit: 'עריכה',
       editNamed: (name: string) => `עריכה: ${isolate(name)}`,
       name: 'שם הנושא',
       nameRequired: 'צריך לכתוב שם לנושא.',
@@ -524,24 +547,23 @@ export const he = {
         simulation_review: 'בדיקת סימולציה',
         custom: 'אחר',
       },
-      statuses: { todo: 'לביצוע', done: 'בוצעה', skipped: 'דולגה' },
+      // The badge of a skipped task. A done task is the filled check and the struck-through title.
+      skipped: 'דולגה',
       minutes: (minutes: number) => `${String(minutes)} דקות`,
       focus: (focus: number) => `ריכוז ${String(focus)}/10`,
       next: (when: string) => `בלוח: ${when}`,
       notOnBoard: 'עוד לא בלוח',
+      // The subtitle of a row: "לימוד, 60 דקות. ריכוז 3/10".
+      details: (kind: string, minutes: string, focus: string) => `${kind}, ${minutes}. ${focus}`,
       reason: 'למה המשימה הזו?',
-      markDone: 'בוצעה',
       skip: 'דילוג',
       backToTodo: 'החזרה לביצוע',
       edit: 'עריכה',
       delete: 'מחיקה',
-      // The actions name the task, so a screen reader user knows which row they act on. Each starts
-      // with the visible text, so voice control finds the same button.
+      // The two controls of a row name the task, so a screen reader user knows which row they act
+      // on: the check button (pressed = done) and the menu with the rest of the actions.
       markDoneNamed: (title: string) => `בוצעה: ${isolate(title)}`,
-      skipNamed: (title: string) => `דילוג: ${isolate(title)}`,
-      backToTodoNamed: (title: string) => `החזרה לביצוע: ${isolate(title)}`,
-      editNamed: (title: string) => `עריכה: ${isolate(title)}`,
-      deleteNamed: (title: string) => `מחיקה: ${isolate(title)}`,
+      actionsNamed: (title: string) => `פעולות: ${isolate(title)}`,
       formLabel: (title: string) => `עריכת המשימה ${isolate(title)}`,
       title: 'שם המשימה',
       titleRequired: 'צריך לכתוב שם למשימה.',
@@ -560,7 +582,6 @@ export const he = {
       undone: 'השינוי בוטל',
       add: 'הוספת משימה',
       addTitle: 'משימה חדשה',
-      adding: 'מוסיפים…',
       added: 'המשימה נוספה',
       addedPlaced: 'המשימה נוספה ושובצה בלוח',
     },
@@ -572,9 +593,12 @@ export const he = {
       build: 'בניית תוכנית למבחן',
       reanalyze: 'ניתוח חוזר',
       reanalyzeIntro:
-        'ניתוח חוזר בונה משימות חדשות מהחומרים. משימות שעוד לא התחלתם יוחלפו, ומשימות שסיימתם, התחלתם או הוספתם בעצמכם יישארו. לפני שמשהו משתנה תראו מה ישתנה ותאשרו. זה אחד מ-3 ניתוחים ביום.',
+        'ניתוח חוזר בונה משימות חדשות מהחומרים במקום אלה שעוד לא התחלתם. מה שסיימתם, התחלתם או הוספתם בעצמכם נשאר. קודם תראו מה ישתנה, ורק אז תאשרו. עד 3 ניתוחים ביום.',
       starting: 'מתחילים…',
-      progressLabel: 'התקדמות הניתוח',
+      // The summary at the end of the section's heading row, while something in it needs attention.
+      summaryRunning: 'רץ עכשיו',
+      summaryFailed: 'לא הצליח',
+      summaryDraft: 'מחכה לאישור',
       failedTitle: 'הניתוח לא הצליח',
       built: 'התוכנית למבחן מוכנה, והמשימות שובצו בלוח.',
       draftWaiting: 'ניתוח חדש מחכה לאישור',
@@ -603,6 +627,8 @@ export const he = {
       title: 'חומרים',
       kindLabel: (name: string) => `סוג הקובץ ${isolate(name)}`,
       kindSaved: 'סוג הקובץ נשמר',
+      // S28: the summary of the collapsed section.
+      count: (count: number) => (count === 0 ? 'אין קבצים' : count === 1 ? 'קובץ אחד' : `${String(count)} קבצים`),
       reanalyzeHint: 'החומרים השתנו. ניתוח חוזר ישתמש בהם בבניית המשימות.',
     },
   },
@@ -617,6 +643,13 @@ export const he = {
     preferences: {
       title: 'העדפות לימוד',
       intro: 'לפי ההעדפות האלה נשבץ את הלימוד. אחרי השמירה נציע לעדכן את התוכנית.',
+      // The four groups of the form, each an h3.
+      groups: {
+        amount: 'כמה ומתי',
+        routine: 'שגרת היום',
+        hobby: 'זמן לעצמי',
+        rest: 'לפני מבחן',
+      },
       hoursQuestion: 'כמה שעות ביום אפשר ללמוד?',
       windowsQuestion: 'מתי נוח לכם ללמוד?',
       windowsHint: 'אפשר לבחור כמה.',
@@ -636,7 +669,6 @@ export const he = {
       restDays: (days: number) =>
         days === 0 ? 'בלי' : days === 1 ? 'יום אחד' : days === 2 ? 'יומיים' : `${String(days)} ימים`,
       save: 'שמירה',
-      saving: 'שומרים…',
       saved: 'נשמר',
       replanReason: 'ההעדפות השתנו. לעדכן את התוכנית לפיהן?',
       invalidField: 'הערך הזה לא תקין.',
@@ -646,7 +678,6 @@ export const he = {
       description:
         'קובץ JSON עם הפרופיל, המבחנים, המשימות, הלוח, הנושאים, פרטי החומרים (בלי הקבצים עצמם), הניתוחים ורישום השימוש ב-AI.',
       button: 'הורדת הקובץ',
-      loading: 'מכינים את הקובץ…',
     },
     danger: {
       title: 'מחיקת החשבון',
@@ -670,7 +701,6 @@ export const he = {
       confirmWord: 'מחיקה',
       confirmLabel: 'כדי לאשר, הקלידו את המילה "מחיקה"',
       submit: 'מחיקת החשבון לצמיתות',
-      deleting: 'מוחקים…',
       back: 'חזרה להגדרות',
     },
     goodbye: {

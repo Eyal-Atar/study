@@ -1,17 +1,26 @@
 import { he } from '../i18n/he'
+import { Card } from '../ui/Card'
+import { StandalonePage } from '../ui/PageContainer'
+import { PageHeader } from '../ui/PageHeader'
 
-// Shown by main.tsx instead of the app when readEnv() fails. The problems are for the developer,
-// in English, so the list is left to right.
+// Shown by main.tsx instead of the app when readEnv() fails, so it renders outside the router:
+// nothing here may be a router component (TextLink, ButtonLink). The problems are for the
+// developer, in English, so the list is left to right.
 export function ConfigErrorScreen({ problems }: { problems: readonly string[] }) {
   return (
-    <main className="mx-auto max-w-2xl px-4 py-16">
-      <h1 className="text-2xl font-bold">{he.config.title}</h1>
-      <p className="mt-4 text-slate-700">{he.config.body}</p>
-      <ul dir="ltr" className="mt-4 list-disc space-y-2 ps-6 font-mono text-sm">
-        {problems.map((problem) => (
-          <li key={problem}>{problem}</li>
-        ))}
-      </ul>
-    </main>
+    <StandalonePage>
+      <div className="space-y-section">
+        <PageHeader title={he.config.title} />
+        <p className="max-w-prose text-body text-ink">{he.config.body}</p>
+        <Card>
+          {/* break-words: a problem holds a long URL or a variable name, with nowhere to wrap. */}
+          <ul dir="ltr" className="list-disc space-y-2 ps-5 text-small break-words">
+            {problems.map((problem) => (
+              <li key={problem}>{problem}</li>
+            ))}
+          </ul>
+        </Card>
+      </div>
+    </StandalonePage>
   )
 }

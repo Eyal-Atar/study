@@ -5,7 +5,10 @@ import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
 
 function expectFailure() {
-  expect(screen.getByText(he.callback.failed)).toBeInTheDocument()
+  expect(screen.getByRole('heading', { level: 1, name: he.callback.title })).toBeInTheDocument()
+  expect(screen.getByRole('alert')).toHaveTextContent(he.callback.failed)
+  // Trying again means going back to the login screen: the failure itself has no retry button.
+  expect(screen.queryByRole('button')).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: he.callback.backToLogin })).toHaveAttribute('href', '/login')
   expect(screen.queryByText(he.callback.working)).not.toBeInTheDocument()
 }
@@ -47,7 +50,8 @@ describe('AuthCallbackPage', () => {
   // (no code verifier): supabase-js creates no session, and INITIAL_SESSION is empty.
   it('shows the failure when no session came out of the callback', async () => {
     renderRoute('/auth/callback?code=expired', { auth: createFakeAuth(null) })
-    expect(screen.getByText(he.callback.working)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: he.callback.title })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(he.callback.working)
 
     await initialSession()
     expectFailure()
