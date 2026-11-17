@@ -69,6 +69,21 @@ describe('IconButton', () => {
   })
 })
 
+describe('IconButton variants', () => {
+  it('secondary carries one border colour and one text colour, not the quiet ones too', () => {
+    render(
+      <IconButton aria-label="עוד" variant="secondary">
+        <Settings aria-hidden="true" size={18} />
+      </IconButton>,
+    )
+    const classes = screen.getByRole('button', { name: 'עוד' }).className.split(' ')
+    expect(classes).toContain('border-line-strong')
+    expect(classes).not.toContain('border-transparent')
+    expect(classes).toContain('text-ink')
+    expect(classes).not.toContain('text-ink-muted')
+  })
+})
+
 describe('ButtonLink', () => {
   it('is a link with the look of a button, reachable with Tab', async () => {
     const { MemoryRouter } = await import('react-router')

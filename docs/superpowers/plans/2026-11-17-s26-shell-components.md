@@ -1,6 +1,6 @@
 # S26 — שלד האפליקציה, ניווט למובייל ורכיבי הבסיס: תוכנית עבודה
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **מטרה:** כל מסך של StudyFlow יושב בתוך שלד אחד בשפה "נייר": בטלפון סרגל תחתון עם ארבעה יעדים וכותרת דקה, במחשב ניווט בשורה העליונה, ותפריט פרופיל עם הגדרות ויציאה. מתחת לשלד יש ערכת רכיבים אחת ב-`web/src/ui/`, על React Aria, שממנה S27 ו-S28 ירכיבו את המסכים בלי להמציא מראה משלהם. דף פנימי ב-`/dev/components` מציג כל רכיב בכל מצב.
 
@@ -121,9 +121,9 @@ flowchart TB
 - `Menu({ trigger: ReactElement, children })` ו-`MenuItem({ icon?: LucideIcon, tone?: 'default' | 'danger', onAction, children })`.
 - `he.shell.skipToContent`, ‏`he.shell.profile`, ‏`he.common.choose`.
 
-- [ ] בדיקות: כפתור כבוי בלי `opacity`; ‏`isPending` לא קורא ל-`onPress` ומציג מחוון; ‏`IconButton` עם שם נגיש; תפריט נפתח ב-Enter, חץ מעביר, Escape מחזיר פוקוס
-- [ ] מימוש, והבדיקות עוברות
-- [ ] commit
+- [x] בדיקות: כפתור כבוי בלי `opacity`; ‏`isPending` לא קורא ל-`onPress` ומציג מחוון; ‏`IconButton` עם שם נגיש; תפריט נפתח ב-Enter, חץ מעביר, Escape מחזיר פוקוס
+- [x] מימוש, והבדיקות עוברות
+- [x] commit
 
 ### Task 1: השלד והניווט
 
@@ -135,9 +135,9 @@ flowchart TB
 - `useRouteFocus(main: RefObject<HTMLElement | null>): void`
 - `ProfileMenu()`: משתמש ב-`Menu`, ‏`IconButton`, ‏`useAuth`.
 
-- [ ] בדיקות: "דלג לתוכן" הוא הראשון ב-Tab ומעביר פוקוס ל-`main`; ‏`nav` אחד עם ארבעה קישורים בסדר הנכון ו-`aria-current`; אין קישור "הגדרות" בניווט; התפריט מנווט ל-`/settings` ומתנתק; באונבורדינג אין `nav` ואין תפריט; מעבר בין מסכים מעביר פוקוס ל-`h1`, והפניה לא; שם חריג מציג אייקון
-- [ ] מימוש לפי סעיף 6 במסמך העיצוב, והבדיקות עוברות
-- [ ] commit
+- [x] בדיקות: "דלג לתוכן" הוא הראשון ב-Tab ומעביר פוקוס ל-`main`; ‏`nav` אחד עם ארבעה קישורים בסדר הנכון ו-`aria-current`; אין קישור "הגדרות" בניווט; התפריט מנווט ל-`/settings` ומתנתק; באונבורדינג אין `nav` ואין תפריט; מעבר בין מסכים מעביר פוקוס ל-`h1`, והפניה לא; שם חריג מציג אייקון
+- [x] מימוש לפי סעיף 6 במסמך העיצוב, והבדיקות עוברות
+- [x] commit
 
 ### Task 2: שדות
 
@@ -145,9 +145,9 @@ flowchart TB
 
 **ממשקים:** ה-props הקיימים נשארים. חדש: `Select({ label, value, options: readonly SelectOption[], onChange, description?, errorMessage?, isDisabled?, placeholder? })`, ו-`SelectOption { value: string; label: string }`.
 
-- [ ] בדיקות לכל רכיב: תפקיד, שם, מקלדת, שגיאה שמקושרת לשדה; ‏`Select` עם ערך שאינו ברשימה
-- [ ] מימוש לפי 5.4, אייקונים של lucide ב-`DatePicker`, והבדיקות עוברות (כולל `exam/`)
-- [ ] commit
+- [x] בדיקות לכל רכיב: תפקיד, שם, מקלדת, שגיאה שמקושרת לשדה; ‏`Select` עם ערך שאינו ברשימה
+- [x] מימוש לפי 5.4, אייקונים של lucide ב-`DatePicker`, והבדיקות עוברות (כולל `exam/`)
+- [x] commit
 
 ### Task 3: תצוגה ומצבים
 
@@ -162,9 +162,9 @@ flowchart TB
 - `Disclosure({ label, children, defaultExpanded? })`
 - `Skeleton({ className? })`, ‏`LoadingState({ shape?: 'list' | 'card' | 'text', rows?, label? })`, ‏`EmptyState({ icon, title, description?, action? })`, ‏`ErrorState({ message?, onRetry?, retryLabel? })`
 
-- [ ] בדיקות: תפקידים ושמות (`progressbar` עם `aria-valuetext`, ‏`status`, ‏`alert`), ‏`Disclosure` במקלדת, שורה עם `to` היא קישור והפקד שבקצה נלחץ בנפרד, טקסט ארוך
-- [ ] מימוש לפי 5.1, 5.2, 5.5, 5.6, והבדיקות עוברות
-- [ ] commit
+- [x] בדיקות: תפקידים ושמות (`progressbar` עם `aria-valuetext`, ‏`status`, ‏`alert`), ‏`Disclosure` במקלדת, שורה עם `to` היא קישור והפקד שבקצה נלחץ בנפרד, טקסט ארוך
+- [x] מימוש לפי 5.1, 5.2, 5.5, 5.6, והבדיקות עוברות
+- [x] commit
 
 ### Task 4: שכבות צפות
 
@@ -172,33 +172,66 @@ flowchart TB
 
 **ממשקים:** `Dialog({ title, description?, isOpen, onOpenChange, role?: 'dialog' | 'alertdialog', isDismissable?, children, footer? })`. ‏`useToast` לא משתנה.
 
-- [ ] בדיקות: דיאלוג עם שם מהכותרת, הפוקוס נכנס ונלכד, Escape סוגר, ‏`alertdialog` לא נסגר בלחיצה בחוץ; ל-toast כפתור סגירה עם שם נגיש
-- [ ] מימוש (sheet מתחת ל-`md`), ‏toast ב-`rounded-card shadow-overlay`, מעל הסרגל התחתון
-- [ ] commit
+- [x] בדיקות: דיאלוג עם שם מהכותרת, הפוקוס נכנס ונלכד, Escape סוגר, ‏`alertdialog` לא נסגר בלחיצה בחוץ; ל-toast כפתור סגירה עם שם נגיש
+- [x] מימוש (sheet מתחת ל-`md`), ‏toast ב-`rounded-card shadow-overlay`, מעל הסרגל התחתון
+- [x] commit
 
 ### Task 5: דף הרכיבים
 
 **קבצים:** `web/src/dev/ComponentsPage.tsx`, ‏`dev/devText.ts`, ‏`dev/ComponentsPage.test.tsx`, ‏`app/routes.tsx`.
 
-- [ ] בדיקה: ב-dev ה-route קיים, ולכל רכיב יש קטע עם כותרת
-- [ ] הדף: כל רכיב בכל המצבים (רגיל, כבוי, טעינה, שגיאה, נבחר), ב-RTL
-- [ ] מדידה: `npm run build`, ואז אין ב-`dist/` את הטקסט של הדף ואין chunk שלו; המספרים נרשמים כאן
-- [ ] commit
+- [x] בדיקה: ב-dev ה-route קיים, ולכל רכיב יש קטע עם כותרת
+- [x] הדף: כל רכיב בכל המצבים (רגיל, כבוי, טעינה, שגיאה, נבחר), ב-RTL
+- [x] מדידה: `npm run build`, ואז אין ב-`dist/` את הטקסט של הדף ואין chunk שלו; המספרים נרשמים כאן
+- [x] commit
 
 ### Task 6: מסמך העיצוב ו-`OnboardingGate` (השיחה הראשית)
 
-- [ ] `design-language.md`: לכל רכיב מתי משתמשים בו ודוגמת קוד; 5.3 (כפתור כבוי וטעינה); סעיף 6 (מה נבנה בפועל); סעיף 10 ל-S27 ול-S28: אילו קבצים להחליף ובמה
-- [ ] `OnboardingGate` עם `LoadingState` ו-`ErrorState`
-- [ ] commit
+- [x] `design-language.md`: לכל רכיב מתי משתמשים בו ודוגמת קוד; 5.3 (כפתור כבוי וטעינה); סעיף 6 (מה נבנה בפועל); סעיף 10 ל-S27 ול-S28: אילו קבצים להחליף ובמה
+- [x] `OnboardingGate` עם `LoadingState` ו-`ErrorState`
+- [x] commit
 
 ### Task 7: איחוד, סקירה, דפדפן וסגירה (השיחה הראשית)
 
-- [ ] כל הפקודות של `web/`, ובדיקות ה-API שלא נוגעות במסד
-- [ ] סקירת קוד ב-subagent, ותיקונים
-- [ ] build עם נתוני דמה בפורט אחר; צילומים של כל המסכים ב-390px וב-1280px ב-`~/studyflow-manager/s26-screens/`
-- [ ] `git fetch`, ‏rebase, ה-error boundary של S16 (אם ב-`main`), הבדיקות שוב, gitleaks, ‏push ל-`main`, מחיקת הענף
-- [ ] מפת הדרכים: "הושלם", שורת הבאג נסגרת, פריטים שנדחו נרשמים; סעיף 7.9 במסמך התכנון
+- [x] כל הפקודות של `web/`, ובדיקות ה-API שלא נוגעות במסד
+- [x] סקירת קוד ב-subagent, ותיקונים
+- [x] build עם נתוני דמה בפורט אחר; צילומים של כל המסכים ב-390px וב-1280px ב-`~/studyflow-manager/s26-screens/`
+- [x] `git fetch`, ‏rebase, ה-error boundary של S16 (אם ב-`main`), הבדיקות שוב, gitleaks, ‏push ל-`main`, מחיקת הענף
+- [x] מפת הדרכים: "הושלם", שורת הבאג נסגרת, פריטים שנדחו נרשמים; סעיף 7.9 במסמך התכנון
 
-## מה נעשה בפועל
+## מה נעשה בפועל (2026-11-17)
 
-(מתמלא בסוף.)
+**נבנה:** כל מה שבתוכנית, ועוד מה שהסקירה והדף הפנימי הראו שחסר.
+
+- **Task 0–4:** כמתוכנן. ארבעה subagents במקביל, כל אחד בקבצים שלו; אחרי האיחוד כל הבדיקות עברו חוץ מהבדיקה הצפויה של "יציאה".
+- **Task 5:** דף הרכיבים, 23 קטעים. **המדידה:** ב-`npm run build` אין ב-`dist/` את הנתיב `dev/components` (0 קבצים), אין את הטקסט של הדף (0), ואין chunk שלו (0). ‏JS ב-gzip: ‏336KB בסך הכול. ב-build במצב development יש chunk נפרד `ComponentsPage-*.js` של 47KB.
+- **Task 6:** מסמך העיצוב: 5.8 (טבלת "מתי משתמשים" ודוגמאות קוד), 6 (איך השלד בנוי), 10 (מה S27 ו-S28 מחליפים, לפי קובץ). ‏`OnboardingGate` עבר למצבים המשותפים.
+- **Task 7:** סקירת קוד ב-subagent החזירה 18 ממצאים, וכולם טופלו:
+  - **קריטי:** בשדה תאריך ריק, המקטע שבפוקוס היה אפור על כחול (כ-1.05:1). הסיבה: Tailwind 4 פולט את `data-[…]` לפי סדר האלף-בית של שם המאפיין, ולכן `placeholder` ניצח את `focused` בלי קשר לסדר המחלקות. התיקון הוא שרשור (`data-[focused]:data-[placeholder]:…`), והכלל נכתב במסמך העיצוב. אותה סיבה גרמה לעוד שלושה ממצאים (יום נבחר שאינו זמין, גבול של `Select` לא תקין בפוקוס, והגבול של `IconButton` משני).
+  - **נגישות:** טבעת פוקוס לאפשרויות של `Select` ולפריטי תפריט; ‏`document.title` חוזר לשם המוצר כשמסך בלי `PageHeader` עולה; חזרה אחורה בדפדפן לא קופצת לראש העמוד; ‏safe-area גם בצדדים (`px-page`, ‏`px-safe`).
+  - **מה שהיה חסר למסכים:** `TimeField`, ‏`CheckButton`, ‏`SectionHeading`, ‏`ButtonLink`; ‏`description` ו-`errorMessage` בכל שדה; ‏`Card title`; ‏`ListRow onPress` וכמה פקדים בקצה; ‏`Dialog onSubmit` ו-`isKeyboardDismissDisabled`; ‏`TextLink href`; ‏`ProgressBar` עם `aria-label`; ‏`Badge` שנחתך ולא מרחיב שורה.
+  - **שכבות:** ה-toast מעל הרקע של דיאלוג (`z-[60]`); הדיאלוג בגובה ה-visual viewport, כדי שהמקלדת של הטלפון לא תכסה אותו.
+
+**שינויים מהתוכנית:**
+
+- החלטה 13: ‏S18 מוזג באמצע העבודה (`1e400c4`). ה-rebase עבר בלי התנגשות, והבדיקה "sign out still works from /today" עודכנה לפתוח את תפריט הפרופיל. זו השורה היחידה שהשתנתה ב-`today/` וב-`board/`.
+- ה-error boundary של S16 לא ב-`main` בזמן המיזוג, ולכן העיצוב שלו נרשם ל-S29.
+- `TopicList.tsx` ו-`TaskRow.tsx` לא השתמשו ב-`SelectField` (רק `TaskForm.tsx`), ולכן שונה בהם רק ה-import של `Disclosure`.
+
+**מה נבדק:**
+
+- `web/`: ‏881 בדיקות ב-66 קבצים, ‏lint, ‏typecheck ו-build. ‏`api/`: ‏ruff, ‏format, ‏mypy, ו-1429 בדיקות (בלי `tests/db`, על `studyflow_test_s26`).
+- דפדפן: 15 מסכים ב-390px וב-1280px על build עם נתוני דמה בפורט 4226 (‏5173 של S16), ב-Chrome headless: 121 צילומים ב-`~/studyflow-manager/s26-screens/`. באף מסך אין גלילה אופקית ואין שגיאת קונסול. צולמו גם: תפריט הפרופיל, toast בתוך השלד, פוקוס על "דלג לתוכן" ועל הניווט, סקירת הבוקר, תצוגת הציר (כולל סוף הגלילה מעל הסרגל), דיאלוג "הזזה", התפריט של "שבוע", טלפון לרוחב, ובדף הרכיבים: דיאלוג, דיאלוג עם טופס, ‏`Select` במקלדת, תפריט במקלדת, לוח שנה, שדה תאריך ריק בפוקוס, שדה שעה, כפתור סימון, רשימה וכפתורים.
+- קובצי סביבת הצילום זמניים ולא בריפו; הם נשמרו ב-`~/studyflow-manager/s26-shots-harness/` לשימוש של S27–S29 (מעתיקים ל-`web/.shots/`).
+
+**מה לא נבדק:**
+
+- אייפון אמיתי: ‏safe-area, הסרגל מעל פס הבית, ה-sheet מול המקלדת, ומעבר בין מקטעי השעה בחצים. הכול נבדק רק ב-Chrome headless וב-jsdom.
+- קורא מסך (VoiceOver) ובדיקת axe: של S29.
+- התחברות אמיתית עם Google והשרת האמיתי: הצילומים על נתוני דמה.
+
+**נדחה, ונרשם במפת הדרכים:**
+
+- S29: עיצוב ה-error boundary של S16 בשפה החדשה; ‏"דלג לתוכן" במחשב נצמד לקצה החלון ולא לעמודה; ה-toast בטלפון צף כ-44px מעל הסרגל; ‏`theme-color` שיגיע עם S16 (`#1d4ed8`) אינו צבע המותג (`#2f5aa8`).
+- S27: התפריט של "שבוע" ו-`MoveDialog` בנויים ביד ועוברים ל-`ui/Menu` ול-`ui/Dialog`.
+- S28: המתג של ההגדרות (`ui/Switch`), והמסכים שמחוץ לשלד עם שוליים של 16px במקום 20px.

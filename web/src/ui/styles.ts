@@ -32,5 +32,10 @@ export const BUTTON_REST: Record<ButtonVariant, string> = {
 
 // The look of a button that is only an icon (IconButton, and the slotted buttons of the
 // DatePicker, which keep React Aria's own Hebrew labels and so cannot be an IconButton).
-// A disabled one gets the muted fill, like a disabled Button: its colour alone would not change.
-export const ICON_BUTTON_CLASS = `inline-flex size-touch shrink-0 cursor-pointer items-center justify-center rounded-control border border-transparent text-ink-muted transition-colors duration-(--duration-fast) ${FOCUS_RING} data-[hovered]:bg-surface-muted data-[hovered]:text-ink data-[pressed]:bg-surface-muted data-[disabled]:cursor-not-allowed data-[disabled]:bg-surface-muted`
+// The base holds no colour: two colour classes of the same property on one element are settled by
+// the order of the stylesheet, not of the class list, so each variant brings all of its own.
+export const ICON_BUTTON_BASE = `inline-flex size-touch shrink-0 cursor-pointer items-center justify-center rounded-control border transition-colors duration-(--duration-fast) ${FOCUS_RING} data-[disabled]:cursor-not-allowed`
+
+// quiet: no border and no fill. A disabled one gets the muted fill, like a disabled Button: its
+// colour alone would not change.
+export const ICON_BUTTON_CLASS = `${ICON_BUTTON_BASE} border-transparent text-ink-muted data-[hovered]:bg-surface-muted data-[hovered]:text-ink data-[pressed]:bg-surface-muted data-[disabled]:bg-surface-muted`
