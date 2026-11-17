@@ -13,6 +13,54 @@
   </head>
   <body class="min-h-dvh bg-slate-50 text-slate-900 antialiased">
     <div id="root"></div>
+    <!-- The boot fallback (S16): when the app's modules fail to load or throw before React mounts,
+         nothing else runs and the page stays white. This classic script does not depend on them: it
+         keeps the errors, and after 8 seconds with an empty #root it shows the crash message (texts
+         from he.ts, written in by vite.config.ts) with the errors and a reload button. Text only,
+         never markup. -->
+    <script>
+      (function () {
+        var texts = %BOOT_TEXTS%
+        var errors = []
+        window.addEventListener(
+          'error',
+          function (event) {
+            var target = event.target && event.target.tagName ? event.target : null
+            errors.push(target ? 'failed to load ' + (target.src || target.href) : event.message || 'error')
+          },
+          true,
+        )
+        window.addEventListener('unhandledrejection', function (event) {
+          var reason = event.reason
+          errors.push(String((reason && (reason.message || reason)) || 'rejection'))
+        })
+        setTimeout(function () {
+          var root = document.getElementById('root')
+          if (!root || root.childElementCount > 0) return
+          function add(parent, tag, text, style) {
+            var el = document.createElement(tag)
+            if (text) el.textContent = text
+            if (style) el.setAttribute('style', style)
+            parent.appendChild(el)
+            return el
+          }
+          var main = add(root, 'main', '', 'max-width:28rem;margin:0 auto;padding:4rem 1rem;text-align:center')
+          main.setAttribute('role', 'alert')
+          add(main, 'h1', texts.title, 'font-size:1.5rem;font-weight:700')
+          add(main, 'p', texts.body, 'margin-top:.5rem')
+          var button = add(main, 'button', texts.reload, 'margin-top:1.5rem;min-height:44px;padding:.5rem 1rem;border-radius:.5rem;background:#1d4ed8;color:#fff;font:inherit')
+          button.type = 'button'
+          button.addEventListener('click', function () {
+            location.reload()
+          })
+          if (errors.length > 0) {
+            var details = add(main, 'details', '', 'margin-top:2rem;text-align:start;font-size:.875rem')
+            add(details, 'summary', texts.details)
+            add(details, 'pre', errors.slice(0, 5).join('\n'), 'direction:ltr;white-space:pre-wrap;word-break:break-word;font-size:.75rem')
+          }
+        }, 8000)
+      })()
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

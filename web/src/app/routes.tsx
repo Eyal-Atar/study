@@ -13,6 +13,7 @@ import { WeekPage } from '../week/WeekPage'
 import { DeleteAccountPage } from '../settings/DeleteAccountPage'
 import { GoodbyePage } from '../settings/GoodbyePage'
 import { SettingsPage } from '../settings/SettingsPage'
+import { RouteCrash } from './AppErrorBoundary'
 import { AppShell } from './AppShell'
 import { OnboardingGate } from './OnboardingGate'
 
@@ -39,35 +40,42 @@ const devRoutes: RouteObject[] = import.meta.env.DEV
 
 // main.tsx passes these to createBrowserRouter, and the tests to createMemoryRouter.
 export const routes: RouteObject[] = [
-  { path: '/login', Component: LoginPage },
-  { path: AUTH_CALLBACK_PATH, Component: AuthCallbackPage },
-  { path: GOODBYE_PATH, Component: GoodbyePage },
-  // Every child of this layout route needs a signed-in user, and renders inside the app shell.
-  // OnboardingGate sends a user without a plan to the onboarding, and one with a plan away from it.
+  // A pathless root route, only for its ErrorBoundary: an error thrown inside any screen shows the
+  // Hebrew crash screen (S16) instead of the router's English one.
   {
-    Component: RequireAuth,
+    ErrorBoundary: RouteCrash,
     children: [
+      { path: '/login', Component: LoginPage },
+      { path: AUTH_CALLBACK_PATH, Component: AuthCallbackPage },
+      { path: GOODBYE_PATH, Component: GoodbyePage },
+      // Every child of this layout route needs a signed-in user, and renders inside the app shell.
+      // OnboardingGate sends a user without a plan to the onboarding, and one with a plan away from it.
       {
-        Component: AppShell,
+        Component: RequireAuth,
         children: [
           {
-            Component: OnboardingGate,
+            Component: AppShell,
             children: [
-              { index: true, element: <Navigate to={TODAY_PATH} replace /> },
-              { path: TODAY_PATH, Component: TodayPage },
-              { path: WEEK_PATH, Component: WeekPage },
-              { path: EXAMS_PATH, Component: ExamsPage },
-              { path: `${EXAMS_PATH}/:examId`, Component: ExamPage },
-              { path: PROGRESS_PATH, Component: ProgressPage },
-              { path: SETTINGS_PATH, Component: SettingsPage },
-              { path: DELETE_ACCOUNT_PATH, Component: DeleteAccountPage },
-              ...onboardingRoutes,
+              {
+                Component: OnboardingGate,
+                children: [
+                  { index: true, element: <Navigate to={TODAY_PATH} replace /> },
+                  { path: TODAY_PATH, Component: TodayPage },
+                  { path: WEEK_PATH, Component: WeekPage },
+                  { path: EXAMS_PATH, Component: ExamsPage },
+                  { path: `${EXAMS_PATH}/:examId`, Component: ExamPage },
+                  { path: PROGRESS_PATH, Component: ProgressPage },
+                  { path: SETTINGS_PATH, Component: SettingsPage },
+                  { path: DELETE_ACCOUNT_PATH, Component: DeleteAccountPage },
+                  ...onboardingRoutes,
+                ],
+              },
             ],
           },
         ],
       },
+      ...devRoutes,
+      { path: '*', Component: NotFoundPage },
     ],
   },
-  ...devRoutes,
-  { path: '*', Component: NotFoundPage },
 ]

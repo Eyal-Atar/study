@@ -2,6 +2,8 @@ import { StrictMode, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
+import { App } from './app/App'
+import { AppErrorBoundary } from './app/AppErrorBoundary'
 import { AppProviders } from './app/AppProviders'
 import { createAppApi } from './app/createAppApi'
 import { createQueryClient } from './app/queryClient'
@@ -39,5 +41,13 @@ if (root === null) {
   throw new Error('index.html has no #root element')
 }
 
-createRoot(root).render(<StrictMode>{createApp()}</StrictMode>)
+// AppErrorBoundary above every provider: an error while rendering shows a Hebrew message with a
+// reload button, not a white page. The boot fallback in index.html covers a failure before this runs.
+createRoot(root).render(
+  <StrictMode>
+    <AppErrorBoundary>
+      <App create={createApp} />
+    </AppErrorBoundary>
+  </StrictMode>,
+)
 registerServiceWorker()

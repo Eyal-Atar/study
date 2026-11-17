@@ -5,16 +5,18 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
 import { findSecretKeys } from './src/config/env.ts'
 import { manifest } from './src/pwa/manifest.ts'
+import { fillBootTexts } from './src/pwa/bootTexts.ts'
 import { PRODUCT_NAME } from './src/product.ts'
 
-// Writes the product name into index.html, so it is written only in src/product.ts.
+// Writes the product name into index.html, so it is written only in src/product.ts, and the boot
+// fallback's texts from he.ts (src/pwa/bootTexts.ts).
 // 'pre' runs before Vite's own %ENV% replacement, which would warn about an unknown variable.
 function productName(): Plugin {
   return {
     name: 'product-name',
     transformIndexHtml: {
       order: 'pre',
-      handler: (html) => html.replaceAll('%PRODUCT_NAME%', PRODUCT_NAME),
+      handler: (html) => fillBootTexts(html.replaceAll('%PRODUCT_NAME%', PRODUCT_NAME)),
     },
   }
 }
@@ -45,6 +47,10 @@ export default defineConfig(({ mode }) => {
         filename: 'sw.ts',
         injectRegister: false,
         manifest,
+        // <link rel="manifest" crossorigin="use-credentials">: a manifest request carries no cookies by
+        // default, so behind a gate that relies on one (ngrok's warning page in the iPhone test) the
+        // browser got HTML instead of the manifest and could not install the app.
+        useCredentials: true,
         // The plugin precaches the manifest and its icons; this adds the notification badge and
         // the apple-touch-icon (duplicates are dropped), so every icon works offline.
         includeAssets: ['icons/*.png'],

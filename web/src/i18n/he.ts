@@ -1,4 +1,5 @@
 import { PRODUCT_NAME } from '../product'
+import { heCrash } from './heCrash'
 import { hePwa } from './hePwa'
 
 // A name the user typed (an exam, a file) can be in any language: First Strong Isolate and Pop
@@ -25,6 +26,8 @@ export const he = {
     // S26
     choose: 'בחירה',
   },
+  // S16: the crash screen (AppErrorBoundary, and the boot fallback in index.html); texts in heCrash.ts.
+  crash: heCrash,
   shell: {
     signOut: 'יציאה',
     mainNav: 'ניווט ראשי',
