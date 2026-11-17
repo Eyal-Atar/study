@@ -25,6 +25,18 @@ export const DELETE_ACCOUNT_PATH = '/settings/delete-account'
 // Outside RequireAuth: the page a deleted account lands on, signed out.
 export const GOODBYE_PATH = '/goodbye'
 
+// Only in the dev build: Vite replaces import.meta.env.DEV with false in a production build, so the
+// branch, the import() and the page's chunk are all dropped. Outside RequireAuth, so the page opens
+// without signing in and without data.
+const devRoutes: RouteObject[] = import.meta.env.DEV
+  ? [
+      {
+        path: '/dev/components',
+        lazy: async () => ({ Component: (await import('../dev/ComponentsPage')).ComponentsPage }),
+      },
+    ]
+  : []
+
 // main.tsx passes these to createBrowserRouter, and the tests to createMemoryRouter.
 export const routes: RouteObject[] = [
   { path: '/login', Component: LoginPage },
@@ -56,5 +68,6 @@ export const routes: RouteObject[] = [
       },
     ],
   },
+  ...devRoutes,
   { path: '*', Component: NotFoundPage },
 ]
