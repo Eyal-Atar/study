@@ -82,13 +82,18 @@ describe('TaskList', () => {
     expect(item).toHaveTextContent(`${t.kinds.learn}, ${t.minutes(60)}. ${t.focus(7)}. `)
     expect(item).not.toHaveTextContent('·')
     expect(item).toHaveTextContent(t.next(momentIn(blockFixture().starts_at, BROWSER_ZONE)))
-    const disclosure = within(item).getByRole('button', { name: t.reason })
-    expect(disclosure).toHaveAttribute('aria-expanded', 'false')
-    expect(within(item).queryByText('מופיע בכל מבחן עבר.')).not.toBeVisible()
-    await user.click(disclosure)
+    // The reason opens from the row's menu, and closes from it.
+    expect(within(item).queryByText('מופיע בכל מבחן עבר.')).not.toBeInTheDocument()
+    await user.click(within(item).getByRole('button', { name: t.actionsNamed('גבולות') }))
+    await user.click(await screen.findByRole('menuitem', { name: t.reason }))
     expect(within(item).getByText('מופיע בכל מבחן עבר.')).toBeVisible()
+    await user.click(within(item).getByRole('button', { name: t.actionsNamed('גבולות') }))
+    await user.click(await screen.findByRole('menuitem', { name: t.hideReason }))
+    expect(within(item).queryByText('מופיע בכל מבחן עבר.')).not.toBeInTheDocument()
     // A user task has no reason to show.
-    expect(within(row('שאלות של המתרגל')).queryByRole('button', { name: t.reason })).not.toBeInTheDocument()
+    await user.click(within(row('שאלות של המתרגל')).getByRole('button', { name: t.actionsNamed('שאלות של המתרגל') }))
+    await screen.findByRole('menuitem', { name: t.edit })
+    expect(screen.queryByRole('menuitem', { name: t.reason })).not.toBeInTheDocument()
   })
 
   it('marks a done task and offers to take it back to todo', async () => {
@@ -280,9 +285,10 @@ describe('TaskList', () => {
     const user = userEvent.setup()
     const fake = await open()
     const item = row('גבולות')
-    within(item).getByRole('button', { name: t.reason }).focus()
-    await user.tab()
-    expect(within(item).getByRole('button', { name: t.markDoneNamed('גבולות') })).toHaveFocus()
+    // The check is the first control of the row (the title is not one), and the menu the second.
+    const controls = within(item).getAllByRole('button')
+    expect(controls[0]).toBe(within(item).getByRole('button', { name: t.markDoneNamed('גבולות') }))
+    controls[0]?.focus()
     await user.tab()
     expect(within(item).getByRole('button', { name: t.actionsNamed('גבולות') })).toHaveFocus()
     await user.keyboard('{Enter}')

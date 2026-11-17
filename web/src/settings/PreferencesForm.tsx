@@ -8,7 +8,6 @@ import { Button } from '../ui/Button'
 import { CheckboxCards } from '../ui/CheckboxCards'
 import { Note } from '../ui/Note'
 import { RadioCards, type ChoiceOption } from '../ui/RadioCards'
-import { SectionHeading } from '../ui/SectionHeading'
 import { Switch } from '../ui/Switch'
 import { TimeField } from '../ui/TimeField'
 import { useToast } from '../ui/useToast'
@@ -140,15 +139,18 @@ function serverFieldErrors(error: unknown): FieldErrors | null {
   return Object.keys(found).length > 0 ? found : null
 }
 
-// One of the four groups of the form: a quiet h3 over its fields, set apart from the group above
-// it by a thin line and air (no card: the settings screen has one card, the danger zone).
-function Group({ title, children }: { title: string; children: ReactNode }) {
+// One of the four groups of the form: its name over its fields, set apart from the group above it
+// by a thin line and air (no card: the settings screen has one card, the danger zone). The name is
+// an h3 in the size and weight of a row title, one step above the labels of the fields, so the
+// screen reads section (quiet h2), group, field. `hiddenTitle`: the first control of the group
+// already says the name (the switch "זמן לעצמי כל יום"), so the heading is for the outline only.
+function Group({ title, hiddenTitle = false, children }: { title: string; hiddenTitle?: boolean; children: ReactNode }) {
   const headingId = useId()
   return (
     <div role="group" aria-labelledby={headingId} className="flex flex-col gap-4 border-t border-line pt-6 first:border-t-0 first:pt-0">
-      <SectionHeading level={3} id={headingId}>
+      <h3 id={headingId} className={hiddenTitle ? 'sr-only' : 'text-body font-semibold text-ink'}>
         {title}
-      </SectionHeading>
+      </h3>
       {children}
     </div>
   )
@@ -275,7 +277,7 @@ export function PreferencesForm({ me }: { me: Me }) {
         />
       </Group>
 
-      <Group title={t.groups.hobby}>
+      <Group title={t.groups.hobby} hiddenTitle>
         <Switch
           label={t.hobbyLabel}
           description={t.hobbyHint}
@@ -286,14 +288,17 @@ export function PreferencesForm({ me }: { me: Me }) {
         />
         {values.hobbyOn ? (
           <>
-            <TimeField
-              label={t.hobbyStart}
-              value={values.hobbyStart}
-              onChange={(value) => {
-                if (value !== '') set('hobbyStart', value, 'hobby_start')
-              }}
-              errorMessage={errors.hobby_start}
-            />
+            {/* Half the row, like the wake and sleep times above: a time does not need the whole width. */}
+            <div className="grid grid-cols-2 gap-3">
+              <TimeField
+                label={t.hobbyStart}
+                value={values.hobbyStart}
+                onChange={(value) => {
+                  if (value !== '') set('hobbyStart', value, 'hobby_start')
+                }}
+                errorMessage={errors.hobby_start}
+              />
+            </div>
             <RadioCards
               label={t.hobbyMinutes}
               options={choices(HOBBY_LENGTHS, me.hobby_minutes ?? HOBBY_DEFAULT_MINUTES, he.settings.duration)}

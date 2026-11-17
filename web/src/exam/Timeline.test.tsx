@@ -74,8 +74,9 @@ describe('Timeline', () => {
     expect(tomorrow.querySelector('[data-mark="done"]')).toBeNull()
     // A day with nothing planned is a short tick, not a bar.
     expect(dayItem(addDays(TODAY, 2)).querySelector('[data-mark="none"]')).toHaveClass('bg-line')
-    // Columns of 48px.
-    expect(today).toHaveClass('w-12', 'shrink-0')
+    // The width of a column.
+    // A week (seven columns) fits a 390px phone without scrolling: at least 44px each, growing to share the box.
+    expect(today).toHaveClass('min-w-11', 'flex-1')
   })
 
   it('today says "היום" in words; the exam day and the rest day are icons with no text that can wrap', () => {

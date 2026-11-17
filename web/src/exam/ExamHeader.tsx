@@ -54,7 +54,7 @@ function EditForm({ exam, today, onDone }: { exam: Exam; today: string; onDone: 
   }
 
   return (
-    <Card title={t.header.editLabel}>
+    <Card title={t.header.editLabel} className="md:max-w-xl">
       <Form
         aria-label={t.header.editLabel}
         validationBehavior="aria"

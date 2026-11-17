@@ -168,7 +168,7 @@ export function ExamsStep() {
 
   return (
     <OnboardingLayout step={1} title={t.title} intro={t.intro} actions={actions}>
-      <Card>
+      <Card className="md:max-w-xl">
         <Form
           validationBehavior="aria"
           onSubmit={(event) => {

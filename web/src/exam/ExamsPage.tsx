@@ -45,7 +45,7 @@ function NewExamForm({ today, onCancel }: { today: string; onCancel: () => void 
   }
 
   return (
-    <Card title={t.list.formTitle}>
+    <Card title={t.list.formTitle} className="md:max-w-xl">
       <Form
         aria-label={t.list.formTitle}
         validationBehavior="aria"

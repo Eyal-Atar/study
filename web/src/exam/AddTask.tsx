@@ -68,7 +68,7 @@ export function AddTask({ examId, topics }: { examId: string; topics: readonly T
   }
 
   return (
-    <Card title={t.addTitle} titleLevel={3}>
+    <Card title={t.addTitle} titleLevel={3} className="md:max-w-xl">
       <TaskForm
         label={t.addTitle}
         initial={NEW_TASK_DRAFT}

@@ -45,7 +45,7 @@ function Day({ info, max }: { info: DayInfo; max: number }) {
   const donePx = info.planned === 0 ? 0 : Math.round((info.done / info.planned) * plannedPx)
   return (
     // The visible column is a picture of the label; a screen reader reads the label once.
-    <li aria-label={dayLabel(info)} className="flex w-12 shrink-0 flex-col items-center gap-1 py-2">
+    <li aria-label={dayLabel(info)} className="flex max-w-16 min-w-11 flex-1 flex-col items-center gap-1 py-2">
       {/* "היום" in words, not only in colour. */}
       <span
         aria-hidden="true"
@@ -55,7 +55,7 @@ function Day({ info, max }: { info: DayInfo; max: number }) {
       </span>
       <span aria-hidden="true" className="flex w-full items-end justify-center" style={{ height: BAR_MAX_PX }}>
         {info.isExam ? (
-          // An icon and no words: "יום המבחן" does not fit a 48px column, and used to wrap.
+          // An icon and no words: "יום המבחן" does not fit a narrow column, and used to wrap.
           <Flag aria-hidden="true" data-mark="exam" size={18} strokeWidth={ICON_STROKE} className="text-brand" />
         ) : info.isRest ? (
           <Coffee aria-hidden="true" data-mark="rest" size={18} strokeWidth={ICON_STROKE} className="text-ink-muted" />
@@ -148,7 +148,7 @@ export function Timeline({
         <p className="text-body text-ink-muted">{t.noDays}</p>
       ) : (
         <div className="overflow-x-auto rounded-card border border-line bg-surface px-2 py-1">
-          <ol aria-label={t.listLabel} className="flex gap-1">
+          <ol aria-label={t.listLabel} className="flex">
             {days.map((info) => (
               <Day key={info.day} info={info} max={max} />
             ))}

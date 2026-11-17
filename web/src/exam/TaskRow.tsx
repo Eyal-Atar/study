@@ -1,14 +1,14 @@
-import { Ellipsis, Pencil, SkipForward, Trash2, Undo2 } from 'lucide-react'
+import { Ellipsis, Info, Pencil, SkipForward, Trash2, Undo2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { errorMessage } from '../api/client'
 import { he } from '../i18n/he'
 import type { Block } from '../onboarding/types'
 import { Badge } from '../ui/Badge'
 import { CheckButton } from '../ui/CheckButton'
-import { Disclosure } from '../ui/Disclosure'
 import { IconButton } from '../ui/IconButton'
 import { ListRow } from '../ui/List'
 import { Menu, MenuItem } from '../ui/Menu'
+import { Note } from '../ui/Note'
 import { ICON_STROKE } from '../ui/styles'
 import { useToast } from '../ui/useToast'
 import { useUpdateTask } from './api'
@@ -44,6 +44,7 @@ export function TaskRow({
   const toast = useToast()
   const feedback = usePlacementFeedback()
   const [editing, setEditing] = useState(false)
+  const [showReason, setShowReason] = useState(false)
   // ui/Button and ui/IconButton take no ref, so the ref is on a wrapper that adds no box
   // (display: contents) and the button is found inside it.
   const menuWrap = useRef<HTMLSpanElement>(null)
@@ -123,7 +124,7 @@ export function TaskRow({
               </>
             )}
           </p>
-          {hasReason ? <Disclosure label={t.reason}>{task.reason}</Disclosure> : null}
+          {hasReason && showReason ? <Note className="mt-2">{task.reason}</Note> : null}
         </>
       }
       trailing={
@@ -156,6 +157,18 @@ export function TaskRow({
               >
                 {t.edit}
               </MenuItem>
+              {/* The reason is a detail most students do not need: it opens from the menu, so a
+                  row is two lines and the list has no link on every row. */}
+              {hasReason ? (
+                <MenuItem
+                  icon={Info}
+                  onAction={() => {
+                    setShowReason((shown) => !shown)
+                  }}
+                >
+                  {showReason ? t.hideReason : t.reason}
+                </MenuItem>
+              ) : null}
               {finished ? (
                 <MenuItem
                   icon={Undo2}

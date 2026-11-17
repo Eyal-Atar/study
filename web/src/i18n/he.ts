@@ -556,6 +556,7 @@ export const he = {
       // The subtitle of a row: "לימוד, 60 דקות. ריכוז 3/10".
       details: (kind: string, minutes: string, focus: string) => `${kind}, ${minutes}. ${focus}`,
       reason: 'למה המשימה הזו?',
+      hideReason: 'הסתרת ההסבר',
       skip: 'דילוג',
       backToTodo: 'החזרה לביצוע',
       edit: 'עריכה',
