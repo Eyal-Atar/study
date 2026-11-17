@@ -7,7 +7,6 @@ import { makeBlock, makeMe, makePlan, makeToday, renderBoard } from '../test/boa
 import { createFakeApi } from '../test/fakeApi'
 import { NextBlock } from '../today/NextBlock'
 import { List } from '../ui/List'
-import { BlockCard } from './BlockCard'
 import { blockName } from './blockName'
 import { BlockRow } from './BlockRow'
 import type { Block, BlockState } from './types'
@@ -339,17 +338,6 @@ describe('BlockRow', () => {
     const text = screen.getByText(title)
     expect(text).toHaveClass('break-words')
     expect(text.parentElement).toHaveClass('min-w-0')
-  })
-
-  it('the BlockCard shim draws the same row, whatever the variant', () => {
-    const block = planned('upcoming')
-    setup(
-      <List>
-        <BlockCard block={block} tz={TZ} variant="compact" />
-      </List>,
-      [block],
-    )
-    expect(names(rowEl())).toEqual([he.board.actionsLabel(TITLE), he.board.completeLabel(TITLE)])
   })
 })
 

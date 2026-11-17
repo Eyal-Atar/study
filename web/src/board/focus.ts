@@ -8,7 +8,7 @@ import { useCallback, useLayoutEffect, type RefObject } from 'react'
 //
 // An action asks with requestFocus(blockId) once it settled (asking at the start would let the
 // card take the request at once, while the pressed button is still there, and lose it again when
-// the button is replaced); every BlockCard checks after each render whether the request is for its
+// the button is replaced); every BlockRow and NextBlock checks after each render whether the request is for its
 // block, and takes it once it has an enabled button (until the pending state clears, its buttons are
 // disabled) that does not already have the focus. A request no card takes expires, so a card that shows up much later does not grab the
 // focus. `origin` is what had the focus when the user started the action: the focus may move only
