@@ -8,6 +8,7 @@ import { UNDO_TIMEOUT_MS, useToast } from '../ui/useToast'
 import { boardKey, todayKey, useBoardUserId } from './api'
 import { requestFocus } from './focus'
 import { useOfferReplan } from './offerReplan'
+import { completeText } from './progressText'
 import { blockMinutes, dateIn, dayLabel, formatTime, useProfileTimezone } from './time'
 import type { Block, BlockState, CompleteResult, DeferResult, Today } from './types'
 
@@ -181,7 +182,7 @@ export function useBlockActions(): BlockActions {
       fail(error)
     },
     onSuccess: (result) => {
-      undoToast(he.board.completed, () => {
+      undoToast(completeText(result, false), () => {
         uncompleteMutation.mutate(started(result.block))
       })
     },
@@ -197,7 +198,7 @@ export function useBlockActions(): BlockActions {
       fail(error)
     },
     onSuccess: (result) => {
-      undoToast(he.board.uncompleted, () => {
+      undoToast(completeText(result, true), () => {
         completeMutation.mutate(started(result.block))
       })
     },

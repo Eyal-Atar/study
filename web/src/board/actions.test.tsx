@@ -99,8 +99,15 @@ describe('useBlockActions', () => {
     expect(fake.calls('POST', '/blocks/block-1/complete')).toHaveLength(1)
 
     state.block = makeBlock({ status: 'done', state: 'done' })
-    answer.resolve({ block: state.block, task_status: 'done' })
-    expect(await (await toasts()).findByText(he.board.completed)).toBeInTheDocument()
+    answer.resolve({
+      block: state.block,
+      task_status: 'done',
+      progress: { xp_change: 15, total_xp: 115, level: 2, level_up: true, badges_earned: [], badges_lost: [] },
+    })
+    // S19's progress in the toast: the XP and the new level.
+    expect(
+      await (await toasts()).findByText(`${he.board.completed} · ${he.board.xpGained(15)} · ${he.board.levelUp(2)}`),
+    ).toBeInTheDocument()
     await waitFor(() => {
       expect(fake.calls('GET', '/today').length).toBeGreaterThan(todayCalls)
       expect(fake.calls('GET', /^\/plan/).length).toBeGreaterThan(planCalls)

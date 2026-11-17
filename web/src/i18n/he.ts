@@ -302,6 +302,12 @@ export const he = {
     actionsLabel: (title: string) => `פעולות: ${title}`,
     completed: 'סומן כבוצע',
     uncompleted: 'הסימון בוטל',
+    // S18: what the "done" toast adds from S19's progress, joined to the text above with " · ".
+    // In words, not "+10 XP", so the sign does not jump sides in RTL.
+    xpGained: (xp: number) => `קיבלתם ${String(xp)} XP`,
+    xpLost: (xp: number) => `ירדו ${String(xp)} XP`,
+    levelUp: (level: number) => `עליתם לרמה ${String(level)}`,
+    badgeEarned: (names: string) => `תג חדש: ${names}`,
     pinnedDone: 'הבלוק ננעל במקומו',
     unpinnedDone: 'הנעילה שוחררה',
     deferred: (day: string, time: string) => `נדחה ל${day} בשעה ${time}`,

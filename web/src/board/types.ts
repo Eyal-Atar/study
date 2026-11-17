@@ -101,9 +101,21 @@ export interface ExamSummary {
 }
 
 // POST /blocks/{id}/complete and /uncomplete
+// S19: what one complete or uncomplete changed in XP, level and badges (api/app/schemas/progress.py).
+export interface ProgressChange {
+  xp_change: number
+  total_xp: number
+  level: number
+  level_up: boolean
+  badges_earned: string[]
+  badges_lost: string[]
+}
+
 export interface CompleteResult {
   block: Block
   task_status: string
+  // Absent only from an API older than S19.
+  progress?: ProgressChange
 }
 
 // POST /blocks/{id}/defer: the task's done blocks and its planned blocks that did not end yet.
