@@ -23,8 +23,8 @@ const DESTINATIONS: readonly { to: string; label: string; icon: LucideIcon }[] =
 // fixed to the bottom of the screen (above the home indicator), and from md it sits in the header
 // row, next to the name.
 const NAV = cx(
-  'fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]',
-  'md:static md:z-auto md:border-t-0 md:bg-transparent md:pb-0',
+  'fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-surface px-safe pb-[env(safe-area-inset-bottom)]',
+  'md:static md:z-auto md:border-t-0 md:bg-transparent md:px-0 md:pb-0',
 )
 
 // A destination. On a phone: a column, the icon over a caption, sharing the width of the bar, in a
@@ -74,7 +74,7 @@ export function AppShell() {
           {he.shell.skipToContent}
         </a>
         <header className="border-b border-line bg-surface">
-          <div className="mx-auto flex min-h-14 max-w-3xl items-center gap-4 px-gutter">
+          <div className="mx-auto flex min-h-14 max-w-3xl items-center gap-4 px-page">
             <span className="text-body font-semibold">{he.appName}</span>
             {/* During the onboarding there is no board yet, and the gate sends every screen back:
                 the header has only the name. */}
@@ -105,7 +105,7 @@ export function AppShell() {
           id="main"
           ref={main}
           tabIndex={-1}
-          className="mx-auto w-full max-w-3xl px-gutter py-section pb-[calc(7rem+env(safe-area-inset-bottom))] outline-none md:pb-12"
+          className="mx-auto w-full max-w-3xl px-page py-section pb-[calc(7rem+env(safe-area-inset-bottom))] outline-none md:pb-12"
         >
           <Outlet />
         </main>

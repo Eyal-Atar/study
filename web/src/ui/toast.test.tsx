@@ -120,7 +120,8 @@ describe('toast', () => {
     const region = screen.getByRole('region', { name: he.common.notifications })
     const item = screen.getByRole('alertdialog')
     expect(item).toHaveClass('rounded-card', 'shadow-overlay', 'min-h-14')
-    expect(region).toHaveClass('fixed', 'z-50', 'bottom-[calc(env(safe-area-inset-bottom)+6rem)]', 'md:bottom-4')
+    // Above the scrim of a dialog (z-50): an undo toast must stay pressable when a dialog opens.
+    expect(region).toHaveClass('fixed', 'z-[60]', 'bottom-[calc(env(safe-area-inset-bottom)+6rem)]', 'md:bottom-4')
     // Nothing is left of the look from before the design language.
     expect(region.outerHTML).not.toMatch(/\b(shadow-lg|rounded-lg|text-sm|font-medium)\b/)
   })

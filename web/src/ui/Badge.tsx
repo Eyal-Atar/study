@@ -18,6 +18,13 @@ const TONES = {
 
 // A badge is for a state, and always has words: colour alone carries nothing. What is not a state
 // (the name of the exam, "נעול") is text in the subtitle of the row (design language 5.5).
+// It is always one line. In a place narrower than its words (the end of a row on a phone) it is
+// cut with an ellipsis instead of widening what holds it: max-w-full needs a block box, hence
+// inline-block, and align-middle keeps it on the line of the text beside it.
 export function Badge({ tone, children }: BadgeProps) {
-  return <span className={cx('inline-flex items-center rounded-badge px-2 text-small font-semibold whitespace-nowrap', TONES[tone])}>{children}</span>
+  return (
+    <span className={cx('inline-block max-w-full truncate rounded-badge px-2 align-middle text-small font-semibold', TONES[tone])}>
+      {children}
+    </span>
+  )
 }

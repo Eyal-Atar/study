@@ -89,6 +89,12 @@ describe('EmptyState', () => {
     expect(screen.getByText('אין משימות להיום')).toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
+
+  it('draws no icon when none is given', () => {
+    const { container } = render(<EmptyState title="אין משימות להיום" description="אפשר לנוח." />)
+    expect(screen.getByText('אין משימות להיום')).toBeInTheDocument()
+    expect(container.querySelector('svg')).toBeNull()
+  })
 })
 
 describe('ErrorState', () => {

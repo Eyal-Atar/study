@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
+import { TextField } from '../ui/TextField'
 import { useToast } from '../ui/useToast'
 import { devText } from './devText'
 import { Example, ROW, Section } from './Section'
@@ -11,6 +12,10 @@ const t = devText
 export function DialogSection() {
   const [isRegularOpen, setRegularOpen] = useState(false)
   const [isAlertOpen, setAlertOpen] = useState(false)
+  const [isFormOpen, setFormOpen] = useState(false)
+  const [name, setName] = useState<string>(t.dialog.formValue)
+  const [isNameMissing, setNameMissing] = useState(false)
+  const toast = useToast()
   return (
     <Section id="dialog">
       <Example caption={t.dialog.regular}>
@@ -89,6 +94,55 @@ export function DialogSection() {
             </>
           }
         />
+      </Example>
+      <Example caption={t.dialog.form}>
+        <Button
+          variant="secondary"
+          onPress={() => {
+            setFormOpen(true)
+          }}
+        >
+          {t.dialog.openForm}
+        </Button>
+        {/* onSubmit makes the body a form: Enter in the field and the submit button both land here. */}
+        <Dialog
+          title={t.dialog.formTitle}
+          isOpen={isFormOpen}
+          onOpenChange={setFormOpen}
+          onSubmit={() => {
+            if (name.trim() === '') {
+              setNameMissing(true)
+              return
+            }
+            setFormOpen(false)
+            toast.show({ text: `${t.dialog.formSaved} ${name.trim()}`, tone: 'success' })
+          }}
+          footer={
+            <>
+              <Button type="submit" className="flex-1">
+                {he.common.save}
+              </Button>
+              <Button
+                variant="secondary"
+                onPress={() => {
+                  setFormOpen(false)
+                }}
+              >
+                {he.common.cancel}
+              </Button>
+            </>
+          }
+        >
+          <TextField
+            label={t.dialog.formField}
+            value={name}
+            onChange={(value) => {
+              setName(value)
+              setNameMissing(false)
+            }}
+            errorMessage={isNameMissing ? t.dialog.formError : undefined}
+          />
+        </Dialog>
       </Example>
     </Section>
   )

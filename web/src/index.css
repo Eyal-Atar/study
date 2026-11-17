@@ -127,6 +127,18 @@ body {
   font-synthesis: none;
 }
 
+/* index.html asks for viewport-fit=cover, so on a phone with a notch the page runs under it, also
+   at the sides when the phone is held sideways. px-page is the side padding of every page column:
+   the gutter, or the safe area when that is wider. px-safe is the safe area alone, for a bar that
+   touches the edges of the screen (the bottom navigation). */
+@utility px-page {
+  padding-inline: max(var(--spacing-gutter), env(safe-area-inset-left), env(safe-area-inset-right));
+}
+
+@utility px-safe {
+  padding-inline: max(env(safe-area-inset-left), env(safe-area-inset-right));
+}
+
 /* The targets of a focus that code moves (the h1 of a screen after a navigation, <main> after
    "דלג לתוכן"): they are not controls and Tab cannot reach them, so they show no ring. */
 main[tabindex='-1']:focus,

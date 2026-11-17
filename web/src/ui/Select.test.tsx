@@ -175,4 +175,49 @@ describe('Select', () => {
     expect(trigger.className).toContain('group-data-[invalid]:border-danger')
     expect(screen.getByText('צריך לבחור סוג').className).toContain('text-danger')
   })
+
+  it('the keyboard focus in the list is a brand ring, also on the chosen option', async () => {
+    const user = userEvent.setup()
+    setup()
+
+    await user.tab()
+    await user.keyboard('{Enter}')
+    const options = screen.getAllByRole('option')
+    // The chosen option gets the focus first: its fill is the chosen one, so only the ring says focus.
+    expect(options[0]).toHaveFocus()
+    expect(options[0]).toHaveAttribute('data-selected', 'true')
+    expect(options[0]).toHaveAttribute('data-focus-visible', 'true')
+    for (const part of [
+      'data-[focus-visible]:ring-2',
+      'data-[focus-visible]:ring-brand',
+      'data-[focus-visible]:ring-inset',
+      'data-[focused]:bg-surface-muted',
+    ]) {
+      expect(options[0]?.className).toContain(part)
+    }
+    await user.keyboard('{ArrowDown}')
+    expect(options[1]).toHaveAttribute('data-focus-visible', 'true')
+    expect(options[0]).not.toHaveAttribute('data-focus-visible')
+  })
+
+  it('a pointer does not draw the ring on an option', async () => {
+    const user = userEvent.setup()
+    const { trigger } = setup()
+
+    await user.click(trigger)
+    await user.hover(screen.getByRole('option', { name: 'תרגול' }))
+    expect(screen.getByRole('option', { name: 'תרגול' })).not.toHaveAttribute('data-focus-visible')
+  })
+
+  it('invalid and focused keeps the danger border, like a TextField', async () => {
+    const user = userEvent.setup()
+    const { trigger } = setup({ errorMessage: 'צריך לבחור סוג' })
+
+    await user.tab()
+    expect(trigger).toHaveAttribute('data-focus-visible', 'true')
+    expect(trigger.closest('[data-invalid]')).not.toBeNull()
+    // Stacked, so it is more specific than data-[focus-visible]:border-brand.
+    expect(trigger.className).toContain('group-data-[invalid]:data-[focus-visible]:border-danger')
+    expect(trigger.className).toContain('data-[focus-visible]:ring-brand')
+  })
 })

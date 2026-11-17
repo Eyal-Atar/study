@@ -44,6 +44,11 @@ const PAIRS: [string, string][] = [
   ['success', 'success-soft'],
   ['ink', 'warning-soft'],
   ['warning', 'warning-soft'],
+  // The quiet action button of a toast ("בטל") on the soft background of a success or error toast.
+  ['brand', 'success-soft'],
+  ['brand', 'danger-soft'],
+  ['brand-strong', 'success-soft'],
+  ['brand-strong', 'danger-soft'],
 ]
 
 // WCAG 1.4.11 for the parts of controls (field and choice borders, the focus ring, the filled

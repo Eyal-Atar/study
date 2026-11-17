@@ -68,3 +68,25 @@ describe('IconButton', () => {
     expect(onPress).toHaveBeenCalledOnce()
   })
 })
+
+describe('ButtonLink', () => {
+  it('is a link with the look of a button, reachable with Tab', async () => {
+    const { MemoryRouter } = await import('react-router')
+    const { ButtonLink } = await import('./ButtonLink')
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <ButtonLink to="/settings/delete-account" variant="danger">
+          מחיקת חשבון
+        </ButtonLink>
+      </MemoryRouter>,
+    )
+    const link = screen.getByRole('link', { name: 'מחיקת חשבון' })
+    expect(link).toHaveAttribute('href', '/settings/delete-account')
+    expect(link.className).toContain('min-h-touch')
+    expect(link.className).toContain('text-danger')
+    expect(link.className).toContain('focus-visible:ring-2')
+    await user.tab()
+    expect(link).toHaveFocus()
+  })
+})

@@ -16,10 +16,15 @@ export interface PageHeaderProps {
 // and no ring: it is not a control, and Tab never reaches it.
 //
 // It also names the browser tab ("שבוע · StudyFlow"), since it is the component that knows the
-// name of the screen (WCAG 2.4.2). Nothing is restored on unmount: the next screen sets its own.
+// name of the screen (WCAG 2.4.2). On unmount the plain name comes back, so a screen without a
+// PageHeader (login after a sign-out) is not left with the name of the previous one; the next
+// header's effect runs after this cleanup and sets its own.
 export function PageHeader({ title, subtitle, action }: PageHeaderProps) {
   useEffect(() => {
     document.title = `${title} · ${he.appName}`
+    return () => {
+      document.title = he.appName
+    }
   }, [title])
 
   return (

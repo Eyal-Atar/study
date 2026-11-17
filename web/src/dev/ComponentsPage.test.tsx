@@ -29,10 +29,11 @@ describe('the components page (dev only)', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   })
 
-  it('has a section with an h2 for each of the 20 components', async () => {
+  it('has a section with an h2 for each of the components', async () => {
     await open()
 
-    expect(SECTIONS).toHaveLength(20)
+    // Not an exact number: a new component adds a section, and must not have to touch this test.
+    expect(SECTIONS.length).toBeGreaterThanOrEqual(22)
     for (const section of SECTIONS) {
       const heading = screen.getByRole('heading', { level: 2, name: section.title })
       // The section is named by its heading.

@@ -8,12 +8,14 @@ import { devText, SECTIONS } from './devText'
 import {
   BadgeSection,
   CardSection,
+  CheckButtonSection,
   DisclosureSection,
   EmptySection,
   ErrorSection,
   ListSection,
   LoadingSection,
   ProgressBarSection,
+  SectionHeadingSection,
   TextLinkSection,
 } from './displaySections'
 import {
@@ -22,6 +24,7 @@ import {
   RadioCardsSection,
   SelectSection,
   TextFieldSection,
+  TimeFieldSection,
 } from './fieldSections'
 import { DialogSection, PageHeaderSection, ToastSection } from './overlaySections'
 
@@ -69,10 +72,13 @@ export function ComponentsPage() {
         <TextFieldSection />
         <SelectSection />
         <DatePickerSection />
+        <TimeFieldSection />
         <RadioCardsSection />
         <CheckboxCardsSection />
         <CardSection />
+        <SectionHeadingSection />
         <ListSection />
+        <CheckButtonSection />
         <BadgeSection />
         <ProgressBarSection />
         <TextLinkSection />

@@ -6,7 +6,7 @@ import { he } from '../i18n/he'
 import { Button } from './Button'
 import { Dialog, type DialogProps } from './Dialog'
 
-function setup(props: Partial<DialogProps> = {}) {
+function setup({ children = <p>תוכן</p>, ...props }: Partial<DialogProps> = {}) {
   const onOpenChange = vi.fn()
   render(
     <>
@@ -24,7 +24,7 @@ function setup(props: Partial<DialogProps> = {}) {
         }
         {...props}
       >
-        <p>תוכן</p>
+        {children}
       </Dialog>
     </>,
   )
@@ -177,6 +177,81 @@ describe('Dialog', () => {
     const modal = dialog.parentElement as HTMLElement
     expect(modal).toHaveClass('bg-surface', 'shadow-overlay', 'rounded-t-card', 'md:rounded-card', 'md:max-w-md')
     expect(overlayOf(dialog)).toHaveClass('items-end', 'md:items-center', 'bg-ink/40')
+  })
+
+  it('the scrim is as high as the visible viewport, so the sheet sits above the on-screen keyboard', () => {
+    setup()
+    const dialog = screen.getByRole('dialog')
+    const overlay = overlayOf(dialog)
+    // React Aria writes the height of the visual viewport on the overlay element itself.
+    expect(overlay.style.getPropertyValue('--visual-viewport-height')).toMatch(/^\d+(\.\d+)?px$/)
+    expect(overlay).toHaveClass('fixed', 'inset-x-0', 'top-0', 'h-(--visual-viewport-height)')
+    expect(overlay).not.toHaveClass('inset-0')
+    // The sheet is limited by the same height, not by the full screen behind the keyboard.
+    expect(dialog.parentElement).toHaveClass('max-h-[calc(var(--visual-viewport-height)*0.85)]')
+  })
+
+  it('isKeyboardDismissDisabled blocks Escape', async () => {
+    const user = userEvent.setup()
+    const { onOpenChange } = setup({ isKeyboardDismissDisabled: true })
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement)
+    })
+    await user.keyboard('{Escape}')
+    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('without onSubmit there is no form', () => {
+    setup()
+    expect(screen.getByRole('dialog').querySelector('form')).toBeNull()
+  })
+
+  it('with onSubmit, Enter in a field and the submit button of the footer both submit, without a page load', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    // Whether each native submit was cancelled before it could load a page.
+    const prevented: boolean[] = []
+    const onNativeSubmit = (event: Event) => {
+      prevented.push(event.defaultPrevented)
+    }
+    document.addEventListener('submit', onNativeSubmit)
+    try {
+      setup({
+        onSubmit,
+        children: <input aria-label="שם המבחן" />,
+        footer: (
+          <>
+            <Button type="submit" className="flex-1">
+              שמירה
+            </Button>
+            <Button variant="secondary">לא עכשיו</Button>
+          </>
+        ),
+      })
+      const dialog = screen.getByRole('dialog')
+      const form = dialog.querySelector('form') as HTMLFormElement
+      // The form carries the same column as the dialog, so the layout is the same with and without it.
+      expect(form).toHaveClass('flex', 'flex-col', 'gap-4')
+      expect(form).toContainElement(screen.getByRole('textbox', { name: 'שם המבחן' }))
+      expect(form).toContainElement(screen.getByRole('button', { name: 'שמירה' }))
+      // The title and the close button stay outside the form.
+      expect(form).not.toContainElement(screen.getByRole('heading', { name: 'מחיקת המבחן' }))
+
+      await user.type(screen.getByRole('textbox', { name: 'שם המבחן' }), 'אלגוריתמים{Enter}')
+      expect(onSubmit).toHaveBeenCalledTimes(1)
+
+      await user.click(screen.getByRole('button', { name: 'שמירה' }))
+      expect(onSubmit).toHaveBeenCalledTimes(2)
+
+      // A button that is not a submit does not submit.
+      await user.click(screen.getByRole('button', { name: 'לא עכשיו' }))
+      expect(onSubmit).toHaveBeenCalledTimes(2)
+
+      expect(prevented).toEqual([true, true])
+    } finally {
+      document.removeEventListener('submit', onNativeSubmit)
+    }
   })
 
   it('a long unbroken title wraps instead of widening the sheet', () => {

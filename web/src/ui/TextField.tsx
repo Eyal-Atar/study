@@ -9,10 +9,12 @@ import {
 
 export interface TextFieldProps extends Omit<AriaTextFieldProps, 'children' | 'className' | 'isInvalid'> {
   label: string
-  description?: string
-  placeholder?: string
+  // Every field takes these two the same way. They are typed with `| undefined` on purpose
+  // (exactOptionalPropertyTypes), so a screen can write errorMessage={failed ? text : undefined}.
+  description?: string | undefined
+  placeholder?: string | undefined
   // Shown under the field and linked to it (aria-describedby); the field is invalid while it is set.
-  errorMessage?: string
+  errorMessage?: string | undefined
 }
 
 // The parts of a field (design language 5.4), shared with Select and DatePicker so the three look
@@ -28,8 +30,23 @@ export const FIELD_ERROR_CLASS = 'text-small text-danger'
 export const FIELD_BOX_CLASS =
   'min-h-touch w-full rounded-control border border-line-strong bg-surface text-body text-ink outline-none transition-colors duration-(--duration-fast) data-[invalid]:border-danger data-[disabled]:border-line data-[disabled]:bg-surface-muted data-[disabled]:text-ink-muted'
 
+// A box whose focus is inside it (the segments of a date or of a time): the box shows it.
+export const FIELD_FOCUS_WITHIN_CLASS =
+  'data-[focus-within]:border-brand data-[focus-within]:ring-2 data-[focus-within]:ring-brand'
+
+// One typed segment of a date or of a time (DatePicker, TimeField). The focused segment is filled
+// with brand. Tailwind emits data-[...] variants in the alphabetical order of the attribute, so
+// data-[placeholder] comes after data-[focused] and its muted text would win on the brand fill
+// (unreadable): the stacked variant is more specific, and keeps a focused placeholder on-brand.
+// A literal (the "." or ":" between segments) is never focused, so it needs no such rule.
+export const FIELD_SEGMENT_CLASS =
+  'rounded-badge px-0.5 tabular-nums outline-none data-[placeholder]:text-ink-muted data-[type=literal]:text-ink-muted data-[focused]:bg-brand data-[focused]:text-on-brand data-[focused]:data-[placeholder]:text-on-brand'
+
 // A text input shows its focus for the pointer too (data-focused), because the caret is in it. The
 // ring has no offset: the border itself turns brand and the ring thickens it.
+// Focused and invalid together: the border stays danger and the ring is brand. Tailwind emits the
+// data-[...] variants alphabetically, so data-[invalid] (in FIELD_BOX_CLASS) comes after
+// data-[focused] and wins the border. Select and the segment fields are made to match.
 const INPUT_CLASS = `${FIELD_BOX_CLASS} px-3 placeholder:text-ink-muted data-[focused]:border-brand data-[focused]:ring-2 data-[focused]:ring-brand`
 
 // A labelled one-line text field, with its error next to it.

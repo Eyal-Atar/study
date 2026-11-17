@@ -1,16 +1,19 @@
-import { CalendarOff, Check, EllipsisVertical, FileText, Plus } from 'lucide-react'
+import { CalendarOff, EllipsisVertical, FileText, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { he } from '../i18n/he'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
+import { CheckButton } from '../ui/CheckButton'
+import { Dialog } from '../ui/Dialog'
 import { Disclosure } from '../ui/Disclosure'
 import { IconButton } from '../ui/IconButton'
 import { List, ListRow } from '../ui/List'
 import { Menu, MenuItem } from '../ui/Menu'
 import { ProgressBar } from '../ui/ProgressBar'
+import { SectionHeading } from '../ui/SectionHeading'
 import { EmptyState, ErrorState, LoadingState } from '../ui/states'
-import { cx, ICON_STROKE } from '../ui/styles'
+import { ICON_STROKE } from '../ui/styles'
 import { TextLink } from '../ui/TextLink'
 import { useToast } from '../ui/useToast'
 import { devText } from './devText'
@@ -24,29 +27,26 @@ const SELF_PATH = '/dev/components'
 export function CardSection() {
   return (
     <Section id="card">
+      {/* titleLevel 3: on this page the h2 is the heading of the catalogue section. */}
       <div className="grid gap-4 md:grid-cols-2">
         <Example caption={t.card.plain}>
-          <Card>
-            <p className="text-small font-semibold text-brand-strong">{t.card.plainTitle}</p>
-            <p className="mt-1 text-body">{t.card.plainText}</p>
+          <Card title={t.card.plainTitle} titleLevel={3}>
+            <p className="text-body">{t.card.plainText}</p>
           </Card>
         </Example>
         <Example caption={t.card.danger}>
-          <Card tone="danger">
-            <p className="text-small font-semibold text-danger">{t.card.dangerTitle}</p>
-            <p className="mt-1 text-body">{t.card.dangerText}</p>
+          <Card tone="danger" title={t.card.dangerTitle} titleLevel={3}>
+            <p className="text-body">{t.card.dangerText}</p>
           </Card>
         </Example>
         <Example caption={t.card.warning}>
-          <Card tone="warning">
-            <p className="text-small font-semibold text-warning">{t.card.warningTitle}</p>
-            <p className="mt-1 text-body">{t.card.warningText}</p>
+          <Card tone="warning" title={t.card.warningTitle} titleLevel={3}>
+            <p className="text-body">{t.card.warningText}</p>
           </Card>
         </Example>
         <Example caption={t.card.success}>
-          <Card tone="success">
-            <p className="text-small font-semibold text-success">{t.card.successTitle}</p>
-            <p className="mt-1 text-body">{t.card.successText}</p>
+          <Card tone="success" title={t.card.successTitle} titleLevel={3}>
+            <p className="text-body">{t.card.successText}</p>
           </Card>
         </Example>
       </div>
@@ -59,25 +59,46 @@ function Hour({ children }: { children: string }) {
   return <span dir="ltr">{children}</span>
 }
 
-// The check button of a row (design language 5.2): a 44px target with a 24px circle in it, filled
-// with success and a check when done. ui/ has no component for it yet, so it is composed here.
-function CheckButton({ label, done, onToggle }: { label: string; done: boolean; onToggle: () => void }) {
+// A section of a screen: its heading names the list under it.
+export function SectionHeadingSection() {
   return (
-    <IconButton aria-label={label} aria-pressed={done} onPress={onToggle}>
-      <span
-        className={cx(
-          'flex size-6 items-center justify-center rounded-full border transition-colors duration-(--duration-fast)',
-          done ? 'border-success bg-success text-on-brand' : 'border-line-strong',
-        )}
-      >
-        {done ? <Check aria-hidden="true" size={14} strokeWidth={ICON_STROKE} /> : null}
-      </span>
-    </IconButton>
+    <Section id="section-heading">
+      <Example caption={t.sectionHeading.caption}>
+        <SectionHeading id="dev-section-heading" level={3}>
+          {t.sectionHeading.title}
+        </SectionHeading>
+        <List>
+          <ListRow title={t.sectionHeading.rowTitle} subtitle={t.sectionHeading.rowSubtitle} />
+        </List>
+      </Example>
+    </Section>
   )
 }
 
+export function CheckButtonSection() {
+  const [first, setFirst] = useState(false)
+  const [second, setSecond] = useState(true)
+  return (
+    <Section id="check-button">
+      <Example caption={t.checkButton.caption} className={ROW}>
+        <CheckButton aria-label={t.checkButton.label} isDone={first} onChange={setFirst} />
+        <CheckButton aria-label={t.checkButton.doneLabel} isDone={second} onChange={setSecond} />
+      </Example>
+      <Example caption={t.checkButton.disabled} className={ROW}>
+        <CheckButton aria-label={t.checkButton.disabledLabel} isDone={false} isDisabled onChange={noop} />
+        <CheckButton aria-label={t.checkButton.disabledDoneLabel} isDone isDisabled onChange={noop} />
+      </Example>
+    </Section>
+  )
+}
+
+// A disabled control never calls back.
+function noop() {}
+
 export function ListSection() {
   const [done, setDone] = useState(false)
+  const [crowdedDone, setCrowdedDone] = useState(false)
+  const [isPressOpen, setPressOpen] = useState(false)
   return (
     <Section id="list">
       <Example caption={t.list.caption}>
@@ -87,15 +108,7 @@ export function ListSection() {
             title={t.list.checkTitle}
             subtitle={t.list.checkSubtitle}
             done={done}
-            trailing={
-              <CheckButton
-                label={t.list.checkLabel}
-                done={done}
-                onToggle={() => {
-                  setDone((was) => !was)
-                }}
-              />
-            }
+            trailing={<CheckButton aria-label={t.list.checkLabel} isDone={done} onChange={setDone} />}
           />
           <ListRow
             leading={<Hour>{t.list.doneHour}</Hour>}
@@ -122,8 +135,41 @@ export function ListSection() {
               </Menu>
             }
           />
+          <ListRow
+            leading={<Hour>{t.list.pressHour}</Hour>}
+            title={t.list.pressTitle}
+            subtitle={t.list.pressSubtitle}
+            onPress={() => {
+              setPressOpen(true)
+            }}
+          />
+          <ListRow
+            leading={<Hour>{t.list.crowdedHour}</Hour>}
+            title={t.list.crowdedTitle}
+            subtitle={t.list.crowdedSubtitle}
+            done={crowdedDone}
+            trailing={
+              <>
+                <Badge tone="warning">{t.list.crowdedBadge}</Badge>
+                <CheckButton aria-label={t.list.crowdedCheckLabel} isDone={crowdedDone} onChange={setCrowdedDone} />
+                <Menu
+                  trigger={
+                    <IconButton aria-label={t.list.crowdedMenuLabel}>
+                      <EllipsisVertical aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+                    </IconButton>
+                  }
+                >
+                  <MenuItem>{t.menu.postpone}</MenuItem>
+                  <MenuItem tone="danger">{t.menu.remove}</MenuItem>
+                </Menu>
+              </>
+            }
+          />
           <ListRow title={t.list.longTitle} subtitle={t.list.longSubtitle} />
         </List>
+        <Dialog title={t.list.pressDialogTitle} isOpen={isPressOpen} onOpenChange={setPressOpen}>
+          <p className="text-body text-ink">{t.list.pressDialogBody}</p>
+        </Dialog>
       </Example>
     </Section>
   )
@@ -154,6 +200,12 @@ export function ProgressBarSection() {
       <Example caption={t.progressBar.full}>
         <ProgressBar label={t.progressBar.label} value={345} max={345} valueText={t.progressBar.fullText} />
       </Example>
+      <Example caption={t.progressBar.percentOnly}>
+        <ProgressBar label={t.progressBar.label} value={60} max={345} />
+      </Example>
+      <Example caption={t.progressBar.ariaOnly}>
+        <ProgressBar aria-label={t.progressBar.ariaLabel} value={2} max={5} />
+      </Example>
     </Section>
   )
 }
@@ -171,6 +223,15 @@ export function TextLinkSection() {
           {t.textLink.sentenceBefore}
           <TextLink to="/settings">{t.textLink.sentenceLink}</TextLink>
           {t.textLink.sentenceAfter}
+        </p>
+      </Example>
+      <Example caption={t.textLink.outside}>
+        <p className="max-w-prose text-body">
+          {t.textLink.outsideBefore}
+          <TextLink href={`mailto:${t.textLink.outsideMail}`}>{t.textLink.outsideMail}</TextLink>
+          {t.textLink.outsideMiddle}
+          <TextLink href="https://example.com/terms">{t.textLink.outsideSite}</TextLink>
+          {t.textLink.outsideAfter}
         </p>
       </Example>
     </Section>
@@ -226,6 +287,9 @@ export function EmptySection() {
       </Example>
       <Example caption={t.empty.titleOnly}>
         <EmptyState icon={CalendarOff} title={t.empty.shortTitle} />
+      </Example>
+      <Example caption={t.empty.noIcon}>
+        <EmptyState title={t.empty.noIconTitle} description={t.empty.noIconDescription} />
       </Example>
     </Section>
   )

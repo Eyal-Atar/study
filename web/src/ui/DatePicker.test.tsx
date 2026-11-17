@@ -4,6 +4,7 @@ import { userEvent } from '@testing-library/user-event'
 import { I18nProvider } from 'react-aria-components'
 import { describe, expect, it, vi } from 'vitest'
 import { DatePicker, type DatePickerProps } from './DatePicker'
+import { ICON_BUTTON_CLASS } from './styles'
 
 // The app renders everything under he-IL (AppProviders), which gives the Hebrew labels and day, month, year.
 function setup(props: Partial<DatePickerProps> = {}) {
@@ -126,5 +127,58 @@ describe('DatePicker', () => {
     const [day] = within(group).getAllByRole('spinbutton')
     expect(day).toHaveAttribute('aria-invalid', 'true')
     expect(day).toHaveAccessibleDescription(/התאריך כבר עבר/)
+  })
+
+  it('a description is shown under the field and linked to it', () => {
+    const { group } = setup({ description: 'אפשר לשנות אחר כך' })
+
+    expect(screen.getByText('אפשר לשנות אחר כך').className).toContain('text-ink-muted')
+    expect(group).toHaveAccessibleDescription(/אפשר לשנות אחר כך/)
+  })
+
+  it('a focused placeholder segment stays readable: on-brand on the brand fill, by a stacked variant', async () => {
+    const user = userEvent.setup()
+    // No value: every segment is a placeholder.
+    const { group } = setup({ defaultValue: null })
+
+    await user.tab()
+    const [day] = within(group).getAllByRole('spinbutton')
+    expect(day).toHaveFocus()
+    expect(day).toHaveAttribute('data-focused', 'true')
+    expect(day).toHaveAttribute('data-placeholder', 'true')
+    // data-[placeholder] is emitted after data-[focused], so alone it would leave muted text on brand.
+    expect(day?.className).toContain('data-[placeholder]:text-ink-muted')
+    expect(day?.className).toContain('data-[focused]:bg-brand')
+    expect(day?.className).toContain('data-[focused]:data-[placeholder]:text-on-brand')
+  })
+
+  it('a chosen day that is unavailable keeps on-brand text on its brand fill', async () => {
+    const user = userEvent.setup()
+    const { button } = setup({ isDateUnavailable: () => true })
+
+    await user.click(button)
+    const grid = within(screen.getByRole('dialog')).getByRole('grid')
+    const chosen = within(grid).getByText('12')
+    expect(chosen).toHaveAttribute('data-selected', 'true')
+    expect(chosen).toHaveAttribute('data-unavailable', 'true')
+    // data-[unavailable] is emitted after data-[selected]: the stacked variants win by specificity.
+    expect(chosen.className).toContain('data-[selected]:data-[unavailable]:text-on-brand')
+    expect(chosen.className).toContain('data-[selected]:data-[disabled]:text-on-brand')
+  })
+
+  it('the calendar button and the month arrows wear the shared look of an icon button', async () => {
+    const user = userEvent.setup()
+    const { button } = setup()
+
+    expect(button.className).toBe(ICON_BUTTON_CLASS)
+    await user.click(button)
+    const dialog = screen.getByRole('dialog')
+    const grid = within(dialog).getByRole('grid')
+    const arrows = within(dialog)
+      .getAllByRole('button')
+      .filter((candidate) => !grid.contains(candidate) && candidate.querySelector('svg.lucide') !== null)
+    for (const arrow of arrows) {
+      expect(arrow.className).toBe(ICON_BUTTON_CLASS)
+    }
   })
 })

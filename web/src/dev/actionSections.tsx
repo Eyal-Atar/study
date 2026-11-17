@@ -1,6 +1,7 @@
 import { CalendarDays, EllipsisVertical, Lock, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '../ui/Button'
+import { ButtonLink } from '../ui/ButtonLink'
 import { IconButton } from '../ui/IconButton'
 import { Menu, MenuItem } from '../ui/Menu'
 import { ICON_STROKE } from '../ui/styles'
@@ -8,6 +9,9 @@ import { devText } from './devText'
 import { Example, ROW, Section } from './Section'
 
 const t = devText
+
+// The path of this page: the links of the examples stay here.
+const SELF_PATH = '/dev/components'
 
 export function ButtonSection() {
   return (
@@ -45,6 +49,18 @@ export function ButtonSection() {
       <Example caption={t.button.row} className="flex gap-2">
         <Button className="flex-1">{t.button.primary}</Button>
         <Button variant="secondary">{t.button.secondary}</Button>
+      </Example>
+      <Example caption={t.button.links} className={ROW}>
+        <ButtonLink to={SELF_PATH} variant="primary">
+          {t.button.linkPrimary}
+        </ButtonLink>
+        <ButtonLink to={SELF_PATH}>{t.button.linkSecondary}</ButtonLink>
+        <ButtonLink to={SELF_PATH} variant="quiet">
+          {t.button.linkQuiet}
+        </ButtonLink>
+        <ButtonLink to={SELF_PATH} variant="danger">
+          {t.button.linkDanger}
+        </ButtonLink>
       </Example>
     </Section>
   )

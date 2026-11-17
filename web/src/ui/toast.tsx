@@ -39,7 +39,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return <ToastContext value={value}>{children}</ToastContext>
 }
 
-// The text is ink on the soft background (a checked pair). The state is carried by the border and
+// The text is ink on the soft background (a checked pair), and so is the quiet action button:
+// brand and brand-strong on success-soft and on danger-soft are checked in theme.test.ts. The state is carried by the border and
 // by an icon in the colour of the state, never by colour alone (design language 2).
 const TONES: Record<NonNullable<Content['options']['tone']>, { box: string; icon: LucideIcon | null; iconColor: string }> = {
   info: { box: 'border-line bg-surface text-ink', icon: null, iconColor: '' },
@@ -50,6 +51,9 @@ const TONES: Record<NonNullable<Content['options']['tone']>, { box: string; icon
 // Sits once in the app shell, at the bottom of the screen. On phones the bottom navigation bar and
 // the onboarding action bar are fixed at the bottom, so below md the toasts sit above them (6rem
 // plus the safe area the bars also add); from md up, where nothing is fixed there, 1rem.
+// z-[60], one layer above the scrim of a Dialog (z-50): an undo toast that is on the screen when a
+// dialog opens stays visible and pressable instead of ending under the scrim. The scale has no
+// step for it, hence the arbitrary value.
 // A toast floats, so it is one of the few things with the shadow. React Aria's toast (1.22) has no
 // data-entering state, so it appears without an enter animation rather than with a hand-made one.
 export function ToastRegion() {
@@ -58,7 +62,7 @@ export function ToastRegion() {
     <AriaToastRegion
       queue={queue}
       aria-label={he.common.notifications}
-      className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+6rem)] z-50 mx-auto flex max-w-md flex-col gap-2 outline-none md:bottom-4"
+      className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+6rem)] z-[60] mx-auto flex max-w-md flex-col gap-2 outline-none md:bottom-4"
     >
       {({ toast }) => {
         const { options } = toast.content

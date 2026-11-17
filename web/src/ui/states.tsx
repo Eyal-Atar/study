@@ -74,7 +74,8 @@ export function LoadingState({ shape = 'list', rows = 3, label = he.common.loadi
 }
 
 export interface EmptyStateProps {
-  icon: LucideIcon
+  // Optional: a small empty place (a list inside a card) reads better with the words alone.
+  icon?: LucideIcon | undefined
   // One sentence that says what is missing: "עוד אין מבחנים".
   title: string
   // What to do about it, when the title is not enough.
@@ -88,7 +89,7 @@ export interface EmptyStateProps {
 export function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center gap-2 py-10 text-center">
-      <Icon aria-hidden="true" size={28} strokeWidth={ICON_STROKE} className="text-ink-muted" />
+      {Icon === undefined ? null : <Icon aria-hidden="true" size={28} strokeWidth={ICON_STROKE} className="text-ink-muted" />}
       <p className="text-body font-semibold break-words text-ink">{title}</p>
       {description === undefined ? null : <p className="max-w-prose text-small text-ink-muted">{description}</p>}
       {action === undefined ? null : <div className="mt-2">{action}</div>}

@@ -25,23 +25,30 @@ export interface SelectProps {
   value: string
   options: readonly SelectOption[]
   onChange: (value: string) => void
-  description?: string
+  // Typed with `| undefined` like every field (see TextFieldProps), so a caller can pass a condition.
+  description?: string | undefined
   // Shown under the field and linked to it; the field is invalid while it is set.
-  errorMessage?: string
-  isDisabled?: boolean
+  errorMessage?: string | undefined
+  isDisabled?: boolean | undefined
   // Shown in the trigger while nothing is chosen.
-  placeholder?: string
+  placeholder?: string | undefined
 }
 
 // The trigger is the box of a TextField. It is a button, so its focus shows only for the keyboard.
 // React Aria marks the whole field as invalid (data-invalid on the root) and not the button, so the
-// danger border hangs on the group.
-const TRIGGER_CLASS = `${FIELD_BOX_CLASS} flex cursor-pointer items-center justify-between gap-2 px-3 text-start group-data-[invalid]:border-danger data-[focus-visible]:border-brand data-[focus-visible]:ring-2 data-[focus-visible]:ring-brand data-[disabled]:cursor-not-allowed`
+// danger border hangs on the group (the data-[invalid] of FIELD_BOX_CLASS never matches the button).
+// Invalid and focused together keeps the danger border under the brand ring, as in a TextField:
+// group-data-[invalid] and data-[focus-visible] are equally specific and the second is emitted
+// later, so alone it would turn the border brand; the stacked variant is more specific and wins.
+const TRIGGER_CLASS = `${FIELD_BOX_CLASS} flex cursor-pointer items-center justify-between gap-2 px-3 text-start group-data-[invalid]:border-danger data-[focus-visible]:border-brand data-[focus-visible]:ring-2 data-[focus-visible]:ring-brand group-data-[invalid]:data-[focus-visible]:border-danger data-[disabled]:cursor-not-allowed`
 
 // React Aria keeps the focus of the list on one option (keyboard or pointer) and marks it
 // data-focused; the chosen option is marked by weight, fill and a check, not by colour alone.
+// The muted fill of the focused option is faint, and on the chosen option it does not show at all
+// (data-[selected] is emitted after data-[focused], so its fill wins). Keyboard focus therefore
+// also draws the brand ring, inside the option so the scrolling list does not clip it.
 const OPTION_CLASS =
-  'flex min-h-touch cursor-pointer items-center justify-between gap-2 rounded-control px-3 text-body text-ink outline-none data-[focused]:bg-surface-muted data-[selected]:bg-brand-soft data-[selected]:font-semibold data-[selected]:text-brand-strong'
+  'flex min-h-touch cursor-pointer items-center justify-between gap-2 rounded-control px-3 text-body text-ink outline-none data-[focused]:bg-surface-muted data-[focus-visible]:ring-2 data-[focus-visible]:ring-brand data-[focus-visible]:ring-inset data-[selected]:bg-brand-soft data-[selected]:font-semibold data-[selected]:text-brand-strong'
 
 // React Aria identifies an option by a key. The key is the option's place in the list and not its
 // value, because a value may be the empty string ("no topic"), which is not a usable key.
@@ -70,7 +77,7 @@ export function Select({
         if (option !== undefined) onChange(option.value)
       }}
       placeholder={placeholder}
-      isDisabled={isDisabled}
+      isDisabled={isDisabled ?? false}
       isInvalid={errorMessage !== undefined}
       className={`group ${FIELD_CLASS}`}
     >

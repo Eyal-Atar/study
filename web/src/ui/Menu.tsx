@@ -12,7 +12,8 @@ import { cx, ICON_STROKE } from './styles'
 
 export interface MenuProps {
   // The button that opens the menu: a Button or an IconButton. React Aria gives it aria-haspopup
-  // and aria-expanded, and returns the focus to it when the menu closes.
+  // and aria-expanded, returns the focus to it when the menu closes, and names the menu by it
+  // (aria-labelledby), so the menu takes no aria-label of its own.
   trigger: ReactElement
   // Where the menu opens relative to the trigger. "bottom end": under it, aligned to its end side.
   placement?: PopoverProps['placement']
@@ -43,13 +44,16 @@ export interface MenuItemProps extends Omit<AriaMenuItemProps, 'children' | 'cla
   children: ReactNode
 }
 
-// One action: 44px high. The focused item (keyboard or pointer) gets the quiet fill.
+// One action: 44px high. The focused item (keyboard or pointer) gets the quiet fill. Keyboard
+// focus also gets the brand ring, drawn inside the item: surface-muted on white is too faint to
+// be the only sign of where the keyboard is (WCAG 2.4.7), and an outer ring would be cut by the
+// padding of the popover.
 export function MenuItem({ icon: Icon, tone = 'default', children, ...props }: MenuItemProps) {
   return (
     <AriaMenuItem
       {...props}
       className={cx(
-        'flex min-h-touch cursor-pointer items-center gap-2 rounded-control px-3 text-small outline-none data-[focused]:bg-surface-muted data-[disabled]:cursor-not-allowed data-[disabled]:text-ink-muted',
+        'flex min-h-touch cursor-pointer items-center gap-2 rounded-control px-3 text-small outline-none data-[focused]:bg-surface-muted data-[focus-visible]:ring-2 data-[focus-visible]:ring-brand data-[focus-visible]:ring-inset data-[disabled]:cursor-not-allowed data-[disabled]:text-ink-muted',
         tone === 'danger' ? 'text-danger' : 'text-ink',
       )}
     >

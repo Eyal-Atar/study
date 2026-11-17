@@ -3,6 +3,7 @@ import { userEvent } from '@testing-library/user-event'
 import { LogOut, Settings } from 'lucide-react'
 import { describe, expect, it, vi } from 'vitest'
 import { Button } from './Button'
+import { IconButton } from './IconButton'
 import { Menu, MenuItem } from './Menu'
 
 function setup() {
@@ -37,6 +38,19 @@ describe('Menu', () => {
     const items = screen.getAllByRole('menuitem')
     expect(items.map((item) => item.textContent)).toEqual(['הגדרות', 'יציאה'])
     expect(items[0]).toHaveFocus()
+    // Keyboard focus is a ring inside the item, over the quiet fill: the fill alone
+    // (surface-muted on white) is too faint to find.
+    expect(items[0]).toHaveAttribute('data-focus-visible', 'true')
+    for (const item of items) {
+      expect(item).toHaveClass(
+        'data-[focused]:bg-surface-muted',
+        'data-[focus-visible]:ring-2',
+        'data-[focus-visible]:ring-brand',
+        'data-[focus-visible]:ring-inset',
+      )
+    }
+    // React Aria names the menu by its trigger.
+    expect(screen.getByRole('menu', { name: 'פעולות' })).toBeInTheDocument()
 
     await user.keyboard('{ArrowDown}')
     expect(items[1]).toHaveFocus()
@@ -52,11 +66,32 @@ describe('Menu', () => {
 
     await user.click(screen.getByRole('button', { name: 'פעולות' }))
     expect(screen.getByRole('menu')).toBeInTheDocument()
+    // Opened with the pointer: no item has the keyboard ring.
+    for (const item of screen.getAllByRole('menuitem')) {
+      expect(item).not.toHaveAttribute('data-focus-visible')
+    }
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     // React Aria restores the focus on the next frame.
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'פעולות' })).toHaveFocus()
     })
+  })
+
+  it('a trigger that is only an icon names the menu by its aria-label', async () => {
+    const user = userEvent.setup()
+    render(
+      <Menu
+        trigger={
+          <IconButton aria-label="פעולות נוספות: חדו״א 1">
+            <Settings aria-hidden="true" size={18} />
+          </IconButton>
+        }
+      >
+        <MenuItem>מחיקה</MenuItem>
+      </Menu>,
+    )
+    await user.click(screen.getByRole('button', { name: 'פעולות נוספות: חדו״א 1' }))
+    expect(screen.getByRole('menu', { name: 'פעולות נוספות: חדו״א 1' })).toBeInTheDocument()
   })
 })

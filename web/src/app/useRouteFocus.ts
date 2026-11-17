@@ -24,12 +24,15 @@ export function useRouteFocus(main: RefObject<HTMLElement | null>): void {
     const container = main.current
     if (container === null) return
     const heading = container.querySelector('h1')
+    // Back and forward (POP): the browser restores the scroll position of the screen, and a focus
+    // that scrolls to the title would throw it away.
+    const options = { preventScroll: navigationType === NavigationType.Pop }
     if (heading === null) {
-      container.focus()
+      container.focus(options)
       return
     }
     // An h1 is not a control: focusable from code, never a Tab stop.
     if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1')
-    heading.focus()
+    heading.focus(options)
   }, [pathname, navigationType, main])
 }
