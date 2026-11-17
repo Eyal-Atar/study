@@ -271,6 +271,9 @@ export const he = {
       count === 1 ? `משימה אחת: ${reason}` : `${String(count)} משימות: ${reason}`,
     confirm: 'אישור',
     notNow: 'לא עכשיו',
+    // The only button when there is nothing to apply. Not "סגירה": the dialog's own close button
+    // has that name, and two buttons must not share one.
+    understood: 'הבנתי',
     applied: 'הלוח עודכן',
     timezoneChanged: 'עדכנו את אזור הזמן לפי המכשיר. כדאי לתכנן מחדש את הלוח לפי השעות המקומיות.',
     timezoneReason: 'אזור הזמן במכשיר השתנה, ולכן חלונות הלימוד שלכם זזו.',
@@ -350,6 +353,8 @@ export const he = {
       failed: 'לא הצלחנו לבדוק למה המשימות האלה לא נכנסו.',
       tasks: 'משימות שלא נכנסו',
       task: (title: string, duration: string) => `${title} (${duration})`,
+      // After the task, when the preview said why: "פרק 3 (שעה וחצי): אין מספיק זמן לפני המבחן."
+      reason: (reason: string) => `: ${reason}`,
       raise: (duration: string) => `להעלות ל-${duration} ביום`,
       raised: (duration: string) => `זמן הלימוד היומי עודכן ל-${duration}. אפשר לתכנן מחדש את הלוח.`,
     },
@@ -365,9 +370,15 @@ export const he = {
     blocks: 'הבלוקים של היום',
     // Today's list when the next block (today's) has its own card above it.
     moreBlocks: 'עוד היום',
+    // A line above the next block when it is on a later day.
     noBlocksToday: 'אין בלוקים היום.',
-    noTasks: 'אין משימות בלוח.',
-    noMoreTasks: 'אין עוד משימות בלוח.',
+    // The empty screen: a title, one line, and a link to the exams screen (S27 decision 11).
+    noTasks: 'אין משימות בלוח',
+    noTasksHint: 'הלוח נבנה מהמבחנים ומהחומר שלהם.',
+    toExams: 'למבחנים',
+    // Nothing is planned from now on: the title of an empty state with no action.
+    noMoreTasks: 'אין עוד משימות בלוח',
+    noMoreTasksHint: 'אין משימה מתוכננת לשבוע הקרוב.',
     planFailed: 'לא הצלחנו לבדוק את הימים הבאים.',
     stale: 'לא הצלחנו לרענן, ולכן ייתכן שהלוח לא עדכני.',
   },
@@ -380,6 +391,8 @@ export const he = {
     allDone: 'סימנתם את כל הבלוקים שעברו.',
     // "אתמול, 14:00–15:00" (the time range is shown left to right).
     when: (day: string) => `${day}, `,
+    // After the time range, on the same line: ". הסתברות" or ". הסתברות. חלק 1 מתוך 2".
+    details: (exam: string, part: string | null) => `. ${isolate(exam)}${part === null ? '' : `. ${part}`}`,
     complete: 'בוצע',
     moveToday: 'העבר להיום',
     moving: 'מעביר…',
@@ -398,7 +411,7 @@ export const he = {
   },
   // S18: moving a block within its day: drag, keyboard and the "move" dialog.
   move: {
-    // The action on a block's card (BlockCard), next to "דחייה" and "נעילה".
+    // The action on a block (its menu), next to "דחייה" and "נעילה".
     move: 'הזזה',
     moveLabel: (name: string) => `הזזה: ${name}`,
     moved: (time: string) => `הוזז ל-${time} וננעל`,
@@ -423,7 +436,12 @@ export const he = {
     instructions:
       'גוררים את הידית למעלה או למטה. במקלדת: Enter או רווח מתחילים הזזה, חץ למעלה או למטה זז רבע שעה, PageUp או PageDown זזים שעה, Enter מאשר ו-Escape מבטל.',
     // The live region while moving: "14:30–15:30, פנוי".
-    candidate: (range: string, free: boolean) => `${range}, ${free ? 'פנוי' : 'תפוס'}`,
+    candidate: (range: string, free: boolean) => `${range}${he.move.candidateJoiner}${he.move.candidateState(free)}`,
+    // The parts alone, for the ghost on the timeline, which draws the range left to right itself.
+    candidateJoiner: ', ',
+    candidateState: (free: boolean) => (free ? 'פנוי' : 'תפוס'),
+    // Between the details of a block on the timeline: "14:00–15:00. עכשיו. נעול".
+    detailsJoiner: '. ',
     cancelled: 'ההזזה בוטלה, הבלוק נשאר במקומו.',
     // The live region after a release on a time the block cannot take (the toast says why).
     refused: 'הבלוק חזר למקומו.',
@@ -437,6 +455,7 @@ export const he = {
     thisWeek: 'השבוע',
     next: 'הבא',
     free: 'יום פנוי',
+    empty: 'אין משימות בשבוע הזה',
     total: (duration: string) => `סך הכול ${duration}`,
     stale: 'לא הצלחנו לרענן את הלוח, וייתכן שהוא לא מעודכן. ננסה שוב בעוד דקה.',
   },

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
-import { BlockCard } from '../board/BlockCard'
+import { BlockRow } from '../board/BlockRow'
 import type { Block } from '../board/types'
+import { List } from '../ui/List'
+import { SectionHeading } from '../ui/SectionHeading'
 
 export interface TodayBlocksProps {
   title: string
@@ -10,26 +12,23 @@ export interface TodayBlocksProps {
   toolbar?: ReactNode
 }
 
-// Today's blocks by start time, every one with its state and actions. With a toolbar the heading
+// Today's blocks by start time, one row each (design language 5.2). With a toolbar the heading
 // row stays even when the list is empty, so the switch to the timeline is still there.
 export function TodayBlocks({ title, blocks, tz, toolbar }: TodayBlocksProps) {
   if (blocks.length === 0 && toolbar === undefined) return null
   return (
-    <section aria-labelledby="today-blocks-title" className="space-y-3">
+    <section aria-labelledby="today-blocks-title" className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="today-blocks-title" className="text-base font-semibold">
-          {title}
-        </h2>
+        <SectionHeading id="today-blocks-title">{title}</SectionHeading>
         {toolbar}
       </div>
       {blocks.length === 0 ? null : (
-        <ol className="space-y-3">
+        // The line above the first row closes the list at the top, as each row closes it below.
+        <List aria-label={title} className="border-t border-line">
           {blocks.map((block) => (
-            <li key={block.id}>
-              <BlockCard block={block} tz={tz} variant="full" />
-            </li>
+            <BlockRow key={block.id} block={block} tz={tz} />
           ))}
-        </ol>
+        </List>
       )}
     </section>
   )

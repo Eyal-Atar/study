@@ -1,3 +1,4 @@
+import { CalendarCheck, CircleCheck } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useLocation } from 'react-router'
 import { errorMessage } from '../api/client'
@@ -15,6 +16,10 @@ import { TodayBlocks } from '../today/TodayBlocks'
 import { useTodayView } from '../today/todayView'
 import { TodayViewSwitch } from '../today/TodayViewSwitch'
 import { Button } from '../ui/Button'
+import { ButtonLink } from '../ui/ButtonLink'
+import { Note } from '../ui/Note'
+import { PageHeader } from '../ui/PageHeader'
+import { EmptyState, ErrorState, LoadingState } from '../ui/states'
 
 // offerReplan sends the user to /today#report; the report renders only after GET /plan answers, so
 // the browser's own jump to the anchor finds nothing. Scroll once the report is there, once per visit.
@@ -31,7 +36,8 @@ function useScrollToReport(ready: boolean) {
 }
 
 // "Today" (S14): what to do now, the rest of today, the minutes done, and what did not fit. S18:
-// the morning review above, and today's blocks as a list or as a timeline.
+// the morning review, and today's blocks as a list or as a timeline. S27: the next block is the
+// first thing under the day's progress, and the review comes after it (decision 3).
 export function TodayPage() {
   const today = useToday()
   const [view, setView] = useTodayView()
@@ -39,35 +45,28 @@ export function TodayPage() {
   const tz = useProfileTimezone()
   useScrollToReport((plan.data?.unplaced.length ?? 0) > 0)
 
-  const heading = (
-    <div className="space-y-1">
-      <h1 className="text-2xl font-bold">{he.today.title}</h1>
-      {today.data === undefined ? null : <p className="text-ink-muted">{formatDay(today.data.date)}</p>}
-    </div>
-  )
+  // Outside every condition: the h1 takes the focus after a navigation, before the data arrives.
+  const heading = <PageHeader title={he.today.title} subtitle={today.data === undefined ? undefined : formatDay(today.data.date)} />
 
   if (today.data === undefined) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-section">
         {heading}
         {today.isError ? (
-          <div className="space-y-3 rounded-xl border border-danger bg-danger-soft p-4">
-            <p role="alert" className="text-danger">
-              {errorMessage(today.error)}
-            </p>
-            <Button
-              variant="secondary"
-              onPress={() => {
-                void today.refetch()
-              }}
-            >
-              {he.common.retry}
-            </Button>
-          </div>
+          <ErrorState
+            message={errorMessage(today.error)}
+            onRetry={() => {
+              void today.refetch()
+            }}
+          />
         ) : (
-          <p role="status" className="text-ink-muted">
-            {he.common.loading}
-          </p>
+          <>
+            <LoadingState shape="card" />
+            {/* The card above already announces the loading; the rows are only its drawing. */}
+            <div aria-hidden="true">
+              <LoadingState shape="list" rows={3} />
+            </div>
+          </>
         )}
       </div>
     )
@@ -81,7 +80,7 @@ export function TodayPage() {
   const next = nowBlock ?? laterBlock
   const planUnknown = nowBlock === undefined && plan.data === undefined
   // The next block is today's, so it has its own card above and is left out of the list: the same
-  // card twice would repeat its element ids and give two buttons the same accessible name.
+  // block twice would give two buttons the same accessible name.
   // An overdue block is in the review card (S18 decision 13), so the list leaves it out.
   const rest = todays.filter((b) => b.id !== nowBlock?.id && b.state !== 'overdue')
   // The timeline needs the waking hours; without them (or without blocks) only the list is offered.
@@ -90,61 +89,74 @@ export function TodayPage() {
   const toolbar = hasTimeline ? <TodayViewSwitch view={shown} onChange={setView} /> : undefined
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       {heading}
 
       {today.isError ? (
-        <div className="flex flex-wrap items-center gap-x-3 text-sm text-ink-muted">
-          <p>{he.today.stale}</p>
-          <Button
-            variant="quiet"
-            onPress={() => {
-              void today.refetch()
-            }}
-          >
-            {he.common.retry}
-          </Button>
-        </div>
+        <Note
+          action={
+            <Button
+              variant="quiet"
+              onPress={() => {
+                void today.refetch()
+              }}
+            >
+              {he.common.retry}
+            </Button>
+          }
+        >
+          {he.today.stale}
+        </Note>
       ) : null}
 
       <DayProgress done={done_minutes} planned={planned_minutes} />
 
-      <ReviewCard />
-
-      {todays.length === 0 && (next !== undefined || planUnknown) ? <p className="text-ink-muted">{he.today.noBlocksToday}</p> : null}
-
-      {next !== undefined ? (
-        <NextBlock
-          block={next}
-          tz={tz}
-          when={laterBlock === undefined ? undefined : he.today.nextAt(dayLabel(laterBlock.study_date, date), formatTime(laterBlock.starts_at, tz))}
-        />
-      ) : null}
-
-      {planUnknown && plan.isPending ? (
-        <p role="status" className="text-sm text-ink-muted">
-          {he.common.loading}
-        </p>
-      ) : null}
-      {planUnknown && plan.isError ? (
-        <div className="flex flex-wrap items-center gap-x-3 text-sm text-ink-muted">
-          <p>{he.today.planFailed}</p>
-          <Button
-            variant="quiet"
-            onPress={() => {
-              void plan.refetch()
-            }}
-          >
-            {he.common.retry}
-          </Button>
+      {/* What to do now, in one place: the card, or what stands in for it while the week is unknown. */}
+      {next !== undefined || planUnknown ? (
+        <div className="space-y-2">
+          {todays.length === 0 ? <p className="text-small text-ink-muted">{he.today.noBlocksToday}</p> : null}
+          {next !== undefined ? (
+            <NextBlock
+              block={next}
+              tz={tz}
+              when={laterBlock === undefined ? undefined : he.today.nextAt(dayLabel(laterBlock.study_date, date), formatTime(laterBlock.starts_at, tz))}
+            />
+          ) : null}
+          {planUnknown && plan.isPending ? <LoadingState shape="card" /> : null}
+          {planUnknown && plan.isError ? (
+            <Note
+              action={
+                <Button
+                  variant="quiet"
+                  onPress={() => {
+                    void plan.refetch()
+                  }}
+                >
+                  {he.common.retry}
+                </Button>
+              }
+            >
+              {he.today.planFailed}
+            </Note>
+          ) : null}
         </div>
-      ) : null}
+      ) : todays.length === 0 ? (
+        // Nothing on the board at all: the way to a plan starts at the exams (S27 decision 11).
+        <EmptyState
+          icon={CalendarCheck}
+          title={he.today.noTasks}
+          description={he.today.noTasksHint}
+          action={
+            <ButtonLink to="/exams" variant="primary">
+              {he.today.toExams}
+            </ButtonLink>
+          }
+        />
+      ) : (
+        <EmptyState icon={CircleCheck} title={he.today.noMoreTasks} description={he.today.noMoreTasksHint} />
+      )}
 
-      {next === undefined && !planUnknown ? (
-        <p className="rounded-xl border border-line bg-surface p-4 text-ink-muted">
-          {todays.length === 0 ? he.today.noTasks : he.today.noMoreTasks}
-        </p>
-      ) : null}
+      <ReviewCard />
 
       {shown === 'timeline' ? (
         <DayTimeline today={today.data} tz={tz} toolbar={toolbar} />
