@@ -22,7 +22,18 @@ function planPath(from: string, to: string) {
   return `/plan?from=${from}&to=${to}`
 }
 
-// A fake server whose answers follow `state.blocks`; GET /plan answers with whatever range it was asked.
+// A block of one hour at noon (UTC) of the given study date.
+function blockOn(date: string, overrides: Partial<Block> = {}): Block {
+  return makeBlock({ study_date: date, starts_at: `${date}T12:00:00Z`, ends_at: `${date}T13:00:00Z`, ...overrides })
+}
+
+// The row of a block: a listitem without a name of its own, found by the title inside it.
+function row(date: string, title: string) {
+  return within(day(date)).getByText(title).closest('li')
+}
+
+// A fake server whose answers follow `state.blocks`; GET /plan answers with the blocks of the
+// range it was asked, like the real one, so a week without blocks is really empty.
 function setup(path: string, { blocks = [makeBlock({ study_date: TODAY, starts_at: '2026-11-18T12:00:00Z', ends_at: '2026-11-18T13:00:00Z' })] }: { blocks?: Block[] } = {}) {
   const state = { blocks, frozen: false }
   const never = new Promise<never>(() => undefined)
@@ -32,7 +43,12 @@ function setup(path: string, { blocks = [makeBlock({ study_date: TODAY, starts_a
     .on({ method: 'GET', path: /^\/plan\?/ }, (call: { path: string }) => {
       if (state.frozen) return never
       const params = new URLSearchParams(call.path.slice(call.path.indexOf('?') + 1))
-      return makePlan(state.blocks, { from: params.get('from') ?? '', to: params.get('to') ?? '' })
+      const from = params.get('from') ?? ''
+      const to = params.get('to') ?? ''
+      return makePlan(
+        state.blocks.filter((b) => b.study_date >= from && b.study_date <= to),
+        { from, to },
+      )
     })
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const rendered = renderRoute(path, { auth: createFakeAuth(fakeSession({ id: USER_ID })), api: fake.api, queryClient })
@@ -74,7 +90,8 @@ describe('the week screen', () => {
     expect(day(TODAY)).toHaveAttribute('aria-current', 'date')
     expect(within(day(TODAY)).getByText(he.board.today)).toBeInTheDocument()
     expect(day('2026-11-17')).not.toHaveAttribute('aria-current')
-    expect(within(day(TODAY)).getByRole('article', { name: 'פרק 3: גרפים' })).toBeInTheDocument()
+    expect(row(TODAY, 'פרק 3: גרפים')).toBeInTheDocument()
+    expect(screen.queryByRole('article')).not.toBeInTheDocument()
     expect(within(day(TODAY)).queryByText(he.week.free)).not.toBeInTheDocument()
     expect(within(day(TODAY)).getByText(he.week.total('שעה'))).toBeInTheDocument()
     for (const date of WEEK_DAYS.filter((d) => d !== TODAY)) {
@@ -101,16 +118,20 @@ describe('the week screen', () => {
     setup('/week', { blocks: [morning, late] })
     await weekShown()
 
-    expect(within(day('2026-11-16')).getByRole('article', { name: 'סימולציה מאוחרת' })).toBeInTheDocument()
-    expect(within(day('2026-11-17')).queryByRole('article', { name: 'סימולציה מאוחרת' })).not.toBeInTheDocument()
-    expect(within(day('2026-11-17')).getByRole('article', { name: 'חזרה של בוקר' })).toBeInTheDocument()
+    expect(row('2026-11-16', 'סימולציה מאוחרת')).toBeInTheDocument()
+    expect(within(day('2026-11-17')).queryByText('סימולציה מאוחרת')).not.toBeInTheDocument()
+    expect(row('2026-11-17', 'חזרה של בוקר')).toBeInTheDocument()
     expect(within(day('2026-11-17')).getByText(he.week.total('45 דקות'))).toBeInTheDocument()
   })
 
   it('the next, previous and this-week buttons move the week through ?from=', async () => {
     const user = userEvent.setup()
-    const { fake, router } = setup('/week')
+    // A block in each of the three weeks: a week without one shows no days.
+    const { fake, router } = setup('/week', {
+      blocks: [blockOn(TODAY), blockOn('2026-11-24', { id: 'block-next' }), blockOn('2026-11-10', { id: 'block-previous' })],
+    })
     await weekShown()
+    expect(within(screen.getByRole('group', { name: he.week.moves })).getAllByRole('button')).toHaveLength(3)
 
     await user.click(screen.getByRole('button', { name: he.week.next }))
     expect(router.state.location.search).toBe('?from=2026-11-22')
@@ -129,7 +150,7 @@ describe('the week screen', () => {
   })
 
   it('?from= on any day shows the week that contains it', async () => {
-    const { fake } = setup('/week?from=2026-12-02')
+    const { fake } = setup('/week?from=2026-12-02', { blocks: [blockOn('2026-12-03')] })
     await weekShown('2026-11-29')
     expect(planCalls(fake)).toContain(planPath('2026-11-29', '2026-12-05'))
     expect(screen.getAllByRole('region')).toHaveLength(7)
@@ -147,7 +168,7 @@ describe('the week screen', () => {
     expect(planCalls(fake).every((p) => p === planPath(SUNDAY, SATURDAY))).toBe(true)
   })
 
-  it('a menu action updates the week, and today has the block done without waiting for a request', async () => {
+  it('the check button updates the week, and today has the block done without waiting for a request', async () => {
     const user = userEvent.setup()
     const block = makeBlock({ study_date: TODAY, starts_at: '2026-11-18T12:00:00Z', ends_at: '2026-11-18T13:00:00Z' })
     const { fake, state, queryClient, router } = setup('/week', { blocks: [block] })
@@ -159,10 +180,13 @@ describe('the week screen', () => {
     state.frozen = true
     fake.on('POST /blocks/block-1/complete', () => new Promise<never>(() => undefined))
 
-    await user.click(within(day(TODAY)).getByRole('button', { name: he.board.actionsLabel(block.task_title) }))
-    await user.click(await screen.findByRole('menuitem', { name: he.board.complete }))
+    // One press: "done" is not behind the menu.
+    await user.click(within(day(TODAY)).getByRole('button', { name: he.board.completeLabel(block.task_title) }))
 
-    expect(await within(day(TODAY)).findByText(he.board.states.done)).toBeInTheDocument()
+    expect(await within(day(TODAY)).findByRole('button', { name: he.board.uncompleteLabel(block.task_title) })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
     expect(queryClient.getQueryData<{ blocks: Block[] }>(todayKey(USER_ID))?.blocks[0]?.status).toBe('done')
     expect(fake.calls('POST', '/blocks/block-1/complete')).toHaveLength(1)
 
@@ -171,7 +195,7 @@ describe('the week screen', () => {
     expect(queryClient.getQueryData<{ blocks: Block[] }>(todayKey(USER_ID))?.blocks[0]?.state).toBe('done')
   })
 
-  it('two parts of one task on the same day have actions buttons with different names', async () => {
+  it('two parts of one task on the same day have menu and check buttons with different names', async () => {
     const part1 = makeBlock({ study_date: TODAY, part_index: 1, part_count: 2, starts_at: '2026-11-18T08:00:00Z', ends_at: '2026-11-18T09:00:00Z' })
     const part2 = makeBlock({ id: 'block-2', study_date: TODAY, part_index: 2, part_count: 2, starts_at: '2026-11-18T12:00:00Z', ends_at: '2026-11-18T13:00:00Z' })
     setup('/week', { blocks: [part1, part2] })
@@ -180,9 +204,13 @@ describe('the week screen', () => {
     const names = within(day(TODAY))
       .getAllByRole('button')
       .map((b) => b.getAttribute('aria-label'))
+    const first = `${part1.task_title} (${he.board.part(1, 2)})`
+    const second = `${part1.task_title} (${he.board.part(2, 2)})`
     expect(names).toEqual([
-      he.board.actionsLabel(`${part1.task_title} (${he.board.part(1, 2)})`),
-      he.board.actionsLabel(`${part1.task_title} (${he.board.part(2, 2)})`),
+      he.board.actionsLabel(first),
+      he.board.completeLabel(first),
+      he.board.actionsLabel(second),
+      he.board.completeLabel(second),
     ])
   })
 
@@ -193,7 +221,9 @@ describe('the week screen', () => {
     fake.on({ method: 'GET', path: /^\/plan\?/ }, failure)
 
     expect(await screen.findByRole('alert')).toHaveTextContent(errorMessage(failure))
-    fake.on({ method: 'GET', path: /^\/plan\?/ }, makePlan([], { from: SUNDAY, to: SATURDAY }))
+    // The title stays on an error too: it takes the focus after a navigation.
+    expect(screen.getByRole('heading', { level: 1, name: he.week.title })).toBeInTheDocument()
+    fake.on({ method: 'GET', path: /^\/plan\?/ }, makePlan([blockOn(TODAY)], { from: SUNDAY, to: SATURDAY }))
     await user.click(screen.getByRole('button', { name: he.common.retry }))
 
     await weekShown()
@@ -207,6 +237,8 @@ describe('the week screen', () => {
     fake.on('GET /today', failure)
 
     expect(await screen.findByRole('alert')).toHaveTextContent(errorMessage(failure))
+    // The title stays on an error too: it takes the focus after a navigation.
+    expect(screen.getByRole('heading', { level: 1, name: he.week.title })).toBeInTheDocument()
     fake.on('GET /today', makeToday([], { date: TODAY }))
     await user.click(screen.getByRole('button', { name: he.common.retry }))
     await weekShown()
@@ -218,6 +250,31 @@ describe('the week screen', () => {
     await screen.findByRole('heading', { level: 1, name: he.week.title })
     expect(within(screen.getByRole('main')).getByRole('status')).toHaveTextContent(he.common.loading)
     expect(screen.queryAllByRole('region')).toHaveLength(0)
+  })
+
+  it('the title is on screen while loading, and the range and the week buttons only when the week is known', async () => {
+    const { state } = setup('/week')
+    state.frozen = true
+
+    await screen.findByRole('heading', { level: 1, name: he.week.title })
+    expect(within(screen.getByRole('main')).getByRole('status')).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: he.week.moves })).not.toBeInTheDocument()
+    expect(screen.queryByText(he.week.range(formatDay(SUNDAY), formatDay(SATURDAY)))).not.toBeInTheDocument()
+  })
+
+  it('a week without any block shows one empty state and not seven free days, and the week can still be moved', async () => {
+    const user = userEvent.setup()
+    const { router } = setup('/week', { blocks: [blockOn('2026-11-24')] })
+
+    expect(await screen.findByText(he.week.empty)).toBeInTheDocument()
+    expect(screen.queryAllByRole('region')).toHaveLength(0)
+    expect(screen.queryByText(he.week.free)).not.toBeInTheDocument()
+    expect(screen.getByText(he.week.range(formatDay(SUNDAY), formatDay(SATURDAY)))).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: he.week.next }))
+    expect(router.state.location.search).toBe('?from=2026-11-22')
+    await weekShown('2026-11-22')
+    expect(screen.queryByText(he.week.empty)).not.toBeInTheDocument()
   })
 
   it('a failed refresh keeps the week and says it may be out of date', async () => {

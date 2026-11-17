@@ -1,7 +1,10 @@
-import { BlockCard } from '../board/BlockCard'
+import { BlockRow } from '../board/BlockRow'
 import { blockMinutes, durationText, formatDay } from '../board/time'
 import type { Block } from '../board/types'
 import { he } from '../i18n/he'
+import { Badge } from '../ui/Badge'
+import { List } from '../ui/List'
+import { SectionHeading } from '../ui/SectionHeading'
 
 export interface WeekDayProps {
   date: string
@@ -11,40 +14,32 @@ export interface WeekDayProps {
   isToday: boolean
 }
 
-// One day of the week: a heading, the day's total, and its blocks as compact rows.
-// A free day stays one quiet line, so the busy days stand out when the week is scanned.
+// One day of the week: a section heading on a line (the day, and its total at the end), and under
+// it the blocks as rows. There is no box around a day: seven boxes would compete with the rows.
+// A free day is the heading line alone, so the busy days stand out when the week is scanned.
+// Today is marked by the "היום" badge and aria-current, not by a fill (brand is not a background).
 export function WeekDay({ date, blocks, tz, isToday }: WeekDayProps) {
   const headingId = `week-day-${date}`
   const total = blocks.reduce((sum, block) => sum + blockMinutes(block), 0)
   const free = blocks.length === 0
 
   return (
-    <section
-      aria-labelledby={headingId}
-      aria-current={isToday ? 'date' : undefined}
-      className={`rounded-xl border bg-surface ${isToday ? 'border-brand border-s-4' : 'border-line'}`}
-    >
-      <div className={`flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 py-3 ${isToday ? 'rounded-t-xl bg-brand-soft' : ''}`}>
-        <h2 id={headingId} className="flex items-center gap-2 font-semibold">
+    <section aria-labelledby={headingId} aria-current={isToday ? 'date' : undefined}>
+      {/* The line under the heading is the top line of the first row, as in every list. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-line pb-2">
+        {/* The badge is inside the heading: the region is named "יום רביעי 18.11 היום". */}
+        <SectionHeading id={headingId} className="flex min-w-0 items-center gap-2">
           <span>{formatDay(date)}</span>
-          {isToday ? (
-            <span className="rounded-full bg-brand px-2 py-0.5 text-xs font-medium text-on-brand">{he.board.today}</span>
-          ) : null}
-        </h2>
-        {free ? (
-          <p className="text-sm text-ink-muted">{he.week.free}</p>
-        ) : (
-          <p className="text-sm text-ink-muted tabular-nums">{he.week.total(durationText(total))}</p>
-        )}
+          {isToday ? <Badge tone="brand">{he.board.today}</Badge> : null}
+        </SectionHeading>
+        <p className="text-small text-ink-muted tabular-nums">{free ? he.week.free : he.week.total(durationText(total))}</p>
       </div>
       {free ? null : (
-        <ul className="space-y-2 px-3 pb-3">
+        <List>
           {blocks.map((block) => (
-            <li key={block.id}>
-              <BlockCard block={block} tz={tz} variant="compact" />
-            </li>
+            <BlockRow key={block.id} block={block} tz={tz} />
           ))}
-        </ul>
+        </List>
       )}
     </section>
   )
