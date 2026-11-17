@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StudyFlow S25: שלושה כיוונים</title>
+<!-- הפונטים נטענים מ-Google רק בשביל ההדמיה. במוצר הפונט שייבחר יאוחסן אצלנו. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600&family=IBM+Plex+Sans+Hebrew:wght@400;600&family=Rubik:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-font-smoothing: antialiased; }
+  body { background: #e6e4df; color: #1c2024; font-family: 'Assistant', sans-serif; padding: 40px 24px 64px; }
+  .page-title { text-align: center; font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+  .page-sub { text-align: center; color: #50555c; margin-bottom: 36px; }
+  .row { display: flex; gap: 48px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+  .col { width: 390px; }
+  body.only { padding: 0; background: #fff; }
+  body.only .page-title, body.only .page-sub, body.only .col { display: none; }
+  body.only .col.show { display: block; }
+  body.only .phone { border-radius: 0; box-shadow: none; position: fixed; left: 0; top: 0; }
+
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  ol { list-style: none; }
+  svg.i { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .ltr { direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+  .phone { width: 390px; height: 844px; border-radius: 36px; overflow: hidden; position: relative; display: flex; flex-direction: column;
+    box-shadow: 0 0 0 1px #cfccc5, 0 24px 48px -24px rgba(40, 36, 28, .35); background: var(--bg); color: var(--ink); font-family: var(--font); }
+  .screen { flex: 1; overflow: hidden; }
+  .phone button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+  /* ---------- כיתוב מתחת לכל מסגרת ---------- */
+  .cap { margin-top: 22px; }
+  .cap h2 { font-size: 22px; font-weight: 600; }
+  .cap p { margin-top: 4px; color: #50555c; line-height: 1.5; }
+  .swatches { display: flex; gap: 6px; margin-top: 14px; }
+  .sw { flex: 1; }
+  .sw i { display: block; height: 40px; border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .1); }
+  .sw span { display: block; margin-top: 4px; font-size: 11px; color: #50555c; direction: ltr; text-align: center; font-variant-numeric: tabular-nums; }
+  .fontline { margin-top: 14px; display: flex; flex-direction: column; gap: 4px; border-top: 1px solid #cfccc5; padding-top: 12px; }
+  .fontline b { font-size: 26px; font-weight: 600; }
+  .fontline span { color: #50555c; font-size: 14px; }
+
+  /* ================= א: נייר ================= */
+  .a { --font: 'Assistant', sans-serif; --bg: #faf9f6; --surface: #ffffff; --muted: #f2f0eb; --ink: #1c2024; --ink-muted: #5a6068;
+       --line: #e4e1da; --line-strong: #8a8880; --brand: #2f5aa8; --brand-strong: #1f3f7d; --brand-soft: #eaf0fa;
+       --success: #1d6b3a; --success-soft: #e6f4ea; font-size: 16px; line-height: 1.45; }
+  .a .top { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px 6px; }
+  .a .logo { font-weight: 600; font-size: 17px; }
+  .a .me { width: 44px; height: 44px; margin-inline-end: -8px; display: grid; place-items: center; }
+  .a .me span { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line-strong); display: grid; place-items: center; font-size: 14px; font-weight: 600; }
+  .a .head { padding: 10px 20px 0; }
+  .a h1 { font-size: 34px; font-weight: 600; line-height: 1.1; }
+  .a .date { color: var(--ink-muted); margin-top: 2px; }
+  .a .prog { padding: 18px 20px 0; }
+  .a .prog .t { display: flex; justify-content: space-between; font-size: 14px; color: var(--ink-muted); }
+  .a .prog .t b { color: var(--ink); font-weight: 600; }
+  .a .bar { height: 4px; background: var(--line); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .a .bar i { display: block; height: 100%; width: 17.4%; background: var(--success); }
+  .a .next { margin: 20px 20px 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .a .next .k { display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: var(--brand-strong); font-weight: 600; }
+  .a .badge { background: var(--brand-soft); color: var(--brand-strong); border-radius: 4px; padding: 1px 8px; font-size: 13px; font-weight: 600; }
+  .a .next h3 { font-size: 20px; font-weight: 600; line-height: 1.3; margin-top: 8px; }
+  .a .next .m { color: var(--ink-muted); font-size: 15px; margin-top: 4px; }
+  .a .acts { display: flex; gap: 8px; margin-top: 14px; }
+  .a .btn { min-height: 44px; padding: 0 16px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong); background: var(--surface); }
+  .a .btn.p { background: var(--brand); border-color: var(--brand); color: #fff; flex: 1; justify-content: center; }
+  .a .btn svg { width: 18px; height: 18px; }
+  .a .list { padding: 24px 20px 0; }
+  .a .list h2 { font-size: 14px; font-weight: 600; color: var(--ink-muted); padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  .a .list li { display: grid; grid-template-columns: 46px 1fr 44px; align-items: center; gap: 10px; min-height: 64px; border-bottom: 1px solid var(--line); }
+  .a .list .time { font-size: 15px; font-weight: 600; }
+  .a .list .ti { font-weight: 600; line-height: 1.3; }
+  .a .list .m { font-size: 14px; color: var(--ink-muted); }
+  .a .chk { width: 44px; height: 44px; display: grid; place-items: center; }
+  .a .chk span { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line-strong); display: grid; place-items: center; }
+  .a .done .ti { text-decoration: line-through; color: var(--ink-muted); font-weight: 400; }
+  .a .done .time { color: var(--ink-muted); font-weight: 400; }
+  .a .done .chk span { background: var(--success); border-color: var(--success); color: #fff; }
+  .a .done .chk svg { width: 14px; height: 14px; stroke-width: 2.4; }
+  .a .pin { display: inline-flex; align-items: center; gap: 3px; }
+  .a .pin svg { width: 13px; height: 13px; }
+  .a .nav { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--surface); border-top: 1px solid var(--line); padding: 6px 8px 22px; }
+  .a .nav a { min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 12px; color: var(--ink-muted); text-decoration: none; }
+  .a .nav a.on { color: var(--brand); font-weight: 600; }
+
+  /* ================= ב: ענן ================= */
+  .b { --font: 'Rubik', sans-serif; --bg: #f6f4f1; --surface: #ffffff; --muted: #efecE8; --ink: #211f2b; --ink-muted: #5d5a6b;
+       --line: #e6e2ee; --line-strong: #827e95; --brand: #5847b8; --brand-strong: #3f3190; --brand-soft: #eeebfb;
+       --success: #1d6b3a; --success-soft: #e4f4e9; font-size: 16px; line-height: 1.45;
+       --shadow: 0 1px 2px rgba(48, 36, 96, .05), 0 10px 24px -8px rgba(48, 36, 96, .12); }
+  .b .top { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 0; }
+  .b .hello h1 { font-size: 26px; font-weight: 600; line-height: 1.15; }
+  .b .hello .date { color: var(--ink-muted); font-size: 15px; margin-top: 2px; }
+  .b .me { width: 44px; height: 44px; border-radius: 50%; background: var(--brand-soft); color: var(--brand-strong); display: grid; place-items: center; font-weight: 600; }
+  .b .prog { margin: 18px 16px 0; background: var(--surface); border-radius: 24px; box-shadow: var(--shadow); padding: 14px 18px; display: flex; align-items: center; gap: 16px; }
+  .b .ring { width: 56px; height: 56px; flex: none; }
+  .b .ring circle { fill: none; stroke-width: 6; }
+  .b .prog .l { font-size: 14px; color: var(--ink-muted); }
+  .b .prog b { font-weight: 600; font-size: 17px; display: block; }
+  .b .next { margin: 14px 16px 0; background: var(--brand); color: #fff; border-radius: 28px; padding: 20px; }
+  .b .next .k { display: flex; align-items: center; justify-content: space-between; font-size: 14px; }
+  .b .badge { background: #fff; color: var(--brand-strong); border-radius: 999px; padding: 2px 12px; font-size: 13px; font-weight: 600; }
+  .b .next h3 { font-size: 21px; font-weight: 600; line-height: 1.3; margin-top: 12px; }
+  .b .next .m { font-size: 15px; margin-top: 6px; }
+  .b .acts { display: flex; gap: 8px; margin-top: 18px; }
+  .b .btn { min-height: 46px; padding: 0 18px; border-radius: 999px; font-weight: 600; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1.5px solid rgba(255, 255, 255, .75); color: #fff; }
+  .b .btn.p { background: #fff; border-color: #fff; color: var(--brand-strong); flex: 1; }
+  .b .btn svg { width: 18px; height: 18px; stroke-width: 2; }
+  .b .list { padding: 22px 16px 0; }
+  .b .list h2 { font-size: 17px; font-weight: 600; padding: 0 4px 10px; }
+  .b .list li { background: var(--surface); border-radius: 20px; box-shadow: var(--shadow); padding: 12px 16px 12px 8px; display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .b .list .tx { flex: 1; min-width: 0; }
+  .b .list .ti { font-weight: 600; line-height: 1.3; }
+  .b .list .m { font-size: 14px; color: var(--ink-muted); margin-top: 2px; }
+  .b .chip { display: inline-block; background: var(--muted); border-radius: 999px; padding: 0 8px; font-size: 13px; color: var(--ink-muted); }
+  .b .chk { width: 44px; height: 44px; flex: none; display: grid; place-items: center; }
+  .b .chk span { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line-strong); display: grid; place-items: center; }
+  .b .done .ti { text-decoration: line-through; color: var(--ink-muted); font-weight: 400; }
+  .b .done .chk span { background: var(--success); border-color: var(--success); color: #fff; }
+  .b .done .chk svg { width: 16px; height: 16px; stroke-width: 2.6; }
+  .b .nav { position: absolute; inset-inline: 16px; bottom: 18px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--surface); border-radius: 999px; padding: 6px; box-shadow: 0 1px 2px rgba(48, 36, 96, .08), 0 14px 32px -8px rgba(48, 36, 96, .28); }
+  .b .nav a { min-height: 52px; border-radius: 999px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 12px; color: var(--ink-muted); text-decoration: none; }
+  .b .nav a.on { background: var(--brand-soft); color: var(--brand-strong); font-weight: 600; }
+  .b svg.i { stroke-width: 1.8; }
+
+  /* ================= ג: סרגל ================= */
+  .c { --font: 'IBM Plex Sans Hebrew', sans-serif; --bg: #fbfaf8; --surface: #ffffff; --muted: #f0eeea; --ink: #16191c; --ink-muted: #555b61;
+       --line: #dedbd5; --line-strong: #85827b; --brand: #0e5f73; --brand-strong: #0a4555; --brand-soft: #e2eef1;
+       --success: #1d6b3a; --success-soft: #e4f2e8; font-size: 15px; line-height: 1.4; }
+  .c .top { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 0; height: 52px; }
+  .c .logo { font-weight: 600; font-size: 15px; }
+  .c .me { width: 44px; height: 44px; margin-inline-end: -8px; display: grid; place-items: center; }
+  .c .me span { width: 30px; height: 30px; border-radius: 6px; background: var(--muted); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+  .c .head { padding: 6px 16px 0; display: flex; align-items: baseline; justify-content: space-between; }
+  .c h1 { font-size: 24px; font-weight: 600; }
+  .c .date { color: var(--ink-muted); font-size: 14px; }
+  .c .prog { padding: 12px 16px 0; }
+  .c .segs { display: flex; gap: 3px; direction: rtl; }
+  .c .segs i { height: 8px; border-radius: 2px; background: var(--line); }
+  .c .segs i.d { background: var(--success); }
+  .c .segs i.n { background: var(--brand); }
+  .c .prog .t { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-muted); margin-top: 6px; }
+  .c .prog .t b { color: var(--ink); font-weight: 600; }
+  .c .next { margin: 14px 16px 0; background: var(--brand-soft); border-radius: 6px; padding: 14px; }
+  .c .next .k { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--brand-strong); font-weight: 600; }
+  .c .next h3 { font-size: 18px; font-weight: 600; line-height: 1.3; margin-top: 6px; }
+  .c .next .m { color: var(--ink-muted); font-size: 14px; margin-top: 2px; }
+  .c .acts { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 6px; margin-top: 12px; }
+  .c .btn { min-height: 44px; border-radius: 6px; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .c .btn.p { background: var(--brand); color: #fff; box-shadow: none; }
+  .c .btn svg { width: 16px; height: 16px; stroke-width: 2; }
+  .c .list { padding: 18px 16px 0; }
+  .c .list h2 { font-size: 13px; font-weight: 600; color: var(--ink-muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .c .list h2 span { font-weight: 400; }
+  .c .list li { background: var(--muted); display: grid; grid-template-columns: 92px 1fr 44px; align-items: center; gap: 8px; min-height: 56px; padding-inline-start: 12px; margin-bottom: 3px; border-radius: 6px; }
+  .c .list .time { font-size: 13px; color: var(--ink-muted); }
+  .c .list .ti { font-weight: 600; font-size: 14px; line-height: 1.3; }
+  .c .list .m { font-size: 13px; color: var(--ink-muted); }
+  .c .chk { width: 44px; height: 44px; display: grid; place-items: center; }
+  .c .chk span { width: 22px; height: 22px; border-radius: 5px; box-shadow: inset 0 0 0 1.5px var(--line-strong); background: var(--surface); display: grid; place-items: center; }
+  .c .done .ti { text-decoration: line-through; color: var(--ink-muted); font-weight: 400; }
+  .c .done .chk span { background: var(--success); box-shadow: none; color: #fff; }
+  .c .done .chk svg { width: 14px; height: 14px; stroke-width: 2.6; }
+  .c .pin svg.i { width: 12px; height: 12px; vertical-align: -1px; }
+  .c .nav { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--bg); border-top: 1px solid var(--line); padding: 0 8px 20px; }
+  .c .nav a { min-height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 12px; color: var(--ink-muted); text-decoration: none; border-top: 2px solid transparent; margin-top: -1px; }
+  .c .nav a.on { color: var(--ink); font-weight: 600; border-top-color: var(--brand); }
+  .c .nav a.on svg { color: var(--brand); }
+  .c svg.i { width: 20px; height: 20px; stroke-width: 1.5; }
+</style>
+</head>
+<body>
+
+<!-- האייקונים בהדמיה מצוירים ביד, בקו דק. הספרייה עצמה נבחרת בשלב ב'. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-today" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-week" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 17.5h.01M12 17.5h.01"/></symbol>
+    <symbol id="i-exams" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></symbol>
+    <symbol id="i-progress" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  </defs>
+</svg>
+
+<p class="page-title">StudyFlow: שלושה כיוונים למסך "היום"</p>
+<p class="page-sub">אותו תוכן, אותו סדר. משתנים צבע המותג, הפונט, צורת הכרטיסים והצפיפות.</p>
+
+<div class="row">
+
+<!-- ============ א ============ -->
+<div class="col" id="a">
+  <div class="phone a">
+    <div class="screen">
+      <div class="top">
+        <span class="logo">StudyFlow</span>
+        <button class="me" aria-label="פרופיל"><span>א</span></button>
+      </div>
+      <div class="head">
+        <h1>היום</h1>
+        <p class="date">יום שלישי, 17.11</p>
+      </div>
+      <div class="prog">
+        <div class="t"><span>ההתקדמות של היום</span><b>60 מתוך 345 דקות</b></div>
+        <div class="bar"><i></i></div>
+      </div>
+      <section class="next">
+        <div class="k"><span>המשימה הבאה</span><span class="badge">עכשיו</span></div>
+        <h3>אלגוריתמים חמדניים: הוכחת נכונות</h3>
+        <p class="m"><span class="ltr">10:00–11:30</span>, שעה וחצי. אלגוריתמים, לימוד</p>
+        <div class="acts">
+          <button class="btn p"><svg class="i"><use href="#i-check"/></svg>בוצע</button>
+          <button class="btn">דחייה</button>
+          <button class="btn">נעילה</button>
+        </div>
+      </section>
+      <section class="list">
+        <h2>עוד היום</h2>
+        <ol>
+          <li class="done"><span class="time ltr">08:30</span><div><p class="ti">חזרה על ההתפלגות הבינומית</p><p class="m">הסתברות, חזרה. שעה</p></div><button class="chk" aria-label="ביטול הסימון"><span><svg class="i"><use href="#i-check"/></svg></span></button></li>
+          <li><span class="time ltr">13:00</span><div><p class="ti">תרגול: תוחלת ושונות</p><p class="m">הסתברות, תרגול. שעה <span class="pin"><svg class="i"><use href="#i-lock"/></svg>נעול</span></p></div><button class="chk" aria-label="בוצע"><span></span></button></li>
+          <li><span class="time ltr">16:00</span><div><p class="ti">סימולציה: מבחן 2025 מועד א׳</p><p class="m">שפת C, סימולציה. שעה וחצי</p></div><button class="chk" aria-label="בוצע"><span></span></button></li>
+          <li><span class="time ltr">20:00</span><div><p class="ti">חזרה: מיון מיזוג ומיון מהיר</p><p class="m">אלגוריתמים, חזרה. 45 דקות</p></div><button class="chk" aria-label="בוצע"><span></span></button></li>
+        </ol>
+      </section>
+    </div>
+    <nav class="nav" aria-label="ניווט ראשי">
+      <a class="on" aria-current="page"><svg class="i"><use href="#i-today"/></svg>היום</a>
+      <a><svg class="i"><use href="#i-week"/></svg>שבוע</a>
+      <a><svg class="i"><use href="#i-exams"/></svg>מבחנים</a>
+      <a><svg class="i"><use href="#i-progress"/></svg>התקדמות</a>
+    </nav>
+  </div>
+  <div class="cap">
+    <h2>א. נייר</h2>
+    <p>שקט כמו דף ביומן: קווים דקים, רשימה לפי שעה, כחול אחד.</p>
+    <div class="swatches">
+      <div class="sw"><i style="background:#faf9f6"></i><span>#faf9f6</span></div>
+      <div class="sw"><i style="background:#f2f0eb"></i><span>#f2f0eb</span></div>
+      <div class="sw"><i style="background:#1c2024"></i><span>#1c2024</span></div>
+      <div class="sw"><i style="background:#5a6068"></i><span>#5a6068</span></div>
+      <div class="sw"><i style="background:#2f5aa8"></i><span>#2f5aa8</span></div>
+      <div class="sw"><i style="background:#eaf0fa"></i><span>#eaf0fa</span></div>
+    </div>
+    <div class="fontline" style="font-family:'Assistant',sans-serif"><b>אבגד הוזח 123</b><span>Assistant, משקלים 400 ו-600. כרטיס: קו דק, פינות 12px, בלי צל. צפיפות בינונית.</span></div>
+  </div>
+</div>
+
+<!-- ============ ב ============ -->
+<div class="col" id="b">
+  <div class="phone b">
+    <div class="screen">
+      <div class="top">
+        <div class="hello">
+          <h1>היום</h1>
+          <p class="date">יום שלישי, 17.11</p>
+        </div>
+        <button class="me" aria-label="פרופיל">א</button>
+      </div>
+      <div class="prog">
+        <svg class="ring" viewBox="0 0 56 56" aria-hidden="true">
+          <circle cx="28" cy="28" r="24" stroke="#e6e2ee"/>
+          <circle cx="28" cy="28" r="24" stroke="#1d6b3a" stroke-linecap="round" stroke-dasharray="26.2 150.8" transform="rotate(-90 28 28)"/>
+        </svg>
+        <div><p class="l">ההתקדמות של היום</p><b>60 מתוך 345 דקות</b></div>
+      </div>
+      <section class="next">
+        <div class="k"><span>המשימה הבאה</span><span class="badge">עכשיו</span></div>
+        <h3>אלגוריתמים חמדניים: הוכחת נכונות</h3>
+        <p class="m"><span class="ltr">10:00–11:30</span>, שעה וחצי. אלגוריתמים, לימוד</p>
+        <div class="acts">
+          <button class="btn p"><svg class="i"><use href="#i-check"/></svg>בוצע</button>
+          <button class="btn">דחייה</button>
+          <button class="btn">נעילה</button>
+        </div>
+      </section>
+      <section class="list">
+        <h2>עוד היום</h2>
+        <ol>
+          <li class="done"><button class="chk" aria-label="ביטול הסימון"><span><svg class="i"><use href="#i-check"/></svg></span></button><div class="tx"><p class="ti">חזרה על ההתפלגות הבינומית</p><p class="m"><span class="ltr">08:30</span>, שעה <span class="chip">הסתברות</span></p></div></li>
+          <li><button class="chk" aria-label="בוצע"><span></span></button><div class="tx"><p class="ti">תרגול: תוחלת ושונות</p><p class="m"><span class="ltr">13:00</span>, שעה <span class="chip">הסתברות</span> <span class="chip">נעול</span></p></div></li>
+          <li><button class="chk" aria-label="בוצע"><span></span></button><div class="tx"><p class="ti">סימולציה: מבחן 2025 מועד א׳</p><p class="m"><span class="ltr">16:00</span>, שעה וחצי <span class="chip">שפת C</span></p></div></li>
+          <li><button class="chk" aria-label="בוצע"><span></span></button><div class="tx"><p class="ti">חזרה: מיון מיזוג ומיון מהיר</p><p class="m"><span class="ltr">20:00</span>, 45 דקות <span class="chip">אלגוריתמים</span></p></div></li>
+        </ol>
+      </section>
+    </div>
+    <nav class="nav" aria-label="ניווט ראשי">
+      <a class="on" aria-current="page"><svg class="i"><use href="#i-today"/></svg>היום</a>
+      <a><svg class="i"><use href="#i-week"/></svg>שבוע</a>
+      <a><svg class="i"><use href="#i-exams"/></svg>מבחנים</a>
+      <a><svg class="i"><use href="#i-progress"/></svg>התקדמות</a>
+    </nav>
+  </div>
+  <div class="cap">
+    <h2>ב. ענן</h2>
+    <p>רך ומזמין: כרטיסים עגולים שצפים על צל עדין, ומשימה אחת בסגול מלא.</p>
+    <div class="swatches">
+      <div class="sw"><i style="background:#f6f4f1"></i><span>#f6f4f1</span></div>
+      <div class="sw"><i style="background:#efece8"></i><span>#efece8</span></div>
+      <div class="sw"><i style="background:#211f2b"></i><span>#211f2b</span></div>
+      <div class="sw"><i style="background:#5d5a6b"></i><span>#5d5a6b</span></div>
+      <div class="sw"><i style="background:#5847b8"></i><span>#5847b8</span></div>
+      <div class="sw"><i style="background:#eeebfb"></i><span>#eeebfb</span></div>
+    </div>
+    <div class="fontline" style="font-family:'Rubik',sans-serif"><b>אבגד הוזח 123</b><span>Rubik, משקלים 400 ו-600. כרטיס: בלי קו, פינות 20–28px, צל רך. צפיפות נמוכה.</span></div>
+  </div>
+</div>
+
+<!-- ============ ג ============ -->
+<div class="col" id="c">
+  <div class="phone c">
+    <div class="screen">
+      <div class="top">
+        <span class="logo">StudyFlow</span>
+        <button class="me" aria-label="פרופיל"><span>א</span></button>
+      </div>
+      <div class="head">
+        <h1>היום</h1>
+        <p class="date">יום שלישי, 17.11</p>
+      </div>
+      <div class="prog">
+        <!-- מקטע לכל בלוק, ברוחב לפי האורך שלו: 60, 90, 60, 90, 45 דקות -->
+        <div class="segs" aria-hidden="true"><i class="d" style="flex:60"></i><i class="n" style="flex:90"></i><i style="flex:60"></i><i style="flex:90"></i><i style="flex:45"></i></div>
+        <div class="t"><span>ההתקדמות של היום</span><b>60 מתוך 345 דקות</b></div>
+      </div>
+      <section class="next">
+        <div class="k"><span>המשימה הבאה</span><span>עכשיו</span></div>
+        <h3>אלגוריתמים חמדניים: הוכחת נכונות</h3>
+        <p class="m"><span class="ltr">10:00–11:30</span>, שעה וחצי. אלגוריתמים, לימוד</p>
+        <div class="acts">
+          <button class="btn p"><svg class="i"><use href="#i-check"/></svg>בוצע</button>
+          <button class="btn">דחייה</button>
+          <button class="btn">נעילה</button>
+        </div>
+      </section>
+      <section class="list">
+        <h2>עוד היום <span>4 בלוקים</span></h2>
+        <ol>
+          <li class="done"><span class="time ltr">08:30–09:30</span><div><p class="ti">חזרה על ההתפלגות הבינומית</p><p class="m">הסתברות, חזרה</p></div><button class="chk" aria-label="ביטול הסימון"><span><svg class="i"><use href="#i-check"/></svg></span></button></li>
+          <li><span class="time ltr">13:00–14:00</span><div><p class="ti">תרגול: תוחלת ושונות</p><p class="m">הסתברות, תרגול. <span class="pin"><svg class="i"><use href="#i-lock"/></svg> נעול</span></p></div><button class="chk" aria-label="בוצע"><span></span></button></li>
+          <li><span class="time ltr">16:00–17:30</span><div><p class="ti">סימולציה: מבחן 2025 מועד א׳</p><p class="m">שפת C, סימולציה</p></div><button class="chk" aria-label="בוצע"><span></span></button></li>
+          <li><span class="time ltr">20:00–20:45</span><div><p class="ti">חזרה: מיון מיזוג ומיון מהיר</p><p class="m">אלגוריתמים, חזרה</p></div><button class="chk" aria-label="בוצע"><span></span></button></li>
+        </ol>
+      </section>
+    </div>
+    <nav class="nav" aria-label="ניווט ראשי">
+      <a class="on" aria-current="page"><svg class="i"><use href="#i-today"/></svg>היום</a>
+      <a><svg class="i"><use href="#i-week"/></svg>שבוע</a>
+      <a><svg class="i"><use href="#i-exams"/></svg>מבחנים</a>
+      <a><svg class="i"><use href="#i-progress"/></svg>התקדמות</a>
+    </nav>
+  </div>
+  <div class="cap">
+    <h2>ג. סרגל</h2>
+    <p>מדויק וצפוף כמו לוח זמנים: משטחים אפורים שטוחים, פינות חדות, כחול־ירקרק עמוק.</p>
+    <div class="swatches">
+      <div class="sw"><i style="background:#fbfaf8"></i><span>#fbfaf8</span></div>
+      <div class="sw"><i style="background:#f0eeea"></i><span>#f0eeea</span></div>
+      <div class="sw"><i style="background:#16191c"></i><span>#16191c</span></div>
+      <div class="sw"><i style="background:#555b61"></i><span>#555b61</span></div>
+      <div class="sw"><i style="background:#0e5f73"></i><span>#0e5f73</span></div>
+      <div class="sw"><i style="background:#e2eef1"></i><span>#e2eef1</span></div>
+    </div>
+    <div class="fontline" style="font-family:'IBM Plex Sans Hebrew',sans-serif"><b>אבגד הוזח 123</b><span>IBM Plex Sans Hebrew, משקלים 400 ו-600. כרטיס: מילוי אפור, פינות 6px, בלי קו ובלי צל. צפיפות גבוהה.</span></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+  // ?only=a|b|c מציג מסגרת אחת בלבד, לצילום.
+  const only = new URLSearchParams(location.search).get('only')
+  if (only) {
+    document.body.classList.add('only')
+    document.getElementById(only)?.classList.add('show')
+    document.querySelector('#' + only + ' .cap')?.remove()
+  }
+</script>
+</body>
+</html>
