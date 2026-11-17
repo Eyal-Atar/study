@@ -95,6 +95,18 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
     }
   }, [])
 
+  // The dragged block may stop being movable under the drag: a refetch turns it in_progress, or it
+  // is gone. Its handle then unmounts without a pointerup or a blur, so the drag ends here.
+  const draggedId = drag?.id
+  const draggable =
+    draggedId === undefined || today.blocks.some((b) => b.id === draggedId && b.status === 'planned' && b.state === 'upcoming')
+  useEffect(() => {
+    if (draggable || dragRef.current === null) return
+    dragRef.current = null
+    setDragState(null)
+    setAnnouncement(he.move.cancelled)
+  }, [draggable])
+
   useLayoutEffect(() => {
     const want = refocus.current
     if (want === null) return
@@ -124,6 +136,13 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
   function setDrag(next: Drag | null) {
     dragRef.current = next
     setDragState(next)
+  }
+
+  // The first quarter hour a block may start at: not before now, nor before the day starts.
+  function earliestStart() {
+    const from = Math.max(now, bounds.start)
+    const grid = snapToGrid(from, tz)
+    return grid < from ? grid + STEP_MS : grid
   }
 
   function free(block: Block, start: number) {
@@ -181,9 +200,10 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
     const steps = { ArrowUp: -1, ArrowDown: 1, PageUp: -4, PageDown: 4 }[event.key]
     if (steps !== undefined) {
       event.preventDefault()
-      const next = snapToGrid(active.candidate + steps * STEP_MS, tz)
-      // Not past the edges of the day: the block stops there.
-      if (next < bounds.start || next + blockMinutes(block) * MINUTE_MS > bounds.end) return
+      // Not before now or the start of the day, nor past its end: the block stops there.
+      const next = Math.max(snapToGrid(active.candidate + steps * STEP_MS, tz), earliestStart())
+      if (steps < 0 && next > active.candidate) return
+      if (next + blockMinutes(block) * MINUTE_MS > bounds.end) return
       propose(block, active, next)
       return
     }
@@ -330,6 +350,11 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
                         if (pointerDrag(block, event) !== null) finish(block)
                       }}
                       onPointerCancel={(event) => {
+                        if (pointerDrag(block, event) !== null) cancel()
+                      }}
+                      // The capture can go without a pointerup (another element took it, the
+                      // window lost focus); after a pointerup the drag is already over.
+                      onLostPointerCapture={(event) => {
                         if (pointerDrag(block, event) !== null) cancel()
                       }}
                     >

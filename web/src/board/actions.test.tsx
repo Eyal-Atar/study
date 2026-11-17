@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { errorMessage } from '../api/client'
@@ -283,6 +283,31 @@ describe('useBlockActions', () => {
     expect(await (await toasts()).findByText(text)).toBeInTheDocument()
     // Without a version there is nothing to undo.
     expect((await toasts()).queryByRole('button', { name: he.common.undo })).not.toBeInTheDocument()
+  })
+
+  it('pressing the undo of a defer twice sends one POST /plan/undo', async () => {
+    const user = userEvent.setup()
+    const { fake } = setup()
+    await ready()
+    const moved = makeBlock({ id: 'block-2', starts_at: '2026-11-17T07:00:00Z', ends_at: '2026-11-17T08:00:00Z', study_date: '2026-11-17' })
+    fake.on('POST /blocks/block-1/defer', { blocks: [moved], version_id: 'v1' })
+    fake.on('POST /plan/undo', () =>
+      new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({ restored: 1, deleted: 1, replaced: [], unplaced: [] })
+        }, 0)
+      }),
+    )
+
+    await user.click(screen.getByRole('button', { name: 'defer' }))
+    const undo = await (await toasts()).findByRole('button', { name: he.common.undo })
+    act(() => {
+      fireEvent.click(undo)
+      fireEvent.click(undo)
+    })
+    expect(await (await toasts()).findByText(he.board.deferUndone)).toBeInTheDocument()
+    expect(fake.calls('POST', '/plan/undo')).toHaveLength(1)
+    expect(screen.queryByText(errorMessage(problem(409, 'nothing_to_undo')))).not.toBeInTheDocument()
   })
 
   it('an undo that the server refuses shows its text and refreshes the board', async () => {

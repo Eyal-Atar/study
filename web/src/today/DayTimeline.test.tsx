@@ -215,6 +215,62 @@ describe('DayTimeline', () => {
     })
   })
 
+  it('keyboard: PageUp into the past stops at the first quarter hour not before now', async () => {
+    // 09:05: the earliest start is 09:15.
+    vi.setSystemTime(new Date('2026-11-16T07:05:00Z'))
+    const user = userEvent.setup()
+    const { fake } = setup()
+    const grip = await handle(A)
+    act(() => {
+      grip.focus()
+    })
+    await user.keyboard('{Enter}{PageUp}{PageUp}{PageUp}{PageUp}{PageUp}')
+    expect(live()).toHaveTextContent(he.move.candidate('09:15–10:15', true))
+    await user.keyboard('{PageUp}{ArrowUp}')
+    expect(live()).toHaveTextContent(he.move.candidate('09:15–10:15', true))
+    await user.keyboard('{Enter}')
+    await waitFor(() => {
+      expect(patches(fake)).toEqual([{ starts_at: '2026-11-16T07:15:00.000Z' }])
+    })
+  })
+
+  it('a lost pointer capture cancels the drag', async () => {
+    const { fake } = setup()
+    const grip = await handle(A)
+    fireEvent.pointerDown(grip, { pointerId: 1, button: 0, clientY: 500 })
+    fireEvent.pointerMove(grip, { pointerId: 1, clientY: 500 + 60 * PX_PER_MINUTE })
+    expect(document.querySelector('[data-ghost]')).not.toBeNull()
+    fireEvent.lostPointerCapture(grip, { pointerId: 1 })
+    expect(document.querySelector('[data-ghost]')).toBeNull()
+    expect(live()).toHaveTextContent(he.move.cancelled)
+    fireEvent.pointerUp(grip, { pointerId: 1, clientY: 500 + 60 * PX_PER_MINUTE })
+    expect(patches(fake)).toEqual([])
+  })
+
+  it('a drag ends when the block stops being upcoming (a refetch while dragging)', async () => {
+    const { fake, state, queryClient } = setup()
+    const grip = await handle(A)
+    fireEvent.pointerDown(grip, { pointerId: 1, button: 0, clientY: 500 })
+    fireEvent.pointerMove(grip, { pointerId: 1, clientY: 500 + 60 * PX_PER_MINUTE })
+    expect(document.querySelector('[data-ghost]')).not.toBeNull()
+
+    state.today = { ...state.today, blocks: state.today.blocks.map((b) => (b.id === A.id ? { ...b, state: 'in_progress' } : b)) }
+    await act(() => queryClient.invalidateQueries())
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: he.move.handleLabel(A.task_title) })).not.toBeInTheDocument()
+    })
+    expect(document.querySelector('[data-ghost]')).toBeNull()
+    expect(live()).toHaveTextContent(he.move.cancelled)
+
+    // Upcoming again: a fresh handle with no move left over.
+    state.today = { ...state.today, blocks: state.today.blocks.map((b) => (b.id === A.id ? { ...b, state: 'upcoming' } : b)) }
+    await act(() => queryClient.invalidateQueries())
+    const again = await handle(A)
+    fireEvent.pointerUp(again, { pointerId: 1, clientY: 500 + 60 * PX_PER_MINUTE })
+    expect(patches(fake)).toEqual([])
+    expect(document.querySelector('[data-ghost]')).toBeNull()
+  })
+
   it('leaving the handle with Tab cancels the move', async () => {
     const user = userEvent.setup()
     const { fake } = setup()

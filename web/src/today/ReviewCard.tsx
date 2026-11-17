@@ -16,6 +16,9 @@ type Action = 'complete' | 'moveToday' | 'skip'
 // Focus (decision 14a): an action takes its row off the card, so the focus moves to the first button
 // of the next row, else of the one before, else to the heading. The card stays (with a short line)
 // after its last row went, until the screen is left, so the heading is still there to hold it.
+// A move or skip that fails leaves its row: the press is forgotten (a later success from the toast
+// must not pull the focus from wherever the user is), and the focus, which the disabled buttons
+// dropped to <body>, goes back to the row's first button once they are enabled again.
 export function ReviewCard() {
   const review = useReview()
   const today = useToday()
@@ -26,7 +29,10 @@ export function ReviewCard() {
   // The block the last press acted on, and the rows as they were before this render.
   const acted = useRef<string | null>(null)
   const previous = useRef<string[]>([])
+  // The row whose action failed, until its buttons take the focus back.
+  const recover = useRef<string | null>(null)
   const [touched, setTouched] = useState(false)
+  const [, setFailures] = useState(0)
 
   // "בוצע" marks the block done in the cache at once (review.ts), so only planned blocks are rows.
   const blocks = useMemo(() => (review.data?.blocks ?? []).filter((b) => b.status === 'planned'), [review.data])
@@ -45,13 +51,35 @@ export function ReviewCard() {
     element?.focus()
   }, [ids])
 
+  // After every render: the failed row's buttons stay disabled until the mutation settled.
+  useEffect(() => {
+    const id = recover.current
+    if (id === null) return
+    const button = sectionRef.current?.querySelector<HTMLButtonElement>(`[data-review-row="${id}"] button`) ?? null
+    if (button?.disabled === true) return
+    recover.current = null
+    const active = document.activeElement
+    if (button !== null && (active === null || active === document.body)) button.focus()
+  })
+
   if (blocks.length === 0 && !touched) return null
 
   const todayDate = today.data?.date ?? dateIn(tz)
   const start = (action: Action, block: Block) => {
     acted.current = block.id
     setTouched(true)
-    actions[action](block)
+    if (action === 'complete') {
+      // Optimistic: the row goes at once, and a failure brings it back (review.ts).
+      actions.complete(block)
+      return
+    }
+    actions[action](block, {
+      onError: () => {
+        if (acted.current === block.id) acted.current = null
+        recover.current = block.id
+        setFailures((n) => n + 1)
+      },
+    })
   }
 
   return (

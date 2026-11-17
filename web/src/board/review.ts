@@ -10,6 +10,7 @@ import { boardKey, reviewKey, todayKey, useBoardUserId } from './api'
 import { useOfferReplan } from './offerReplan'
 import { dateIn, dayLabel, formatTime, useProfileTimezone } from './time'
 import type { Block, RescheduleResult, Review, SkipResult, Today } from './types'
+import { undoOnce } from './undoOnce'
 
 // The morning review (S18, spec 7.9): planned blocks that ended without a mark, and what to do with
 // each one.
@@ -38,11 +39,17 @@ export function useReview(): UseQueryResult<Review, ApiError> {
   })
 }
 
+// For the screen that pressed: told when this one call failed (the card gives the focus back to the
+// row). Unlike the mutation's own callbacks, it does not run once that screen is gone.
+export interface ReviewCallOptions {
+  onError?: () => void
+}
+
 export interface ReviewActions {
   complete(block: Block): void
-  moveToday(block: Block): void
+  moveToday(block: Block, options?: ReviewCallOptions): void
   moveNext(block: Block): void
-  skip(block: Block): void
+  skip(block: Block, options?: ReviewCallOptions): void
   // True while any action on this block runs, in any screen (or from a toast).
   pending(blockId: string): boolean
   // True while this block is being moved (the button says "מעביר…").
@@ -105,8 +112,9 @@ export function useReviewActions(): ReviewActions {
   }
 
   function undoVersion(versionId: string, doneText: string) {
-    api
-      .post('/plan/undo', { version_id: versionId })
+    const request = undoOnce(queryClient, versionId, () => api.post('/plan/undo', { version_id: versionId }))
+    if (request === null) return
+    request
       .then(
         () => {
           toast.show({ text: doneText, tone: 'success' })
@@ -207,14 +215,14 @@ export function useReviewActions(): ReviewActions {
     complete: (block) => {
       blockActions.complete(block)
     },
-    moveToday: (block) => {
-      moveMutation.mutate({ block, todayOnly: true })
+    moveToday: (block, options) => {
+      moveMutation.mutate({ block, todayOnly: true }, { onError: options?.onError })
     },
     moveNext: (block) => {
       moveMutation.mutate({ block, todayOnly: false })
     },
-    skip: (block) => {
-      skipMutation.mutate({ block })
+    skip: (block, options) => {
+      skipMutation.mutate({ block }, { onError: options?.onError })
     },
     pending,
     moving,

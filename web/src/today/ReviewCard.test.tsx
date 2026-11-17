@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { codeText, unscheduledText } from '../i18n/codes'
@@ -235,6 +235,77 @@ describe('ReviewCard', () => {
     await waitFor(() => {
       expect(previous).toHaveFocus()
     })
+  })
+
+  it('a failed move gives the focus back to its row, and a later move from the toast does not take it', async () => {
+    const user = userEvent.setup()
+    const { fake, remove } = setup()
+    let answer: (value: unknown) => void = () => undefined
+    const placed = makeBlock({ id: 'b9', task_id: 't1', starts_at: '2026-11-17T08:00:00Z', ends_at: '2026-11-17T09:00:00Z', study_date: '2026-11-17' })
+    fake.on('POST /blocks/b1/reschedule', (call: ApiCall) => {
+      if ((call.body as { today_only: boolean }).today_only) {
+        return new Promise((resolve) => {
+          answer = resolve
+        })
+      }
+      remove('b1')
+      return { blocks: [placed], version_id: 'v8' }
+    })
+
+    const move = await screen.findByRole('button', { name: he.review.moveTodayLabel(YESTERDAY.task_title) })
+    await user.click(move)
+    await waitFor(() => {
+      expect(move).toBeDisabled()
+    })
+    // A browser drops the focus of a button that turns disabled.
+    // (jsdom keeps it there, so it goes through an element that leaves.)
+    act(() => {
+      const stray = document.createElement('input')
+      document.body.append(stray)
+      stray.focus()
+      stray.remove()
+    })
+    expect(document.body).toHaveFocus()
+    act(() => {
+      answer(problem(409, 'placement_failed', { reason: 'no_time_today', blocked_by: null }))
+    })
+    const first = screen.getByRole('button', { name: he.review.completeLabel(YESTERDAY.task_title) })
+    await waitFor(() => {
+      expect(first).toHaveFocus()
+    })
+
+    const toast = await toasts()
+    await user.click(await toast.findByRole('button', { name: he.review.moveNext }))
+    expect(await (await toasts()).findByText(he.review.moved(he.board.tomorrow, '10:00'))).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByRole('listitem', { name: YESTERDAY.task_title })).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: he.review.completeLabel(THIS_MORNING.task_title) })).not.toHaveFocus()
+  })
+
+  it('pressing the undo twice sends one POST /plan/undo', async () => {
+    const user = userEvent.setup()
+    const { fake, remove } = setup()
+    fake.on('POST /blocks/b2/skip', () => {
+      remove('b2')
+      return { task_status: 'skipped', version_id: 'v9' }
+    })
+    fake.on('POST /plan/undo', () =>
+      new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({ version_id: 'v9' })
+        }, 0)
+      }),
+    )
+
+    await user.click(await screen.findByRole('button', { name: he.review.skipLabel(THIS_MORNING.task_title) }))
+    const undo = await (await toasts()).findByRole('button', { name: he.common.undo })
+    act(() => {
+      fireEvent.click(undo)
+      fireEvent.click(undo)
+    })
+    expect(await (await toasts()).findByText(he.review.skipUndone)).toBeInTheDocument()
+    expect(fake.calls('POST', '/plan/undo')).toHaveLength(1)
   })
 
   it('two parts of one task get buttons with different names', async () => {

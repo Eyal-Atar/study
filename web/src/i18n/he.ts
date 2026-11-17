@@ -401,7 +401,6 @@ export const he = {
     timeline: 'ציר',
     // DayTimeline: the day from waking to sleep; an upcoming block has a drag handle.
     timelineLabel: 'ציר היום',
-    nowLine: 'עכשיו',
     handleLabel: (name: string) => `הזזת ${name}`,
     instructions:
       'גוררים את הידית למעלה או למטה. במקלדת: Enter או רווח מתחילים הזזה, חץ למעלה או למטה זז רבע שעה, PageUp או PageDown זזים שעה, Enter מאשר ו-Escape מבטל.',

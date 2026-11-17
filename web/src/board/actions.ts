@@ -11,6 +11,7 @@ import { useOfferReplan } from './offerReplan'
 import { completeText } from './progressText'
 import { blockMinutes, dateIn, dayLabel, formatTime, useProfileTimezone } from './time'
 import type { Block, BlockState, CompleteResult, DeferResult, Today } from './types'
+import { undoOnce } from './undoOnce'
 
 // The actions on one block, shared by "today" and "week".
 //
@@ -222,8 +223,9 @@ export function useBlockActions(): BlockActions {
   })
 
   function undoDefer(versionId: string) {
-    api
-      .post('/plan/undo', { version_id: versionId })
+    const request = undoOnce(queryClient, versionId, () => api.post('/plan/undo', { version_id: versionId }))
+    if (request === null) return
+    request
       .then(
         () => {
           toast.show({ text: he.board.deferUndone, tone: 'success' })
