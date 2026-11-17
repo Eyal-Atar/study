@@ -1,10 +1,9 @@
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { errorMessage } from '../api/client'
 import { useMe, useUserId } from '../api/me'
-import { he } from '../i18n/he'
 import { rememberedJob } from '../onboarding/activeJob'
 import { STEP_PATHS } from '../onboarding/steps'
-import { Button } from '../ui/Button'
+import { ErrorState, LoadingState } from '../ui/states'
 
 const ONBOARDING_PATH = '/onboarding'
 
@@ -23,27 +22,16 @@ export function OnboardingGate() {
   const userId = useUserId()
   const { pathname, search } = useLocation()
 
-  if (me.isPending) {
-    return (
-      <p role="status" className="text-ink-muted">
-        {he.common.loading}
-      </p>
-    )
-  }
+  // The gate is part of the shell: every screen waits behind it, in the shape of a screen.
+  if (me.isPending) return <LoadingState shape="card" />
   if (me.isError) {
     return (
-      <div className="flex flex-col items-start gap-4">
-        <p role="alert" className="text-danger">
-          {errorMessage(me.error)}
-        </p>
-        <Button
-          onPress={() => {
-            void me.refetch()
-          }}
-        >
-          {he.common.retry}
-        </Button>
-      </div>
+      <ErrorState
+        message={errorMessage(me.error)}
+        onRetry={() => {
+          void me.refetch()
+        }}
+      />
     )
   }
 

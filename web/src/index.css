@@ -127,6 +127,13 @@ body {
   font-synthesis: none;
 }
 
+/* The targets of a focus that code moves (the h1 of a screen after a navigation, <main> after
+   "דלג לתוכן"): they are not controls and Tab cannot reach them, so they show no ring. */
+main[tabindex='-1']:focus,
+h1[tabindex='-1']:focus {
+  outline: none;
+}
+
 /* Whoever asked the system for less motion gets none: every transition and animation ends at
    once (0.01ms and not 0, so transitionend and animationend still fire). */
 @media (prefers-reduced-motion: reduce) {
