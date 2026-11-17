@@ -84,8 +84,9 @@ export function ReviewCard() {
   }
 
   return (
-    // Card takes no ref, so the element the focus effects search in wraps it without a box of its own.
-    <div ref={sectionRef} className="contents">
+    // Card takes no ref, so the element the focus effects search in wraps it. A real box and not
+    // display: contents, which would drop the margin the screen puts between its sections.
+    <div ref={sectionRef}>
       {/* A plain white card with no primary button (S27 decision 4): the one primary button of the
           screen is "בוצע" of the next task, above this card. */}
       <Card role="region" aria-labelledby="review-title" className="space-y-3">

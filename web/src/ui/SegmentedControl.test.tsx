@@ -39,7 +39,7 @@ describe('SegmentedControl', () => {
 
   it('the track is a quiet fill, and only the chosen option is a lined surface, never a shadow', () => {
     render(<SegmentedControl aria-label={NAME} options={OPTIONS} value="list" onChange={vi.fn()} />)
-    expect(screen.getByRole('radiogroup', { name: NAME })).toHaveClass('bg-surface-muted', 'rounded-control', 'p-1')
+    expect(screen.getByRole('radiogroup', { name: NAME })).toHaveClass('bg-surface-muted', 'rounded-control', 'p-0.5', 'auto-cols-fr')
 
     const chosen = screen.getByRole('radio', { name: 'רשימה' })
     expect(chosen).toHaveClass('min-h-touch', 'px-4', 'text-small', 'font-semibold', 'border')

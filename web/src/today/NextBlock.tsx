@@ -61,7 +61,7 @@ export function NextBlock({ block, tz, when }: NextBlockProps) {
       <div ref={buttonsRef} className="mt-2 flex flex-wrap gap-2">
         <Button
           variant={main === 'complete' ? 'primary' : 'secondary'}
-          className="flex-1"
+          className="flex-1 sm:max-w-xs"
           aria-label={actionAriaLabel(main, name)}
           isDisabled={pending}
           onPress={() => {

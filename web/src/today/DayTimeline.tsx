@@ -296,7 +296,7 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
 
         {/* "You are here" is brand, not an error colour (S27 decision 8). */}
         {nowInside ? (
-          <div aria-hidden="true" className="absolute inset-x-0 z-20 flex h-0 items-center" style={{ top: top(now) }}>
+          <div aria-hidden="true" className="absolute inset-x-0 flex h-0 items-center" style={{ top: top(now) }}>
             <span className="w-14 shrink-0" />
             <span className="-ms-1 size-2 shrink-0 rounded-full bg-brand" />
             <span className="h-0.5 flex-1 bg-brand" />

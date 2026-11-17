@@ -45,7 +45,9 @@ export function SegmentedControl<T extends string>({
       disallowEmptySelection
       selectedKeys={[value]}
       onSelectionChange={choose}
-      className="inline-flex max-w-full gap-1 rounded-control bg-surface-muted p-1"
+      // A grid of equal columns as wide as the longest label: with flex-1 the options split the sum of
+      // their widths evenly, and the longer label was cut.
+      className="inline-grid max-w-full auto-cols-fr grid-flow-col gap-0.5 rounded-control bg-surface-muted p-0.5"
     >
       {options.map((option) => (
         <ToggleButton
@@ -53,7 +55,7 @@ export function SegmentedControl<T extends string>({
           id={option.id}
           className={({ isSelected, isHovered }) =>
             cx(
-              'inline-flex min-h-touch min-w-0 flex-1 cursor-pointer items-center justify-center rounded-control border px-4 text-small font-semibold transition-colors duration-(--duration-fast)',
+              'inline-flex min-h-touch min-w-0 cursor-pointer items-center justify-center rounded-control border px-4 text-small font-semibold transition-colors duration-(--duration-fast)',
               FOCUS_RING,
               optionColors(isSelected, isHovered),
             )
