@@ -7,7 +7,7 @@ import { RadioCards } from '../ui/RadioCards'
 import { TextField } from '../ui/TextField'
 import { useToast } from '../ui/useToast'
 import { useUpdateTopic } from './api'
-import { Disclosure } from './Disclosure'
+import { Disclosure } from '../ui/Disclosure'
 import type { Gap, Topic, TopicPatch } from './types'
 
 const tp = he.exam.topics
