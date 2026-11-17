@@ -6,6 +6,10 @@ import { blockMinutes, formatRange, formatTime } from '../board/time'
 import type { Block, BlockState, Today } from '../board/types'
 import { codeText } from '../i18n/codes'
 import { he } from '../i18n/he'
+import { GripVertical } from 'lucide-react'
+import { PinnedMark } from '../board/blockParts'
+import { SectionHeading } from '../ui/SectionHeading'
+import { cx, ICON_STROKE } from '../ui/styles'
 import { useToast } from '../ui/useToast'
 
 // Today's waking hours as a vertical line of time (S18 decisions 11–12). Every block sits at its
@@ -28,13 +32,26 @@ const TALL_PX = 56
 // A pointer has to travel half a step before the block leaves its place.
 const DEAD_ZONE_MINUTES = GRID_MINUTES / 2
 
+// A block that waits is white with a line, like a row of the list; a fill is a state (S27
+// decision 8). The thick edge at the start repeats the state for a block too short for its word.
 const STATE_STYLE: Record<BlockState, string> = {
-  upcoming: 'border-s-brand bg-brand-soft',
-  in_progress: 'border-s-brand-strong bg-brand-soft ring-1 ring-brand',
-  overdue: 'border-s-warning bg-warning-soft',
-  done: 'border-s-success bg-success-soft',
-  missed: 'border-s-line bg-surface-muted',
-  skipped: 'border-s-line bg-surface-muted',
+  upcoming: 'border border-line-strong border-s-4 border-s-brand bg-surface',
+  in_progress: 'border-s-4 border-s-brand-strong bg-brand-soft',
+  overdue: 'border-s-4 border-s-warning bg-warning-soft',
+  done: 'border-s-4 border-s-success bg-success-soft',
+  missed: 'border-s-4 border-s-line-strong bg-surface-muted',
+  skipped: 'border-s-4 border-s-line-strong bg-surface-muted',
+}
+
+// ink-muted is a checked pair on white and on the muted fill only; on a state fill the details
+// are ink (design language 2).
+const DETAILS_STYLE: Record<BlockState, string> = {
+  upcoming: 'text-ink-muted',
+  in_progress: 'text-ink',
+  overdue: 'text-ink',
+  done: 'text-ink',
+  missed: 'text-ink-muted',
+  skipped: 'text-ink-muted',
 }
 
 interface Drag {
@@ -257,9 +274,7 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
   return (
     <section aria-labelledby="today-timeline-title" className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="today-timeline-title" className="text-base font-semibold">
-          {title}
-        </h2>
+        <SectionHeading id="today-timeline-title">{title}</SectionHeading>
         {toolbar}
       </div>
       <p id="timeline-instructions" className="sr-only">
@@ -269,26 +284,22 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
         {announcement}
       </p>
 
-      <div className="relative overflow-hidden rounded-xl border border-line bg-surface" style={{ height }}>
-        {/* The part of the day that already went by. */}
-        {now > dayStart ? (
-          <div aria-hidden="true" className="absolute inset-x-0 top-0 bg-surface-muted" style={{ height: top(now) }} />
-        ) : null}
-
+      <div className="relative overflow-hidden rounded-card border border-line bg-surface" style={{ height }}>
         {hoursBetween(dayStart, dayEnd, tz).map((hour) => (
           <div key={hour} aria-hidden="true" className="absolute inset-x-0 flex h-0 items-center" style={{ top: top(hour) }}>
-            <span dir="ltr" className="w-14 shrink-0 pe-2 text-end text-xs text-ink-muted tabular-nums">
+            <span dir="ltr" className="w-14 shrink-0 pe-2 text-end text-small text-ink-muted tabular-nums">
               {formatTime(new Date(hour).toISOString(), tz)}
             </span>
             <span className="h-px flex-1 bg-line" />
           </div>
         ))}
 
+        {/* "You are here" is brand, not an error colour (S27 decision 8). */}
         {nowInside ? (
           <div aria-hidden="true" className="absolute inset-x-0 z-20 flex h-0 items-center" style={{ top: top(now) }}>
             <span className="w-14 shrink-0" />
-            <span className="-ms-1 size-2 shrink-0 rounded-full bg-danger" />
-            <span className="h-0.5 flex-1 bg-danger" />
+            <span className="-ms-1 size-2 shrink-0 rounded-full bg-brand" />
+            <span className="h-0.5 flex-1 bg-brand" />
           </div>
         ) : null}
 
@@ -306,34 +317,48 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
               <li
                 key={block.id}
                 aria-labelledby={titleId}
-                className={`absolute inset-x-0 z-10 ${moving && ghost !== null ? 'opacity-50' : ''}`}
+                // opacity-50 marks the block being dragged, not a disabled one (design language 10).
+                className={cx('absolute inset-x-0 z-10', moving && ghost !== null && 'opacity-50')}
                 style={{ top: blockTop, height: blockHeight }}
               >
                 <div
-                  className={`flex h-full items-stretch gap-1 overflow-hidden rounded-lg border-s-4 ps-2 ${STATE_STYLE[block.state]} ${moving ? 'ring-2 ring-brand' : ''}`}
+                  className={cx(
+                    'flex h-full items-stretch gap-1 overflow-hidden rounded-control ps-3',
+                    STATE_STYLE[block.state],
+                    moving && 'ring-2 ring-brand ring-inset',
+                  )}
                 >
-                  <div className={`flex min-w-0 flex-1 ${tall ? 'flex-col justify-center gap-0.5 py-1' : 'items-center gap-2'}`}>
-                    <p id={titleId} className={`truncate text-sm font-semibold ${done ? 'text-ink-muted line-through' : ''}`}>
+                  <div className={cx('flex min-w-0 flex-1', tall ? 'flex-col justify-center' : 'items-center gap-2')}>
+                    <p id={titleId} className={cx('truncate text-small', done ? 'font-normal line-through' : 'font-semibold')}>
                       {block.task_title}
                     </p>
-                    <p className="flex shrink-0 items-center gap-2 text-xs text-ink-muted">
+                    <p className={cx('text-small whitespace-nowrap', tall ? 'truncate' : 'shrink-0', DETAILS_STYLE[block.state])}>
                       <span dir="ltr" className="tabular-nums">
                         {formatRange(block, tz)}
                       </span>
-                      {block.state === 'upcoming' ? null : <span>{he.board.states[block.state]}</span>}
+                      {block.state === 'upcoming' ? null : (
+                        <>
+                          {he.move.detailsJoiner}
+                          <span>{he.board.states[block.state]}</span>
+                        </>
+                      )}
                       {block.pinned ? (
-                        <span className="rounded-full border border-line-strong px-1.5 text-[0.7rem] leading-4 font-medium">{he.board.pinned}</span>
+                        <>
+                          {he.move.detailsJoiner}
+                          <PinnedMark />
+                        </>
                       ) : null}
                     </p>
                   </div>
                   {movable && minutes > 0 ? (
+                    // A raw button on purpose: the drag needs the pointer events themselves.
                     <button
                       type="button"
                       data-handle={block.id}
                       aria-label={he.move.handleLabel(blockName(block))}
                       aria-describedby="timeline-instructions"
                       aria-disabled={actions.pending(block.id) || undefined}
-                      className="flex w-11 shrink-0 cursor-grab touch-none items-center justify-center text-ink-muted outline-none select-none hover:bg-surface/60 focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset active:cursor-grabbing aria-disabled:opacity-50"
+                      className="flex w-touch shrink-0 cursor-grab touch-none items-center justify-center text-ink-muted outline-none select-none hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset active:cursor-grabbing aria-disabled:cursor-not-allowed aria-disabled:text-line-strong aria-disabled:hover:bg-surface"
                       onKeyDown={(event) => {
                         onKeyDown(block, event)
                       }}
@@ -358,7 +383,7 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
                         if (pointerDrag(block, event) !== null) cancel()
                       }}
                     >
-                      <GripIcon />
+                      <GripVertical aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
                     </button>
                   ) : null}
                 </div>
@@ -371,32 +396,24 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
           <div
             aria-hidden="true"
             data-ghost={ghost.ok ? 'free' : 'taken'}
-            className={`pointer-events-none absolute start-14 end-2 z-30 flex items-center rounded-lg border-2 border-dashed px-3 text-sm font-semibold tabular-nums ${
-              ghost.ok ? 'border-success bg-success-soft text-success' : 'border-danger bg-danger-soft text-danger'
-            }`}
+            className={cx(
+              'pointer-events-none absolute start-14 end-2 z-30 flex items-center rounded-control border-2 border-dashed px-3 text-small font-semibold whitespace-nowrap',
+              // A taken place is a refusal, so it is danger, and it says so in a word as well.
+              ghost.ok ? 'border-success bg-success-soft text-success' : 'border-danger bg-danger-soft text-danger',
+            )}
             style={{
               top: top(ghost.start),
               height: Math.max(blockMinutes(ghost.block) * PX_PER_MINUTE, MIN_BLOCK_PX),
             }}
           >
-            <span dir="ltr">{rangeOf(ghost.start, blockMinutes(ghost.block), tz)}</span>
+            <span dir="ltr" className="tabular-nums">
+              {rangeOf(ghost.start, blockMinutes(ghost.block), tz)}
+            </span>
+            {he.move.candidateJoiner}
+            {he.move.candidateState(ghost.ok)}
           </div>
         )}
       </div>
     </section>
-  )
-}
-
-// Six dots: the usual sign of "this can be dragged".
-function GripIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 12 20" className="h-5 w-3" fill="currentColor">
-      {[3, 10, 17].map((y) => (
-        <g key={y}>
-          <circle cx="3" cy={y} r="1.6" />
-          <circle cx="9" cy={y} r="1.6" />
-        </g>
-      ))}
-    </svg>
   )
 }

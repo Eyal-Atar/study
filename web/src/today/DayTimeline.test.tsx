@@ -133,6 +133,32 @@ describe('DayTimeline', () => {
     expect(itemOf(grip).getByText('14:00–15:00')).toBeInTheDocument()
   })
 
+  it('the ghost says the new time, left to right, and whether it is free, in words', async () => {
+    setup()
+    const grip = await handle(A)
+    fireEvent.pointerDown(grip, { pointerId: 1, button: 0, clientY: 500 })
+    fireEvent.pointerMove(grip, { pointerId: 1, clientY: 500 + 60 * PX_PER_MINUTE })
+    const free = document.querySelector('[data-ghost="free"]')
+    expect(free).toHaveTextContent(he.move.candidate('15:00–16:00', true))
+    expect(free?.querySelector('[dir="ltr"]')).toHaveTextContent(/^15:00–16:00$/)
+    fireEvent.pointerMove(grip, { pointerId: 1, clientY: 500 + 120 * PX_PER_MINUTE })
+    const taken = document.querySelector('[data-ghost="taken"]')
+    expect(taken).toHaveTextContent(he.move.candidate('16:00–17:00', false))
+    fireEvent.pointerCancel(grip, { pointerId: 1 })
+  })
+
+  // ink-muted on a state background is not an allowed pair (design language 2).
+  it('a tinted block holds no muted text, and a done one is struck', async () => {
+    setup()
+    await handle(A)
+    const done = screen.getByText(DONE.task_title)
+    expect(done).toHaveClass('line-through')
+    const item = done.closest('li')
+    expect(item?.querySelector('.bg-success-soft')).not.toBeNull()
+    expect(item?.querySelector('.text-ink-muted')).toBeNull()
+    expect(within(item as HTMLElement).getByText(he.board.states.done)).toBeInTheDocument()
+  })
+
   it('a small drag moves in 15-minute steps, and a tiny one does nothing', async () => {
     const { fake } = setup()
     const grip = await handle(A)

@@ -75,14 +75,25 @@ describe('ReviewCard', () => {
     const section = within(await screen.findByRole('region', { name: he.review.title }))
     expect(await section.findByText(he.review.lead(2))).toBeInTheDocument()
     const first = within(screen.getByRole('listitem', { name: YESTERDAY.task_title }))
-    expect(first.getByText(paragraph(`${he.review.when(he.board.yesterday)}14:00–15:00`))).toBeInTheDocument()
+    expect(first.getByText(paragraph(`${he.review.when(he.board.yesterday)}14:00–15:00${he.review.details(YESTERDAY.exam_name, null)}`))).toBeInTheDocument()
+    expect(first.getByText('14:00–15:00')).toHaveAttribute('dir', 'ltr')
     expect(first.getByText(YESTERDAY.exam_name, { exact: false })).toBeInTheDocument()
     const second = within(screen.getByRole('listitem', { name: THIS_MORNING.task_title }))
-    expect(second.getByText(paragraph(`${he.review.when(he.board.today)}08:00–09:00`))).toBeInTheDocument()
+    expect(second.getByText(paragraph(`${he.review.when(he.board.today)}08:00–09:00${he.review.details(THIS_MORNING.exam_name, null)}`))).toBeInTheDocument()
     expect(second.getByText(THIS_MORNING.exam_name, { exact: false })).toBeInTheDocument()
     for (const label of [he.review.completeLabel, he.review.moveTodayLabel, he.review.skipLabel]) {
       expect(screen.getByRole('button', { name: label(YESTERDAY.task_title) })).toBeInTheDocument()
     }
+  })
+
+  // S27 decision 4: the one primary button of the screen belongs to the next task.
+  it('has no primary button, and the card is a named region', async () => {
+    setup()
+    const section = await screen.findByRole('region', { name: he.review.title })
+    const buttons = within(section).getAllByRole('button')
+    expect(buttons).toHaveLength(6)
+    for (const button of buttons) expect(button).not.toHaveClass('bg-brand')
+    expect(section).toHaveClass('rounded-card')
   })
 
   it('"בוצע" completes the block, takes it off the card at once, and undo uncompletes it', async () => {
@@ -318,6 +329,9 @@ describe('ReviewCard', () => {
       expect(await screen.findByRole('button', { name: label(name1) })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: label(name2) })).toBeInTheDocument()
     }
-    expect(screen.getByText(he.board.part(2, 2), { exact: false })).toBeInTheDocument()
+    const row = within(screen.getAllByRole('listitem')[1] as HTMLElement)
+    expect(
+      row.getByText(paragraph(`${he.review.when(he.board.yesterday)}16:00–17:00${he.review.details(YESTERDAY.exam_name, he.board.part(2, 2))}`)),
+    ).toBeInTheDocument()
   })
 })

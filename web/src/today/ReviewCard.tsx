@@ -6,6 +6,7 @@ import { dateIn, dayLabel, formatRange, useProfileTimezone } from '../board/time
 import type { Block } from '../board/types'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
+import { Card } from '../ui/Card'
 
 type Action = 'complete' | 'moveToday' | 'skip'
 
@@ -24,7 +25,7 @@ export function ReviewCard() {
   const today = useToday()
   const tz = useProfileTimezone()
   const actions = useReviewActions()
-  const sectionRef = useRef<HTMLElement>(null)
+  const sectionRef = useRef<HTMLDivElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
   // The block the last press acted on, and the rows as they were before this render.
   const acted = useRef<string | null>(null)
@@ -83,76 +84,75 @@ export function ReviewCard() {
   }
 
   return (
-    <section
-      ref={sectionRef}
-      aria-labelledby="review-title"
-      className="space-y-3 rounded-xl border border-line border-s-4 border-s-warning bg-surface p-4"
-    >
-      <div className="space-y-1">
-        <h2 id="review-title" ref={headingRef} tabIndex={-1} className="text-base font-semibold outline-none">
-          {he.review.title}
-        </h2>
-        <p className="text-sm text-ink-muted">{blocks.length === 0 ? he.review.allDone : he.review.lead(blocks.length)}</p>
-      </div>
-      {blocks.length === 0 ? null : (
-        <ul className="divide-y divide-line">
-          {blocks.map((block) => {
-            const titleId = `review-${block.id}-title`
-            const name = blockName(block)
-            const pending = actions.pending(block.id)
-            return (
-              <li key={block.id} data-review-row={block.id} aria-labelledby={titleId} className="space-y-3 py-3 first:pt-1 last:pb-0">
-                <div className="space-y-0.5">
-                  <h3 id={titleId} className="font-semibold">
-                    {block.task_title}
-                  </h3>
-                  <p className="text-sm text-ink-muted">
-                    {he.review.when(dayLabel(block.study_date, todayDate))}
-                    <span dir="ltr" className="tabular-nums">
-                      {formatRange(block, tz)}
-                    </span>
-                  </p>
-                  <p className="text-sm text-ink-muted">
-                    {block.exam_name}
-                    {block.part_count > 1 ? `, ${he.board.part(block.part_index, block.part_count)}` : null}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    aria-label={he.review.completeLabel(name)}
-                    isDisabled={pending}
-                    onPress={() => {
-                      start('complete', block)
-                    }}
-                  >
-                    {he.review.complete}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    aria-label={he.review.moveTodayLabel(name)}
-                    isDisabled={pending}
-                    onPress={() => {
-                      start('moveToday', block)
-                    }}
-                  >
-                    {actions.moving(block.id) ? he.review.moving : he.review.moveToday}
-                  </Button>
-                  <Button
-                    variant="quiet"
-                    aria-label={he.review.skipLabel(name)}
-                    isDisabled={pending}
-                    onPress={() => {
-                      start('skip', block)
-                    }}
-                  >
-                    {he.review.skip}
-                  </Button>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
-      )}
-    </section>
+    // Card takes no ref, so the element the focus effects search in wraps it without a box of its own.
+    <div ref={sectionRef} className="contents">
+      {/* A plain white card with no primary button (S27 decision 4): the one primary button of the
+          screen is "בוצע" of the next task, above this card. */}
+      <Card role="region" aria-labelledby="review-title" className="space-y-3">
+        <div className="space-y-1">
+          <h2 id="review-title" ref={headingRef} tabIndex={-1} className="text-body font-semibold outline-none">
+            {he.review.title}
+          </h2>
+          <p className="text-small text-ink-muted">{blocks.length === 0 ? he.review.allDone : he.review.lead(blocks.length)}</p>
+        </div>
+        {blocks.length === 0 ? null : (
+          <ul>
+            {blocks.map((block) => {
+              const titleId = `review-${block.id}-title`
+              const name = blockName(block)
+              const pending = actions.pending(block.id)
+              return (
+                <li key={block.id} data-review-row={block.id} aria-labelledby={titleId} className="space-y-3 border-t border-line py-3 last:pb-0">
+                  <div className="min-w-0 space-y-1">
+                    <h3 id={titleId} className="text-body font-semibold break-words">
+                      {block.task_title}
+                    </h3>
+                    <p className="text-small break-words text-ink-muted">
+                      {he.review.when(dayLabel(block.study_date, todayDate))}
+                      <span dir="ltr" className="tabular-nums">
+                        {formatRange(block, tz)}
+                      </span>
+                      {he.review.details(block.exam_name, block.part_count > 1 ? he.board.part(block.part_index, block.part_count) : null)}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="secondary"
+                      aria-label={he.review.completeLabel(name)}
+                      isDisabled={pending}
+                      onPress={() => {
+                        start('complete', block)
+                      }}
+                    >
+                      {he.review.complete}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      aria-label={he.review.moveTodayLabel(name)}
+                      isDisabled={pending}
+                      onPress={() => {
+                        start('moveToday', block)
+                      }}
+                    >
+                      {actions.moving(block.id) ? he.review.moving : he.review.moveToday}
+                    </Button>
+                    <Button
+                      variant="quiet"
+                      aria-label={he.review.skipLabel(name)}
+                      isDisabled={pending}
+                      onPress={() => {
+                        start('skip', block)
+                      }}
+                    >
+                      {he.review.skip}
+                    </Button>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </Card>
+    </div>
   )
 }
