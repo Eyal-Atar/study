@@ -30,7 +30,7 @@ describe('manifest', () => {
   // The manifest cannot read CSS variables, so the hex values are repeated; this keeps them in step.
   it('takes its colours from the theme', () => {
     expect(manifest.theme_color?.toLowerCase()).toBe(color('brand').toLowerCase())
-    expect(manifest.background_color?.toLowerCase()).toBe(color('surface-muted').toLowerCase())
+    expect(manifest.background_color?.toLowerCase()).toBe(color('canvas').toLowerCase())
   })
 
   it('has a 192 and a 512 icon, and a maskable 512', () => {

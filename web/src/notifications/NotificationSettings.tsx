@@ -1,8 +1,10 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ApiError, errorMessage } from '../api/client'
 import { useMe, useUserId } from '../api/me'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
+import { Card } from '../ui/Card'
+import { ErrorState, LoadingState } from '../ui/states'
 import { RadioCards } from '../ui/RadioCards'
 import { useToast } from '../ui/useToast'
 import { useDeleteSubscription, useRegisterSubscription, useSetLeadMinutes, type LeadMinutes } from './api'
@@ -11,7 +13,6 @@ import { usePushState } from './pushContext'
 
 type Device = 'checking' | 'off' | 'on' | 'blocked'
 
-const SECTION = 'space-y-4 rounded-xl border border-line bg-surface p-4'
 
 // The reminder settings (S16): whether this device gets reminders, and how long before a block.
 // Self-contained, so S15's settings screen can render it as is (decision 18).
@@ -27,7 +28,6 @@ export function NotificationSettings() {
 // Reminders on this device: a subscription per browser (decision 8), so "כיבוי" here leaves the
 // other devices on.
 function DeviceReminders() {
-  const titleId = useId()
   const { vapidPublicKey } = usePushState()
   // Read once: support does not change while the page is open.
   const [support] = useState(pushSupport)
@@ -44,12 +44,9 @@ function DeviceReminders() {
   }
 
   return (
-    <section aria-labelledby={titleId} className={SECTION}>
-      <h2 id={titleId} className="text-lg font-bold">
-        {he.notifications.deviceTitle}
-      </h2>
+    <Card role="region" title={he.notifications.deviceTitle}>
       {body}
-    </section>
+    </Card>
   )
 }
 
@@ -57,7 +54,7 @@ function DeviceReminders() {
 function IosSteps() {
   return (
     <div className="space-y-2">
-      <p className="font-medium">{he.notifications.iosTitle}</p>
+      <p className="font-semibold">{he.notifications.iosTitle}</p>
       <ol className="list-decimal space-y-1 ps-5 text-ink-muted">
         {he.notifications.iosSteps.map((step) => (
           <li key={step}>{step}</li>
@@ -70,9 +67,9 @@ function IosSteps() {
 function Blocked() {
   return (
     <div className="space-y-2">
-      <p className="font-medium">{he.notifications.blockedTitle}</p>
-      <p className="text-sm text-ink-muted">{he.notifications.blockedBrowser}</p>
-      <p className="text-sm text-ink-muted">{he.notifications.blockedApp}</p>
+      <p className="font-semibold">{he.notifications.blockedTitle}</p>
+      <p className="text-small text-ink-muted">{he.notifications.blockedBrowser}</p>
+      <p className="text-small text-ink-muted">{he.notifications.blockedApp}</p>
     </div>
   )
 }
@@ -188,14 +185,14 @@ function Toggle({ vapidPublicKey }: { vapidPublicKey: string }) {
     <div className="flex flex-wrap items-center justify-between gap-3">
       <p role="status" className="flex items-center gap-2">
         <span aria-hidden="true" className={`size-2.5 shrink-0 rounded-full ${on ? 'bg-success' : 'bg-line-strong'}`} />
-        <span className={on ? 'font-medium text-success' : 'text-ink-muted'}>{statusText}</span>
+        <span className={on ? 'font-semibold text-success' : 'text-ink-muted'}>{statusText}</span>
       </p>
       {device === 'checking' ? null : on ? (
-        <Button variant="secondary" isDisabled={busy} onPress={disable}>
+        <Button variant="secondary" isPending={busy} onPress={disable}>
           {he.notifications.disable}
         </Button>
       ) : (
-        <Button isDisabled={busy} onPress={enable}>
+        <Button isPending={busy} onPress={enable}>
           {he.notifications.enable}
         </Button>
       )}
@@ -241,22 +238,15 @@ function LeadTime() {
       />
     )
   } else if (me.isError) {
-    body = (
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="text-danger">{errorMessage(me.error)}</p>
-        <Button variant="secondary" onPress={() => void me.refetch()}>
-          {he.common.retry}
-        </Button>
-      </div>
-    )
+    body = <ErrorState message={errorMessage(me.error)} onRetry={() => void me.refetch()} />
   } else {
-    body = <p className="text-ink-muted">{he.common.loading}</p>
+    body = <LoadingState shape="card" rows={1} />
   }
 
   return (
-    <section className={SECTION}>
+    <Card className="space-y-3">
       {body}
-      <p className="text-sm text-ink-muted">{he.notifications.leadHint}</p>
-    </section>
+      <p className="text-small text-ink-muted">{he.notifications.leadHint}</p>
+    </Card>
   )
 }

@@ -1,7 +1,9 @@
-import { useEffect, useId, useState } from 'react'
-import { Link } from 'react-router'
+import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router'
 import { he } from '../i18n/he'
 import { Button } from '../ui/Button'
+import { ButtonLink } from '../ui/ButtonLink'
+import { Card } from '../ui/Card'
 import { NOTIFICATIONS_PATH } from './paths'
 import { pushSupport } from './push'
 
@@ -28,37 +30,32 @@ function markSeen() {
 // Decision 17: in iOS Safari, reminders need the app on the home screen, which most users would never
 // guess. Shown once per device (marked when first shown, not when dismissed, so it never nags).
 export function InstallHint() {
-  const titleId = useId()
+  const onSettings = useLocation().pathname === NOTIFICATIONS_PATH
   const [visible, setVisible] = useState(() => pushSupport() === 'ios_not_installed' && !wasSeen())
 
   useEffect(() => {
     if (visible) markSeen()
   }, [visible])
 
-  if (!visible) return null
-  const hide = () => {
-    setVisible(false)
-  }
+  // The settings screen explains the same steps itself, so the card steps aside there (and the link
+  // to it needs no click handler).
+  if (!visible || onSettings) return null
   return (
-    <section aria-labelledby={titleId} className="mb-6 space-y-3 rounded-xl border border-brand bg-brand-soft p-4">
-      <div className="space-y-1">
-        <h2 id={titleId} className="font-bold text-brand-strong">
-          {he.notifications.installTitle}
-        </h2>
-        <p className="text-sm text-ink">{he.notifications.installText}</p>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Link
-          to={NOTIFICATIONS_PATH}
-          onClick={hide}
-          className="inline-flex min-h-11 items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-medium text-on-brand outline-none hover:bg-brand-strong focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-        >
+    <Card role="region" title={he.notifications.installTitle} className="mb-section">
+      <p className="text-small">{he.notifications.installText}</p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <ButtonLink to={NOTIFICATIONS_PATH} variant="primary">
           {he.notifications.installHow}
-        </Link>
-        <Button variant="quiet" onPress={hide}>
+        </ButtonLink>
+        <Button
+          variant="quiet"
+          onPress={() => {
+            setVisible(false)
+          }}
+        >
           {he.notifications.installDismiss}
         </Button>
       </div>
-    </section>
+    </Card>
   )
 }

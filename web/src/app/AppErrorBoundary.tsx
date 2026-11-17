@@ -1,32 +1,37 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { useRouteError } from 'react-router'
 import { he } from '../i18n/he'
+import { StandalonePage } from '../ui/PageContainer'
+import { BUTTON_BASE, BUTTON_REST, cx, FOCUS_RING_NATIVE } from '../ui/styles'
 
-// The message shown instead of a white page. Plain elements and inline classes only: it may render
-// when a provider (React Aria, the query client, auth) is what failed, so it depends on none of them.
+// The message shown instead of a white page. A native <button> with the Button's classes, and no
+// other ui/ component: it may render when a provider (React Aria, the query client, auth) is what
+// failed, so it depends on none of them.
 export function CrashScreen({ error }: { error: unknown }) {
   const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
   return (
-    <main className="mx-auto max-w-md px-4 py-16 text-center" role="alert">
-      <h1 className="text-2xl font-bold">{he.crash.title}</h1>
-      <p className="mt-2 text-ink-muted">{he.crash.body}</p>
-      <button
-        type="button"
-        className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-brand px-4 py-2 font-medium text-on-brand outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-        onClick={() => {
-          window.location.reload()
-        }}
-      >
-        {he.crash.reload}
-      </button>
-      {/* The error's own text: what a screenshot sent to support needs. Never markup. */}
-      <details className="mt-8 text-start text-sm text-ink-muted">
-        <summary>{he.crash.details}</summary>
-        <p dir="ltr" className="mt-2 break-words font-mono text-xs">
-          {detail}
-        </p>
-      </details>
-    </main>
+    <StandalonePage>
+      <div role="alert" className="text-center">
+        <h1 className="text-title font-semibold">{he.crash.title}</h1>
+        <p className="mt-2 text-ink-muted">{he.crash.body}</p>
+        <button
+          type="button"
+          className={cx('mt-6', BUTTON_BASE, BUTTON_REST.primary, 'hover:bg-brand-strong active:bg-brand-strong', FOCUS_RING_NATIVE)}
+          onClick={() => {
+            window.location.reload()
+          }}
+        >
+          {he.crash.reload}
+        </button>
+        {/* The error's own text: what a screenshot sent to support needs. Never markup. */}
+        <details className="mt-8 text-start text-small text-ink-muted">
+          <summary className="cursor-pointer">{he.crash.details}</summary>
+          <p dir="ltr" className="mt-2 font-mono text-caption break-words">
+            {detail}
+          </p>
+        </details>
+      </div>
+    </StandalonePage>
   )
 }
 
