@@ -59,6 +59,10 @@ const PAIRS: [string, string][] = [
     ['ink', `exam-${n}-line`],
     ['on-brand', `exam-${n}`],
   ]),
+  // Busy time (S31, drawn by the calendar scope): the name and the time of a commitment or an
+  // event, in ink and in ink-muted, on its grey fill.
+  ['ink', 'busy-soft'],
+  ['ink-muted', 'busy-soft'],
 ]
 
 // WCAG 1.4.11 for the parts of controls (field and choice borders, the focus ring, the filled
@@ -80,6 +84,9 @@ const NON_TEXT_PAIRS: [string, string][] = [
     [`exam-${n}`, 'surface'],
     [`exam-${n}`, 'canvas'],
   ]),
+  // The stronger grey of busy time as a mark (a stripe, an icon) on its fill and on the page.
+  ['busy', 'busy-soft'],
+  ['busy', 'surface'],
 ]
 
 // The tokens the design language names (docs/design/design-language.md). S26-S28 build on these
@@ -90,6 +97,7 @@ const TOKENS = [
     'brand-soft', 'brand-accent', 'on-brand', 'now', 'danger', 'danger-soft', 'success', 'success-soft',
     'warning', 'warning-soft', 'inverse', 'on-inverse', 'inverse-action', 'inverse-success', 'inverse-danger',
     ...EXAM.flatMap((n) => [`exam-${n}`, `exam-${n}-soft`, `exam-${n}-line`]),
+    'busy', 'busy-soft', 'busy-line',
   ].map((name) => `--color-${name}`),
   '--radius-sheet',
   '--shadow-raised',
@@ -144,6 +152,12 @@ describe('design tokens', () => {
   it('the eight exam colours differ from each other', () => {
     const strong = EXAM.map((n) => color(`exam-${n}`).toLowerCase())
     expect(new Set(strong).size).toBe(8)
+  })
+
+  it('busy time has its own grey, apart from the quiet fill and from the slate of exam 7', () => {
+    const fill = color('busy-soft').toLowerCase()
+    expect(fill).not.toBe(color('surface-muted').toLowerCase())
+    expect(fill).not.toBe(color('exam-7-soft').toLowerCase())
   })
 
   it('the weights are the real ones of Rubik: 500 for labels, 700 for the logo', () => {

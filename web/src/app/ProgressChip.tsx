@@ -2,11 +2,16 @@ import { Flame } from 'lucide-react'
 import { Link } from 'react-router'
 import { he } from '../i18n/he'
 import { useProgress } from '../progress/api'
-import type { Progress } from '../progress/types'
+import type { Progress, Streak } from '../progress/types'
 import { cx, FOCUS_RING_NATIVE, ICON_STROKE } from '../ui/styles'
 
 // Not imported from routes.tsx: routes imports AppShell, which imports this file.
 const PROGRESS_PATH = '/progress'
+
+// What the chip reads of GET /progress.
+export type ChipProgress = Pick<Progress, 'level' | 'total_xp' | 'level_start_xp' | 'next_level_xp'> & {
+  streak: Pick<Streak, 'current'>
+}
 
 // The ring: a circle of 24px whose length is counted as 100, so the arc is the percentage.
 const RING_SIZE = 24
@@ -16,7 +21,7 @@ const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2
 
 // The share of the way from the start of the level to the next one, 0 to 100. The top level has no
 // next one: the ring is full.
-function levelPercent({ total_xp, level_start_xp, next_level_xp }: Progress): number {
+function levelPercent({ total_xp, level_start_xp, next_level_xp }: ChipProgress): number {
   if (next_level_xp === null) return 100
   const span = next_level_xp - level_start_xp
   if (span <= 0) return 100
@@ -33,8 +38,14 @@ function levelPercent({ total_xp, level_start_xp, next_level_xp }: Progress): nu
 export function ProgressChip() {
   const progress = useProgress()
   if (progress.data === undefined) return null
-  const { streak, level } = progress.data
-  const percent = levelPercent(progress.data)
+  return <ProgressChipView progress={progress.data} />
+}
+
+// The chip itself, from data in hand: the shell gives it the answer of GET /progress, and the
+// components page (/dev/components) fixed numbers, since it has no API.
+export function ProgressChipView({ progress }: { progress: ChipProgress }) {
+  const { streak, level } = progress
+  const percent = levelPercent(progress)
 
   return (
     <Link

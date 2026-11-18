@@ -6,6 +6,12 @@
 
 // The sections of the page, in order. The id is the anchor of the section (#button).
 export const SECTIONS = [
+  // S31: the design language itself, before the components built on it.
+  { id: 'exam-palette', title: 'פלטת המבחנים' },
+  { id: 'colours', title: 'צבעים (tokens)' },
+  { id: 'typography', title: 'טיפוגרפיה' },
+  { id: 'shape', title: 'פינות וצללים' },
+  { id: 'shell', title: 'חלקי השלד' },
   { id: 'button', title: 'כפתור (Button)' },
   { id: 'icon-button', title: 'כפתור אייקון (IconButton)' },
   { id: 'menu', title: 'תפריט (Menu)' },
@@ -46,6 +52,67 @@ export const devText = {
     subtitle: 'דף פנימי לפיתוח: כל רכיבי הבסיס בכל המצבים. לא נכלל בגרסת הייצור.',
     toc: 'תוכן הדף',
     toApp: 'לאפליקציה',
+  },
+  // S31
+  palette: {
+    caption:
+      'לכל מבחן צבע קבוע מתוך שמונה. בכל שורה: בלוק ביומן (מילוי רך, גבול, פס התחלה ותיבת סימון בצבע החזק, הטקסט בדיו) וכרטיס "המשימה הבאה" (לבן על הצבע החזק).',
+    exams: ['הסתברות', 'אלגוריתמים', 'שפת C', 'פיתוח משחקים', 'מבני נתונים', 'לינארית', 'חדו״א', 'לוגיקה'],
+    hues: ['סגול', 'ציאן', 'כתום', 'ירוק', 'ורוד', 'ענבר', 'כחול', 'צפחה'],
+    blockTitle: 'תרגול: נוסחת בייס',
+    blockTime: '10:00–10:45',
+    nextWhen: 'היום ב-16:00',
+    nextTitle: 'סיכום הרצאה 5',
+    nextLength: '45 דקות',
+    nextDone: '✓ בוצע',
+    nextDefer: 'דחייה',
+    busy: 'זמן תפוס: התחייבות או אירוע, זמן שבו המשתמש לא פנוי. לא משימה, ובלי תיבת סימון. היומן יצייר אותו אפור ומקווקו.',
+    busyTitle: 'משמרת בעבודה',
+    busyTime: '14:00–18:00',
+  },
+  colours: {
+    caption: 'כל צבע כללי ושמו. הכללים: טקסט 4.5:1 לפחות, וחלקי פקדים 3:1 (theme.test.ts).',
+  },
+  typography: {
+    weights: 'ארבעה משקלים של Rubik',
+    sizes: 'חמישה גדלים, כל אחד עם גובה השורה שלו',
+    sample: 'המשימה הבאה: סיכום הרצאה 5',
+    weightNames: {
+      'font-normal': '400 · קריאה',
+      'font-medium': '500 · תוויות ולשוניות',
+      'font-semibold': '600 · כותרות ושמות',
+      'font-bold': '700 · הלוגו והכותרת הגדולה',
+    },
+    sizeNames: {
+      'text-display': 'display · 26px',
+      'text-title': 'title · 20px',
+      'text-body': 'body · 16px',
+      'text-small': 'small · 14px',
+      'text-caption': 'caption · 12px',
+    },
+  },
+  shape: {
+    corners: 'פינות',
+    shadows: 'צללים: צל אומר שהדבר מעל משהו. לכרטיס יש קו ואין צל.',
+    names: {
+      'rounded-badge': 'badge · 6px',
+      'rounded-control': 'control · 10px',
+      'rounded-card': 'card · 16px',
+      'rounded-sheet': 'sheet · 20px',
+      'shadow-raised': 'raised · המקטע הנבחר',
+      'shadow-overlay': 'overlay · תפריט, toast, דיאלוג',
+      'shadow-lift': 'lift · בלוק נגרר',
+      'shadow-sheet': 'sheet · גיליון תחתון',
+    },
+  },
+  shell: {
+    logo: 'הלוגו: סימן בגרדיאנט והשם',
+    chip: 'צ׳יפ ההתקדמות, עם נתונים קבועים (בדף הזה אין API)',
+    streak: 5,
+    level: 3,
+    toast: 'ה-toast הכהה, עם כפתור inverse',
+    toastText: 'המשימה נדחתה למחר',
+    undo: 'בטל',
   },
   button: {
     variants: 'ארבעת הסוגים',

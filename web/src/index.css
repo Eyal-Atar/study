@@ -105,6 +105,15 @@
   --color-exam-7-soft: #eef1f5;
   --color-exam-7-line: #c3cbd6;
 
+  /* Busy time: a time the user is not free (a commitment, an event from the calendar), not a task.
+     The calendar scope draws it grey and hatched, beside the blocks. -soft is its fill, a neutral
+     grey darker than surface-muted and apart from the slate of exam 7, with ink and ink-muted on
+     it; -line is its border (decoration); busy itself is the stronger grey of a stripe or an icon,
+     3:1 on its fill and on surface. */
+  --color-busy: #6b7280;
+  --color-busy-soft: #e9eaee;
+  --color-busy-line: #c7cad2;
+
   /* ---- Type ---- */
   --font-sans: 'Rubik', system-ui, -apple-system, 'Segoe UI', 'Arial Hebrew', Arial, sans-serif;
   /* Four real weights of Rubik: 400 for reading, 500 for labels and tabs, 600 for titles and

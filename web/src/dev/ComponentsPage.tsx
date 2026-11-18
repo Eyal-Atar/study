@@ -26,9 +26,11 @@ import {
   TextFieldSection,
   TimeFieldSection,
 } from './fieldSections'
+import { ColoursSection, ExamPaletteSection, ShapeSection, TypographySection } from './paletteSections'
 import { DialogSection, PageHeaderSection, ToastSection } from './overlaySections'
 import { NoteSection, OptionGridSection, SegmentedControlSection } from './s27Sections'
 import { CollapsibleSectionSection, CompactSelectSection, SwitchSection } from './s28Sections'
+import { ShellSection } from './shellSections'
 
 // The look of a TextLink, on a plain <a>: these are anchors inside the page (#button), not routes,
 // so the router's Link is not the element for them. 44px high, since each stands alone.
@@ -38,7 +40,9 @@ const ANCHOR = cx(
   FOCUS_RING_NATIVE,
 )
 
-// The internal catalogue of the base components (ui/), each in every state, in RTL. S27 and S28
+// The internal catalogue of the design language (S31: the exam palette, the colours, the type,
+// the corners and shadows, the pieces of the shell) and of the base components (ui/), each in
+// every state, in RTL. S27 and S28
 // compose screens from it, and S29 runs its accessibility check on it.
 //
 // Only in the dev build: the route that loads it is behind import.meta.env.DEV (app/routes.tsx).
@@ -68,6 +72,12 @@ export function ComponentsPage() {
             ))}
           </ul>
         </nav>
+        {/* S31: the design language, then the pieces of the shell. */}
+        <ExamPaletteSection />
+        <ColoursSection />
+        <TypographySection />
+        <ShapeSection />
+        <ShellSection />
         <ButtonSection />
         <IconButtonSection />
         <MenuSection />

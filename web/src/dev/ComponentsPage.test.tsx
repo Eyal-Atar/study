@@ -4,9 +4,16 @@ import { describe, expect, it } from 'vitest'
 import { he } from '../i18n/he'
 import { createFakeAuth } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
+import { examColor } from '../ui/examColor'
 import { devText, SECTIONS } from './devText'
 
 const PATH = '/dev/components'
+
+// The region of one section, by its title.
+function region(id: (typeof SECTIONS)[number]['id']) {
+  const title = SECTIONS.find((section) => section.id === id)?.title ?? id
+  return screen.getByRole('region', { name: title })
+}
 
 // The route is lazy, so the first look at the page waits for it. The catalogue grows with every
 // component, and on a busy machine (several suites at once) importing it takes longer than the
@@ -89,5 +96,85 @@ describe('the components page (dev only)', () => {
     await user.click(screen.getByRole('button', { name: devText.toast.showInfo }))
 
     expect(screen.getByRole('region', { name: he.common.notifications })).toHaveTextContent(devText.toast.infoText)
+  })
+
+  // S31: the design language itself.
+  describe('the exam palette', () => {
+    it('has a row for each of the eight colours, with a sample block and a sample next-task card', async () => {
+      await open()
+
+      const rows = region('exam-palette').querySelectorAll('[data-exam]')
+      expect(rows).toHaveLength(8)
+      rows.forEach((row, n) => {
+        const c = examColor(n)
+        expect(row).toHaveAttribute('data-exam', String(n))
+        expect(row).toHaveTextContent(devText.palette.exams[n] ?? '')
+
+        // The block: the soft fill, the line border, and a start stripe and a checkbox in the
+        // strong colour (currentColor); the name and the time are ink.
+        const block = row.querySelector('[data-part="block"]')
+        expect(block).toHaveClass(c.soft, c.line, c.text, 'border-s-current')
+        const check = block?.querySelector('[data-part="check"]')
+        expect(check).toHaveClass('border-current')
+        for (const text of block?.querySelectorAll('[data-part="text"]') ?? []) expect(text).toHaveClass('text-ink')
+
+        // The next task: white on the strong colour.
+        expect(row.querySelector('[data-part="next"]')).toHaveClass(c.solid, 'text-on-brand')
+      })
+    })
+
+    it('shows busy time beside the exams, in its own grey', async () => {
+      await open()
+
+      const busy = region('exam-palette').querySelector('[data-part="busy"]')
+      expect(busy).toHaveClass('bg-busy-soft', 'border-busy-line', 'border-s-busy')
+      expect(busy).toHaveTextContent(devText.palette.busyTitle)
+      expect(region('exam-palette')).toHaveTextContent(devText.palette.busy)
+    })
+  })
+
+  it('the colours section shows every general colour with its name', async () => {
+    await open()
+
+    const colours = region('colours')
+    for (const name of ['canvas', 'surface', 'surface-muted', 'ink', 'ink-muted', 'line', 'line-strong', 'brand',
+      'brand-strong', 'brand-soft', 'brand-accent', 'on-brand', 'now', 'danger', 'danger-soft', 'success',
+      'success-soft', 'warning', 'warning-soft', 'inverse', 'on-inverse', 'inverse-action', 'inverse-success',
+      'inverse-danger', 'busy', 'busy-soft', 'busy-line']) {
+      expect(within(colours).getByText(name, { exact: true })).toBeInTheDocument()
+      expect(colours.querySelector(`.bg-${name}`)).not.toBeNull()
+    }
+  })
+
+  it('the typography section shows the four weights and the five sizes', async () => {
+    await open()
+
+    const type = region('typography')
+    for (const weight of ['font-normal', 'font-medium', 'font-semibold', 'font-bold']) {
+      expect(type.querySelector(`[data-sample="${weight}"]`)).toHaveClass(weight)
+    }
+    for (const size of ['text-display', 'text-title', 'text-body', 'text-small', 'text-caption']) {
+      expect(type.querySelector(`[data-sample="${size}"]`)).toHaveClass(size)
+    }
+  })
+
+  it('the shape section shows the corners and the shadows', async () => {
+    await open()
+
+    const shape = region('shape')
+    for (const cls of ['rounded-badge', 'rounded-control', 'rounded-card', 'rounded-sheet', 'shadow-raised',
+      'shadow-overlay', 'shadow-lift', 'shadow-sheet']) {
+      expect(shape.querySelector(`.${cls}`)).not.toBeNull()
+    }
+  })
+
+  it('the shell section shows the logo and the progress chip with fixed data', async () => {
+    await open()
+
+    const shell = within(region('shell'))
+    expect(shell.getByText(he.appName)).toBeInTheDocument()
+    const chip = shell.getByRole('link', { name: he.shell.progressChip(devText.shell.streak, devText.shell.level) })
+    expect(chip).toHaveAttribute('href', '/progress')
+    expect(shell.getByRole('button', { name: devText.shell.undo })).toBeInTheDocument()
   })
 })
