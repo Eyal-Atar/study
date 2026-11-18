@@ -262,7 +262,7 @@ const c = examColor(block.exam_color_index)
 
 | token | ערך | למה |
 | --- | --- | --- |
-| `shadow-raised` | `0 1px 3px rgb(0 0 0 / 0.08)` | המקטע הנבחר במתג; המסגרת של ארצ׳י בגודל `card` |
+| `shadow-raised` | `0 1px 3px rgb(59 42 30 / 0.1)` | המקטע הנבחר במתג; המסגרת של ארצ׳י בגודל `card` |
 | `shadow-overlay` | שתי שכבות, `0 1px 2px` ו-`0 18px 40px -10px`, בגוון קליפת העץ | מה שצף: תפריט, popover, ‏toast, דיאלוג במחשב |
 | `shadow-lift` | `0 12px 28px rgb(59 42 30 / 0.24)` | בלוק בזמן גרירה (S32) |
 | `shadow-sheet` | `0 -10px 40px rgb(59 42 30 / 0.25)` | הגיליון התחתון: הצל עולה למעלה |
