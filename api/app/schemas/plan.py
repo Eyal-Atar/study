@@ -1,11 +1,11 @@
 import datetime as dt
-from typing import Self
+from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.domain.planner import BlockStatus, TaskKind, Unscheduled
-from app.services.plan_views import BlockView, PlanView, TodayView
+from app.services.plan_views import BlockView, BusyView, PlanView, TodayView
 from app.services.plan_writes import UndoOutcome
 from app.services.replans import ReplanOutcome
 
@@ -42,6 +42,23 @@ class UnplacedOut(BaseModel):
     minutes: int
 
 
+class BusyOut(BaseModel):
+    """Taken time on the calendar (S35): a commitment's occurrence or a busy event."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    source: Literal["commitment", "event"]
+    id: UUID
+    title: str | None
+    kind: Literal["work", "class", "other"] | None
+    starts_at: dt.datetime
+    ends_at: dt.datetime
+
+
+def _busy(views: tuple[BusyView, ...]) -> list[BusyOut]:
+    return [BusyOut.model_validate(view) for view in views]
+
+
 class UndoInfo(BaseModel):
     version_id: UUID
     reason: str
@@ -56,6 +73,8 @@ class PlanResponse(BaseModel):
     blocks: list[BlockOut]
     unplaced: list[UnplacedOut]
     undo: UndoInfo | None
+    # Commitment occurrences and busy events over the waking hours of the range's days.
+    busy: list[BusyOut]
 
     @classmethod
     def from_view(cls, view: PlanView) -> Self:
@@ -70,6 +89,7 @@ class PlanResponse(BaseModel):
             else UndoInfo(
                 version_id=version.id, reason=version.reason, created_at=version.created_at
             ),
+            busy=_busy(view.busy),
         )
 
 
@@ -83,6 +103,8 @@ class TodayResponse(BaseModel):
     # The waking hours of the study day (UTC instants), the span a block can be moved within.
     day_starts_at: dt.datetime | None
     day_ends_at: dt.datetime | None
+    # Commitment occurrences and busy events over the day's waking hours.
+    busy: list[BusyOut]
 
     @classmethod
     def from_view(cls, view: TodayView) -> Self:
@@ -93,6 +115,7 @@ class TodayResponse(BaseModel):
             done_minutes=view.done_minutes,
             day_starts_at=None if view.day is None else view.day.start,
             day_ends_at=None if view.day is None else view.day.end,
+            busy=_busy(view.busy),
         )
 
 

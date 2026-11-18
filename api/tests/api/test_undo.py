@@ -615,3 +615,104 @@ def test_undo_of_a_dependency_change_drops_a_dependency_that_would_make_a_cycle(
     assert response.status_code == 200, response.text
     assert _task_row(db, a)[2:] == (60, 5, None, "todo")
     assert _task_row(db, b)[4] == a
+
+
+# --- S35: busy time ------------------------------------------------------------------------
+
+
+def test_undo_does_not_restore_a_block_onto_a_commitment_added_since(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    task = insert_task(db, user.id, exam, minutes=60)
+    saved_start, saved_end = Z(2026, 11, 17, 8, 0), Z(2026, 11, 17, 9, 0)
+    version = scalar(
+        db,
+        "INSERT INTO app.plan_versions (user_id, reason, snapshot) "
+        "VALUES (%s, 'replan', %s) RETURNING id",
+        user.id,
+        Jsonb({"v": 1, "blocks": [_snapshot_block(task, saved_start, saved_end)]}),
+    )
+    # Tuesday mornings are taken since the version was written.
+    db.execute(
+        "INSERT INTO app.commitments (user_id, title, kind, weekday, start_time, end_time, "
+        "valid_from) VALUES (%s, 'הרצאה', 'class', 2, '07:30', '10:00', '2026-11-01')",
+        (user.id,),
+    )
+
+    response = _undo(api, user, version)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["restored"] == 0
+    assert body["replaced"] == [str(task)]
+    rows = db.execute(
+        "SELECT starts_at, ends_at FROM app.blocks WHERE task_id = %s", (task,)
+    ).fetchall()
+    assert len(rows) == 1
+    starts_at, ends_at = rows[0]
+    on_tuesday = (Z(2026, 11, 17, 7, 30), Z(2026, 11, 17, 10, 0))
+    assert not (starts_at < on_tuesday[1] and on_tuesday[0] < ends_at)
+
+
+def test_undo_of_busy_added_keeps_an_event_deleted_since(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    posted = api.post(
+        "/busy-events",
+        json={"starts_at": "2026-11-17T10:00:00Z", "ends_at": "2026-11-17T11:00:00Z"},
+        headers=user.headers,
+    ).json()
+    event_id = posted["event"]["id"]
+    deleted = api.delete(f"/busy-events/{event_id}", headers=user.headers)
+    assert deleted.status_code == 204
+    deleted_at = scalar(db, "SELECT deleted_at FROM app.busy_events WHERE id = %s", event_id)
+
+    response = _undo(api, user, posted["version_id"])
+
+    assert response.status_code == 200, response.text
+    assert scalar(db, "SELECT deleted_at FROM app.busy_events WHERE id = %s", event_id) == (
+        deleted_at
+    )
+
+
+@pytest.mark.parametrize(
+    "before",
+    [
+        {"title": None, "starts_at": "2026-11-17T10:00:00+00:00"},
+        {"title": 3, "starts_at": "2026-11-17T10:00:00+00:00", "ends_at": "2026-11-17T11:00Z"},
+        {"title": None, "starts_at": "2026-11-17T10:00:00", "ends_at": "2026-11-17T11:00Z"},
+        {"title": None, "starts_at": "2026-11-17T10:00:30Z", "ends_at": "2026-11-17T11:00Z"},
+        {"title": None, "starts_at": "2026-11-17T12:00Z", "ends_at": "2026-11-17T11:00Z"},
+        {"title": None, "starts_at": "yesterday", "ends_at": "2026-11-17T11:00Z"},
+        {"title": None, "starts_at": "2026-11-17T10:00Z", "ends_at": "2026-11-17T11:00Z", "x": 1},
+    ],
+)
+def test_undo_of_busy_changed_refuses_a_malformed_before(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, before: dict[str, Any]
+) -> None:
+    event_id = scalar(
+        db,
+        "INSERT INTO app.busy_events (user_id, starts_at, ends_at) "
+        "VALUES (%s, '2026-11-18T10:00Z', '2026-11-18T11:00Z') RETURNING id",
+        user.id,
+    )
+    version = scalar(
+        db,
+        "INSERT INTO app.plan_versions (user_id, reason, snapshot, busy_event_id, "
+        "busy_event_before) VALUES (%s, 'busy_changed', %s, %s, %s) RETURNING id",
+        user.id,
+        Jsonb({"v": 1, "blocks": []}),
+        event_id,
+        Jsonb(before),
+    )
+
+    response = _undo(api, user, version)
+
+    assert response.status_code == 409, response.text
+    assert response.json()["code"] == "invalid_state"
+    row = db.execute(
+        "SELECT starts_at, ends_at FROM app.busy_events WHERE id = %s", (event_id,)
+    ).fetchone()
+    assert row == (Z(2026, 11, 18, 10), Z(2026, 11, 18, 11))
+    assert scalar(db, "SELECT undone_at FROM app.plan_versions WHERE id = %s", version) is None

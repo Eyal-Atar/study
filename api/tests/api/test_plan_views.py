@@ -210,3 +210,131 @@ def test_deleted_task_blocks_are_hidden(
     assert plan["blocks"] == []
     assert plan["unplaced"] == []
     assert today["blocks"] == []
+
+
+def _commitment(
+    db: psycopg.Connection, user_id: object, weekday: int, start: str, end: str, **extra: object
+) -> str:
+    row = db.execute(
+        "INSERT INTO app.commitments (user_id, title, kind, weekday, start_time, end_time, "
+        "valid_from, deleted_at) VALUES (%s, %s, %s, %s, %s, %s, '2026-11-01', %s) RETURNING id",
+        (
+            user_id,
+            extra.get("title", "עבודה"),
+            extra.get("kind", "work"),
+            weekday,
+            start,
+            end,
+            extra.get("deleted_at"),
+        ),
+    ).fetchone()
+    assert row is not None
+    return str(row[0])
+
+
+def _busy_event(
+    db: psycopg.Connection,
+    user_id: object,
+    start: dt.datetime,
+    end: dt.datetime,
+    title: str | None = None,
+    deleted: bool = False,
+) -> str:
+    row = db.execute(
+        "INSERT INTO app.busy_events (user_id, title, starts_at, ends_at, deleted_at) "
+        "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+        (user_id, title, start, end, NOW if deleted else None),
+    ).fetchone()
+    assert row is not None
+    return str(row[0])
+
+
+def test_plan_and_today_return_the_busy_time_of_their_days(
+    api: TestClient,
+    user: ApiUser,
+    db: psycopg.Connection,
+    make_api_user: MakeApiUser,
+    clock: FrozenClock,
+) -> None:
+    clock.set(Z(2026, 11, 16, 10, 0))  # awake: the study day is Monday 16
+    monday = _commitment(db, user.id, 1, "16:00", "22:00")
+    # Sunday night into Monday: the one starting on Sunday 22 is in the range (its waking
+    # span); the one from Sunday 15 ends at 02:00 on Monday 16, before the waking hours.
+    night = _commitment(db, user.id, 0, "22:00", "02:00", title="משמרת לילה", kind="other")
+    _commitment(db, user.id, 2, "08:00", "09:00", deleted_at=NOW)
+    event = _busy_event(db, user.id, Z(2026, 11, 17, 10), Z(2026, 11, 17, 11), title="רופא")
+    untitled = _busy_event(db, user.id, Z(2026, 11, 18, 22, 30), Z(2026, 11, 19, 1))
+    _busy_event(db, user.id, Z(2026, 11, 19, 3), Z(2026, 11, 19, 4))  # asleep: not shown
+    _busy_event(db, user.id, Z(2026, 11, 20, 10), Z(2026, 11, 20, 11), deleted=True)
+    other = make_api_user()
+    _busy_event(db, other.id, Z(2026, 11, 17, 12), Z(2026, 11, 17, 13))
+    _commitment(db, other.id, 1, "10:00", "11:00")
+
+    body = api.get("/plan", headers=user.headers).json()
+
+    assert body["busy"] == [
+        {
+            "source": "commitment",
+            "id": monday,
+            "title": "עבודה",
+            "kind": "work",
+            "starts_at": "2026-11-16T16:00:00Z",
+            "ends_at": "2026-11-16T22:00:00Z",
+        },
+        {
+            "source": "event",
+            "id": event,
+            "title": "רופא",
+            "kind": None,
+            "starts_at": "2026-11-17T10:00:00Z",
+            "ends_at": "2026-11-17T11:00:00Z",
+        },
+        {
+            "source": "event",
+            "id": untitled,
+            "title": None,
+            "kind": None,
+            "starts_at": "2026-11-18T22:30:00Z",
+            "ends_at": "2026-11-19T01:00:00Z",
+        },
+        {
+            "source": "commitment",
+            "id": night,
+            "title": "משמרת לילה",
+            "kind": "other",
+            "starts_at": "2026-11-22T22:00:00Z",
+            "ends_at": "2026-11-23T02:00:00Z",
+        },
+    ]
+    # The existing fields are unchanged.
+    assert set(body) == {"from", "to", "blocks", "unplaced", "undo", "busy"}
+
+    later = api.get("/plan?from=2026-11-23&to=2026-11-23", headers=user.headers).json()
+    assert [(item["id"], item["starts_at"]) for item in later["busy"]] == [
+        (monday, "2026-11-23T16:00:00Z")
+    ]
+
+    today = api.get("/today", headers=user.headers).json()
+    assert [item["id"] for item in today["busy"]] == [monday]
+    assert {"date", "blocks", "planned_minutes", "done_minutes", "day_starts_at"} < set(today)
+
+
+def test_busy_time_follows_the_profile_timezone(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, clock: FrozenClock
+) -> None:
+    set_profile(db, user.id, timezone="Asia/Jerusalem")
+    clock.set(Z(2026, 11, 16, 10, 0))
+    monday = _commitment(db, user.id, 1, "16:00", "22:00")
+
+    today = api.get("/today", headers=user.headers).json()
+
+    assert today["busy"] == [
+        {
+            "source": "commitment",
+            "id": monday,
+            "title": "עבודה",
+            "kind": "work",
+            "starts_at": "2026-11-16T14:00:00Z",
+            "ends_at": "2026-11-16T20:00:00Z",
+        }
+    ]

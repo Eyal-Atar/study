@@ -11,10 +11,12 @@ from uuid import UUID
 
 from app.domain.planner import (
     BlockStatus,
+    Commitment,
     Interval,
     Profile,
     TaskKind,
     TaskStatus,
+    commitment_occurrences,
     is_complete,
     start_minute,
     study_date,
@@ -72,12 +74,25 @@ class UnplacedTask:
 
 
 @dataclass(frozen=True)
+class BusyView:
+    """One stretch of taken time: a commitment's occurrence or a busy event (S35)."""
+
+    source: str  # "commitment" or "event"
+    id: UUID
+    title: str | None  # always set for a commitment; optional for an event
+    kind: str | None  # a commitment's kind; None for an event
+    starts_at: dt.datetime
+    ends_at: dt.datetime
+
+
+@dataclass(frozen=True)
 class PlanView:
     from_date: dt.date
     to_date: dt.date
     blocks: tuple[BlockView, ...]
     unplaced: tuple[UnplacedTask, ...]
     undo: VersionRow | None
+    busy: tuple[BusyView, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -87,6 +102,7 @@ class TodayView:
     planned_minutes: int
     done_minutes: int
     day: Interval | None
+    busy: tuple[BusyView, ...] = ()
 
 
 def waking_span(profile: Profile, day: dt.date) -> Interval | None:
@@ -163,6 +179,79 @@ def _blocks_in_days(
     return tuple(view for view in views if first <= view.study_date <= last)
 
 
+def _busy_in_days(
+    conn: Conn, user_id: UUID, profile: Profile, first: dt.date, last: dt.date
+) -> tuple[BusyView, ...]:
+    """Every commitment occurrence and live busy event that overlaps the waking span of a
+    study day in [first, last], whole (not clipped), by (starts_at, ends_at, source, id).
+
+    Each commitment row is expanded on its own, so every occurrence keeps its id, title and
+    kind. The waking span (wake_time to sleep_time) is what a calendar day shows.
+    """
+    spans = [
+        span
+        for offset in range((last - first).days + 1)
+        if (span := waking_span(profile, first + dt.timedelta(days=offset))) is not None
+    ]
+    if not spans:
+        return ()
+    since = min(span.start for span in spans)
+    until = max(span.end for span in spans)
+
+    def shown(start: dt.datetime, end: dt.datetime) -> bool:
+        return any(start < span.end and span.start < end for span in spans)
+
+    tz = profile.timezone
+    found: list[BusyView] = []
+    for row in conn.execute(
+        "SELECT id, title, kind, weekday, start_time, end_time, valid_from, valid_until "
+        "FROM app.commitments WHERE user_id = %s AND deleted_at IS NULL",
+        (user_id,),
+    ).fetchall():
+        commitment = Commitment(
+            weekday=row["weekday"],
+            start=row["start_time"],
+            end=row["end_time"],
+            valid_from=row["valid_from"],
+            valid_until=row["valid_until"],
+        )
+        # An occurrence is shorter than a day, so one that starts the day before is enough.
+        for occurrence in commitment_occurrences(
+            commitment, tz, local_date(since, tz) - dt.timedelta(days=1), local_date(until, tz)
+        ):
+            if shown(occurrence.start, occurrence.end):
+                found.append(
+                    BusyView(
+                        source="commitment",
+                        id=row["id"],
+                        title=row["title"],
+                        kind=row["kind"],
+                        starts_at=occurrence.start,
+                        ends_at=occurrence.end,
+                    )
+                )
+    for row in conn.execute(
+        "SELECT id, title, starts_at, ends_at FROM app.busy_events "
+        "WHERE user_id = %s AND deleted_at IS NULL AND starts_at < %s AND ends_at > %s",
+        (user_id, until, since),
+    ).fetchall():
+        starts_at = row["starts_at"].astimezone(dt.UTC)
+        ends_at = row["ends_at"].astimezone(dt.UTC)
+        if shown(starts_at, ends_at):
+            found.append(
+                BusyView(
+                    source="event",
+                    id=row["id"],
+                    title=row["title"],
+                    kind=None,
+                    starts_at=starts_at,
+                    ends_at=ends_at,
+                )
+            )
+    found.sort(key=lambda item: (item.starts_at, item.ends_at, item.source, str(item.id)))
+    return tuple(found)
+
+
 def _invalid_range(field: str, kind: str) -> ApiError:
     return ApiError("validation_error", extra={"errors": [{"loc": ["query", field], "type": kind}]})
 
@@ -224,6 +313,7 @@ def plan_view(
         blocks=_blocks_in_days(conn, user_id, profile, now, first, last),
         unplaced=_unplaced(conn, user_id, now),
         undo=latest_version(conn, user_id),
+        busy=_busy_in_days(conn, user_id, profile, first, last),
     )
 
 
@@ -246,4 +336,5 @@ def today_view(conn: Conn, user_id: UUID, now: dt.datetime) -> TodayView:
         planned_minutes=minutes(BlockStatus.PLANNED),
         done_minutes=minutes(BlockStatus.DONE),
         day=waking_span(profile, today),
+        busy=_busy_in_days(conn, user_id, profile, today, today),
     )

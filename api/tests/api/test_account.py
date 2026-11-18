@@ -36,6 +36,8 @@ USER_COLUMN = {
     "ai_usage": "user_id",
     "xp_events": "user_id",
     "badges": "user_id",
+    "commitments": "user_id",
+    "busy_events": "user_id",
 }
 
 TEXT_SENTINEL = "SENTINEL-TEXT-BY-PAGE-7f3a"
@@ -53,6 +55,10 @@ class Filled:
     storage_path: str
     analysis_id: UUID
     job_id: UUID
+    commitment_id: UUID
+    deleted_commitment_id: UUID
+    event_id: UUID
+    deleted_event_id: UUID
 
     def ids(self) -> set[str]:
         return {
@@ -66,6 +72,10 @@ class Filled:
                 self.topic_id,
                 self.material_id,
                 self.analysis_id,
+                self.commitment_id,
+                self.deleted_commitment_id,
+                self.event_id,
+                self.deleted_event_id,
             )
         }
 
@@ -143,6 +153,38 @@ def fill_account(db: psycopg.Connection, user_id: UUID) -> Filled:
         "VALUES (%s, %s, %s, 'claude-test', 100, 20)",
         (user_id, job, exam),
     )
+    commitment = _one(
+        db,
+        "INSERT INTO app.commitments (user_id, title, kind, weekday, start_time, end_time, "
+        "valid_from, valid_until, source_job_id) "
+        "VALUES (%s, 'עבודה', 'work', 1, '16:00', '22:00', '2026-11-01', '2027-01-10', %s) "
+        "RETURNING id",
+        (user_id, job),
+    )
+    deleted_commitment = _one(
+        db,
+        "INSERT INTO app.commitments (user_id, title, kind, weekday, start_time, end_time, "
+        "valid_from, deleted_at) VALUES (%s, 'ישן', 'class', 3, '22:00', '01:00', "
+        "'2026-10-01', now()) RETURNING id",
+        (user_id,),
+    )
+    event = _one(
+        db,
+        "INSERT INTO app.busy_events (user_id, title, starts_at, ends_at) "
+        "VALUES (%s, 'חתונה', '2026-11-19T18:00Z', '2026-11-19T23:00Z') RETURNING id",
+        (user_id,),
+    )
+    deleted_event = _one(
+        db,
+        "INSERT INTO app.busy_events (user_id, starts_at, ends_at, deleted_at) "
+        "VALUES (%s, '2026-11-20T10:00Z', '2026-11-20T11:00Z', now()) RETURNING id",
+        (user_id,),
+    )
+    db.execute(
+        "INSERT INTO app.plan_versions (user_id, reason, snapshot, busy_event_id) "
+        "VALUES (%s, 'busy_added', '{\"v\": 1, \"blocks\": []}', %s)",
+        (user_id, event),
+    )
     return Filled(
         exam_id=exam,
         deleted_exam_id=deleted_exam,
@@ -154,6 +196,10 @@ def fill_account(db: psycopg.Connection, user_id: UUID) -> Filled:
         storage_path=path,
         analysis_id=analysis,
         job_id=job,
+        commitment_id=commitment,
+        deleted_commitment_id=deleted_commitment,
+        event_id=event,
+        deleted_event_id=deleted_event,
     )
 
 
@@ -208,6 +254,8 @@ def test_export_has_the_documented_shape(
         "ai_usage",
         "xp_events",
         "badges",
+        "commitments",
+        "busy_events",
     }
     assert body["format"] == "studyflow-export"
     assert body["version"] == 1
@@ -330,6 +378,53 @@ def test_export_has_the_documented_shape(
     }
     (badge,) = body["badges"]
     assert badge == {"badge_key": "first_task", "earned_at": badge["earned_at"]}
+
+    commitments = {item["id"]: item for item in body["commitments"]}
+    assert set(commitments) == {str(filled.commitment_id), str(filled.deleted_commitment_id)}
+    commitment = commitments[str(filled.commitment_id)]
+    assert commitment == {
+        "id": str(filled.commitment_id),
+        "title": "עבודה",
+        "kind": "work",
+        "weekday": 1,
+        "start_time": "16:00:00",
+        "end_time": "22:00:00",
+        "valid_from": "2026-11-01",
+        "valid_until": "2027-01-10",
+        "source_job_id": str(filled.job_id),
+        "created_at": commitment["created_at"],
+        "deleted_at": None,
+    }
+    assert commitments[str(filled.deleted_commitment_id)]["deleted_at"] is not None
+    events = {item["id"]: item for item in body["busy_events"]}
+    assert set(events) == {str(filled.event_id), str(filled.deleted_event_id)}
+    event = events[str(filled.event_id)]
+    assert event == {
+        "id": str(filled.event_id),
+        "title": "חתונה",
+        "starts_at": "2026-11-19T18:00:00Z",
+        "ends_at": "2026-11-19T23:00:00Z",
+        "created_at": event["created_at"],
+        "deleted_at": None,
+    }
+    assert events[str(filled.deleted_event_id)]["title"] is None
+    assert events[str(filled.deleted_event_id)]["deleted_at"] is not None
+
+
+def test_export_profile_carries_the_hobby_from_the_commitments(
+    api: TestClient, user: ApiUser
+) -> None:
+    response = api.patch(
+        "/me", json={"hobby_start": "18:30", "hobby_minutes": 90}, headers=user.headers
+    )
+    assert response.status_code == 200, response.text
+
+    body = _export(api, user)
+
+    assert (body["profile"]["hobby_start"], body["profile"]["hobby_minutes"]) == ("18:30", 90)
+    me = api.get("/me", headers=user.headers).json()
+    assert body["profile"] == {**me, "created_at": body["profile"]["created_at"]}
+    assert len(body["commitments"]) == 7
 
 
 def test_export_never_carries_extracted_text_or_storage_paths(

@@ -135,3 +135,18 @@ class CommitmentOut(BaseModel):
             source_job_id=row["source_job_id"],
             created_at=row["created_at"],
         )
+
+
+class CommitmentListResponse(BaseModel):
+    commitments: list[CommitmentOut]
+
+
+class CommitmentWriteResponse(BaseModel):
+    """POST and PATCH: the commitment, and whether the web should offer a replan."""
+
+    commitment: CommitmentOut
+    plan_affected: bool
+
+
+class CommitmentDeleteResponse(BaseModel):
+    plan_affected: bool
