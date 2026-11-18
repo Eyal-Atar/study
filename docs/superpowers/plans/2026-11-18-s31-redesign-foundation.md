@@ -382,3 +382,44 @@ flowchart TB
 - [ ] בדיקות קודם: הערכים של החלטות 25–27 ב-`theme.test.ts` (כולל `gold-ink` על `gold-soft`, ‏`on-inverse` ו-`inverse-action` על `inverse`, ‏`ink` על `field`, ‏`line-strong` על `field`); שני `@font-face` של Amatic SC עם `font-weight: 700`, ‏`swap`, ‏`unicode-range` ומתחת ל-60KB, ו-`--font-display` שמתחיל ב-`'Amatic SC'`; הלוגו מכיל `img` עם `alt=""` ואת `he.appName`; הצ'יפ מציג את המספר ואת הרמה; ‏`Sprout` ב"התקדמות"; "יומן" מתצוגת שבוע → יום, בלי רשומה כפולה.
 - [ ] המימוש, דף הרכיבים (הפלטה המעודכנת, הפונט), ועדכון מסמך העיצוב.
 - [ ] כל הבדיקות, lint, typecheck, build. Commit: `feat(web): aligned to the all-screens mockup: exam shades, radii, field and gold tokens, Amatic SC for the logo, the two-part chip`.
+
+---
+
+## התאמה להדמיה של כל המסכים (18.11.2026, אחר הצהריים)
+
+**מה קרה:** נוספה ל-`main` הדמיה של כל המסכים בפלטה של ארצ׳י (`docs/design/prototype/all-screens.html`, ‏9de6719), והיא המקור החזותי לשלד ולרכיבים, יחד עם המסמך של ארצ׳י. ההשוואה מול מה שנבנה מצאה הבדלים בשלד וברכיבים, אבל לא בארכיטקטורה: הכול נסגר בערכים של tokens ובמחלקות של הרכיבים. **אין התנגשות** עם הבדיקות או עם ההתנהגות.
+
+### החלטות נוספות (מחליפות את 11, 12, 22 ו-24 במה שהן אומרות)
+
+25. **הסרגל העליון** בגובה 60px (`spacing-topbar` ‏3.75rem), ‏padding של 18px. **הלוגו:** הפנים של ארצ׳י (`Archie mood="joy" size="avatar"`, ‏34px) והשם בפונט התצוגה, 30px.
+26. **שם האפליקציה הוא "ארצ׳י"** (`PRODUCT_NAME`): אייל החליט על השם (6d99184, "השם מחליף את StudyFlow"), וההדמיה מציגה אותו בשלד. הקבוע הוא המקום היחיד שבו השם כתוב, ולכן השינוי מגיע ללשונית, ל-manifest, להתראות ולמסך הכניסה בבת אחת. ה-`id` של האפליקציה המותקנת לא תלוי בשם. שם ה-API (`FastAPI(title=…)`), הריפו והמסמכים לא משתנים.
+27. **פונט תצוגה:** Amatic SC Bold ‏(OFL), מאוחסן אצלנו, subset של עברית ולטינית בסיסית (22KB), כ-`--font-display` ו-`font-display`. רק ללוגו ולכותרות גדולות של ארצ׳י (מ-28px), אף פעם לא לטקסט רץ, לכפתורים או לתוויות. מחליף את החלטה 22: ההדמיה כבר קבעה את הפונט, ו-22KB הם מחיר סביר ללוגו שמופיע בכל מסך.
+28. **הצ'יפ:** קישור אחד ל-`/progress` עם שני חלקים, כמו בהדמיה: גלולה `bg-brand-soft text-brand-strong font-semibold` עם `Leaf` ומספר ימי הרצף, וטבעת רמה של 34px (קשת `gold` על `gold-soft`, עיגול `surface` במרכז, הרמה ב-700 ו-12.5px). השם הנגיש לא משתנה.
+29. **כפתור הפרופיל** נשאר האות של המשתמש ולא ארצ׳י (בהדמיה יש שם את ארצ׳י): התפריט הוא של המשתמש (הגדרות ויציאה), וארצ׳י כבר מופיע בלוגו. עיגול של 34px.
+30. **הסרגל התחתון:** האייקון של "התקדמות" הוא `Sprout` (הגן), ‏`bg-surface/97`.
+31. **פינות וצללים:** `radius-control` ‏12px, ‏`radius-card` ‏18px, ‏`radius-sheet` ‏24px. הצללים בגוון של קליפת העץ (`rgb(59 42 30 / …)`), כמו בהדמיה; ה-scrim של דיאלוג `bg-ink/35`.
+32. **שדות:** רקע לבן, token חדש `--color-field: #ffffff` (גם לכרטיסי בחירה ולפנים של תיבת סימון), גובה 46px. הגבול נשאר `line-strong` ולא `line` של ההדמיה: גבול של שדה הוא מה שמזהה אותו, ו-WCAG 1.4.11 דורש 3:1 (`line` הוא 1.3:1).
+33. **צבעים:** `surface-muted` ‏`#e6e7d8` (`--soft` של ההדמיה); ‏`brand-soft` ‏`#e3edd5`; חדשים: `gold-soft` ‏`#eadfc4` (המסילה של טבעת הרמה), ‏`gold-tint` ‏`#f6e7c6` ו-`gold-ink` ‏`#6b4a12` (צ'יפ XP, 6.6:1); ‏`busy-soft` ‏`#e4e1d0`, ‏`busy-line` ‏`#c9c4ad`, ‏`busy-stripe` ‏`#ecead9` (הפסים של זמן תפוס).
+34. **צבעי המבחנים:** ארבעת הראשונים כמו בהדמיה ובסדר שלה, והשאר כמו בהחלטה 20:
+
+    | N | שם | חזק | soft | line |
+    |---|---|---|---|---|
+    | 0 | זית | `#6b7a2f` | `#eef0d9` | `#c9cf9c` |
+    | 1 | טרקוטה | `#b0532f` | `#f8e6dc` | `#e8b79d` |
+    | 2 | אבן כחולה | `#4a6b84` | `#e2ebf2` | `#a9c0d2` |
+    | 3 | שזיף | `#7b4a6d` | `#f1e3ec` | `#d2aec6` |
+    | 4 | חרדל | `#8a6410` | `#f7ecd2` | `#e2c78a` |
+    | 5 | מנטה כהה | `#2f6f62` | `#dcefe9` | `#9dcdc0` |
+    | 6 | ורד עתיק | `#a3485b` | `#f7e2e6` | `#e2aab5` |
+    | 7 | אדמה | `#7a5236` | `#f1e6dc` | `#d2b49c` |
+
+    נמדד: לבן על הזית 4.72, והזית על ה-soft שלו 4.07; כל השאר מעל.
+35. **תיבת סימון שסומנה** היא תמיד `bg-brand` עם ✓ לבן (גם בתוך בלוק בצבע מבחן): "בוצע" נשאר ירוק ומזוהה, כמו שהמסמך של ארצ׳י קובע.
+
+### Task 9: התאמה להדמיה
+
+**Files:** `web/src/index.css`, ‏`web/src/theme.test.ts`, ‏`web/src/assets/fonts/amatic-sc-bold.woff2` + הרישיון שלו, ‏`web/src/product.ts`, ‏`web/src/app/{AppShell,Logo,ProgressChip,ProfileMenu}.tsx` ובדיקות, ‏`web/src/ui/*` שהמראה שלהם משתנה (Button, TextField, Select, DatePicker, TimeField, RadioCards, CheckboxCards, CheckButton, Card, Dialog, toast) ובדיקות, ‏`web/src/dev/*`, ‏`docs/design/design-language.md`, ‏`docs/design/mockups/README.md`.
+
+- [ ] בדיקות קודם (ערכים, זוגות, ה-face של Amatic, השם), אחר כך הקוד, ואז כל הבדיקות, lint, typecheck, build.
+- [ ] ממצאי הסקירה של Tasks 3–4 שנשארו: "יומן" בניווט כשהשבוע מוצג (רשומה כפולה בהיסטוריה: ה-`NavLink` נושא את אותו state של "יום"); הביטוי `\bbg-surface\b` בבדיקת ה-toast; ‏`ButtonLink variant="inverse"` בלי בדיקה (נמחק, אין לו שימוש).
+- [ ] מסמך העיצוב מתעדכן להחלטות 25–35, וההדמיות של S25 מקבלות הערה שהכיוון הוחלף.
