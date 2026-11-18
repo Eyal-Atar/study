@@ -25,7 +25,7 @@ count, and RLS shows exactly those. `SET search_path = ''` as in 0004 and 0010.
 
 from alembic import op
 
-revision = "0015"
+revision = "0013"
 down_revision = "0014"
 branch_labels = None
 depends_on = None

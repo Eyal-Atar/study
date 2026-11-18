@@ -1,4 +1,4 @@
-"""Migration 0015: exams.color_index, assigned by a trigger and stable for the exam's life."""
+"""Migration 0013: exams.color_index, assigned by a trigger and stable for the exam's life."""
 
 import os
 import threading
@@ -133,7 +133,7 @@ def test_concurrent_inserts_get_different_colours(
 
 def test_upgrade_fills_existing_exams_in_order() -> None:
     admin_url = admin_database_url()
-    name = f"{os.environ.get('STUDYFLOW_TEST_DB', 'studyflow_test')}_0015"
+    name = f"{os.environ.get('STUDYFLOW_TEST_DB', 'studyflow_test')}_0013"
     url = create_database(admin_url, name)
     try:
         config = alembic_config(url)
@@ -165,7 +165,7 @@ def test_upgrade_fills_existing_exams_in_order() -> None:
                 ).fetchone()
                 assert row is not None
                 ids[label] = row[0]
-            command.upgrade(config, "0015")
+            command.upgrade(config, "0013")
             assert {label: _colour(conn, exam_id) for label, exam_id in ids.items()} == {
                 "a1": 0,
                 "a2": 1,
