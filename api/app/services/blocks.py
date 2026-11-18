@@ -11,13 +11,19 @@ from uuid import UUID
 
 from app.domain.planner import (
     BlockStatus,
+    Exam,
+    Profile,
     Task,
     TaskKind,
     TaskStatus,
+    UnscheduledReason,
+    awake_span,
     is_complete,
     place_task,
     start_minute,
+    study_date,
 )
+from app.domain.time import local_date
 from app.errors import ApiError
 from app.services import gamification
 from app.services.board import BLOCK_COLUMNS, BlockRow, load_board, to_block_row
@@ -45,6 +51,7 @@ class DeferOutcome:
 class _Target:
     block: BlockRow
     task: Task
+    exam: Exam
 
 
 def _find(conn: Conn, user_id: UUID, block_id: UUID) -> _Target:
@@ -53,7 +60,7 @@ def _find(conn: Conn, user_id: UUID, block_id: UUID) -> _Target:
         "SELECT "
         + ", ".join(f"b.{column.strip()}" for column in BLOCK_COLUMNS.split(","))
         + ", t.exam_id, t.kind, t.estimated_minutes, t.focus, t.depends_on_task_id, "
-        "t.status AS task_status "
+        "t.status AS task_status, e.exam_date, e.difficulty "
         "FROM app.blocks b "
         "JOIN app.tasks t ON t.id = b.task_id AND t.user_id = b.user_id "
         "JOIN app.exams e ON e.id = t.exam_id AND e.user_id = t.user_id "
@@ -72,7 +79,8 @@ def _find(conn: Conn, user_id: UUID, block_id: UUID) -> _Target:
         depends_on=row["depends_on_task_id"],
         status=TaskStatus(row["task_status"]),
     )
-    return _Target(block, task)
+    exam = Exam(id=row["exam_id"], exam_date=row["exam_date"], difficulty=row["difficulty"])
+    return _Target(block, task, exam)
 
 
 def _view(
@@ -145,22 +153,62 @@ def uncomplete_block(
     return CompleteOutcome(_view(conn, user_id, block_id, profile_row, now), status, progress)
 
 
+def _placement_failed(reason: str, blocked_by: UUID | None) -> ApiError:
+    return ApiError(
+        "placement_failed",
+        extra={"reason": reason, "blocked_by": None if blocked_by is None else str(blocked_by)},
+    )
+
+
+def task_live_blocks(
+    conn: Conn, user_id: UUID, task_id: UUID, profile: Profile, now: dt.datetime
+) -> tuple[BlockView, ...]:
+    """The task's live blocks (done, or planned and not over), by time: a defer's answer."""
+    live = conn.execute(
+        "SELECT id FROM app.blocks WHERE user_id = %s AND task_id = %s "
+        "AND (status = 'done' OR (status = 'planned' AND ends_at > %s))",
+        (user_id, task_id, start_minute(now)),
+    ).fetchall()
+    return blocks_by_id(conn, user_id, [row["id"] for row in live], profile, now)
+
+
+def require_deferrable(target: _Target, profile: Profile, now: dt.datetime) -> None:
+    """A defer takes a planned block that is not over, of a task still on the board; else 409.
+
+    A block that has started may be deferred (it is released whole). A task of a passed exam
+    or a finished task is not on the board (load_board: a todo task of a live exam dated
+    today or later; _find already left out deleted ones), and has nowhere to go.
+    """
+    block = target.block
+    if block.status is not BlockStatus.PLANNED or block.ends_at <= start_minute(now):
+        raise ApiError("invalid_state")
+    if target.task.status is not TaskStatus.TODO or target.exam.exam_date < local_date(
+        now, profile.timezone
+    ):
+        raise ApiError("invalid_state")
+
+
 def defer_block(
     conn: Conn,
     user_id: UUID,
     block_id: UUID,
     now: dt.datetime,
     not_before: dt.datetime | None,
+    *,
+    tomorrow: bool = False,
 ) -> DeferOutcome:
+    """Release the block and place its task again: after the block, after not_before, or
+    (tomorrow) from the next study day's start, wake-up plus the start delay (S35)."""
     board = load_board(conn, user_id, now, lock=True)
     target = _find(conn, user_id, block_id)
+    require_deferrable(target, board.profile, now)
     block = target.block
     task_id = target.task.id
-    if block.status is not BlockStatus.PLANNED or block.ends_at <= start_minute(now):
-        raise ApiError("invalid_state")
-    # A task of a passed exam or a finished task is not on the board, and has nowhere to go.
-    if not any(t.id == task_id and t.status is TaskStatus.TODO for t in board.tasks):
-        raise ApiError("invalid_state")
+    if tomorrow:
+        span = awake_span(board.profile, study_date(board.profile, now) + dt.timedelta(days=1))
+        if span is None:
+            raise _placement_failed(UnscheduledReason.NO_STUDY_DAYS.value, None)
+        not_before = span.start
     # Without a not_before, deferring means "after this block": the planner alone would put
     # the released block straight back into its own slot.
     result = place_task(
@@ -175,21 +223,9 @@ def defer_block(
     )
     if not result.blocks and result.unscheduled:
         failure = result.unscheduled[0]
-        raise ApiError(
-            "placement_failed",
-            extra={
-                "reason": failure.reason.value,
-                "blocked_by": None if failure.blocked_by is None else str(failure.blocked_by),
-            },
-        )
+        raise _placement_failed(failure.reason.value, failure.blocked_by)
     version_id = apply_result(conn, user_id, board, result, VersionReason.DEFER, task_id=task_id)
-    live = conn.execute(
-        "SELECT id FROM app.blocks WHERE user_id = %s AND task_id = %s "
-        "AND (status = 'done' OR (status = 'planned' AND ends_at > %s))",
-        (user_id, task_id, start_minute(now)),
-    ).fetchall()
-    blocks = blocks_by_id(conn, user_id, [row["id"] for row in live], board.profile, now)
-    return DeferOutcome(blocks, version_id)
+    return DeferOutcome(task_live_blocks(conn, user_id, task_id, board.profile, now), version_id)
 
 
 def pin_block(

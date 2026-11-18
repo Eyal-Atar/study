@@ -1,3 +1,4 @@
+import datetime as dt
 from uuid import UUID
 
 from fastapi import APIRouter
@@ -19,7 +20,7 @@ from app.services.blocks import (
     pin_block,
     uncomplete_block,
 )
-from app.services.moves import block_slots, move_block
+from app.services.moves import block_slots, defer_block_at, move_block
 
 router = APIRouter()
 
@@ -50,9 +51,16 @@ def post_defer(
     now: Now,
     body: DeferRequest | None = None,
 ) -> DeferResponse:
-    not_before = None if body is None else body.not_before
+    body = DeferRequest() if body is None else body
     with database.transaction(user) as conn:
-        outcome = defer_block(conn, user.id, block_id, now, not_before)
+        if body.to == "at":
+            if body.starts_at is None:  # DeferRequest requires it with to=at
+                raise ApiError("validation_error")
+            outcome = defer_block_at(conn, user.id, block_id, body.starts_at, now)
+        else:
+            outcome = defer_block(
+                conn, user.id, block_id, now, body.not_before, tomorrow=body.to == "tomorrow"
+            )
     return DeferResponse.from_outcome(outcome)
 
 
@@ -72,8 +80,13 @@ def patch_block(
 
 @router.get("/blocks/{block_id}/slots")
 def get_slots(
-    block_id: UUID, user: AuthenticatedUser, database: DatabaseDep, now: Now
+    block_id: UUID,
+    user: AuthenticatedUser,
+    database: DatabaseDep,
+    now: Now,
+    date: dt.date | None = None,
 ) -> SlotsResponse:
+    """Without date, where the block can move today; with date, where it can be deferred."""
     with database.transaction(user) as conn:
-        view = block_slots(conn, user.id, block_id, now)
+        view = block_slots(conn, user.id, block_id, now, date)
     return SlotsResponse.from_view(view)

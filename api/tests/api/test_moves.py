@@ -407,3 +407,97 @@ def test_a_move_to_now_on_a_whole_minute_fits(
     assert _instant(slots.json()["slots"][0]) == Z(2026, 11, 16, 10)
     response = _move(api, user, block, starts_at=Z(2026, 11, 16, 10))
     assert response.status_code == 200, response.text
+
+
+# --- busy time (S35) -------------------------------------------------------------------------
+
+
+def _commitment(db: psycopg.Connection, user_id: UUID, weekday: int, start: str, end: str) -> None:
+    db.execute(
+        "INSERT INTO app.commitments (user_id, title, kind, weekday, start_time, end_time, "
+        "valid_from) VALUES (%s, 'הרצאה', 'class', %s, %s, %s, '2026-11-01')",
+        (user_id, weekday, start, end),
+    )
+
+
+def _event(db: psycopg.Connection, user_id: UUID, start: dt.datetime, end: dt.datetime) -> None:
+    db.execute(
+        "INSERT INTO app.busy_events (user_id, starts_at, ends_at) VALUES (%s, %s, %s)",
+        (user_id, start, end),
+    )
+
+
+def test_move_over_a_commitment_is_slot_busy(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    _commitment(db, user.id, 1, "14:00", "16:00")  # Monday; weekday 0 is Sunday
+    _, task = _setup(db, user)
+    block = insert_block(db, user.id, task, Z(2026, 11, 16, 9), Z(2026, 11, 16, 10))
+    before = _row(db, block)
+    for start in (Z(2026, 11, 16, 13, 30), Z(2026, 11, 16, 15, 59)):
+        response = _move(api, user, block, starts_at=start)
+        assert response.status_code == 409, response.text
+        assert response.json()["code"] == "slot_busy"
+        assert _row(db, block) == before
+    # Next to it is free: busy time is not padded.
+    for start in (Z(2026, 11, 16, 13), Z(2026, 11, 16, 16)):
+        assert _move(api, user, block, starts_at=start).status_code == 200
+
+
+def test_move_over_an_event_is_slot_busy(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    _event(db, user.id, Z(2026, 11, 16, 18), Z(2026, 11, 16, 19))
+    _, task = _setup(db, user)
+    block = insert_block(db, user.id, task, Z(2026, 11, 16, 9), Z(2026, 11, 16, 10))
+    response = _move(api, user, block, starts_at=Z(2026, 11, 16, 18, 30))
+    assert response.status_code == 409, response.text
+    assert response.json()["code"] == "slot_busy"
+
+
+def test_a_deleted_commitment_or_event_is_free(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    _commitment(db, user.id, 1, "14:00", "16:00")
+    _event(db, user.id, Z(2026, 11, 16, 18), Z(2026, 11, 16, 19))
+    db.execute("UPDATE app.commitments SET deleted_at = now() WHERE user_id = %s", (user.id,))
+    db.execute("UPDATE app.busy_events SET deleted_at = now() WHERE user_id = %s", (user.id,))
+    _, task = _setup(db, user)
+    block = insert_block(db, user.id, task, Z(2026, 11, 16, 9), Z(2026, 11, 16, 10))
+    assert _move(api, user, block, starts_at=Z(2026, 11, 16, 14, 30)).status_code == 200
+    assert _move(api, user, block, starts_at=Z(2026, 11, 16, 18)).status_code == 200
+
+
+def test_slots_leave_out_busy_time(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, clock: FrozenClock
+) -> None:
+    _commitment(db, user.id, 1, "14:00", "16:00")
+    _event(db, user.id, Z(2026, 11, 16, 18), Z(2026, 11, 16, 19))
+    _, task = _setup(db, user)
+    block = insert_block(db, user.id, task, Z(2026, 11, 16, 9), Z(2026, 11, 16, 10))
+    clock.set(Z(2026, 11, 16, 8))
+    slots = [_instant(slot) for slot in _slots(api, user, block).json()["slots"]]
+    assert Z(2026, 11, 16, 13) in slots
+    assert Z(2026, 11, 16, 16) in slots
+    assert Z(2026, 11, 16, 17) in slots
+    busy = [
+        slot
+        for slot in slots
+        if Z(2026, 11, 16, 13) < slot < Z(2026, 11, 16, 16)
+        or Z(2026, 11, 16, 17) < slot < Z(2026, 11, 16, 19)
+    ]
+    assert busy == []
+
+
+def test_move_after_the_exam_cutoff_is_422(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    """Without rest days studying ends at the exam day's midnight, even on a late night."""
+    set_profile(db, user.id, sleep_time="02:00")
+    exam = insert_exam(db, user.id, exam_date="2026-11-17")
+    task = insert_task(db, user.id, exam, minutes=60)
+    block = insert_block(db, user.id, task, Z(2026, 11, 16, 9), Z(2026, 11, 16, 10))
+    late = _move(api, user, block, starts_at=Z(2026, 11, 16, 23, 30))
+    assert late.status_code == 422, late.text
+    assert late.json()["code"] == "outside_day"
+    assert _move(api, user, block, starts_at=Z(2026, 11, 16, 23)).status_code == 200

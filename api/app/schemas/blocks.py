@@ -1,5 +1,5 @@
 import datetime as dt
-from typing import Self
+from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, model_validator
@@ -25,9 +25,24 @@ class CompleteResponse(BaseModel):
 
 
 class DeferRequest(BaseModel):
+    """Where to defer to (S35): the next free slot (the default), tomorrow, or a chosen time.
+
+    not_before goes only with "next" (the S09 body), starts_at with "at" and only with it.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
+    to: Literal["next", "tomorrow", "at"] = "next"
     not_before: AwareDatetime | None = None
+    starts_at: AwareDatetime | None = None
+
+    @model_validator(mode="after")
+    def _fields_of_the_choice(self) -> Self:
+        if self.not_before is not None and self.to != "next":
+            raise ValueError("not_before goes only with to=next")
+        if (self.starts_at is not None) != (self.to == "at"):
+            raise ValueError("starts_at is required with to=at, and only with it")
+        return self
 
 
 class DeferResponse(BaseModel):

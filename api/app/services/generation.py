@@ -1,18 +1,22 @@
 """Ask for a plan (or one exam's reanalysis) as a job, under a daily quota of AI requests.
 
 A request is one job that calls Claude: `generate_plan` or `reanalyze_exam`. The quota counts
-the user's jobs of those kinds created since midnight of the quota day, in
+the user's jobs of those kinds (AI_JOB_KINDS) created since midnight of the quota day, in
 `settings.ai_quota_timezone` and not in the profile's timezone (a profile timezone is the
 user's to change, and would move their midnight). A job that failed without spending
 anything (no `ai_usage` row) does not count; a queued or running one does. A job failed as
 `worker_crashed` counts even without a usage row: a worker that died inside a Claude call
 may have spent money it never recorded.
 
+The same count serves other quotas over other job kinds: reading a timetable photo
+(`parse_timetable`, S35) has its own limit, so neither quota takes from the other.
+
 Everything runs under the per-user lock (the profile row), so the active-job check, the
 count and the INSERT are one step: parallel requests cannot all pass at the limit.
 """
 
 import datetime as dt
+from collections.abc import Collection
 from dataclasses import dataclass
 from typing import Final
 from uuid import UUID
@@ -49,7 +53,14 @@ def quota_resets_at(now: dt.datetime, settings: Settings) -> dt.datetime:
     return _quota_day(now, settings)[1]
 
 
-def ai_requests_today(conn: Conn, user_id: UUID, now: dt.datetime, settings: Settings) -> int:
+def ai_requests_today(
+    conn: Conn,
+    user_id: UUID,
+    now: dt.datetime,
+    settings: Settings,
+    kinds: Collection[str] = AI_JOB_KINDS,
+) -> int:
+    """The user's jobs of these kinds that count against a quota today."""
     row = conn.execute(
         """
         SELECT count(*) AS n FROM app.jobs AS j
@@ -65,7 +76,7 @@ def ai_requests_today(conn: Conn, user_id: UUID, now: dt.datetime, settings: Set
               )
           )
         """,
-        {"user_id": user_id, "kinds": list(AI_JOB_KINDS), "start": quota_day_start(now, settings)},
+        {"user_id": user_id, "kinds": list(kinds), "start": quota_day_start(now, settings)},
     ).fetchone()
     if row is None:
         raise RuntimeError("SELECT count(*) returned no row")
@@ -73,9 +84,23 @@ def ai_requests_today(conn: Conn, user_id: UUID, now: dt.datetime, settings: Set
     return count
 
 
-def _check_quota(conn: Conn, user_id: UUID, now: dt.datetime, settings: Settings) -> None:
-    limit = settings.ai_daily_generation_limit
-    if ai_requests_today(conn, user_id, now, settings) >= limit:
+def check_quota(
+    conn: Conn,
+    user_id: UUID,
+    now: dt.datetime,
+    settings: Settings,
+    *,
+    kinds: Collection[str] = AI_JOB_KINDS,
+    limit: int | None = None,
+) -> None:
+    """429 ai_quota_exceeded once today's jobs of these kinds reach the limit.
+
+    The defaults are the plan quota (settings.ai_daily_generation_limit). The caller holds
+    the user lock, so the count and the enqueue that follows are one step.
+    """
+    if limit is None:
+        limit = settings.ai_daily_generation_limit
+    if ai_requests_today(conn, user_id, now, settings, kinds) >= limit:
         raise ApiError(
             "ai_quota_exceeded",
             extra={"limit": limit, "resets_at": quota_resets_at(now, settings).isoformat()},
@@ -133,7 +158,7 @@ def request_generation(
     exam_ids = _exams_to_analyze(conn, user_id, local_date(now, profile.timezone))
     if not exam_ids:
         raise ApiError("nothing_to_analyze")
-    _check_quota(conn, user_id, now, settings)
+    check_quota(conn, user_id, now, settings)
     job_id = enqueue(conn, user_id, JOB_GENERATE_PLAN, {"exam_ids": [str(e) for e in exam_ids]})
     return GenerationRequest(job_id=job_id, created=True)
 
@@ -154,6 +179,6 @@ def request_reanalysis(
     active = _active_reanalysis(conn, user_id, exam_id)
     if active is not None:
         return GenerationRequest(job_id=active, created=False)
-    _check_quota(conn, user_id, now, settings)
+    check_quota(conn, user_id, now, settings)
     job_id = enqueue(conn, user_id, JOB_REANALYZE_EXAM, {"exam_id": str(exam_id)})
     return GenerationRequest(job_id=job_id, created=True)
