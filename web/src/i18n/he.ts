@@ -840,4 +840,16 @@ export const he = {
       unknown: { name: 'תג', description: '' },
     },
   },
+  // S31: Archie, the cut-paper character. The accessible name of each mood's illustration
+  // (spec 2026-11-18-archie-look-and-gamification.md, 3.1).
+  archie: {
+    alt: {
+      intentions: 'ארצ׳י זורע כוונות: משקה עציץ שנובטים ממנו ספרים',
+      eureka: 'ארצ׳י ברגע של אאוריקה: במדיטציה, עם אבן זהב והילה',
+      wisdom: 'ארצ׳י כותב קליגרפיה של חוכמה על מגילה',
+      flow: 'ארצ׳י מגרף ספירלות בחול של גן זן',
+      rest: 'ארצ׳י בטקס התה, תחת פריחת דובדבן',
+      joy: 'ארצ׳י מחייך ומקבל אותך, עם אבן זהב ביד',
+    },
+  },
 } as const

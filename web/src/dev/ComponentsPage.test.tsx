@@ -5,13 +5,17 @@ import { he } from '../i18n/he'
 import { createFakeAuth } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
 import { examColor } from '../ui/examColor'
+import { ARCHIE_SECTIONS } from './archieText'
 import { devText, SECTIONS } from './devText'
+
+// Every section of the page: devText's, and Archie's from its own file (S31, Task 8).
+const ALL_SECTIONS = [...SECTIONS, ...ARCHIE_SECTIONS]
 
 const PATH = '/dev/components'
 
 // The region of one section, by its title.
-function region(id: (typeof SECTIONS)[number]['id']) {
-  const title = SECTIONS.find((section) => section.id === id)?.title ?? id
+function region(id: (typeof ALL_SECTIONS)[number]['id']) {
+  const title = ALL_SECTIONS.find((section) => section.id === id)?.title ?? id
   return screen.getByRole('region', { name: title })
 }
 
@@ -43,19 +47,19 @@ describe('the components page (dev only)', () => {
 
     // Not an exact number: a new component adds a section, and must not have to touch this test.
     expect(SECTIONS.length).toBeGreaterThanOrEqual(22)
-    for (const section of SECTIONS) {
+    for (const section of ALL_SECTIONS) {
       const heading = screen.getByRole('heading', { level: 2, name: section.title })
       // The section is named by its heading.
       expect(screen.getByRole('region', { name: section.title })).toContainElement(heading)
     }
-    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(SECTIONS.length)
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(ALL_SECTIONS.length)
   })
 
   it('the table of contents links to every section', async () => {
     await open()
 
     const toc = within(screen.getByRole('navigation', { name: devText.page.toc }))
-    for (const section of SECTIONS) {
+    for (const section of ALL_SECTIONS) {
       expect(toc.getByRole('link', { name: section.title })).toHaveAttribute('href', `#${section.id}`)
       expect(document.getElementById(section.id)).not.toBeNull()
     }
@@ -138,12 +142,24 @@ describe('the components page (dev only)', () => {
 
     const colours = region('colours')
     for (const name of ['canvas', 'surface', 'surface-muted', 'ink', 'ink-muted', 'line', 'line-strong', 'brand',
-      'brand-strong', 'brand-soft', 'brand-accent', 'on-brand', 'now', 'danger', 'danger-soft', 'success',
-      'success-soft', 'warning', 'warning-soft', 'inverse', 'on-inverse', 'inverse-action', 'inverse-success',
-      'inverse-danger', 'busy', 'busy-soft', 'busy-line']) {
+      'brand-strong', 'brand-soft', 'on-brand', 'sprout', 'clay', 'on-clay', 'sand', 'gold', 'sky-from', 'sky-to',
+      'sky', 'now', 'now-text', 'danger', 'danger-soft', 'success', 'success-soft', 'warning', 'warning-soft',
+      'inverse', 'on-inverse', 'inverse-action', 'inverse-success', 'inverse-danger', 'busy', 'busy-soft',
+      'busy-line']) {
       expect(within(colours).getByText(name, { exact: true })).toBeInTheDocument()
       expect(colours.querySelector(`.bg-${name}`)).not.toBeNull()
     }
+    // brand-accent is gone (S31 decision 18).
+    expect(within(colours).queryByText('brand-accent', { exact: true })).not.toBeInTheDocument()
+  })
+
+  // The dawn sky behind Archie is a gradient: shown as one, from sky-from to sky-to, with ink on it.
+  it('the colours section shows the dawn sky as its gradient', async () => {
+    await open()
+
+    const sky = region('colours').querySelector('[data-part="sky"]')
+    expect(sky).toHaveClass('bg-linear-to-b', 'from-sky-from', 'to-sky-to', 'text-ink')
+    expect(sky).toHaveTextContent(devText.colours.sky)
   })
 
   it('the typography section shows the four weights and the five sizes', async () => {
@@ -176,5 +192,20 @@ describe('the components page (dev only)', () => {
     const chip = shell.getByRole('link', { name: he.shell.progressChip(devText.shell.streak, devText.shell.level) })
     expect(chip).toHaveAttribute('href', '/progress')
     expect(shell.getByRole('button', { name: devText.shell.undo })).toBeInTheDocument()
+  })
+
+  // S31, Task 8.
+  it('the Archie section shows the six moods as cards, one scene and the avatars', async () => {
+    await open()
+
+    const archie = region('archie')
+    const cards = archie.querySelectorAll('[data-size="card"]')
+    expect([...cards].map((card) => card.getAttribute('data-mood'))).toEqual([
+      'intentions', 'eureka', 'wisdom', 'flow', 'rest', 'joy',
+    ])
+    expect(archie.querySelectorAll('[data-size="scene"]')).toHaveLength(1)
+    expect(archie.querySelectorAll('[data-size="avatar"]').length).toBeGreaterThanOrEqual(6)
+    // The scene and the avatar of flow are named; the cards are decorative beside their captions.
+    expect(within(archie).getAllByRole('img', { name: he.archie.alt.flow })).toHaveLength(2)
   })
 })

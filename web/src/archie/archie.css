@@ -1,0 +1,352 @@
+/* The motion layer of Archie (S31, decision 23): the keyframes of
+   docs/design/prototype/archie-moods.html, ported from its Web Animations to CSS.
+
+   Sizes and paths are in cqw (a percent of the frame's width; the frame is the container): the
+   prototype multiplied the frame's width w by a factor, and cqw follows the frame when it resizes
+   without measuring it. The frame is 900/655, so the full height is 72.8cqw.
+
+   Everything moves only while the layer has data-playing (Archie.tsx sets it when the frame is on
+   screen and the system did not ask for less motion), and under prefers-reduced-motion the layer
+   is not shown at all and the illustration stands still, whatever the script does.
+
+   In the components layer, so a utility class (the size of an avatar, for example) wins. */
+
+@layer components {
+  /* An avatar is 40px unless the place that shows it gives a size (size-16, w-12). */
+  .archie-avatar {
+    width: 2.5rem;
+    aspect-ratio: 1;
+  }
+
+  .archie-frame {
+    container-type: inline-size;
+    isolation: isolate;
+  }
+
+  /* The illustration only breathes: 1.4% bigger and back over 7 seconds, from its feet, so the
+     character is never distorted. */
+  .archie-frame > img {
+    transform-origin: 50% 100%;
+  }
+  .archie-frame > img.archie-breathe {
+    animation: archie-breathe 7s ease-in-out infinite;
+  }
+
+  .archie-fx > *,
+  .archie-fx > [data-part='particles'] > * {
+    position: absolute;
+    will-change: transform, opacity;
+  }
+  .archie-fx > [data-part='particles'] {
+    position: static;
+    will-change: auto;
+  }
+  .archie-fx span > svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .archie-paper {
+    filter: drop-shadow(0 1.5px 0 rgba(0, 0, 0, 0.28)) drop-shadow(0 3px 3px rgba(0, 0, 0, 0.18));
+  }
+
+  /* Off screen, the still pieces pause where they are; the particles in the air finish their way
+     (the prototype stops only its emitters). */
+  .archie-fx:not([data-playing]) > :not([data-part='particles']),
+  .archie-fx:not([data-playing]) > :not([data-part='particles']) * {
+    animation-play-state: paused;
+  }
+
+  /* --- The still pieces of each mood ------------------------------------------------------ */
+
+  /* intentions: sprouts grow out of the pot and sway, alternating, 5.2s. */
+  .archie-sprout {
+    transform-origin: 50% 100%;
+    transform: rotate(var(--r)) scale(0.15);
+    animation: archie-sprout 5.2s ease-in-out infinite alternate both;
+  }
+
+  /* eureka: three dashed gold rings around his head, a turn every 40 seconds. */
+  .archie-halo {
+    left: 50%;
+    top: 31%;
+    width: 66cqw;
+    height: 66cqw;
+    margin: -33cqw 0 0 -33cqw;
+    animation: archie-turn 40s linear infinite;
+  }
+
+  /* eureka and joy: a warm glow on the gold stone, swelling and fading. */
+  .archie-glow {
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 226, 140, 0.85), rgba(255, 200, 80, 0.25) 45%, transparent 70%);
+  }
+  .archie-glow--stone {
+    left: 48%;
+    top: 79%;
+    width: 16cqw;
+    height: 16cqw;
+    margin: -8cqw 0 0 -8cqw;
+    animation: archie-glow-stone 2.6s ease-in-out infinite;
+  }
+  .archie-glow--hand {
+    left: 75%;
+    top: 50%;
+    width: 22cqw;
+    height: 22cqw;
+    margin: -11cqw 0 0 -11cqw;
+    background: radial-gradient(circle, rgba(255, 226, 140, 0.8), rgba(255, 200, 80, 0.2) 45%, transparent 70%);
+    animation: archie-glow-hand 2.4s ease-in-out infinite;
+  }
+
+  /* wisdom: an ink line written near the brush, held, and faded, every 6 seconds. */
+  .archie-ink {
+    left: 46%;
+    top: 75%;
+    width: 16cqw;
+    height: auto;
+    opacity: 0.85;
+  }
+  .archie-ink path {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    animation: archie-ink 6s linear infinite;
+  }
+
+  /* flow: willow leaves hang from the branch and sway. */
+  .archie-willow {
+    transform-origin: 50% 0;
+    animation: archie-sway 3.2s ease-in-out infinite alternate;
+  }
+
+  /* --- The particles ---------------------------------------------------------------------- */
+
+  /* Every particle runs its keyframes once (the duration comes from the emitter) and stays at
+     the end, invisible, until React removes it on animationend. Segments are linear, since
+     the prototype eased the whole path once and CSS eases each segment. */
+  .archie-p {
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+    animation-iteration-count: 1;
+    opacity: 0;
+  }
+
+  /* A paper shape drifting down the whole frame, swaying and turning. */
+  .archie-fall {
+    animation-name: archie-fall;
+  }
+  /* A water drop falling from the spout into the pot. */
+  .archie-drip {
+    animation-name: archie-drip;
+  }
+  /* A shape that fades in and floats off (a page off the book, a gold fleck off the stone). */
+  .archie-rise {
+    animation-name: archie-rise;
+  }
+  /* A star that pops, turns and shrinks away. */
+  .archie-twinkle {
+    animation-name: archie-twinkle;
+  }
+  /* A curl of incense smoke (at its fullest a quarter of the way up), or of steam from a cup
+     (at a third). */
+  .archie-curl {
+    animation-name: archie-curl;
+  }
+  .archie-steam {
+    animation-name: archie-steam;
+  }
+  /* A sand ripple spreading out from the rake. */
+  .archie-ripple {
+    animation-name: archie-ripple;
+  }
+  .archie-ripple-shape {
+    height: 4cqw;
+    margin: -2cqw 0 0 -5cqw;
+    border-radius: 50%;
+    border: 2px solid;
+    box-shadow: 0 1px 0 rgba(255, 250, 235, 0.7);
+  }
+
+  @keyframes archie-breathe {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.014);
+    }
+  }
+  @keyframes archie-sprout {
+    0% {
+      transform: rotate(var(--r)) scale(0.15);
+    }
+    35% {
+      transform: rotate(var(--r)) scale(1);
+    }
+    65% {
+      transform: rotate(calc(var(--r) + 8deg)) scale(1);
+    }
+    100% {
+      transform: rotate(var(--r)) scale(1);
+    }
+  }
+  @keyframes archie-turn {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes archie-glow-stone {
+    0%,
+    100% {
+      transform: scale(0.8);
+      opacity: 0.6;
+    }
+    50% {
+      transform: scale(1.25);
+      opacity: 1;
+    }
+  }
+  @keyframes archie-glow-hand {
+    0%,
+    100% {
+      transform: scale(0.85);
+      opacity: 0.6;
+    }
+    50% {
+      transform: scale(1.2);
+      opacity: 1;
+    }
+  }
+  @keyframes archie-ink {
+    0% {
+      stroke-dashoffset: 100;
+      opacity: 1;
+    }
+    60%,
+    85% {
+      stroke-dashoffset: 0;
+      opacity: 1;
+    }
+    100% {
+      stroke-dashoffset: 0;
+      opacity: 0;
+    }
+  }
+  @keyframes archie-sway {
+    from {
+      transform: rotate(-10deg);
+    }
+    to {
+      transform: rotate(10deg);
+    }
+  }
+  @keyframes archie-fall {
+    0% {
+      transform: translate(0, 0) rotate(var(--r));
+      opacity: 0;
+    }
+    12% {
+      opacity: 1;
+    }
+    50% {
+      transform: translate(calc(var(--dx) * 0.5), 32.8cqw) rotate(calc(var(--r) + 90deg));
+    }
+    100% {
+      transform: translate(var(--dx), 72.8cqw) rotate(calc(var(--r) + 200deg));
+      opacity: 0;
+    }
+  }
+  @keyframes archie-drip {
+    0% {
+      transform: translate(0, 0) scale(0.6);
+      opacity: 0;
+    }
+    15% {
+      opacity: 1;
+    }
+    85% {
+      transform: translate(5cqw, 12cqw) scale(1);
+      opacity: 0.9;
+    }
+    100% {
+      transform: translate(6cqw, 15cqw) scale(0.4);
+      opacity: 0;
+    }
+  }
+  @keyframes archie-rise {
+    0% {
+      transform: translate(0, 0) rotate(0);
+      opacity: 0;
+    }
+    20% {
+      opacity: 1;
+    }
+    100% {
+      transform: translate(var(--dx), var(--dy)) rotate(var(--r));
+      opacity: 0;
+    }
+  }
+  @keyframes archie-twinkle {
+    0% {
+      transform: translate(0, 0) scale(0) rotate(0);
+      opacity: 0;
+    }
+    40% {
+      transform: translate(0, 0) scale(1) rotate(45deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translate(var(--dx), var(--dy)) scale(0) rotate(var(--r));
+      opacity: 0;
+    }
+  }
+  @keyframes archie-curl {
+    0% {
+      transform: translate(0, var(--from)) scaleY(var(--sy0));
+      opacity: 0;
+    }
+    25% {
+      opacity: var(--peak);
+    }
+    100% {
+      transform: translate(var(--dx), var(--dy)) scaleY(var(--sy1)) rotate(var(--r));
+      opacity: 0;
+    }
+  }
+  @keyframes archie-steam {
+    0% {
+      transform: translate(0, var(--from)) scaleY(var(--sy0));
+      opacity: 0;
+    }
+    30% {
+      opacity: var(--peak);
+    }
+    100% {
+      transform: translate(var(--dx), var(--dy)) scaleY(var(--sy1)) rotate(var(--r));
+      opacity: 0;
+    }
+  }
+  @keyframes archie-ripple {
+    0% {
+      transform: scale(0.3);
+      opacity: 0;
+    }
+    20% {
+      opacity: 1;
+    }
+    100% {
+      transform: scale(3.2);
+      opacity: 0;
+    }
+  }
+
+  /* Whoever asked for less motion sees the illustration alone, still. */
+  @media (prefers-reduced-motion: reduce) {
+    .archie-fx {
+      display: none;
+    }
+    .archie-frame > img.archie-breathe {
+      animation: none;
+    }
+  }
+}

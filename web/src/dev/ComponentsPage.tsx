@@ -4,6 +4,8 @@ import { cx, FOCUS_RING_NATIVE } from '../ui/styles'
 import { TextLink } from '../ui/TextLink'
 import { ToastRegion } from '../ui/toast'
 import { ButtonSection, IconButtonSection, MenuSection } from './actionSections'
+import { ArchieSection } from './archieSections'
+import { ARCHIE_SECTIONS } from './archieText'
 import { devText, SECTIONS } from './devText'
 import {
   BadgeSection,
@@ -32,10 +34,13 @@ import { NoteSection, OptionGridSection, SegmentedControlSection } from './s27Se
 import { CollapsibleSectionSection, CompactSelectSection, SwitchSection } from './s28Sections'
 import { ShellSection } from './shellSections'
 
+// The table of contents: the sections of devText.ts, and Archie's entry from its own file.
+const TOC = [...SECTIONS, ...ARCHIE_SECTIONS]
+
 // The look of a TextLink, on a plain <a>: these are anchors inside the page (#button), not routes,
 // so the router's Link is not the element for them. 44px high, since each stands alone.
 const ANCHOR = cx(
-  'inline-flex min-h-touch items-center rounded-badge text-small text-brand underline underline-offset-2',
+  'inline-flex min-h-touch items-center rounded-badge text-small text-brand-strong underline underline-offset-2',
   'transition-colors duration-(--duration-fast) hover:text-brand-strong',
   FOCUS_RING_NATIVE,
 )
@@ -63,7 +68,7 @@ export function ComponentsPage() {
         />
         <nav aria-label={devText.page.toc}>
           <ul role="list" className="flex flex-wrap gap-x-4">
-            {SECTIONS.map((section) => (
+            {TOC.map((section) => (
               <li key={section.id}>
                 <a href={`#${section.id}`} className={ANCHOR}>
                   {section.title}
@@ -78,6 +83,7 @@ export function ComponentsPage() {
         <TypographySection />
         <ShapeSection />
         <ShellSection />
+        <ArchieSection />
         <ButtonSection />
         <IconButtonSection />
         <MenuSection />

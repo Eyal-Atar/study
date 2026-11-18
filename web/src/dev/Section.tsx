@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react'
 import { cx } from '../ui/styles'
+import { ARCHIE_SECTIONS, type ArchieSectionId } from './archieText'
 import { SECTIONS, type SectionId } from './devText'
 
 // One component of the catalogue: a region named by its h2. The h2 is a label and not a headline
 // (design language 3): small, semibold, muted. The id is the target of the table of contents.
-export function Section({ id, children }: { id: SectionId; children: ReactNode }) {
-  const title = SECTIONS.find((section) => section.id === id)?.title
+// The Archie section has its entry in archieText.ts (devText.ts belongs to the palette task).
+export function Section({ id, children }: { id: SectionId | ArchieSectionId; children: ReactNode }) {
+  const title = [...SECTIONS, ...ARCHIE_SECTIONS].find((section) => section.id === id)?.title
   const headingId = `${id}-title`
   return (
     <section id={id} aria-labelledby={headingId} className="scroll-mt-4 space-y-4 border-t border-line pt-4">
