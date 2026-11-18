@@ -342,3 +342,43 @@ flowchart TB
 - [ ] כל הבדיקות, lint, typecheck, build (ובדיקה שה-webp נכנסים ל-`dist/assets`). Commit: `feat(web): the Archie component: six cut-paper moods with their motion layer, still under reduced motion`.
 
 **במקביל:** Tasks 7 ו-8 רצים יחד. משותף: `ComponentsPage.tsx` (רק 8), ‏`devText.ts` (רק 7; ל-8 יש `archieText.ts`), ‏`he.ts` (רק 8), ‏`index.css` (רק 7).
+
+---
+
+## יישור להדמיה המלאה (18.11.2026, אחר הצהריים)
+
+**מה קרה:** נוספה ב-`main` הדמיה של כל המסכים במראה של ארצ׳י, `docs/design/prototype/all-screens.html` (‏9de6719), והיא המקור החזותי לשלד ולרכיבים, יחד עם מסמך המראה של ארצ׳י. מה שנבנה כבר תואם לה ברוב הדברים (הפלטה, Rubik, הלשוניות, הסרגל התחתון, ה-sheet, ה-toast הכהה). הפערים הם בערכים ובשלושה פרטים של השלד, ולכן הם נסגרים ב-Task 9 בלי לשנות מבנה.
+
+### החלטות נוספות
+
+25. **צבעי המבחנים לפי ההדמיה:** ארבעת הראשונים לוקחים את הערכים ואת הסדר של ההדמיה, וארבעת האחרים נשארים מהחלטה 20:
+
+    | N | שם | חזק | soft | line |
+    |---|---|---|---|---|
+    | 0 | זית | `#6b7a2f` | `#eef0d9` | `#c9cf9c` |
+    | 1 | טרקוטה | `#b0532f` | `#f8e6dc` | `#e8b79d` |
+    | 2 | אבן כחולה | `#4a6b84` | `#e2ebf2` | `#a9c0d2` |
+    | 3 | שזיף | `#7b4a6d` | `#f1e3ec` | `#d2aec6` |
+    | 4 | חרדל | `#8a6410` | `#f7ecd2` | `#e2c78a` |
+    | 5 | מנטה כהה | `#2f6f62` | `#dcefe9` | `#9dcdc0` |
+    | 6 | ורד עתיק | `#a3485b` | `#f7e2e6` | `#e2aab5` |
+    | 7 | אדמה | `#7a5236` | `#f1e6dc` | `#d2b49c` |
+
+    נמדד: לבן על החזק 4.72–6.90, החזק על ה-soft ‏4.07–5.57, ‏`ink` על ה-soft ‏≥ 11. הזית שונה מ-`brand` בגוון (צהבהב לעומת ירוק עלה), כמו בהדמיה שאייל אישר.
+26. **ערכים שמתיישרים להדמיה:** `surface-muted` ‏`#e6e7d8` (ה-`soft` של ההדמיה: מסילה של פס, רקע של אייקון, המקטעים; ‏`ink-muted` עליו 5.27, ‏`line-strong` ‏3.26, ‏`brand` ‏4.02); ‏`on-inverse` ‏`#f3ead9` ו-`inverse-action` ‏`#cfe3b4` (ה-toast); חדשים: `field` ‏`#ffffff` (רקע של שדה ושל כרטיס בחירה, כמו `.field` ו-`.opt`), ‏`gold-soft` ‏`#f6e7c6` ו-`gold-ink` ‏`#6b4a12` (הצ'יפ הזהוב של XP, 6.57), ‏`gold-track` ‏`#eadfc4` (המסילה של טבעת הרמה).
+27. **פינות לפי ההדמיה:** `radius-control` ‏12px (שדה), חדש `radius-button` ‏14px (כפתור), ‏`radius-card` ‏18px, ‏`radius-sheet` ‏24px. ‏`radius-badge` ‏6px נשאר. גובה הסרגל העליון 60px (`spacing-topbar` ‏3.75rem).
+28. **פונט תצוגה: Amatic SC** (OFL), מאוחסן אצלנו, משקל 700 בלבד, עברית ‏9KB ולטינית ‏24KB, עם `unicode-range` ו-`swap`. משמש רק את הלוגו עכשיו, ובהמשך את הכותרות הגדולות של ארצ׳י (`font-display`, מ-24px בלבד). זה מבטל את החלטה 22: ההדמיה, שהיא עכשיו המקור החזותי, משתמשת בו בלוגו ובכותרות של ארצ׳י, והוא קטן מספיק.
+29. **השלד לפי ההדמיה:**
+    - **הלוגו:** ארצ׳י (`Archie mood="joy" size="avatar"`, ‏34px, ‏decorative) ולידו `he.appName` ב-Amatic SC ‏30px. השם עצמו נשאר StudyFlow (החלטה 24).
+    - **הצ'יפ:** שני חלקים, כמו `gam` בהדמיה: גלולה ירוקה (`bg-brand-soft text-brand-strong`, ‏`Leaf` ומספר ימי הרצף) וטבעת רמה של 34px (`gold` על `gold-track`, מרכז `surface`, המספר ב-700). קישור אחד ל-`/progress` עם השם הנגיש הקיים.
+    - **האייקון של "התקדמות":** `Sprout` במקום `TrendingUp` (העלה של ההדמיה).
+    - **כפתור הפרופיל** נשאר האות של המשתמש: בהדמיה מופיע שם ארצ׳י כ-placeholder, אבל התפריט הוא של המשתמש.
+30. **תיקונים קטנים מהסקירות של Tasks 3–4:** "יומן" בניווט בזמן תצוגת שבוע מחזיר ליום בלי רשומת היסטוריה כפולה (state על הקישור); הבדיקה של אזור ה-toast לא מתבלבלת בין `bg-surface` ל-`bg-surface-muted`; ל-`ButtonLink variant="inverse"` יש בדיקה.
+
+### Task 9: יישור להדמיה
+
+**Files:** `web/src/index.css`, ‏`web/src/theme.test.ts`, ‏`web/src/assets/fonts/` (‏`amatic-hebrew.woff2`, ‏`amatic-latin.woff2`, והרישיון שלו ליד `OFL.txt`), ‏`web/src/app/Logo.tsx`, ‏`web/src/app/ProgressChip.tsx` (+ test), ‏`web/src/app/AppShell.tsx` (+ test), ‏`web/src/calendar/CalendarPage.tsx` (+ test), ‏`web/src/ui/Button.tsx`, ‏`ButtonLink.tsx`, ‏`styles.ts`, ‏`TextField.tsx` ושאר השדות וכרטיסי הבחירה (`bg-field`), ‏`web/src/ui/toast.test.tsx`, ‏`web/src/ui/Button.test.tsx`, ‏`web/src/dev/paletteSections.tsx`, ‏`web/src/dev/devText.ts`, ‏`docs/design/design-language.md` (הסעיפים שהשתנו).
+
+- [ ] בדיקות קודם: הערכים של החלטות 25–27 ב-`theme.test.ts` (כולל `gold-ink` על `gold-soft`, ‏`on-inverse` ו-`inverse-action` על `inverse`, ‏`ink` על `field`, ‏`line-strong` על `field`); שני `@font-face` של Amatic SC עם `font-weight: 700`, ‏`swap`, ‏`unicode-range` ומתחת ל-60KB, ו-`--font-display` שמתחיל ב-`'Amatic SC'`; הלוגו מכיל `img` עם `alt=""` ואת `he.appName`; הצ'יפ מציג את המספר ואת הרמה; ‏`Sprout` ב"התקדמות"; "יומן" מתצוגת שבוע → יום, בלי רשומה כפולה.
+- [ ] המימוש, דף הרכיבים (הפלטה המעודכנת, הפונט), ועדכון מסמך העיצוב.
+- [ ] כל הבדיקות, lint, typecheck, build. Commit: `feat(web): aligned to the all-screens mockup: exam shades, radii, field and gold tokens, Amatic SC for the logo, the two-part chip`.
