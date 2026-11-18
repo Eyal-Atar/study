@@ -66,3 +66,51 @@
 - מבנה ה-API (נתיבים ושדות), בתוך העקרונות של 7.7.
 - איך בוחרים את "המשימות הבאות בתור" ב"יש לי זמן עכשיו", בתוך הכללים של המתכנן.
 - מספרי המכסה לפענוח.
+
+## 10. מה נבנה ב-S35, והחלטות של מי שבונה (18.11.2026)
+
+התוכנית המלאה, עם הנימוקים: `docs/superpowers/plans/2026-11-18-s35-availability.md`. בקצרה:
+
+- **איך זה מתחבר:** ההתחייבויות והאירועים נכנסים ל-`Profile` של המתכנן (`commitments`, ‏`busy`), ו-`day_windows` מחסירה אותם, בדיוק במקום שבו ירד התחביב. לכן כל שלב של המתכנן (תקציב, שיבוץ, אריזה, תקפות, `place_task`) רואה אותם בלי שינוי. מקום אחד בשרת בונה את ה-`Profile` הזה לחישוב זמן פנוי (`planner_profile`).
+- **השבוע מתחיל ביום ראשון = 0**, כמו `getDay()` ב-JavaScript.
+- **התחייבות:** לפחות 15 דקות, ושעת סיום לפני שעת ההתחלה = חוצה חצות. התוקף (`valid_from`, ‏`valid_until`) נקבע לפי התאריך שבו המופע מתחיל. אין ריפוד סביב זמן תפוס. עד 100 התחייבויות.
+- **אירוע:** עד 14 ימים, לא בעבר, עד 500 עתידיים.
+- **מה זז ומה לא:** תכנון מחדש לא מזיז בלוק קבוע (נעול, שהתחיל או שהושלם) גם אם הוא בתוך התחייבות. הוספת אירוע **כן** משחררת גם בלוק נעול שחופף לו, כי זו פעולה מפורשת כמו דחייה. בלוק שהושלם לא זז לעולם.
+- **גם הזזה ידנית לא שמה בלוק על זמן תפוס** (`slot_busy`), והסלוטים לא מציעים אותו. התחייבות היא איסור. מי שהרצאה שלו בוטלה מקצר או מוחק אותה.
+- **"יש לי זמן עכשיו"** מתעלם מחלונות הלימוד ומהמכסה היומית (המשתמש אמר שהוא פנוי), אבל לא מזמן תפוס. הבלוקים בחלון ננעלים. "המשימות הבאות בתור" הן סדר הלוח: המשימה שהבלוק הבא שלה הכי קרוב, ואחריה משימות שלא נכנסו. משימה ארוכה מקבלת חלק, והשאר מונח אחרי החלון.
+- **הביטול** של אירוע, "יש לי זמן" ודחייה לשעה מחזיר את הלוח כמו שהיה. ביטול לא מחזיר בלוק על זמן תפוס.
+- **התחביב** עבר במיגרציה לשבע התחייבויות "זמן לעצמי". ‏`GET`/`PATCH /me` עדיין מציגים ומשנים אותו דרך שכבת תאימות זמנית, כדי שמסך ההגדרות הקיים ימשיך לעבוד. העמודות הישנות התאפסו ונשארו.
+- **מערכת שעות:** הקובץ נשמר זמנית ב-bucket של החומרים (`{user_id}/timetables/{id}`), ונמחק אחרי הפענוח. מכסה של 5 פענוחים ביום.
+- **המודל:** ה-eval (על 3 מערכות לדוגמה שיצרנו, נקיות ובצילום "טלפון" גרוע) בחר ב-**Sonnet 5.5 ב-effort ‏`low`**: ‏100% דיוק, כ-0.9 סנט לפענוח. ל-Haiku 5.5 היו 98%: הוא קרא תרגול של שעה כשעתיים בצילום, ושגה באיות של שמות קורסים, ב-0.08 סנט. טעות בשעה שווה יותר מ-0.8 סנט. המודל נקבע ב-`AI_MODEL_TIMETABLE`, בנפרד מ-`AI_MODEL_LIGHT`. ‏**פתוח ל-S34:** eval על צילומים אמיתיים של אייל (`api/eval/materials/timetables/`, ‏`uv run python eval/timetable_eval.py --run --max-usd 0.3`).
+
+## 11. מה S32 ו-S34 צריכים
+
+הטיפוסים והקריאות מוכנים ב-`web/src/availability/types.ts` וב-`web/src/availability/api.ts` (בלי מסך). שעות ביום הן `"HH:MM"` בשעון של הפרופיל; רגעים הם UTC ‏ISO (`…Z`); תאריכים הם `YYYY-MM-DD` מקומיים. כל השגיאות הן קודים (`code` ב-`problem+json`), והטקסט בעברית נכתב ב-web.
+
+**ביומן (S32):**
+
+| מה | נתיב | תשובה ושגיאות |
+|---|---|---|
+| הזמן התפוס לציור | `GET /plan`, `GET /today` | שדה `busy: [{source: "commitment"\|"event", id, title, kind, starts_at, ends_at}]`: כל מופע שחופף לשעות הערות של הימים, שלם (לא חתוך) |
+| סימון זמן תפוס | `POST /busy-events {title?, starts_at, ends_at}` | ‏201 `{event, blocks, unplaced: [{task_id, minutes, reason}], version_id}`. ‏`version_id` הוא ה"בטל" (`POST /plan/undo`). ‏422 ‏`event_in_past`, ‏`too_many_events`, ‏`validation_error` (`not_after_starts_at`, ‏`too_long`) |
+| עריכה ומחיקה של אירוע | `PATCH /busy-events/{id}`, `DELETE /busy-events/{id}` | ‏PATCH: אותה תשובה (`version_id` ‏null כשרק הכותרת השתנתה); אירוע שנגמר → ‏409 ‏`invalid_state`. ‏DELETE → ‏204, שום דבר לא זז |
+| רשימת אירועים | `GET /busy-events?from=&to=` | `{events: [{id, title, starts_at, ends_at, created_at}]}` |
+| "יש לי זמן עכשיו" | `POST /plan/free-time {minutes}` (30–480) | `{session_starts_at, session_ends_at, placed_task_ids, blocks, version_id}`. ‏409 ‏`nothing_to_place` (אין משימה שאפשר להקדים) או `no_free_time` (הזמן תפוס) |
+| דחייה: הבא | `POST /blocks/{id}/defer` (בלי גוף, או `{to: "next"}`) | כמו קודם: `{blocks, version_id}`; ‏409 ‏`placement_failed` |
+| דחייה: מחר | `{to: "tomorrow"}` | אותה תשובה; ‏409 ‏`placement_failed` |
+| דחייה: בחירת שעה | `GET /blocks/{id}/slots?date=YYYY-MM-DD`, ואז `{to: "at", starts_at}` | הסלוטים: `{study_date, day_starts_at, day_ends_at, slots}`, רשת של 15 דקות, מהיום ועד היום האחרון של המבחן (תאריך אחר → ‏422 עם `loc ["query","date"]`). הדחייה: נעול, גרסה; ‏422 ‏`outside_day`, ‏409 ‏`slot_taken` (`blocked_by`) או `slot_busy` |
+| הזזה בגרירה | `PATCH /blocks/{id} {starts_at}` | כמו S18, ועכשיו גם ‏409 ‏`slot_busy` על זמן תפוס, ו-422 ‏`outside_day` אחרי סוף הלימוד למבחן |
+
+**באונבורדינג ובהגדרות (S34):**
+
+| מה | נתיב | תשובה ושגיאות |
+|---|---|---|
+| רשימה | `GET /commitments` | `{commitments: [{id, title, kind, weekday, start_time, end_time, valid_from, valid_until, source_job_id, created_at}]}` |
+| הוספה | `POST /commitments {title, kind, weekday, start_time, end_time, valid_from?, valid_until?}` | ‏201 `{commitment, plan_affected: true}`. ‏422: ‏`too_short`, ‏`same_as_start_time`, ‏`before_valid_from`, ‏`too_many_commitments` (‏`limit`). "עבודה בשני ורביעי" = שתי התחייבויות |
+| עריכה ומחיקה | `PATCH /commitments/{id}`, `DELETE /commitments/{id}` | `{commitment, plan_affected}` ו-`{plan_affected: true}`. אחרי `plan_affected` מציעים `POST /plan/replan` עם תצוגה מקדימה, כמו בהגדרות |
+| העלאת צילום | העלאה ל-Storage `materials/{userId}/timetables/{id}` (id חדש), ואז `POST /timetables {id, mime, size_bytes}` | ‏202 `{job_id}`; ‏422 ‏`file_too_large` (`limit_bytes`), ‏409 ‏`already_exists`, ‏429 ‏`ai_quota_exceeded` (`limit`, ‏`resets_at`) |
+| מעקב | `GET /jobs/{job_id}` | ב-`done`: ‏`result.commitments: [{title, kind, weekday, start, end}]`. ב-`failed`: ‏`error` אחד מ: `timetable_unreadable`, ‏`timetable_invalid`, ‏`unsupported_file`, ‏`file_too_large`, ‏`too_many_pages`, ‏`pdf_unreadable`, ‏`file_missing`, ‏`ai_*`. בכל כשל: הודעה ברורה, ומעבר לסימון ידני |
+| אישור | `POST /timetables/{job_id}/apply {items: [...כמו POST /commitments], valid_from?, valid_until?}` | ‏201 `{commitments, plan_affected: true}`. אפשר לשלוח רק חלק ולערוך. ‏`valid_until` (למשל סוף הסמסטר) חל על פריטים בלי תאריך משלהם. ‏409 ‏`job_not_ready`, ‏`invalid_state`, ‏`already_applied` |
+
+- **התחביב בהגדרות:** כשמסך ההגדרות החדש מנהל התחייבויות, מוחקים את `hobby_start`/`hobby_minutes` מ-`GET`/`PATCH /me` ואת `app/services/hobby.py`, ומיגרציה מוחקת את שתי העמודות.
+- **`busy` ב-`Plan` וב-`Today`** מוגדר אופציונלי ב-`board/types.ts`, כדי שה-fixtures של המסכים הקיימים לא יישברו. השרת שולח אותו תמיד, ו-S32 הופך אותו לחובה.
