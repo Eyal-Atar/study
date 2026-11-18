@@ -1,5 +1,7 @@
 // The board as the API returns it (api/app/schemas/plan.py, blocks.py, exams.py). Times are UTC
 // instants (ISO strings); `study_date` is the day in the profile's timezone, decided by the server.
+import type { BusyItem } from '../availability/types'
+
 
 export type TaskKind = 'learn' | 'practice' | 'review' | 'simulation' | 'simulation_review' | 'custom'
 
@@ -35,6 +37,9 @@ export interface Today {
   // moved within; null when the profile leaves no waking time that day.
   day_starts_at: string | null
   day_ends_at: string | null
+  // S35: commitment occurrences and busy events over the day's waking hours. The server always
+  // sends it; optional until the screens of S32 read it and their fixtures carry it.
+  busy?: BusyItem[]
 }
 
 // A task that is not on the board (GET /plan). The reason comes only from the replan preview.
@@ -59,6 +64,8 @@ export interface Plan {
   blocks: Block[]
   unplaced: Unplaced[]
   undo: UndoInfo | null
+  // S35: commitment occurrences and busy events over the waking hours of the range (see Today).
+  busy?: BusyItem[]
 }
 
 export interface Unscheduled {
