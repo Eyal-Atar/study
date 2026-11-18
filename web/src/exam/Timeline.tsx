@@ -56,7 +56,7 @@ function Day({ info, max }: { info: DayInfo; max: number }) {
       <span aria-hidden="true" className="flex w-full items-end justify-center" style={{ height: BAR_MAX_PX }}>
         {info.isExam ? (
           // An icon and no words: "יום המבחן" does not fit a narrow column, and used to wrap.
-          <Flag aria-hidden="true" data-mark="exam" size={18} strokeWidth={ICON_STROKE} className="text-brand" />
+          <Flag aria-hidden="true" data-mark="exam" size={18} strokeWidth={ICON_STROKE} className="text-brand-strong" />
         ) : info.isRest ? (
           <Coffee aria-hidden="true" data-mark="rest" size={18} strokeWidth={ICON_STROKE} className="text-ink-muted" />
         ) : plannedPx > 0 ? (
@@ -93,7 +93,7 @@ function Legend() {
         {t.legendRest}
       </span>
       <span className={item}>
-        <Flag aria-hidden="true" size={14} strokeWidth={ICON_STROKE} className="text-brand" />
+        <Flag aria-hidden="true" size={14} strokeWidth={ICON_STROKE} className="text-brand-strong" />
         {t.legendExam}
       </span>
     </span>

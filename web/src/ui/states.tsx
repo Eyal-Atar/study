@@ -91,12 +91,12 @@ export interface EmptyStateProps {
 
 // A list or a screen with nothing in it yet. It is ordinary content and not a message, so it has
 // no role and is not announced. The icon sits in a soft brand circle, like the avatar of the
-// prototype (brand on brand-soft: a graphic, 3:1 is enough, and it is well above).
+// prototype (brand-strong on brand-soft, the green of text, well above the 3:1 of a graphic).
 export function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center gap-2 py-10 text-center">
       {Icon === undefined ? null : (
-        <span data-empty-icon="" className="mb-1 flex size-14 items-center justify-center rounded-full bg-brand-soft text-brand">
+        <span data-empty-icon="" className="mb-1 flex size-14 items-center justify-center rounded-full bg-brand-soft text-brand-strong">
           <Icon aria-hidden="true" size={28} strokeWidth={ICON_STROKE} />
         </span>
       )}

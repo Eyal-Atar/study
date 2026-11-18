@@ -20,7 +20,7 @@ export type TextLinkProps = TextLinkBase & ({ to: string; href?: never } | { hre
 // mailto: and the rest stay in the tab.
 export function TextLink({ to, href, children, className }: TextLinkProps) {
   const look = cx(
-    'rounded-badge text-brand underline underline-offset-2 transition-colors duration-(--duration-fast) hover:text-brand-strong',
+    'rounded-badge text-brand-strong underline underline-offset-2 transition-colors duration-(--duration-fast) hover:text-brand-strong',
     FOCUS_RING_NATIVE,
     className,
   )

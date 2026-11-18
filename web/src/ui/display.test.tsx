@@ -392,7 +392,7 @@ describe('ProgressBar without a visible label', () => {
 })
 
 describe('TextLink', () => {
-  it('is a link in the brand colour, always underlined, that takes keyboard focus', async () => {
+  it('is a link in the green of text, always underlined, that takes keyboard focus', async () => {
     const user = userEvent.setup()
     render(
       <MemoryRouter>
@@ -403,7 +403,7 @@ describe('TextLink', () => {
     )
     const link = screen.getByRole('link', { name: 'לכל המבחנים' })
     expect(link).toHaveAttribute('href', '/exams')
-    expect(link).toHaveClass('text-brand', 'underline', 'hover:text-brand-strong', 'min-h-touch')
+    expect(link).toHaveClass('text-brand-strong', 'underline', 'hover:text-brand-strong', 'min-h-touch')
     expect(link).toHaveClass('outline-none', 'focus-visible:ring-2', 'focus-visible:ring-brand')
     await user.tab()
     expect(link).toHaveFocus()
@@ -415,7 +415,7 @@ describe('TextLink', () => {
     expect(link).toHaveAttribute('href', 'https://example.com/terms')
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noreferrer')
-    expect(link).toHaveClass('text-brand', 'underline', 'hover:text-brand-strong', 'focus-visible:ring-2')
+    expect(link).toHaveClass('text-brand-strong', 'underline', 'hover:text-brand-strong', 'focus-visible:ring-2')
   })
 
   it.each(['mailto:support@example.com', '/files/terms.pdf', '#top'])('with the href %s it stays in the same tab', (href) => {

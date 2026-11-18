@@ -1,6 +1,7 @@
 // @vitest-environment node
 /// <reference types="node" />
 import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { PRODUCT_NAME } from '../product'
 import { manifest } from './manifest'
@@ -31,6 +32,16 @@ describe('manifest', () => {
   it('takes its colours from the theme', () => {
     expect(manifest.theme_color?.toLowerCase()).toBe(color('brand').toLowerCase())
     expect(manifest.background_color?.toLowerCase()).toBe(color('canvas').toLowerCase())
+  })
+
+  // index.html repeats the brand twice: the theme-color of the browser bar, and the reload button of
+  // the boot fallback, which runs when the CSS may not have loaded.
+  it('index.html takes the same brand colour', () => {
+    // Read by path: Vite rewrites new URL('…html', import.meta.url) into an asset URL.
+    const html = readFileSync(join(process.cwd(), 'index.html'), 'utf8')
+    const brand = color('brand').toLowerCase()
+    expect(/<meta name="theme-color" content="(#[0-9a-fA-F]{6})"/.exec(html)?.[1]?.toLowerCase()).toBe(brand)
+    expect(/background:(#[0-9a-fA-F]{6});color:#fff/.exec(html)?.[1]?.toLowerCase()).toBe(brand)
   })
 
   it('has a 192 and a 512 icon, and a maskable 512', () => {

@@ -1,7 +1,7 @@
 // @vitest-environment node
 /// <reference types="node" />
 import { describe, expect, it } from 'vitest'
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 
 // Read from disk: Vitest does not load CSS content into tests.
 const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8')
@@ -25,12 +25,13 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05)
 }
 
-// The eight exam colours (decision 5). Each has a strong, a soft and a line token.
+// The eight exam colours (decisions 5 and 20). Each has a strong, a soft and a line token.
 const EXAM = ['0', '1', '2', '3', '4', '5', '6', '7'] as const
 
 // WCAG AA for normal text: 4.5:1 (spec 7.9). Every text and background pair that
-// docs/design/design-language.md allows is here; a new pair is added here first.
-const TEXT = ['ink', 'ink-muted', 'brand', 'brand-strong', 'danger', 'success', 'warning'] as const
+// docs/design/design-language.md allows is here; a new pair is added here first. `brand` (the leaf
+// green) is not text: it is 4.4:1 on the page, so green text is `brand-strong` (S31 decision 18).
+const TEXT = ['ink', 'ink-muted', 'brand-strong', 'danger', 'success', 'warning', 'now-text'] as const
 const BACKGROUNDS = ['canvas', 'surface', 'surface-muted'] as const
 const PAIRS: [string, string][] = [
   ...TEXT.flatMap((fg) => BACKGROUNDS.map((bg): [string, string] => [fg, bg])),
@@ -38,6 +39,8 @@ const PAIRS: [string, string][] = [
   ['on-brand', 'brand-strong'],
   ['on-brand', 'success'],
   ['on-brand', 'danger'],
+  // Clay, the secondary action: white on it. Clay itself is never text (4.48:1).
+  ['on-clay', 'clay'],
   ['ink', 'brand-soft'],
   ['ink-muted', 'brand-soft'],
   ['brand-strong', 'brand-soft'],
@@ -47,7 +50,13 @@ const PAIRS: [string, string][] = [
   ['success', 'success-soft'],
   ['ink', 'warning-soft'],
   ['warning', 'warning-soft'],
-  // The dark toast (S31): its text, its quiet action ("בטל") and its state icons, all on `inverse`.
+  // Gold carries XP, the level and badges, with ink on it.
+  ['ink', 'gold'],
+  // The dawn sky behind Archie: ink on both ends of the gradient and on the tone between them.
+  ['ink', 'sky'],
+  ['ink', 'sky-from'],
+  ['ink', 'sky-to'],
+  // The bark toast (S31): its text, its quiet action ("בטל") and its state icons, all on `inverse`.
   ['on-inverse', 'inverse'],
   ['inverse-action', 'inverse'],
   ['inverse-success', 'inverse'],
@@ -60,7 +69,7 @@ const PAIRS: [string, string][] = [
     ['on-brand', `exam-${n}`],
   ]),
   // Busy time (S31, drawn by the calendar scope): the name and the time of a commitment or an
-  // event, in ink and in ink-muted, on its grey fill.
+  // event, in ink and in ink-muted, on its fill.
   ['ink', 'busy-soft'],
   ['ink-muted', 'busy-soft'],
 ]
@@ -75,7 +84,7 @@ const NON_TEXT_PAIRS: [string, string][] = [
   // The filled part of a progress bar on its track.
   ['success', 'surface-muted'],
   ['brand', 'surface-muted'],
-  // The "now" line of the calendar (a line, not text).
+  // The "now" line of the calendar (a line, not text; its time is now-text).
   ['now', 'surface'],
   ['now', 'canvas'],
   // An exam colour as a mark (a stripe, a dot, a border) on its soft fill and on the page.
@@ -84,7 +93,7 @@ const NON_TEXT_PAIRS: [string, string][] = [
     [`exam-${n}`, 'surface'],
     [`exam-${n}`, 'canvas'],
   ]),
-  // The stronger grey of busy time as a mark (a stripe, an icon) on its fill and on the page.
+  // The stronger tone of busy time as a mark (a stripe, an icon) on its fill and on the page.
   ['busy', 'busy-soft'],
   ['busy', 'surface'],
 ]
@@ -94,8 +103,9 @@ const NON_TEXT_PAIRS: [string, string][] = [
 const TOKENS = [
   ...[
     'canvas', 'surface', 'surface-muted', 'ink', 'ink-muted', 'line', 'line-strong', 'brand', 'brand-strong',
-    'brand-soft', 'brand-accent', 'on-brand', 'now', 'danger', 'danger-soft', 'success', 'success-soft',
-    'warning', 'warning-soft', 'inverse', 'on-inverse', 'inverse-action', 'inverse-success', 'inverse-danger',
+    'brand-soft', 'on-brand', 'sprout', 'clay', 'on-clay', 'sand', 'gold', 'sky-from', 'sky-to', 'sky', 'now',
+    'now-text', 'danger', 'danger-soft', 'success', 'success-soft', 'warning', 'warning-soft', 'inverse',
+    'on-inverse', 'inverse-action', 'inverse-success', 'inverse-danger',
     ...EXAM.flatMap((n) => [`exam-${n}`, `exam-${n}-soft`, `exam-${n}-line`]),
     'busy', 'busy-soft', 'busy-line',
   ].map((name) => `--color-${name}`),
@@ -154,7 +164,18 @@ describe('design tokens', () => {
     expect(new Set(strong).size).toBe(8)
   })
 
-  it('busy time has its own grey, apart from the quiet fill and from the slate of exam 7', () => {
+  // "Done" is drawn in the brand green, so no exam may look like it (S31 decision 20).
+  it('no exam colour is the brand green', () => {
+    const greens = [color('brand').toLowerCase(), color('brand-strong').toLowerCase()]
+    for (const n of EXAM) expect(greens).not.toContain(color(`exam-${n}`).toLowerCase())
+  })
+
+  // The logo mark is a gradient from brand to sprout now (S31 decision 18).
+  it('brand-accent is gone', () => {
+    expect(css).not.toMatch(/--color-brand-accent:/)
+  })
+
+  it('busy time has its own tone, apart from the quiet fill and from the earth of exam 7', () => {
     const fill = color('busy-soft').toLowerCase()
     expect(fill).not.toBe(color('surface-muted').toLowerCase())
     expect(fill).not.toBe(color('exam-7-soft').toLowerCase())
@@ -204,5 +225,27 @@ describe('the font', () => {
 
   it('is the first family of --font-sans, with a system fallback', () => {
     expect(css).toMatch(/--font-sans:\s*'Rubik',[^;]*sans-serif;/)
+  })
+})
+
+// `brand` as text is 4.4:1 on the page (S31 decision 18): green text is text-brand-strong. Tailwind
+// finds classes as they are written, so a scan of the source finds every use. Tests are left out:
+// they may name the class to check that it is not there.
+describe('the brand green as text', () => {
+  const src = new URL('./', import.meta.url)
+
+  function tsxFiles(dir: URL): URL[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      if (entry.isDirectory()) return tsxFiles(new URL(`${entry.name}/`, dir))
+      if (entry.name.endsWith('.tsx') && !entry.name.endsWith('.test.tsx')) return [new URL(entry.name, dir)]
+      return []
+    })
+  }
+
+  it('no component uses text-brand', () => {
+    const files = tsxFiles(src)
+    expect(files.length).toBeGreaterThan(0)
+    const offenders = files.filter((file) => /text-brand(?![-\w])/.test(readFileSync(file, 'utf8')))
+    expect(offenders.map((file) => file.pathname.slice(src.pathname.length))).toEqual([])
   })
 })

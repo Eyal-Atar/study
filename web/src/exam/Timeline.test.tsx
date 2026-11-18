@@ -84,7 +84,7 @@ describe('Timeline', () => {
     expect(within(dayItem(TODAY)).getByText(t.today)).toHaveClass('font-semibold', 'text-brand-strong')
 
     const exam = dayItem(EXAM_DATE)
-    expect(exam.querySelector('svg[data-mark="exam"]')).toHaveClass('text-brand')
+    expect(exam.querySelector('svg[data-mark="exam"]')).toHaveClass('text-brand-strong')
     expect(exam).not.toHaveTextContent(t.examDay)
     // Only the two short labels, each on one line.
     expect(exam.textContent).toBe(`${weekdayShort(EXAM_DATE)}${dayMonth(EXAM_DATE)}`)

@@ -43,7 +43,7 @@ export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'danger' | 'inve
 export const BUTTON_REST: Record<ButtonVariant, string> = {
   primary: 'border-transparent bg-brand text-on-brand',
   secondary: 'border-line bg-surface text-ink',
-  quiet: 'border-transparent text-brand',
+  quiet: 'border-transparent text-brand-strong',
   danger: 'border-line bg-surface text-danger',
   inverse: 'border-transparent text-inverse-action',
 }

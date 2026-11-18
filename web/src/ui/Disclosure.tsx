@@ -22,7 +22,7 @@ export function Disclosure({ label, children, defaultExpanded = false }: Disclos
       <Button
         slot="trigger"
         className={cx(
-          'group inline-flex min-h-touch cursor-pointer items-center gap-1 rounded-control text-small font-medium text-brand',
+          'group inline-flex min-h-touch cursor-pointer items-center gap-1 rounded-control text-small font-medium text-brand-strong',
           'transition-colors duration-(--duration-fast) data-[hovered]:text-brand-strong',
           FOCUS_RING,
         )}

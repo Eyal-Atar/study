@@ -79,7 +79,7 @@ describe('EmptyState', () => {
     expect(screen.getByText('מוסיפים מבחן, ומקבלים לוח לימודים.')).toHaveClass('text-small', 'text-ink-muted', 'max-w-prose')
     expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     // The icon sits in a soft brand circle, like the avatar of the prototype.
-    expect(container.querySelector('svg')?.parentElement).toHaveClass('rounded-full', 'bg-brand-soft', 'text-brand')
+    expect(container.querySelector('svg')?.parentElement).toHaveClass('rounded-full', 'bg-brand-soft', 'text-brand-strong')
     // Ordinary content: no live region.
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()

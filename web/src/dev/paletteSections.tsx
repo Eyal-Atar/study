@@ -113,9 +113,17 @@ const COLOURS = [
   { name: 'brand', swatch: 'bg-brand' },
   { name: 'brand-strong', swatch: 'bg-brand-strong' },
   { name: 'brand-soft', swatch: 'bg-brand-soft' },
-  { name: 'brand-accent', swatch: 'bg-brand-accent' },
   { name: 'on-brand', swatch: 'bg-on-brand' },
+  { name: 'sprout', swatch: 'bg-sprout' },
+  { name: 'clay', swatch: 'bg-clay' },
+  { name: 'on-clay', swatch: 'bg-on-clay' },
+  { name: 'sand', swatch: 'bg-sand' },
+  { name: 'gold', swatch: 'bg-gold' },
+  { name: 'sky-from', swatch: 'bg-sky-from' },
+  { name: 'sky-to', swatch: 'bg-sky-to' },
+  { name: 'sky', swatch: 'bg-sky' },
   { name: 'now', swatch: 'bg-now' },
+  { name: 'now-text', swatch: 'bg-now-text' },
   { name: 'danger', swatch: 'bg-danger' },
   { name: 'danger-soft', swatch: 'bg-danger-soft' },
   { name: 'success', swatch: 'bg-success' },
@@ -147,6 +155,13 @@ export function ColoursSection() {
           </li>
         ))}
       </ul>
+      {/* The dawn sky behind Archie is a gradient, from sky-from at the top to sky-to; text on it is
+          ink (theme.test.ts measures both ends and sky, the tone between them). */}
+      <Example caption={t.colours.skyCaption}>
+        <div data-part="sky" className="rounded-card bg-linear-to-b from-sky-from to-sky-to p-4 text-small text-ink">
+          {t.colours.sky}
+        </div>
+      </Example>
     </Section>
   )
 }

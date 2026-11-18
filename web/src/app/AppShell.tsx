@@ -42,7 +42,7 @@ function destinationClass({ isActive }: { isActive: boolean }) {
     'flex min-h-bottombar min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-caption',
     'lg:min-h-touch lg:flex-none lg:rounded-control lg:px-3.5 lg:text-body',
     'outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset',
-    isActive ? 'font-semibold text-brand lg:bg-brand-soft' : 'text-ink-muted hover:text-ink lg:font-medium lg:hover:bg-surface-muted',
+    isActive ? 'font-semibold text-brand-strong lg:bg-brand-soft' : 'text-ink-muted hover:text-ink lg:font-medium lg:hover:bg-surface-muted',
   )
 }
 

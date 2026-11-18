@@ -9,8 +9,8 @@ describe('Disclosure', () => {
     const trigger = screen.getByRole('button', { name: 'למה המשימה הזאת' })
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByText('מופיע בכל מבחן עבר.')).not.toBeVisible()
-    // The look of the design language: a 44px target in the brand colour, never an underline.
-    expect(trigger).toHaveClass('min-h-touch', 'text-small', 'font-medium', 'text-brand')
+    // The look of the design language: a 44px target in the green of text (brand-strong), never an underline.
+    expect(trigger).toHaveClass('min-h-touch', 'text-small', 'font-medium', 'text-brand-strong')
     expect(trigger.className).not.toMatch(/underline/)
     expect(trigger.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
   })

@@ -2,8 +2,9 @@
 
 /*
   The design language of the app, as Tailwind theme variables. S25 set it ("נייר"); S31 redesigned
-  it around a calendar, after the approved prototype docs/design/prototype/calendar-prototype.html:
-  Rubik, an indigo brand on a cool white page, soft corners, and a palette of eight exam colours.
+  it around a calendar, after the approved prototype docs/design/prototype/calendar-prototype.html
+  (Rubik, soft corners, a palette of eight exam colours), in the colours of Archie: bark browns, a
+  leaf green brand on a linen page, and a dawn sky.
   Every variable here is also a class: --color-surface gives bg-surface, --radius-card gives
   rounded-card, --text-title gives text-title, --spacing-touch gives min-h-touch, --color-exam-3
   gives bg-exam-3 and fill-exam-3. Components use only these names, so a change of look is a change
@@ -35,84 +36,115 @@
 
 @theme {
   /* ---- Colour ---- */
-  /* The page itself: a cool white. Only <body> and bars that sit on the page use it. */
-  --color-canvas: #f6f7fb;
+  /* Archie's palette (docs/superpowers/specs/2026-11-18-archie-look-and-gamification.md, section 2):
+     bark browns for text, a leaf green for the brand, and a dawn sky behind Archie. */
+  /* The page itself: a greenish linen. Only <body> and bars that sit on the page use it. */
+  --color-canvas: #eef0e4;
   /* Cards, fields, menus, the top bar: anything that sits on the page. */
-  --color-surface: #ffffff;
+  --color-surface: #f8f7f0;
   /* A quiet fill inside a surface, and the track of a progress bar: a neutral badge, a note, a
      hovered row. */
-  --color-surface-muted: #f0f1f6;
-  --color-ink: #1b1f2a;
-  /* 5.3:1 on the canvas (the prototype's #6b7385 is 4.44, under AA). Not allowed on an exam
-     colour: inside a block the text is ink. */
-  --color-ink-muted: #5f6779;
+  --color-surface-muted: #efede2;
+  /* Bark: the main text. */
+  --color-ink: #3b2a1e;
+  /* Secondary text, 5.6:1 or more on the three backgrounds (the #7a6553 of the moods page is only
+     4.7 on surface-muted, too close to the line). Not allowed on an exam colour: inside a block the
+     text is ink. */
+  --color-ink-muted: #6e5948;
   /* Dividers and the edges of containers (cards, popovers): decoration, no contrast rule. */
-  --color-line: #e6e8ef;
+  --color-line: #d9d6c3;
   /* The border that shows where a control is (fields, choice cards, the selected segment): 3:1 on
      canvas, surface and surface-muted. */
-  --color-line-strong: #7d8496;
-  /* The one brand colour: the primary action, the current place, the focus ring. */
-  --color-brand: #4f46e5;
-  --color-brand-strong: #4338ca;
-  --color-brand-soft: #eef0ff;
+  --color-line-strong: #8c7b67;
+  /* The leaf, the one brand colour: the primary action, "done", the current place, the focus ring.
+     Never text: it is 4.4:1 on the page. Green text is brand-strong, which is also the hover of the
+     primary button. */
+  --color-brand: #4f7a3a;
+  --color-brand-strong: #3f6430;
+  --color-brand-soft: #e2ead3;
   --color-on-brand: #ffffff;
-  /* Only the far end of the gradient of the logo mark (brand to brand-accent). Never text. */
-  --color-brand-accent: #8b5cf6;
-  /* The "now" line of the calendar: a line, not text; 3:1 on surface. */
-  --color-now: #ef4444;
-  /* State only, never decoration: an error or a destructive action, done, late. */
-  --color-danger: #c81e1e;
-  --color-danger-soft: #fdecec;
+  /* Sprout: decoration, progress rings and the dots of a streak, and the far end of the gradient of
+     the logo mark (brand to sprout). Never text. */
+  --color-sprout: #8db45e;
+  /* Clay: a secondary action, with white on it. Only as a fill: as text it is 4.48:1. */
+  --color-clay: #9a5f38;
+  --color-on-clay: #ffffff;
+  /* Sand: decoration, the edges of Archie's areas. No contrast rule. */
+  --color-sand: #c9a77c;
+  /* Gold: XP, the level and badges, with ink on it. */
+  --color-gold: #d4a24c;
+  /* The dawn sky behind Archie, the celebration sheet and the garden: a gradient from sky-from to
+     sky-to. Text on it is ink, measured on both ends and on sky, the tone between them. */
+  --color-sky-from: #96c6e8;
+  --color-sky-to: #d6ecf8;
+  --color-sky: #a9d3ee;
+  /* The "now" line of the calendar, in terracotta: a line, not text, 3:1 on surface. Its time, as
+     text, is now-text. */
+  --color-now: #c2502e;
+  --color-now-text: #a8401f;
+  /* State only, never decoration: an error or a destructive action, done, late. Danger is brick, not
+     red, and only for a destructive action or an error. */
+  --color-danger: #a33a1c;
+  --color-danger-soft: #f6e2d8;
   /* Also the filled part of a progress bar and of the ring of the day. */
-  --color-success: #147a3b;
-  --color-success-soft: #e7f6ec;
-  --color-warning: #a14a07;
-  --color-warning-soft: #fdf1e2;
-  /* The dark toast: its background, its text, its quiet action ("בטל") and its state icons. */
-  --color-inverse: #1b1f2a;
-  --color-on-inverse: #ffffff;
-  --color-inverse-action: #a5b4fc;
-  --color-inverse-success: #86efac;
-  --color-inverse-danger: #fca5a5;
+  --color-success: #3f6430;
+  --color-success-soft: #e2ead3;
+  --color-warning: #80520e;
+  --color-warning-soft: #f5ead0;
+  /* The bark toast: its background, its text, its quiet action ("בטל") and its state icons. */
+  --color-inverse: #3b2a1e;
+  --color-on-inverse: #f8f7f0;
+  --color-inverse-action: #c5dea0;
+  --color-inverse-success: #c5dea0;
+  --color-inverse-danger: #f0a98e;
 
-  /* The colour of an exam. Eight hues, each with three tokens: -N is the strong colour (a stripe,
-     a dot, the card of the next task, with white text on it), -N-soft is the fill of a block, and
-     -N-line is its border. The order keeps near hues apart: blue, which is close to the brand, is
-     seventh, and grey, which looks switched off, is last. The API gives every exam an index 0-7
-     and ui/examColor.ts turns it into these classes. */
-  --color-exam-0: #7c3aed;
-  --color-exam-0-soft: #f1eaff;
-  --color-exam-0-line: #c9b3fb;
-  --color-exam-1: #0e7490;
-  --color-exam-1-soft: #e3f6fb;
-  --color-exam-1-line: #9fdcec;
-  --color-exam-2: #c2410c;
-  --color-exam-2-soft: #fff0e6;
-  --color-exam-2-line: #fbc39f;
-  --color-exam-3: #047857;
-  --color-exam-3-soft: #e3f7ee;
-  --color-exam-3-line: #9fdfc4;
-  --color-exam-4: #be185d;
-  --color-exam-4-soft: #fde8f1;
-  --color-exam-4-line: #f7b3d0;
-  --color-exam-5: #a16207;
-  --color-exam-5-soft: #fdf4d8;
-  --color-exam-5-line: #f0d48a;
-  --color-exam-6: #1d4ed8;
-  --color-exam-6-soft: #e6efff;
-  --color-exam-6-line: #a9c3fb;
-  --color-exam-7: #475569;
-  --color-exam-7-soft: #eef1f5;
-  --color-exam-7-line: #c3cbd6;
+  /* The colour of an exam. Eight earthy hues, each with three tokens: -N is the strong colour (a
+     stripe, a dot, the card of the next task, with white text on it), -N-soft is the fill of a
+     block, and -N-line is its border. The order keeps near hues apart, and keeps the hues that are
+     close to the brand green (dark mint, olive) away from the start; none is the brand green, so
+     "done" stays recognisable. The API gives every exam an index 0-7 and ui/examColor.ts turns it
+     into these classes. */
+  /* 0 terracotta */
+  --color-exam-0: #b04a26;
+  --color-exam-0-soft: #f8e4da;
+  --color-exam-0-line: #ebb59d;
+  /* 1 blue stone */
+  --color-exam-1: #3d6688;
+  --color-exam-1-soft: #e2ecf3;
+  --color-exam-1-line: #a9c4da;
+  /* 2 mustard */
+  --color-exam-2: #8a6410;
+  --color-exam-2-soft: #f7ecd2;
+  --color-exam-2-line: #e2c78a;
+  /* 3 plum */
+  --color-exam-3: #7b3f6e;
+  --color-exam-3-soft: #f3e3ee;
+  --color-exam-3-line: #d6aecb;
+  /* 4 dark mint */
+  --color-exam-4: #2f6f62;
+  --color-exam-4-soft: #dcefe9;
+  --color-exam-4-line: #9dcdc0;
+  /* 5 old rose */
+  --color-exam-5: #a3485b;
+  --color-exam-5-soft: #f7e2e6;
+  --color-exam-5-line: #e2aab5;
+  /* 6 olive */
+  --color-exam-6: #5f6a1c;
+  --color-exam-6-soft: #eef0d6;
+  --color-exam-6-line: #c9cf96;
+  /* 7 earth */
+  --color-exam-7: #7a5236;
+  --color-exam-7-soft: #f1e6dc;
+  --color-exam-7-line: #d2b49c;
 
   /* Busy time: a time the user is not free (a commitment, an event from the calendar), not a task.
-     The calendar scope draws it grey and hatched, beside the blocks. -soft is its fill, a neutral
-     grey darker than surface-muted and apart from the slate of exam 7, with ink and ink-muted on
-     it; -line is its border (decoration); busy itself is the stronger grey of a stripe or an icon,
-     3:1 on its fill and on surface. */
-  --color-busy: #6b7280;
-  --color-busy-soft: #e9eaee;
-  --color-busy-line: #c7cad2;
+     The calendar scope draws it hatched, beside the blocks. -soft is its fill, a neutral stone
+     darker than surface-muted and apart from the earth of exam 7, with ink and ink-muted on it;
+     -line is its border (decoration); busy itself is the stronger tone of a stripe or an icon, 3:1
+     on its fill and on surface. */
+  --color-busy: #7d7062;
+  --color-busy-soft: #e5e2d6;
+  --color-busy-line: #c9c3b3;
 
   /* ---- Type ---- */
   --font-sans: 'Rubik', system-ui, -apple-system, 'Segoe UI', 'Arial Hebrew', Arial, sans-serif;

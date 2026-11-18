@@ -1,4 +1,4 @@
-import { Flame } from 'lucide-react'
+import { Leaf } from 'lucide-react'
 import { Link } from 'react-router'
 import { he } from '../i18n/he'
 import { useProgress } from '../progress/api'
@@ -29,9 +29,10 @@ function levelPercent({ total_xp, level_start_xp, next_level_xp }: ChipProgress)
 }
 
 // The streak and the level in the header, as a link to the progress board (S31 decision 12): a
-// flame with the days of the streak, and a small ring around the level that fills towards the next
-// one. One accessible name says both ("רצף של 5 ימים, רמה 3"); the numbers and the drawings are for
-// the eye. An extra and not something the user needs: while GET /progress loads, or after it
+// leaf with the days of the streak (the garden of Archie grows from it, decision 21), and a small
+// gold ring around the level that fills towards the next one. One accessible name says both
+// ("רצף של 5 ימים, רמה 3"); the numbers and the drawings are for the eye, so the gold, which is
+// decoration and not 3:1 on its track, carries nothing that the number does not say. An extra and not something the user needs: while GET /progress loads, or after it
 // failed, the chip is simply not there, with no spinner and no error. It reads the query of the
 // progress board, which every block action refreshes (progressKey is a child of the board key).
 // S33 replaces it with the full gamification, and the ring's animations.
@@ -57,7 +58,7 @@ export function ProgressChipView({ progress }: { progress: ChipProgress }) {
       )}
     >
       <span className="inline-flex items-center gap-1">
-        <Flame aria-hidden="true" size={18} strokeWidth={ICON_STROKE} className="shrink-0 text-warning" />
+        <Leaf aria-hidden="true" size={18} strokeWidth={ICON_STROKE} className="shrink-0 text-brand-strong" />
         <span className="font-semibold tabular-nums">{streak.current}</span>
       </span>
       <span className="relative inline-flex size-6 shrink-0 items-center justify-center">
@@ -69,7 +70,15 @@ export function ProgressChipView({ progress }: { progress: ChipProgress }) {
           viewBox={`0 0 ${String(RING_SIZE)} ${String(RING_SIZE)}`}
           className="absolute inset-0 -rotate-90"
         >
-          <circle cx={RING_CENTER} cy={RING_CENTER} r={RING_RADIUS} fill="none" strokeWidth={RING_STROKE} className="stroke-surface-muted" />
+          <circle
+            data-part="track"
+            cx={RING_CENTER}
+            cy={RING_CENTER}
+            r={RING_RADIUS}
+            fill="none"
+            strokeWidth={RING_STROKE}
+            className="stroke-surface-muted"
+          />
           {/* No arc at 0%: a round cap would still draw a dot. */}
           {percent > 0 ? (
             <circle
@@ -82,7 +91,7 @@ export function ProgressChipView({ progress }: { progress: ChipProgress }) {
               strokeLinecap="round"
               pathLength={100}
               strokeDasharray={`${percent.toFixed(1)} 100`}
-              className="stroke-brand"
+              className="stroke-gold"
             />
           ) : null}
         </svg>

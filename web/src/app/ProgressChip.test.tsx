@@ -49,6 +49,19 @@ describe('ProgressChip', () => {
     for (const svg of link.querySelectorAll('svg')) expect(svg).toHaveAttribute('aria-hidden', 'true')
   })
 
+  // Archie's look (S31 decision 21): a green leaf for the streak, where the garden grows, and the
+  // level ring in gold, the colour of XP and the level, on the quiet track.
+  it('draws the streak as a leaf in the green of text, and the level ring in gold', async () => {
+    renderChip(progressWith(5, 3, { total_xp: 1240, level_start_xp: 1000, next_level_xp: 2000 }))
+
+    const link = await screen.findByRole('link', { name: he.shell.progressChip(5, 3) })
+    const leaf = link.querySelector('svg.lucide-leaf')
+    expect(leaf).toHaveClass('text-brand-strong')
+    expect(link.querySelector('svg.lucide-flame')).not.toBeInTheDocument()
+    expect(link.querySelector('[data-part="arc"]')).toHaveClass('stroke-gold')
+    expect(link.querySelector('[data-part="track"]')).toHaveClass('stroke-surface-muted')
+  })
+
   it('says one day and two days in words', async () => {
     const { unmount } = renderChip(progressWith(1, 1))
     expect(await screen.findByRole('link', { name: 'רצף של יום אחד, רמה 1' })).toBeInTheDocument()
