@@ -81,6 +81,59 @@ def _check_wall_time(name: str, value: dt.time) -> None:
     _require(value.second == 0 and value.microsecond == 0, f"{name} must be a whole minute")
 
 
+# The shortest commitment, on the wall clock (the CHECK of app.commitments).
+MIN_COMMITMENT_MINUTES = 15
+_MINUTES_PER_DAY = 24 * 60
+
+
+def sunday_weekday(day: dt.date) -> int:
+    """The day of the week with Sunday = 0 and Saturday = 6, as Commitment.weekday holds it.
+
+    The one place that converts from Python's weekday(), where Monday = 0. Sunday = 0 is
+    the week of JavaScript's getDay(), Postgres's extract(dow) and the Israeli calendar.
+    """
+    return (day.weekday() + 1) % 7
+
+
+def _wall_minutes(value: dt.time) -> int:
+    return value.hour * 60 + value.minute
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Commitment:
+    """A weekly busy time: work, a class, training (app.commitments).
+
+    It starts at start on every local date whose sunday_weekday is weekday and that lies
+    in valid_from..valid_until (inclusive; None is open-ended), and ends at end, the next
+    day when end is before start. Validity is that of the date the occurrence starts on,
+    so the last night shift of a range counts whole.
+    """
+
+    weekday: int
+    start: dt.time
+    end: dt.time
+    valid_from: dt.date
+    valid_until: dt.date | None = None
+
+    def __post_init__(self) -> None:
+        _require(_is_int(self.weekday), "weekday must be an int")
+        _require(0 <= self.weekday <= 6, "weekday must be 0-6 (0 is Sunday)")
+        _check_wall_time("start", self.start)
+        _check_wall_time("end", self.end)
+        _require(self.start != self.end, "start must differ from end")
+        wall = (_wall_minutes(self.end) - _wall_minutes(self.start)) % _MINUTES_PER_DAY
+        _require(
+            wall >= MIN_COMMITMENT_MINUTES,
+            f"a commitment must be at least {MIN_COMMITMENT_MINUTES} minutes",
+        )
+        _require(type(self.valid_from) is dt.date, "valid_from must be a date")
+        if self.valid_until is not None:
+            _require(type(self.valid_until) is dt.date, "valid_until must be a date or None")
+            _require(
+                self.valid_until >= self.valid_from, "valid_until must not be before valid_from"
+            )
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Profile:
     timezone: ZoneInfo
@@ -91,8 +144,10 @@ class Profile:
     rest_days_before_exam: int
     # How long after wake_time studying may start (profiles.study_start_delay_minutes).
     study_start_delay: dt.timedelta = dt.timedelta(hours=1)
-    # A daily time kept free: (start wall time, minutes), or None (profiles.hobby_*).
-    hobby: tuple[dt.time, int] | None = None
+    # Weekly busy times (app.commitments) and one-off busy events in UTC (app.busy_events).
+    # Neither is ever study time; see busy.busy_intervals.
+    commitments: tuple[Commitment, ...] = ()
+    busy: tuple[Interval, ...] = ()
 
     def __post_init__(self) -> None:
         _require(isinstance(self.timezone, ZoneInfo), "timezone must be a ZoneInfo")
@@ -121,15 +176,15 @@ class Profile:
             self.study_start_delay % dt.timedelta(minutes=1) == dt.timedelta(0),
             "study_start_delay must be a whole number of minutes",
         )
-        if self.hobby is not None:
-            _require(
-                isinstance(self.hobby, tuple) and len(self.hobby) == 2,
-                "hobby must be a (start, minutes) tuple or None",
-            )
-            start, minutes = self.hobby
-            _check_wall_time("hobby start", start)
-            _require(_is_int(minutes), "hobby minutes must be an int")
-            _require(15 <= minutes <= 240, "hobby minutes must be 15-240")
+        _require(
+            isinstance(self.commitments, tuple)
+            and all(isinstance(item, Commitment) for item in self.commitments),
+            "commitments must be a tuple of Commitment",
+        )
+        _require(
+            isinstance(self.busy, tuple) and all(isinstance(item, Interval) for item in self.busy),
+            "busy must be a tuple of Interval",
+        )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -246,9 +301,13 @@ class PlannedBlock:
     part_count: int
     # None is a new block; otherwise the existing block that stays where it is.
     block_id: UUID | None = None
+    # An existing block keeps its flag. A new block is pinned only where the user said
+    # when it happens ("I have time now"), so that no replan moves it.
+    pinned: bool = False
 
     def __post_init__(self) -> None:
         _require(isinstance(self.task_id, UUID), "task_id must be a UUID")
+        _require(isinstance(self.pinned, bool), "pinned must be a bool")
         _require(
             self.block_id is None or isinstance(self.block_id, UUID),
             "block_id must be a UUID or None",

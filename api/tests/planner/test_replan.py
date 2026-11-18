@@ -254,3 +254,16 @@ def test_a_new_block_keeps_a_break_from_a_kept_candidate() -> None:
     assert kept(result) == {candidate.id: at(7, 30, 8, 30)}
     assert new(result, b) == [at(8, 40, 9, 40)]
     assert result.removed == ()
+
+
+def test_an_existing_block_keeps_its_pinned_flag() -> None:
+    profile = make_profile()
+    exam = make_exam(nov(5))
+    a, b = make_task(exam, 60), make_task(exam, 60)
+    pinned = make_block(a, Z(2026, 11, 2, 7), Z(2026, 11, 2, 8), pinned=True)
+    free = make_block(b, Z(2026, 11, 2, 9), Z(2026, 11, 2, 10))
+    result = replan(profile, [exam], [a, b], [pinned, free], NOW)
+    assert {(blk.block_id, blk.pinned) for blk in result.blocks} == {
+        (pinned.id, True),
+        (free.id, False),
+    }

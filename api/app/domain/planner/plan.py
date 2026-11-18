@@ -134,20 +134,23 @@ def number_parts(
     placed: Sequence[tuple[UUID, Interval]],
 ) -> tuple[PlannedBlock, ...]:
     """The fixed blocks of the todo tasks and the new blocks, by (start, end); each
-    task's blocks are numbered 1..n in that order. A fixed block keeps its id."""
+    task's blocks are numbered 1..n in that order. A fixed block keeps its id and its
+    pinned flag; a new block is not pinned."""
     todo = {task.id for task in tasks if task.status is TaskStatus.TODO}
-    entries: list[tuple[UUID, Interval, UUID | None]] = [
-        (block.task_id, block.interval, block.id) for block in fixed if block.task_id in todo
+    entries: list[tuple[UUID, Interval, UUID | None, bool]] = [
+        (block.task_id, block.interval, block.id, block.pinned)
+        for block in fixed
+        if block.task_id in todo
     ]
-    entries.extend((task_id, interval, None) for task_id, interval in placed)
+    entries.extend((task_id, interval, None, False) for task_id, interval in placed)
     # sorted() is stable, so equal intervals keep the order above.
     ordered = sorted(entries, key=lambda entry: (entry[1].start, entry[1].end))
     counts: dict[UUID, int] = defaultdict(int)
-    for task_id, _, _ in ordered:
+    for task_id, _, _, _ in ordered:
         counts[task_id] += 1
     seen: dict[UUID, int] = defaultdict(int)
     blocks: list[PlannedBlock] = []
-    for task_id, interval, block_id in ordered:
+    for task_id, interval, block_id, pinned in ordered:
         seen[task_id] += 1
         blocks.append(
             PlannedBlock(
@@ -156,6 +159,7 @@ def number_parts(
                 part_index=seen[task_id],
                 part_count=counts[task_id],
                 block_id=block_id,
+                pinned=pinned,
             )
         )
     return tuple(blocks)

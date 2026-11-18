@@ -22,7 +22,11 @@ core input is planned at now0, the plan's blocks are stored (some pinned,
 some done, missed or skipped), a few blocks are pinned at random times, the
 clock moves forward up to three days, and up to three changes happen (a task
 added, deleted, finished or re-estimated, sometimes to a little more than it
-has done, an exam moved or added, the budget, the study windows or the hobby changed).
+has done, an exam moved or added, the budget, the study windows or the commitments
+changed, or a busy event added).
+
+A quarter of the profiles carry weekly commitments (some crossing midnight, some valid
+only for a few weeks) and a quarter carry one-off busy events, around now.
 The changes come after the first plan, so its blocks may no longer fit them,
 which is what replanning is for.
 """
@@ -42,6 +46,7 @@ from hypothesis import strategies as st
 
 from app.domain.planner import (
     BlockStatus,
+    Commitment,
     Exam,
     ExistingBlock,
     Interval,
@@ -83,8 +88,13 @@ NOW_SPREAD: Final = dt.timedelta(hours=48)
 QUARTERS_PER_DAY: Final = 24 * 4
 DAILY_MINUTES_STEP: Final = 30
 START_DELAY_MINUTES: Final = (60, 0, 30, 90, 360)
-# The hobby is off three times in four; when on, it starts on any five minutes of the day.
-HOBBY_MINUTES: Final = (15, 60, 90, 240)
+# Commitments are off three times in four; when on, each starts on any five minutes of
+# the day and may cross midnight. valid_from is near today; valid_until is often open.
+MAX_COMMITMENTS: Final = 3
+COMMITMENT_MINUTES: Final = (15, 60, 120, 240, 480)
+MAX_COMMITMENT_MINUTES: Final = 12 * 60
+COMMITMENT_FROM_DAYS: Final = (-7, 7)
+COMMITMENT_VALID_DAYS: Final = (0, 21)
 FIVE_MINUTES_PER_DAY: Final = 24 * 12
 MAX_REST_DAYS: Final = 3
 
@@ -188,8 +198,8 @@ def profiles(
 
     The awake span is 15 minutes to 23:45 hours from wake_time, half the time (or
     always, with usual_day) a usual 14 to 18 hours, so sleep_time differs from
-    wake_time and often falls after midnight. The hobby is usually off; when on, it may
-    cross midnight or a clock change.
+    wake_time and often falls after midnight. It has no busy time: _core adds it, since
+    commitments and busy events are drawn around now.
     """
     wake = draw(st.integers(0, QUARTERS_PER_DAY - 1))
     usual = st.integers(14 * 4, 18 * 4)
@@ -207,18 +217,55 @@ def profiles(
         study_windows=draw(st.frozensets(st.sampled_from(StudyWindow), min_size=min_windows)),
         rest_days_before_exam=draw(st.integers(0, MAX_REST_DAYS)),
         study_start_delay=draw(st.sampled_from(START_DELAY_MINUTES)) * _MINUTE,
-        hobby=draw(hobbies()),
     )
 
 
 @st.composite
-def hobbies(draw: st.DrawFn) -> tuple[dt.time, int] | None:
-    """None three times in four (it shrinks to None), else a start and a length."""
+def commitments_for(draw: st.DrawFn, today: dt.date) -> tuple[Commitment, ...]:
+    """None three times in four (it shrinks to none), else 1 to MAX_COMMITMENTS weekly
+    commitments, valid from a week before to a week after today, often open-ended."""
     if not _rarely(draw):
-        return None
-    start = draw(st.integers(0, FIVE_MINUTES_PER_DAY - 1)) * 5
-    minutes = draw(st.one_of(st.sampled_from(HOBBY_MINUTES), st.integers(15, 240)))
-    return dt.time(start // 60, start % 60), minutes
+        return ()
+    found: list[Commitment] = []
+    for _ in range(draw(st.integers(1, MAX_COMMITMENTS))):
+        start = draw(st.integers(0, FIVE_MINUTES_PER_DAY - 1)) * 5
+        minutes = draw(
+            st.one_of(st.sampled_from(COMMITMENT_MINUTES), st.integers(15, MAX_COMMITMENT_MINUTES))
+        )
+        end = (start + minutes) % (24 * 60)
+        valid_from = today + draw(st.integers(*COMMITMENT_FROM_DAYS)) * _ONE_DAY
+        valid_until = (
+            valid_from + draw(st.integers(*COMMITMENT_VALID_DAYS)) * _ONE_DAY
+            if draw(st.booleans())
+            else None
+        )
+        found.append(
+            Commitment(
+                weekday=draw(st.integers(0, 6)),
+                start=dt.time(start // 60, start % 60),
+                end=dt.time(end // 60, end % 60),
+                valid_from=valid_from,
+                valid_until=valid_until,
+            )
+        )
+    return tuple(found)
+
+
+@st.composite
+def busy_events_for(draw: st.DrawFn, profile: Profile, now: dt.datetime) -> tuple[Interval, ...]:
+    """None three times in four, else the ranges busy_for draws, as one-off busy events."""
+    return draw(busy_for(profile, now)) if _rarely(draw) else ()
+
+
+@st.composite
+def with_busy_time(draw: st.DrawFn, profile: Profile, now: dt.datetime) -> Profile:
+    """The profile with commitments and busy events drawn around now."""
+    today = local_date(now, profile.timezone)
+    return replace(
+        profile,
+        commitments=draw(commitments_for(today)),
+        busy=draw(busy_events_for(profile, now)),
+    )
 
 
 @st.composite
@@ -412,6 +459,7 @@ def _core(draw: st.DrawFn, kind: _Kind) -> _Core:
                 profiles(*TIGHT_DAILY_MINUTES, min_windows=TIGHT_MIN_WINDOWS, usual_day=True)
             )
     now = draw(nows())
+    profile = draw(with_busy_time(profile, now))
     today = local_date(now, profile.timezone)
     if kind is _Kind.WIDE:
         exams = draw(exams_for(today))
@@ -482,7 +530,8 @@ class _Change(Enum):
     MOVE_EXAM = "move_exam"
     NEW_EXAM = "new_exam"
     WINDOWS = "windows"
-    HOBBY = "hobby"
+    COMMITMENTS = "commitments"
+    BUSY_EVENT = "busy_event"
 
 
 class _Plans(NamedTuple):
@@ -580,8 +629,13 @@ def _changed(
             case _Change.WINDOWS:
                 windows = draw(st.frozensets(st.sampled_from(StudyWindow), min_size=1))
                 plans = plans._replace(profile=replace(profile, study_windows=windows))
-            case _Change.HOBBY:
-                plans = plans._replace(profile=replace(profile, hobby=draw(hobbies())))
+            case _Change.COMMITMENTS:
+                today = local_date(now, profile.timezone)
+                commitments = draw(commitments_for(today))
+                plans = plans._replace(profile=replace(profile, commitments=commitments))
+            case _Change.BUSY_EVENT:
+                busy = (*profile.busy, *draw(busy_for(profile, now)))
+                plans = plans._replace(profile=replace(profile, busy=busy))
     return plans
 
 

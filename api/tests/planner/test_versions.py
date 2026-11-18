@@ -371,3 +371,40 @@ def test_undo_ignores_the_numbering_of_a_pinned_block() -> None:
     renumbered = moved(saved, 12, 13, part_index=1, part_count=1)
     result = undo([saved], [renumbered], at(6))
     assert result == UndoResult(delete=(renumbered.id,), restore=(saved,), dropped=())
+
+
+# Decision 12: blocks the version itself created (free time, defer to a chosen time)
+# are pinned, but undoing the version removes them.
+
+
+def test_undo_deletes_a_pinned_block_the_version_created() -> None:
+    saved = block(12, 13)
+    created = block(9, 10, pinned=True)
+    result = undo([saved], [created], at(6), created=[created.id])
+    assert result == UndoResult(delete=(created.id,), restore=(saved,), dropped=())
+
+
+def test_undo_deletes_a_created_block_the_user_moved_since() -> None:
+    created = block(9, 10, pinned=True)
+    moved_since = moved(created, 14, 15)
+    result = undo([], [moved_since], at(6), created=[created.id])
+    assert result == UndoResult(delete=(created.id,), restore=(), dropped=())
+
+
+def test_undo_keeps_a_created_block_that_started() -> None:
+    created = block(9, 10, pinned=True)
+    result = undo([], [created], at(9, 30), created=[created.id])
+    assert result == UndoResult(delete=(), restore=(), dropped=())
+
+
+def test_undo_keeps_a_created_block_that_is_done() -> None:
+    created = block(9, 10, pinned=True, status=BlockStatus.DONE)
+    result = undo([], [created], at(6), created=[created.id])
+    assert result == UndoResult(delete=(), restore=(), dropped=())
+
+
+def test_undo_keeps_other_pinned_blocks_closed() -> None:
+    created = block(9, 10, pinned=True)
+    other = block(12, 13, pinned=True)
+    result = undo([], [created, other], at(6), created=[created.id])
+    assert result == UndoResult(delete=(created.id,), restore=(), dropped=())

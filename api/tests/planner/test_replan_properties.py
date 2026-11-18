@@ -38,6 +38,7 @@ from app.domain.planner import (
     TaskKind,
     TaskStatus,
     block_role,
+    busy_intervals,
     exam_cutoff,
     fixed_state,
     last_study_day,
@@ -203,6 +204,11 @@ def _overlaps(a: Interval, b: Interval) -> bool:
     return a.start < b.end and b.start < a.end
 
 
+def _free(profile: Profile, interval: Interval) -> bool:
+    """Whether the interval overlaps no commitment and no busy event of the profile."""
+    return busy_intervals(profile, interval.start, interval.end) == ()
+
+
 def _apart(a: Interval, b: Interval) -> bool:
     """Whether a break of BREAK_MINUTES fits between the two."""
     return a.end + _BREAK <= b.start or b.end + _BREAK <= a.start
@@ -293,6 +299,11 @@ def _check_invariants(scenario: ReplanScenario, result: PlanResult) -> None:
         assert all(_apart(block.interval, other) for other in standing)
     for a, b in pairwise(new):
         assert a.interval.end <= b.interval.start
+
+    # 3b. No new or kept block overlaps a commitment or a busy event; fixed blocks are
+    # where the user put them.
+    for interval in [*(block.interval for block in new), *(block.interval for block in kept)]:
+        assert _free(profile, interval), f"{interval} overlaps busy time"
 
     # 4. Kept blocks overlap neither each other nor a fixed block.
     for index, existing in enumerate(kept):
@@ -538,6 +549,7 @@ def test_placing_one_task_touches_nothing_else(
     for block in new:
         assert _window_date(block.interval, days) == date_of(block.interval)
         assert all(_apart(block.interval, other) for other in standing)
+        assert _free(profile, block.interval), f"{block.interval} overlaps busy time"
     # 5. Within the budget of each day it uses, with every live block.
     day_minutes: Counter[dt.date] = Counter()
     for interval in [*(b.interval for b in live), *(b.interval for b in new)]:

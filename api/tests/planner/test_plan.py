@@ -120,7 +120,12 @@ def test_a_covered_task_gets_no_new_block() -> None:
     result = plan(make_profile(), [exam], [a], [pinned], NOW)
     assert result.blocks == (
         PlannedBlock(
-            task_id=a.id, interval=span(13, 14), part_index=1, part_count=1, block_id=pinned.id
+            task_id=a.id,
+            interval=span(13, 14),
+            part_index=1,
+            part_count=1,
+            block_id=pinned.id,
+            pinned=True,
         ),
     )
     assert result.unscheduled == ()

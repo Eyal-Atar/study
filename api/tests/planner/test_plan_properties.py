@@ -25,6 +25,7 @@ from app.domain.planner import (
     TaskStatus,
     assign_days,
     block_role,
+    busy_intervals,
     exam_cutoff,
     fixed_state,
     last_study_day,
@@ -66,6 +67,11 @@ def _assign(inputs: PlanInputs, state: FixedState, profile: Profile) -> DayAssig
 
 def _overlaps(a: Interval, b: Interval) -> bool:
     return a.start < b.end and b.start < a.end
+
+
+def _free(profile: Profile, interval: Interval) -> bool:
+    """Whether the interval overlaps no commitment and no busy event of the profile."""
+    return busy_intervals(profile, interval.start, interval.end) == ()
 
 
 def _window_of(block: PlannedBlock, days: Sequence[StudyDay]) -> tuple[dt.date, int]:
@@ -145,6 +151,8 @@ def test_blocks_pack_what_the_days_hold(inputs: PlanInputs) -> None:
     # 2. No two blocks overlap, and no block overlaps busy time.
     assert all(a.interval.end <= b.interval.start for a, b in pairwise(blocks))
     assert not any(_overlaps(block.interval, taken) for block in blocks for taken in busy)
+    # No block the planner placed overlaps a commitment or a busy event.
+    assert all(_free(profile, block.interval) for block in blocks)
     # 3. Two blocks in a row in the same window have a break between them.
     for (a, place_a), (b, place_b) in pairwise(zip(blocks, places, strict=True)):
         if place_a == place_b:

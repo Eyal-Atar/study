@@ -13,6 +13,7 @@ from app.domain.planner.availability import (
     study_days,
 )
 from app.domain.planner.budget import exam_budgets
+from app.domain.planner.busy import busy_intervals, commitment_occurrences
 from app.domain.planner.capacity import (
     BREAK_MINUTES,
     LONG_BREAK_MINUTES,
@@ -22,11 +23,21 @@ from app.domain.planner.capacity import (
     room,
     simulation_window,
 )
+from app.domain.planner.clear import ClearResult, clear_interval
 from app.domain.planner.dependencies import Dependencies, resolve_dependencies
 from app.domain.planner.fixed import BlockRole, FixedState, block_role, fixed_state
+from app.domain.planner.free_time import (
+    MAX_FREE_TIME_MINUTES,
+    MIN_FREE_TIME_MINUTES,
+    FreeTimeFailure,
+    FreeTimeResult,
+    free_time,
+)
 from app.domain.planner.intervals import Interval, clip, merge, subtract
 from app.domain.planner.model import (
+    MIN_COMMITMENT_MINUTES,
     BlockStatus,
+    Commitment,
     DayAssignment,
     DayItem,
     DayPlan,
@@ -46,6 +57,7 @@ from app.domain.planner.model import (
     Unscheduled,
     UnscheduledReason,
     WarningCode,
+    sunday_weekday,
 )
 from app.domain.planner.pack import pack_day
 from app.domain.planner.place import place_task
@@ -64,12 +76,17 @@ from app.domain.planner.versions import (
 __all__ = [
     "BREAK_MINUTES",
     "LONG_BREAK_MINUTES",
+    "MAX_FREE_TIME_MINUTES",
+    "MIN_COMMITMENT_MINUTES",
+    "MIN_FREE_TIME_MINUTES",
     "MIN_PART_MINUTES",
     "SNAPSHOT_VERSION",
     "STUDY_WINDOW_HOURS",
     "WINDOW_EDGE_RESERVE_MINUTES",
     "BlockRole",
     "BlockStatus",
+    "ClearResult",
+    "Commitment",
     "DayAssignment",
     "DayItem",
     "DayPlan",
@@ -78,6 +95,8 @@ __all__ = [
     "ExamShortfall",
     "ExistingBlock",
     "FixedState",
+    "FreeTimeFailure",
+    "FreeTimeResult",
     "Interval",
     "PlanResult",
     "PlanWarning",
@@ -98,12 +117,16 @@ __all__ = [
     "assign_days",
     "awake_span",
     "block_role",
+    "busy_intervals",
+    "clear_interval",
     "clip",
+    "commitment_occurrences",
     "day_fits",
     "day_windows",
     "exam_budgets",
     "exam_cutoff",
     "fixed_state",
+    "free_time",
     "is_complete",
     "last_study_day",
     "merge",
@@ -121,6 +144,7 @@ __all__ = [
     "study_date",
     "study_days",
     "subtract",
+    "sunday_weekday",
     "undo",
     "valid_blocks",
 ]

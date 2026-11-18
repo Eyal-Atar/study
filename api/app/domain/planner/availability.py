@@ -1,7 +1,8 @@
 """Free study windows of each local study day (stages 1 and 2 of the planner).
 
 Every window the planner places a task in comes from here, so this is where
-midnight, daylight-saving transitions, "now", the hobby and rest days are decided.
+midnight, daylight-saving transitions, "now", busy time (commitments and busy events)
+and rest days are decided.
 """
 
 import datetime as dt
@@ -9,6 +10,7 @@ from collections.abc import Mapping, Sequence
 from types import MappingProxyType
 from typing import Final
 
+from app.domain.planner.busy import commitment_occurrences
 from app.domain.planner.capacity import MIN_PART_MINUTES
 from app.domain.planner.intervals import Interval, clip, merge, subtract
 from app.domain.planner.model import Exam, PlannerInputError, Profile, StudyDay, StudyWindow
@@ -41,41 +43,38 @@ def awake_span(profile: Profile, day: dt.date) -> Interval | None:
     return _span(start + profile.study_start_delay, end)
 
 
-def _wall_end(start: dt.time, minutes: int) -> dt.time:
-    """The wall time minutes after start, wrapping past midnight."""
-    total = (start.hour * 60 + start.minute + minutes) % (24 * 60)
-    return dt.time(total // 60, total % 60)
-
-
 def day_windows(profile: Profile, day: dt.date) -> tuple[Interval, ...]:
-    """The chosen study windows that fall in the awake span of day, without the hobby.
+    """The chosen study windows that fall in the awake span of day, without busy time.
 
     Occurrences starting on the day before, the day itself and the day after are
     considered, so a night window or a night-shift morning is found on the right day.
-    The hobby follows the wall clock like the windows do, so on a clock-change night it
-    can be an hour longer or shorter. A remnant shorter than a part is dropped.
+    The same goes for the commitments, so one that crosses midnight is taken out of
+    both nights; they follow the wall clock like the windows do, so on a clock-change
+    night one can be an hour longer or shorter. Every busy event is taken out too.
+    Busy time is not padded (plan decision 4). A remnant shorter than a part is dropped.
     """
     awake = awake_span(profile, day)
     if awake is None:
         return ()
+    tz = profile.timezone
     found: list[Interval] = []
     for window in StudyWindow:  # fixed order, never the frozenset's
         if window not in profile.study_windows:
             continue
         begin, finish = STUDY_WINDOW_HOURS[window]
         for offset in (-1, 0, 1):
-            span = local_span(day + offset * _ONE_DAY, begin, finish, profile.timezone)
+            span = local_span(day + offset * _ONE_DAY, begin, finish, tz)
             occurrence = _span(*span)
             if occurrence is not None:
                 found.extend(clip([occurrence], awake.start, awake.end))
     windows = merge(found)
-    if profile.hobby is not None:
-        start, minutes = profile.hobby
-        end = _wall_end(start, minutes)
-        for offset in (-1, 0, 1):
-            taken = _span(*local_span(day + offset * _ONE_DAY, start, end, profile.timezone))
-            if taken is not None:
-                windows = subtract(windows, taken)
+    taken = [
+        occurrence
+        for commitment in profile.commitments
+        for occurrence in commitment_occurrences(commitment, tz, day - _ONE_DAY, day + _ONE_DAY)
+    ]
+    for cut in [*taken, *profile.busy]:
+        windows = subtract(windows, cut)
     return tuple(_long_enough(windows))
 
 

@@ -12,13 +12,13 @@ from app.domain.planner import (
     MIN_PART_MINUTES,
     DayAssignment,
     DayPlan,
-    Profile,
     Task,
     TaskKind,
     TaskStatus,
     UnscheduledReason,
     assign_days,
     awake_span,
+    busy_intervals,
     day_fits,
     exam_cutoff,
     last_study_day,
@@ -27,7 +27,6 @@ from app.domain.planner import (
     study_date,
     study_days,
 )
-from app.domain.time import local_date, local_span
 from tests.planner.strategies import PROPERTY_SETTINGS, PlannerInputs, planner_inputs
 
 MIN_WINDOW_MINUTES = 30  # spec 7.6: a stretch shorter than 30 minutes does not count
@@ -36,20 +35,6 @@ MIN_WINDOW_MINUTES = 30  # spec 7.6: a stretch shorter than 30 minutes does not 
 def _ceil_to_minute(instant: dt.datetime) -> dt.datetime:
     floored = instant.replace(second=0, microsecond=0)
     return floored if floored == instant else floored + dt.timedelta(minutes=1)
-
-
-def _hobby_near(profile: Profile, instant: dt.datetime) -> list[tuple[dt.datetime, dt.datetime]]:
-    """The hobby's occurrences that start on the local dates around instant."""
-    if profile.hobby is None:
-        return []
-    start, minutes = profile.hobby
-    total = (start.hour * 60 + start.minute + minutes) % (24 * 60)
-    end = dt.time(total // 60, total % 60)
-    day = local_date(instant, profile.timezone)
-    return [
-        local_span(day + offset * dt.timedelta(days=1), start, end, profile.timezone)
-        for offset in (-1, 0, 1)
-    ]
 
 
 def _tasks_by_id(inputs: PlannerInputs) -> dict[UUID, Task]:
@@ -120,11 +105,8 @@ def test_study_days_invariants(inputs: PlannerInputs) -> None:
             # Ends by the cutoff, so it cannot cross it: the night before a rest day ends then.
             assert all(window.end <= cutoff for cutoff in cutoffs)
             assert all(window.end <= taken.start or taken.end <= window.start for taken in busy)
-            # The hobby is never study time.
-            assert all(
-                window.end <= begin or end <= window.start
-                for begin, end in _hobby_near(profile, window.start)
-            )
+            # Commitments and busy events are never study time.
+            assert busy_intervals(profile, window.start, window.end) == ()
 
 
 @PROPERTY_SETTINGS

@@ -7,7 +7,7 @@ touching blocks the user has since finished or that have already started.
 """
 
 import datetime as dt
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from typing import Final
 from uuid import UUID
@@ -183,6 +183,8 @@ def undo(
     saved: Sequence[SnapshotBlock],
     current: Sequence[SnapshotBlock],
     now: dt.datetime,
+    *,
+    created: Collection[UUID] = (),
 ) -> UndoResult:
     """What to delete and restore to return the future calendar to the snapshot.
 
@@ -193,7 +195,10 @@ def undo(
     blocks when its other blocks change) and is not a user change. Any other pinned
     block was pinned, moved or created pinned by the user since the change, so it is
     closed: it is never deleted, and it blocks the saved blocks that overlap it or
-    share its id.
+    share its id. The exception is a block in `created`, the ids the version being
+    undone wrote itself (free time, a defer to a chosen time): it is pinned because the
+    change pinned it, so it is open while it is PLANNED and has not started, even if the
+    user has moved it since (it is part of the change being undone).
 
     A saved block comes back if it has not started, was not closed since (same id) and
     does not overlap a closed PLANNED or DONE block; otherwise it is dropped.
@@ -201,13 +206,14 @@ def undo(
     """
     start = start_minute(now)
     saved_places = {_place(block) for block in saved}  # only tested for membership
+    made = frozenset(created)  # only tested for membership
     open_blocks: list[SnapshotBlock] = []
     closed: list[SnapshotBlock] = []
     for block in current:
         if (
             block.status is BlockStatus.PLANNED
             and block.interval.start >= start
-            and (not block.pinned or _place(block) in saved_places)
+            and (not block.pinned or block.id in made or _place(block) in saved_places)
         ):
             open_blocks.append(block)
         else:
