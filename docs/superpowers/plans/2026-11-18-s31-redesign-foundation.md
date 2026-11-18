@@ -272,3 +272,73 @@ flowchart TB
 - [ ] **Step 3: סקירה סופית** (`superpowers:requesting-code-review`) על כל הענף, ותיקונים.
 - [ ] **Step 4: מיגרציה על dev** לפי הנוהל (Alembic offline → SQL Editor): בדיקת `alembic_version = 0012` ושל `down_revision` מול `origin/main`, ‏pre-check קריא בלבד, הרצה, ובדיקה בקטלוג (העמודה, ה-CHECK, ה-trigger, ושלכל מבחן יש צבע).
 - [ ] **Step 5:** ‏rebase על `origin/main`, כל הפקודות של `api/` ו-`web/`, ‏gitleaks, ‏push ל-`main` (ff-only), מחיקת הענף, ומפת הדרכים: "הושלם".
+
+---
+
+## שינוי כיוון באמצע ה-scope (18.11.2026): הפלטה של ארצ׳י ורכיב `Archie`
+
+**מה קרה:** אחרי ש-Tasks 1–5 נבנו, אייל אישר את המראה של ארצ׳י (`docs/superpowers/specs/2026-11-18-archie-look-and-gamification.md`, ‏commit ‏30f46d3 על `main`). סעיף 2 שלו מחליף את הצבעים של סעיף 2 במסמך העיצוב מחדש: האינדיגו יוצא, ונכנסים חומים, ירוק של צמחייה ותכלת "שחר". סעיף 5 מוסיף ל-S31 את רכיב `Archie` עם שש הסצנות. המבנה, Rubik, השלד, הרכיבים והמיגרציה נשארים. **אין התנגשות** עם מה שנבנה: שמות ה-tokens נשארים, ורק הערכים מתחלפים, וזה בדיוק מה שהארכיטקטורה של ה-tokens נועדה לאפשר.
+
+**איך זה מתחבר:** ה-tokens הם השכבה היחידה שהמסכים והרכיבים קוראים ממנה, ולכן הפלטה החדשה היא בעיקר שינוי של `index.css` ו-`theme.test.ts`. החריג הוא `text-brand`: הירוק `#4f7a3a` כטקסט עומד ב-4.4 בלבד על הרקע, ולכן כל טקסט ירוק עובר ל-`text-brand-strong` (`#3f6430`, ה-`brand-ink` של המסמך), ו-`brand` נשאר רק למילוי, לקווים ולטבעת הפוקוס (3:1). הרכיב `Archie` הוא יחידה נפרדת (`web/src/archie/`) שקוראת רק את האיורים ואת ה-tokens של התכלת, ולכן הוא נבנה במקביל לפלטה.
+
+### החלטות נוספות
+
+18. **מיפוי שמות:** `bg` של המסמך = ‏`canvas`; ‏`muted` = ‏`ink-muted`; ‏`brand-ink` = ‏`brand-strong` (גם הצבע של hover על כפתור ראשי וגם הירוק של טקסט). נוספים: `sprout`, ‏`clay` (+ ‏`on-clay`), ‏`sand`, ‏`gold`, ‏`sky-from`, ‏`sky-to`, ‏`sky` (הגוון שעליו נמדד טקסט), ‏`now-text`. ‏`brand-accent` נמחק, והלוגו עובר לגרדיאנט `brand` → `sprout`.
+19. **הערכים:**
+
+    | token | ערך | נמדד |
+    |---|---|---|
+    | `canvas` | `#eef0e4` | |
+    | `surface` | `#f8f7f0` | |
+    | `surface-muted` | `#efede2` | מילוי שקט בתוך משטח |
+    | `ink` / `ink-muted` | `#3b2a1e` / `#6e5948` | ‏≥ 4.5 על שלושת הרקעים |
+    | `line` / `line-strong` | `#d9d6c3` / `#8c7b67` | ‏`line-strong` ‏3.48–3.80 |
+    | `brand` / `brand-strong` / `brand-soft` / `on-brand` | `#4f7a3a` / `#3f6430` / `#e2ead3` / `#ffffff` | ‏`brand` לא לטקסט |
+    | `sprout` / `sand` / `gold` | `#8db45e` / `#c9a77c` / `#d4a24c` | קישוט; ‏`ink` על `gold` ‏5.9 |
+    | `clay` / `on-clay` | `#9a5f38` / `#ffffff` | ‏`clay` רק כמילוי (כטקסט 4.48) |
+    | `sky-from` / `sky-to` / `sky` | `#96c6e8` / `#d6ecf8` / `#a9d3ee` | ‏`ink` על `sky` ‏8.6 |
+    | `now` / `now-text` | `#c2502e` / `#a8401f` | |
+    | `danger` / `danger-soft` | `#a33a1c` / `#f6e2d8` | לבנים, לא אדום (פעולה הרסנית בלבד) |
+    | `success` / `success-soft` | `#3f6430` / `#e2ead3` | |
+    | `warning` / `warning-soft` | `#80520e` / `#f5ead0` | |
+    | `inverse` / `on-inverse` | `#3b2a1e` / `#f8f7f0` | ה-toast: קליפת עץ |
+    | `inverse-action` / `inverse-success` / `inverse-danger` | `#c5dea0` / `#c5dea0` / `#f0a98e` | |
+    | `busy` / `busy-soft` / `busy-line` | `#7d7062` / `#e5e2d6` / `#c9c3b3` | |
+
+20. **צבעי המבחנים, אדמתיים,** בסדר שמרחיק גוונים קרובים ואת מה שקרוב ל-`brand`:
+
+    | N | שם | חזק | soft | line |
+    |---|---|---|---|---|
+    | 0 | טרקוטה | `#b04a26` | `#f8e4da` | `#ebb59d` |
+    | 1 | אבן כחולה | `#3d6688` | `#e2ecf3` | `#a9c4da` |
+    | 2 | חרדל | `#8a6410` | `#f7ecd2` | `#e2c78a` |
+    | 3 | שזיף | `#7b3f6e` | `#f3e3ee` | `#d6aecb` |
+    | 4 | מנטה כהה | `#2f6f62` | `#dcefe9` | `#9dcdc0` |
+    | 5 | ורד עתיק | `#a3485b` | `#f7e2e6` | `#e2aab5` |
+    | 6 | זית | `#5f6a1c` | `#eef0d6` | `#c9cf96` |
+    | 7 | אדמה | `#7a5236` | `#f1e6dc` | `#d2b49c` |
+
+    כל הכללים של החלטה 5 נשארים ונמדדו (לבן על החזק 5.37–7.56; החזק על ה-soft ‏4.44–6.13). בדיקה חדשה: אף צבע מבחן לא שווה ל-`brand` או ל-`brand-strong`.
+21. **הצ'יפ** עובר מ-`Flame` ל-`Leaf` (4.3 במסמך של ארצ׳י), וטבעת הרמה ב-`gold`. האנימציות של S33 לא נבנות כאן.
+22. **פונט תצוגה לארצ׳י: לא עכשיו.** כותרות של ארצ׳י ב-Rubik 700. פונט תצוגה עם אופי של מכחול ייבחר כשיגיעו האיורים המלאים והחגיגות (S33), כי הוא תלוי בהם, ועד אז פונט נוסף הוא עוד 30–60KB בלי מסך שמשתמש בו.
+23. **`Archie`:** ‏`web/src/archie/Archie.tsx`, ‏`mood: 'intentions' | 'eureka' | 'wisdom' | 'flow' | 'rest' | 'joy'`, ‏`size: 'avatar' | 'card' | 'scene'`. האיורים: `*-dawn.jpg` של חמשת המצבים ו-`flow.jpg`, מומרים ל-webp (`cwebp`) בשני רוחבים (המקורי, ~900px, ו-450px), עם `srcset`, ‏`loading="lazy"` ו-`decoding="async"`. ‏`avatar`: עיגול חתוך סביב הפנים, בלי שכבת אנימציה. ‏`card` ו-`scene`: האיור ומעליו שכבת האנימציה של המצב, לפי `archie-moods.html` (טיפות ונבטים, הילה וניצוצות, עשן ודיו, אדוות וענפים, אדים ועלי פריחה, ול-`joy` נשימה). האנימציה רצה רק כשהרכיב במסך (`IntersectionObserver`) ולא רצה בכלל ב-`prefers-reduced-motion`. ה-CSS שלה בקובץ משלו (`archie.css`), לא ב-`index.css`. שם נגיש: `he.archie.alt[mood]`, ו-`decorative` שהופך אותו ל-`alt=""` כשהטקסט שלידו כבר אומר הכול. ארצ׳י לא מוצג עדיין באף מסך; S32–S34 משבצים אותו.
+24. **שם האפליקציה** נשאר StudyFlow ב-S31: ההחלטה "האפליקציה נקראת ארצ׳י" (6d99184) לא שובצה ב-scope, והיא נוגעת ב-manifest, בכותרות, בהתראות ובמסמכים. נרשם במפה.
+
+### Task 7: הפלטה של ארצ׳י
+
+**Files:** `web/src/index.css`, ‏`web/src/theme.test.ts`, ‏`web/src/pwa/manifest.ts`, ‏`web/index.html`, ‏`web/src/app/Logo.tsx`, ‏`web/src/app/ProgressChip.tsx` (+ test), ‏`web/src/dev/paletteSections.tsx`, ‏`web/src/dev/devText.ts`, וכל קובץ ב-`web/src` שמשתמש ב-`text-brand` כטקסט (`grep -rn "text-brand\b"`).
+
+- [ ] בדיקות קודם: ‏`theme.test.ts` עם הערכים של החלטות 19–20; ‏`brand` יוצא מרשימת הטקסט ונשאר בבדיקות 3:1; ‏`brand-strong` על שלושת הרקעים ועל `brand-soft`; ‏`ink` על `gold`, על `sky`, ‏`sky-from`, ‏`sky-to`; לבן על `clay`; ‏`now-text` על הרקעים; ‏`now` ‏3:1; בדיקה שאין `text-brand` כטקסט בקוד (סריקה של `src/**/*.tsx` ל-`text-brand(?![-\w])`, חוץ מבדיקות); צבעי מבחן שונים מ-`brand`.
+- [ ] הערכים, ההחלפות, הלוגו, הצ'יפ (`Leaf`, ‏`gold`), ה-manifest (`theme_color: '#4f7a3a'`, ‏`background_color: '#eef0e4'`) ו-`index.html`.
+- [ ] דף הרכיבים: הקטעים של הצבעים מציגים גם `sprout`, ‏`clay`, ‏`sand`, ‏`gold` ומעבר ה-`sky`.
+- [ ] כל הבדיקות, lint, typecheck, build. Commit: `feat(web): Archie's palette: bark, leaf green and dawn sky instead of indigo; earthy exam colours`.
+
+### Task 8: רכיב `Archie`
+
+**Files:** `web/src/archie/Archie.tsx`, ‏`web/src/archie/archie.css`, ‏`web/src/archie/moods.ts`, ‏`web/src/archie/Archie.test.tsx`, ‏`web/src/assets/archie/*.webp`, ‏`web/src/i18n/he.ts` (`he.archie`), ‏`web/src/dev/archieSections.tsx`, ‏`web/src/dev/archieText.ts`, ‏`web/src/dev/ComponentsPage.tsx`.
+
+- [ ] בדיקות קודם: לכל מצב ולכל גודל מוצג `img` עם השם הנגיש מ-`he.archie.alt`; ‏`decorative` → ‏`alt=""`; ‏`avatar` בלי שכבת אנימציה; ‏`card`/`scene` עם שכבה `aria-hidden` שמסומנת לפי המצב; עם `prefers-reduced-motion` השכבה לא מתחילה (אין `data-playing`); מחוץ למסך היא עוצרת ובתוכו מתחילה (`IntersectionObserver` מזויף); ה-`img` עם `loading="lazy"` ו-`srcset` של שני רוחבים.
+- [ ] המימוש, ההמרה ל-webp, הקטע בדף הרכיבים (שש הסצנות ב-`card`, אחת ב-`scene`, ושש ב-`avatar`).
+- [ ] כל הבדיקות, lint, typecheck, build (ובדיקה שה-webp נכנסים ל-`dist/assets`). Commit: `feat(web): the Archie component: six cut-paper moods with their motion layer, still under reduced motion`.
+
+**במקביל:** Tasks 7 ו-8 רצים יחד. משותף: `ComponentsPage.tsx` (רק 8), ‏`devText.ts` (רק 7; ל-8 יש `archieText.ts`), ‏`he.ts` (רק 8), ‏`index.css` (רק 7).
