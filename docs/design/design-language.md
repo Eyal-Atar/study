@@ -193,7 +193,10 @@
 | `TimeField` | שעה ביום. הערך הוא מחרוזת `'HH:MM'` (או `''`), כמו ב-`<input type="time">` שהוא מחליף | משך ("שעה וחצי") |
 | `RadioCards` | בחירה אחת מתוך 2–5 אפשרויות שכדאי לראות את כולן | רשימה ארוכה |
 | `CheckboxCards` | כמה בחירות מתוך קבוצה קטנה (חלונות לימוד) | הסכמה בודדת |
+| `SegmentedControl` | מעבר בין 2–3 תצוגות של אותו תוכן, שפועל מיד ("רשימה / ציר"). קבוצת `radio` אחת, עם `aria-label` | בחירה שהיא ערך בטופס (`RadioCards`); ניווט בין מסכים |
+| `OptionGrid` | בחירה אחת מתוך הרבה אפשרויות קצרות שכדאי לראות יחד (השעות הפנויות ב"הזזה"). `ltr` לשעות. האפשרות שנבחרה מקבלת ✓ | עד חמש אפשרויות (`RadioCards`); רשימה עם טקסט ארוך (`Select`) |
 | `Card` | דבר אחד שעומד בפני עצמו (5.1). ‏`tone` למצב: שגיאה, אזהרה, הצלחה; ‏`title` נותן כותרת בצבע המצב | פריט ברשימה; כרטיס בתוך כרטיס |
+| `Note` | הערה שקטה בתוך מסך, כרטיס או דיאלוג (5.1: מילוי `surface-muted`): "לא הצלחנו לרענן", "אין שעה פנויה". ‏`tone="warning"` למשהו שדורש תשומת לב; ‏`title` לשורה ראשונה מודגשת; ‏`action` לכפתור בקצה (שקט בהערה ניטרלית, משני בהערת אזהרה); ‏`role` כשצריך להכריז עליה | תוכן שלא נטען (`ErrorState`); תוצאה של פעולה (toast); הערת אזהרה בתוך כרטיס אזהרה (לא נראית) |
 | `List`, ‏`ListRow` | פריטים מאותו סוג (5.2). ‏`to` הופך את השורה לקישור, ‏`onPress` לכפתור (שורה שפותחת דיאלוג). ב-`trailing` אפשר לשים כמה פקדים | טבלה של נתונים |
 | `CheckButton` | כפתור הסימון של משימה (5.2): יעד של 44px ועיגול של 24px | בחירה בטופס (`CheckboxCards`) |
 | `SectionHeading` | הכותרת של קטע במסך (`h2`, "עוד היום") | כותרת המסך (`PageHeader`) |
@@ -285,6 +288,16 @@ if (query.data.length === 0) return <EmptyState icon={FileText} title="עוד א
   footer={<><Button className="flex-1" onPress={confirm}>אישור</Button><Button variant="secondary" onPress={() => setOpen(false)}>לא עכשיו</Button></>}>
   …
 </Dialog>
+
+// מתג תצוגה, הערה, ורשת של אפשרויות (S27)
+<SegmentedControl aria-label="תצוגת הבלוקים" options={[{ id: 'list', label: 'רשימה' }, { id: 'timeline', label: 'ציר' }]} value={view} onChange={setView} />
+<Note action={<Button variant="quiet" onPress={retry}>לנסות שוב</Button>}>לא הצלחנו לרענן, ולכן ייתכן שהלוח לא עדכני.</Note>
+<Note tone="warning" title="מה לא נכנס ללוח">משימה אחת: אין חלון רציף ארוך מספיק.</Note>
+<OptionGrid aria-label="שעות פנויות" ltr options={slots} value={chosen} onChange={setChosen} />
+
+// בלוק ברשימה, והמשימה הבאה (board/BlockRow, today/NextBlock: רכיבים של המסכים היומיים, לא של ui/)
+<List aria-label="עוד היום">{blocks.map((block) => <BlockRow key={block.id} block={block} tz={tz} />)}</List>
+<NextBlock block={next} tz={tz} />
 
 // toast
 const toast = useToast()
@@ -404,17 +417,28 @@ S26 בנה את השלד ואת הרכיבים (סעיפים 5.8 ו-6), והעב
 | `isDisabled={mutation.isPending}` על כפתור ששולח | `isPending={mutation.isPending}` |
 | `text-xs`…`text-3xl`, ‏`font-medium`, ‏`font-bold`, ‏`rounded-lg`/`xl`/`2xl`, ‏`min-h-11`, ‏`shadow-sm`/`lg` | ה-tokens של סעיפים 3 ו-4 |
 
-**S27 (`today/`, ‏`week/`, ‏`progress/`, ‏`board/`, ‏`plan/`, ‏`pages/TodayPage.tsx`):**
+**S27 (הושלם ב-18.11.2026):** המסכים היומיים בשפה החדשה. מה שנקבע שם ומחייב גם את המסכים האחרים:
 
-- `plan/ReplanOffer.tsx`: בונה דיאלוג משלו (`ModalOverlay`). עובר ל-`ui/Dialog` (הכותרת, התיאור והכפתורים ב-`footer`).
-- `board/BlockCard.tsx`: התפריט שלו (`MenuTrigger`) עובר ל-`ui/Menu` ו-`MenuItem`; התגים (`STATE_BADGE`, "נעול") ל-`Badge`, ו"נעול" לטקסט עם אייקון `Lock` (5.5); הכרטיס לכל בלוק הופך ל-`ListRow` (5.2).
-- `board/MoveDialog.tsx` (S18): בונה `ModalOverlay` משלו; עובר ל-`ui/Dialog` עם `onSubmit`.
-- `today/DayTimeline.tsx`, ‏`today/ReviewCard.tsx`, ‏`today/TodayViewSwitch.tsx` (S18): עוד לא בשפה החדשה; `opacity-50` של הבלוק שנגרר הוא מצב של גרירה ולא "כבוי", ונשאר.
-- `week/WeekDay.tsx`: ‏`rounded-xl border` לכל יום ותג "היום" ב-`rounded-full bg-brand`: כותרת קטע ו-`List`, ותג `Badge tone="brand"`.
-- `today/DayProgress.tsx`, ‏`progress/LevelCard.tsx`: פס שמצויר ביד עובר ל-`ProgressBar`. ב-`LevelCard` המילוי היום `bg-brand` על `bg-brand-soft`; לפי 5.6 הוא `success` על `line`.
-- `board/PlanReport.tsx`: ‏`<p role="status">` ו-`<p role="alert">` בלי סגנון; הדוח כולו הוא `Card tone="warning"`.
-- `progress/BadgeGrid.tsx`, ‏`StreakCard.tsx`, ‏`LevelCard.tsx`: 30 מחלקות ישנות.
-- הבדיקה `today/today.test.tsx` "sign out still works from /today" עודכנה ב-S26 לפתוח את תפריט הפרופיל.
+- **בלוק הוא שורה** (`board/BlockRow`, ב"היום" וב"שבוע"): שעת ההתחלה, השם, שורת משנה ("הסתברות, תרגול. שעה"), תג המצב בשורת המשנה, ובקצה תפריט "⋯" ועיגול הסימון. "בוצע" בלחיצה אחת בכל מקום; דחייה, הזזה ונעילה בתפריט. בלוק שבוצע לא מקבל תג: ה-✓ והקו החוצה אומרים את זה.
+- **המשימה הבאה** (`today/NextBlock`) היא הכרטיס היחיד עם כפתור ראשי במסך "היום". לידו "דחייה", ואחריה פעולה אחת ככפתור או שתיים ומעלה בתפריט. במחשב הכפתור הראשי לא רחב מ-320px.
+- **כפתור ראשי אחד במסך:** בסקירת הבוקר ובדוח "לא נכנס" הכפתורים משניים, גם כשהם הפעולה העיקרית של הכרטיס שלהם.
+- **סדר "היום":** כותרת, פס ההתקדמות, המשימה הבאה, סקירת הבוקר, "עוד היום" (רשימה או ציר), הדוח.
+- **ציר היום:** קו "עכשיו" ב-`brand`; טקסט בתוך בלוק על רקע של מצב ב-`ink`; הצללית של מקום תפוס ב-`danger` עם המילה "תפוס".
+- **toast של פעולה:** משפט קצר בסביל, בלי נושא ובלי נקודה בסוף ("סומן כבוצע", "נדחה למחר בשעה 09:00", "הוזז ל-15:30 וננעל"), בלשון רבים, והחלקים מחוברים בנקודה ורווח.
+- **התקדמות:** מספר גדול אחד (הרמה), פס ירוק, ותגים כשורות עם אייקון (`Award` לתג שהושג, `CircleDashed` לשאר) ולא כקופסאות.
+- **`display: contents` על עטיפה מבטל את הרווח** ש-`space-y-section` נותן לה. עטיפה שנועדה רק ל-`ref` היא `div` רגיל.
+
+מה ש-S27 עקף ולא שינה ברכיבים הקיימים, ונשאר ל-S29:
+
+- `Card` לא מקבל `ref` ואין לו רווח בין ילדים (כל כרטיס מוסיף `flex flex-col gap-3`).
+- `ListRow` לא מקבל `ref`, ‏`id` או שם נגיש, ולכן שורה של בלוק היא `listitem` בלי שם, והפוקוס אחרי פעולה נתפס בעטיפה של עיגול הסימון.
+- ל-`Dialog` אין דרך לתת `footer` מתוך תוכן שמחזיק state. `MoveDialog` ו-`ReplanOffer` מחזיקים את ה-state מעל הדיאלוג; ‏`ReplanOffer` נשאר mounted אחרי סגירה.
+- `LoadingState` לא מצייר כרטיס ושורות תחת `role="status"` אחד (השני מוסתר ב-`aria-hidden`).
+- `SectionHeading` נראה זהה ברמה 2 וברמה 3, ואין לו מקום לפרט בקצה השורה (סך הזמן של יום ב"שבוע" הוא `div` ביד).
+- `List` מקבל `aria-label` ולא `aria-labelledby`.
+- `ProgressBar` הוא `progressbar` ולא `meter`; פס ההתקדמות של היום עבר תפקיד.
+- `PageHeader` בטלפון: פעולה רחבה (שלושת כפתורי השבוע) יורדת מתחת לכותרת.
+- כרטיס ההתקנה ל-iOS של S16 (`notifications/InstallHint`) יושב מעל ה-`h1` עם כפתור ראשי משלו, ולכן במסך "היום" באייפון יש שני כפתורים ראשיים והכותרת נדחפת למטה.
 
 **S28 (`pages/`, ‏`onboarding/`, ‏`exam/`, ‏`settings/`, ‏`auth/RequireAuth.tsx`):**
 
@@ -435,4 +459,4 @@ S26 בנה את השלד ואת הרכיבים (סעיפים 5.8 ו-6), והעב
 
 **אם חסר רכיב או מצב:** מוסיפים אותו ב-`web/src/ui/` עם בדיקה (תפקיד, שם נגיש, מקלדת, פוקוס), מציגים אותו ב-`web/src/dev/ComponentsPage.tsx`, ומוסיפים שורה לטבלה שב-5.8. S27 ו-S28 רצים במקביל: מי שמוסיף רכיב יוצר קובץ חדש ולא משנה רכיב קיים, כדי שלא יהיו התנגשויות; שינוי ברכיב קיים נרשם ל-S29.
 
-**S29:** בדיקת axe לכל מסך ולדף הרכיבים, הגדלה ל-200%, מעבר על כל המסכים מול סעיף 9, ומעבר על הניסוחים ("לנסות שוב" מול "נסו שוב").
+**S29:** הרשימה שמעל (מה ש-S27 עקף), בדיקת axe לכל מסך ולדף הרכיבים, הגדלה ל-200%, מעבר על כל המסכים מול סעיף 9, ומעבר על הניסוחים ("לנסות שוב" מול "נסו שוב").

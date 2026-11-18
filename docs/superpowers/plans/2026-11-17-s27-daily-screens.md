@@ -117,10 +117,10 @@ flowchart TB
 
 **קבצים:** `web/src/i18n/he.ts` (`board`, ‏`review`, ‏`move`, ‏`replan.applied`), ‏`web/src/board/progressText.ts`, ‏`web/src/board/progressText.test.ts`.
 
-- [ ] צילומי "לפני" של שלושת המסכים, בכל המצבים, ל-`~/studyflow-manager/s27-screens/before/`.
-- [ ] `progressText.ts`: המחבר בין החלקים הוא `'. '`; הבדיקה מתעדכנת לאותו מחבר.
-- [ ] `he.ts`: ‏`move.moved` → "הוזז ל-… וננעל"; ‏`board.pinnedDone` → "ננעל במקומו"; ‏`review.skipped` → "דילגתם על …"; ‏`replan.applied` → "הלוח עודכן" (בלי נקודה).
-- [ ] הבדיקות עוברות; commit.
+- [x] צילומי "לפני" של שלושת המסכים, בכל המצבים, ל-`~/studyflow-manager/s27-screens/before/`.
+- [x] `progressText.ts`: המחבר בין החלקים הוא `'. '`; הבדיקה מתעדכנת לאותו מחבר.
+- [x] `he.ts`: ‏`move.moved` → "הוזז ל-… וננעל"; ‏`board.pinnedDone` → "ננעל במקומו"; ‏`review.skipped` → "דילגתם על …"; ‏`replan.applied` → "הלוח עודכן" (בלי נקודה).
+- [x] הבדיקות עוברות; commit.
 
 ### Task 1: שלושה רכיבים חדשים ב-`ui/`
 
@@ -154,10 +154,10 @@ export interface OptionGridProps {
 }
 ```
 
-- [ ] בדיקות קודם. `SegmentedControl`: תפקיד `radiogroup` עם `radio` לכל אפשרות (כך React Aria מציג קבוצה של בחירה אחת), האפשרות הנבחרת מסומנת, לחיצה קוראת ל-`onChange` עם ה-id, לחיצה על הנבחרת לא מבטלת בחירה, חצים במקלדת עוברים בין האפשרויות. `Note`: מציג ילדים, כותרת ופעולה; `role` עובר; בלי `role` אין תפקיד. `OptionGrid`: ‏`listbox` עם שם, `option` לכל אפשרות, לחיצה בוחרת וקוראת ל-`onChange`, האפשרות הנבחרת `aria-selected`.
-- [ ] מראה. `SegmentedControl`: מסילה `bg-surface-muted rounded-control p-1`, כל אפשרות `min-h-touch px-4 text-small font-semibold text-ink-muted`, הנבחרת `bg-surface text-ink` עם `border border-line-strong` (בלי צל; שאינה נבחרת עם `border-transparent`), טבעת פוקוס. המנצח בין מצבים נקבע ב-render props של React Aria ולא ב-`data-[…]` מתחרים (ראו "סדר המחלקות" ב-5.8). `Note`: ‏`rounded-control px-3 py-2 text-small text-ink`, הפעולה בשורה עם הטקסט ונשברת מתחתיו כשצר. `OptionGrid`: ‏`grid grid-cols-3 sm:grid-cols-4 gap-2`, גובה מרבי עם גלילה, כל אפשרות `min-h-touch rounded-control border border-line-strong bg-surface text-small font-semibold tabular-nums`; נבחרת: `border-brand bg-brand text-on-brand` עם ✓ קטן (לא רק צבע); hover: ‏`bg-surface-muted` רק כשאינה נבחרת.
-- [ ] דף הרכיבים: קטע לכל רכיב, בכל המצבים. `ComponentsPage.test.tsx` ממשיך לעבור (ומתעדכן אם הוא סופר קטעים).
-- [ ] `npx vitest run src/ui src/dev`, ‏`npx eslint src/ui src/dev`, ‏`npx tsc -b` נקי בקבצים האלה.
+- [x] בדיקות קודם. `SegmentedControl`: תפקיד `radiogroup` עם `radio` לכל אפשרות (כך React Aria מציג קבוצה של בחירה אחת), האפשרות הנבחרת מסומנת, לחיצה קוראת ל-`onChange` עם ה-id, לחיצה על הנבחרת לא מבטלת בחירה, חצים במקלדת עוברים בין האפשרויות. `Note`: מציג ילדים, כותרת ופעולה; `role` עובר; בלי `role` אין תפקיד. `OptionGrid`: ‏`listbox` עם שם, `option` לכל אפשרות, לחיצה בוחרת וקוראת ל-`onChange`, האפשרות הנבחרת `aria-selected`.
+- [x] מראה. `SegmentedControl`: מסילה `bg-surface-muted rounded-control p-1`, כל אפשרות `min-h-touch px-4 text-small font-semibold text-ink-muted`, הנבחרת `bg-surface text-ink` עם `border border-line-strong` (בלי צל; שאינה נבחרת עם `border-transparent`), טבעת פוקוס. המנצח בין מצבים נקבע ב-render props של React Aria ולא ב-`data-[…]` מתחרים (ראו "סדר המחלקות" ב-5.8). `Note`: ‏`rounded-control px-3 py-2 text-small text-ink`, הפעולה בשורה עם הטקסט ונשברת מתחתיו כשצר. `OptionGrid`: ‏`grid grid-cols-3 sm:grid-cols-4 gap-2`, גובה מרבי עם גלילה, כל אפשרות `min-h-touch rounded-control border border-line-strong bg-surface text-small font-semibold tabular-nums`; נבחרת: `border-brand bg-brand text-on-brand` עם ✓ קטן (לא רק צבע); hover: ‏`bg-surface-muted` רק כשאינה נבחרת.
+- [x] דף הרכיבים: קטע לכל רכיב, בכל המצבים. `ComponentsPage.test.tsx` ממשיך לעבור (ומתעדכן אם הוא סופר קטעים).
+- [x] `npx vitest run src/ui src/dev`, ‏`npx eslint src/ui src/dev`, ‏`npx tsc -b` נקי בקבצים האלה.
 
 ### Task 2: `BlockRow` ו-`NextBlock`
 
@@ -172,79 +172,91 @@ export function BlockRow(props: { block: Block; tz: string }): JSX.Element
 export function NextBlock(props: { block: Block; tz: string; when?: string }): JSX.Element
 ```
 
-- [ ] **`blockParts.tsx`** מחזיק את מה ששני הרכיבים חולקים: הרצת פעולה (`run`, כמו ב-`BlockCard` היום, ו"הזזה" שפותחת את `MoveDialog`), התוויות והשמות הנגישים, `BlockMenu` (`ui/Menu` עם `IconButton` של `Ellipsis`, ‏`aria-label={he.board.actionsLabel(name)}`, פריט לכל פעולה עם אייקון: דחייה `CalendarClock`, הזזה `MoveVertical`, נעילה `Lock`, שחרור `LockOpen`), ושורת המשנה.
-- [ ] **`BlockRow`** הוא `ui/ListRow`:
+- [x] **`blockParts.tsx`** מחזיק את מה ששני הרכיבים חולקים: הרצת פעולה (`run`, כמו ב-`BlockCard` היום, ו"הזזה" שפותחת את `MoveDialog`), התוויות והשמות הנגישים, `BlockMenu` (`ui/Menu` עם `IconButton` של `Ellipsis`, ‏`aria-label={he.board.actionsLabel(name)}`, פריט לכל פעולה עם אייקון: דחייה `CalendarClock`, הזזה `MoveVertical`, נעילה `Lock`, שחרור `LockOpen`), ושורת המשנה.
+- [x] **`BlockRow`** הוא `ui/ListRow`:
   - `leading`: שעת ההתחלה, `<span dir="ltr">`.
   - `title`: שם המשימה; `done` כשהבלוק בוצע.
   - `subtitle`: ‏`he.board.meta(exam, kind, duration)` = "הסתברות, תרגול. שעה"; לבלוק מפוצל ". חלק 1 מתוך 2"; אחריו `Badge` לפי המצב (`in_progress` → ‏`brand`, ‏`overdue` → ‏`warning`, ‏`missed` ו-`skipped` → ‏`neutral`; ל-`done` ול-`upcoming` אין תג); בזמן דחייה `Badge neutral` עם "דוחה…"; בלוק נעול: ‏`Lock` של 14px והמילה "נעול".
   - `trailing`: ‏`BlockMenu` עם כל הפעולות חוץ מ-`complete` ו-`uncomplete` (רק אם יש כאלה), ואחריו `CheckButton` (`isDone`, שם נגיש `completeLabel(name)` או `uncompleteLabel(name)`, ‏`isDisabled={pending}`). העיגול אחרון ב-DOM, ולכן בקצה השורה כמו בהדמיה.
   - `useFocusRequest(block.id, ref)`: ה-`ref` על עטיפה (`className="contents"`) של ה-`CheckButton` בלבד, כדי שהפוקוס אחרי "בוצע" יגיע לעיגול ולא לתפריט.
-- [ ] **`NextBlock`** הוא `ui/Card` עם `role="region"` ו-`aria-labelledby`:
+- [x] **`NextBlock`** הוא `ui/Card` עם `role="region"` ו-`aria-labelledby`:
   - שורה ראשונה: `h2` "המשימה הבאה" ב-`text-small font-semibold text-brand-strong`, ובקצה `Badge` של המצב, או `when` ("מחר, 09:00") ב-`text-small font-semibold`.
   - `h3` עם שם המשימה ב-`text-title font-semibold break-words`.
   - שורת משנה: הטווח ב-`dir="ltr"`, ואחריו ", שעה וחצי. אלגוריתמים, לימוד" (`he.board.nextMeta`), חלק, מנעול.
   - כפתורים (`flex gap-2`): ‏"בוצע" ראשי, `flex-1`, עם `Check`; "דחייה" משני ("דוחה…" בזמן דחייה); ולפי החלטה 2: פעולה נוספת אחת ככפתור משני, שתיים ומעלה ב-`BlockMenu` עם `IconButton variant="secondary"`. לכולם `isDisabled={pending}` ושם נגיש עם שם הבלוק.
   - `useFocusRequest` על שורת הכפתורים.
-- [ ] בדיקות (קודם): כל מה ש-`BlockCard.test.tsx` בדק, מותאם ל-DOM החדש; ובנוסף: שני חלקים של אותה משימה נותנים שמות שונים; "דוחה…" רק בבלוק שנדחה; בלוק `upcoming` במשימה הבאה מציג תפריט עם "הזזה" ו"נעילה", ובלוק `in_progress` מציג "נעילה" ככפתור; בשורה של בלוק `overdue` אין תפריט.
-- [ ] `npx vitest run src/board/BlockRow.test.tsx`; ‏eslint ו-tsc נקיים בקבצים האלה. (`TodayBlocks.tsx` ו-`WeekDay.tsx` עוד מייבאים את `BlockCard`; הם של Tasks 4 ו-7. כדי ש-tsc לא יישבר בינתיים, להשאיר ב-`BlockCard.tsx` re-export זמני: `variant="compact"` ו-`"full"` שניהם מחזירים `<BlockRow>`; Task 8 מוחק אותו.)
+- [x] בדיקות (קודם): כל מה ש-`BlockCard.test.tsx` בדק, מותאם ל-DOM החדש; ובנוסף: שני חלקים של אותה משימה נותנים שמות שונים; "דוחה…" רק בבלוק שנדחה; בלוק `upcoming` במשימה הבאה מציג תפריט עם "הזזה" ו"נעילה", ובלוק `in_progress` מציג "נעילה" ככפתור; בשורה של בלוק `overdue` אין תפריט.
+- [x] `npx vitest run src/board/BlockRow.test.tsx`; ‏eslint ו-tsc נקיים בקבצים האלה. (`TodayBlocks.tsx` ו-`WeekDay.tsx` עוד מייבאים את `BlockCard`; הם של Tasks 4 ו-7. כדי ש-tsc לא יישבר בינתיים, להשאיר ב-`BlockCard.tsx` re-export זמני: `variant="compact"` ו-`"full"` שניהם מחזירים `<BlockRow>`; Task 8 מוחק אותו.)
 
 ### Task 3: מסך ההתקדמות
 
 **קבצים:** `web/src/progress/ProgressPage.tsx`, ‏`LevelCard.tsx`, ‏`StreakCard.tsx`, ‏`DayStrip.tsx`, ‏`BadgeGrid.tsx`, ‏`ProgressPage.test.tsx`; ‏`he.ts`: רק `progress`.
 
-- [ ] `ProgressPage`: ‏`PageHeader` מחוץ לתנאי; `LoadingState shape="card"` ואחריו `shape="list"`; ‏`ErrorState` עם `onRetry`; התוכן ב-`space-y-section`, שני הכרטיסים ב-`grid gap-4 md:grid-cols-2`.
-- [ ] `LevelCard`: ‏`Card role="region"` (שם: "רמה"); "רמה 4" ב-`text-display font-semibold tabular-nums`, ובקצה סך ה-XP ב-`text-small text-ink-muted`; ‏`ui/ProgressBar` עם `label={t.barLabel(next)}`, ‏`value`, ‏`max`, ‏`valueText={t.barValue(…)}`; מתחתיו מספר הבלוקים ב-`text-small text-ink-muted`. ברמה הגבוהה ביותר: המשפט `t.max` ב-`text-small font-semibold`, בלי פס. `toNext` יורד מהמסך ומ-`he.ts` (החלטה 7).
-- [ ] `StreakCard`: ‏`Card role="region"` עם `SectionHeading`; שני המספרים ב-`text-title font-semibold tabular-nums` עם תווית `text-small text-ink-muted`; המשפט ב-`text-body`; ‏`DayStrip`.
-- [ ] `DayStrip`: תא שנלמד `bg-success`, שלא נלמד `border border-line-strong bg-surface`, היום `ring-2 ring-brand ring-offset-2`; `rounded-badge`; אות היום ב-`text-caption`? לא: `text-caption` שמור לניווט, ולכן האותיות ב-`text-small text-ink-muted`. המשפט לקורא מסך נשאר.
-- [ ] `BadgeGrid`: ‏`SectionHeading` "תגים" עם הסיכום בקצה; לכל קבוצה `SectionHeading level={3}` ו-`List` של `ListRow`: ‏`leading` אייקון 18px (`Award` ב-`text-success` לתג שהושג, `CircleDashed` ב-`text-ink-muted` לשאר), `title` שם התג, `subtitle` התיאור (ולתג שהושג גם ". הושג ב-…"), ‏`trailing` לתג שלא הושג: "12 מתוך 20" ב-`text-small text-ink-muted tabular-nums`, ועוד `<span className="sr-only">עוד לא הושג</span>`.
-- [ ] הבדיקות: כל הבדיקות הקיימות נשארות; משתנות רק `badgeItem` (שם התג כבר לא `heading`), הטעינה (`role="status"`), והשורה של `toNext`. נוספת בדיקה שהכותרת מופיעה גם בזמן טעינה.
-- [ ] `npx vitest run src/progress`; ‏eslint ו-tsc נקיים בקבצים האלה.
+- [x] `ProgressPage`: ‏`PageHeader` מחוץ לתנאי; `LoadingState shape="card"` ואחריו `shape="list"`; ‏`ErrorState` עם `onRetry`; התוכן ב-`space-y-section`, שני הכרטיסים ב-`grid gap-4 md:grid-cols-2`.
+- [x] `LevelCard`: ‏`Card role="region"` (שם: "רמה"); "רמה 4" ב-`text-display font-semibold tabular-nums`, ובקצה סך ה-XP ב-`text-small text-ink-muted`; ‏`ui/ProgressBar` עם `label={t.barLabel(next)}`, ‏`value`, ‏`max`, ‏`valueText={t.barValue(…)}`; מתחתיו מספר הבלוקים ב-`text-small text-ink-muted`. ברמה הגבוהה ביותר: המשפט `t.max` ב-`text-small font-semibold`, בלי פס. `toNext` יורד מהמסך ומ-`he.ts` (החלטה 7).
+- [x] `StreakCard`: ‏`Card role="region"` עם `SectionHeading`; שני המספרים ב-`text-title font-semibold tabular-nums` עם תווית `text-small text-ink-muted`; המשפט ב-`text-body`; ‏`DayStrip`.
+- [x] `DayStrip`: תא שנלמד `bg-success`, שלא נלמד `border border-line-strong bg-surface`, היום `ring-2 ring-brand ring-offset-2`; `rounded-badge`; אות היום ב-`text-caption`? לא: `text-caption` שמור לניווט, ולכן האותיות ב-`text-small text-ink-muted`. המשפט לקורא מסך נשאר.
+- [x] `BadgeGrid`: ‏`SectionHeading` "תגים" עם הסיכום בקצה; לכל קבוצה `SectionHeading level={3}` ו-`List` של `ListRow`: ‏`leading` אייקון 18px (`Award` ב-`text-success` לתג שהושג, `CircleDashed` ב-`text-ink-muted` לשאר), `title` שם התג, `subtitle` התיאור (ולתג שהושג גם ". הושג ב-…"), ‏`trailing` לתג שלא הושג: "12 מתוך 20" ב-`text-small text-ink-muted tabular-nums`, ועוד `<span className="sr-only">עוד לא הושג</span>`.
+- [x] הבדיקות: כל הבדיקות הקיימות נשארות; משתנות רק `badgeItem` (שם התג כבר לא `heading`), הטעינה (`role="status"`), והשורה של `toNext`. נוספת בדיקה שהכותרת מופיעה גם בזמן טעינה.
+- [x] `npx vitest run src/progress`; ‏eslint ו-tsc נקיים בקבצים האלה.
 
 ### Task 4: מסך "היום"
 
 **קבצים:** `web/src/pages/TodayPage.tsx`, ‏`web/src/today/DayProgress.tsx`, ‏`TodayBlocks.tsx`, ‏`TodayViewSwitch.tsx`, ‏`today.test.tsx`; ‏`he.ts`: רק `today`, ו-`move.viewLabel`/`list`/`timeline` לקריאה.
 
-- [ ] `TodayPage`: ‏`PageHeader title subtitle={formatDay(date)}` מחוץ לכל תנאי; טעינה: `LoadingState shape="card"` ו-`LoadingState shape="list" rows={3}`; שגיאה: `ErrorState`; רענון שנכשל ושגיאת `plan`: ‏`Note` עם כפתור שקט "לנסות שוב". הסדר לפי החלטה 3, ב-`space-y-section`.
-- [ ] מסכים ריקים (החלטה 11): בלי משימות: `EmptyState icon={CalendarCheck} title description action={<ButtonLink to="/exams">…</ButtonLink>}`; כל המשימות נגמרו: `EmptyState` בלי פעולה. "אין בלוקים היום" כשהבלוק הבא ביום אחר: שורה ב-`text-small text-ink-muted` מעל המשימה הבאה.
-- [ ] `DayProgress`: ‏`ui/ProgressBar label valueText`. אותו תנאי (`total <= 0` → כלום).
-- [ ] `TodayBlocks`: ‏`SectionHeading` ובקצה ה-`toolbar`; ‏`List aria-label={title}` של `BlockRow`. בלי בלוקים ובלי toolbar: כלום, כמו היום.
-- [ ] `TodayViewSwitch`: ‏`ui/SegmentedControl`.
-- [ ] `today.test.tsx`: כל בדיקה נשארת; שאילתות על `article`, על כפתורי "דחייה"/"נעילה" בשורות ועל סדר הקטעים מותאמות. הפוקוס אחרי "בוצע" במשימה הבאה: על העיגול של אותו בלוק ברשימה. נוספות: הכותרת מופיעה בזמן טעינה; מסך ריק עם הקישור.
-- [ ] `npx vitest run src/today/today.test.tsx src/today/todayView.test.ts src/today/chooseNext.test.ts`; ‏eslint ו-tsc נקיים בקבצים האלה.
+- [x] `TodayPage`: ‏`PageHeader title subtitle={formatDay(date)}` מחוץ לכל תנאי; טעינה: `LoadingState shape="card"` ו-`LoadingState shape="list" rows={3}`; שגיאה: `ErrorState`; רענון שנכשל ושגיאת `plan`: ‏`Note` עם כפתור שקט "לנסות שוב". הסדר לפי החלטה 3, ב-`space-y-section`.
+- [x] מסכים ריקים (החלטה 11): בלי משימות: `EmptyState icon={CalendarCheck} title description action={<ButtonLink to="/exams">…</ButtonLink>}`; כל המשימות נגמרו: `EmptyState` בלי פעולה. "אין בלוקים היום" כשהבלוק הבא ביום אחר: שורה ב-`text-small text-ink-muted` מעל המשימה הבאה.
+- [x] `DayProgress`: ‏`ui/ProgressBar label valueText`. אותו תנאי (`total <= 0` → כלום).
+- [x] `TodayBlocks`: ‏`SectionHeading` ובקצה ה-`toolbar`; ‏`List aria-label={title}` של `BlockRow`. בלי בלוקים ובלי toolbar: כלום, כמו היום.
+- [x] `TodayViewSwitch`: ‏`ui/SegmentedControl`.
+- [x] `today.test.tsx`: כל בדיקה נשארת; שאילתות על `article`, על כפתורי "דחייה"/"נעילה" בשורות ועל סדר הקטעים מותאמות. הפוקוס אחרי "בוצע" במשימה הבאה: על העיגול של אותו בלוק ברשימה. נוספות: הכותרת מופיעה בזמן טעינה; מסך ריק עם הקישור.
+- [x] `npx vitest run src/today/today.test.tsx src/today/todayView.test.ts src/today/chooseNext.test.ts`; ‏eslint ו-tsc נקיים בקבצים האלה.
 
 ### Task 5: `MoveDialog`, ‏`PlanReport`, ‏`ReplanOffer`
 
 **קבצים:** `web/src/board/MoveDialog.tsx`, ‏`MoveDialog.test.tsx`, ‏`PlanReport.tsx`, ‏`PlanReport.test.tsx`, ‏`web/src/plan/ReplanOffer.tsx`, ‏`ReplanOffer.test.tsx`; ‏`he.ts`: ‏`replan`, ‏`board.report`, ‏`move` (רק המפתחות של הדיאלוג).
 
-- [ ] `MoveDialog`: ‏`ui/Dialog` עם `title`, ‏`description={he.move.dialogLead}`, ‏`onSubmit` ו-`footer` ("הזזה" `type="submit"` ו-`flex-1`, כבוי עד שנבחרה שעה; "ביטול" משני). התוכן נטען רק כשהדיאלוג פתוח (כמו היום, כדי שכל פתיחה תשאל את השרת מחדש). השעה הנוכחית ב-`text-small`; טעינה `LoadingState shape="text" rows={2} label={he.move.loading}`; שגיאה `ErrorState`; אין שעות: ‏`Note`; השעות: ‏`OptionGrid ltr`.
-- [ ] `PlanReport`: ‏`Card tone="warning" title role="region" id="report"` (ה-`id` נשאר: ‏`useScrollToReport` מחפש אותו); בלי `ink-muted` בתוכו; "בודקים למה…" ב-`role="status"`; כשל: ‏`Note role="alert"` עם "לנסות שוב"; הרשימות ב-`text-small`; הסיבה אחרי נקודתיים ולא אחרי קו מפריד; הכפתור "להעלות ל-…" ראשי עם `isPending`.
-- [ ] `ReplanOffer`: ‏`ui/Dialog` (`title`, ‏`description={reasonText}`, ‏`footer`: "אישור" ראשי `flex-1` עם `isPending={apply.isPending}` וכבוי עד שיש תצוגה מקדימה, "לא עכשיו"/"סגירה" משני). ההערה של `stale_plan`: ‏`Note tone="warning" role="status"`; טעינה `LoadingState shape="text"`; שגיאה `ErrorState`; "מה לא נכנס ללוח": ‏`Note tone="warning" title`; כשל של אישור: טקסט `text-small text-danger` עם `role="alert"`. ה-hooks, ה-`useEffect` של התצוגה המקדימה ו-`ReplanOfferProvider` לא משתנים.
-- [ ] הבדיקות נשארות; מותאמות רק שאילתות DOM (למשל הכפתור "סגירה" של הדיאלוג נוסף לכפתור שבתחתית, ולכן `getByRole('button', { name: he.common.close })` עלול למצוא שניים).
-- [ ] `npx vitest run src/board/MoveDialog.test.tsx src/board/PlanReport.test.tsx src/plan`; ‏eslint ו-tsc נקיים בקבצים האלה.
+- [x] `MoveDialog`: ‏`ui/Dialog` עם `title`, ‏`description={he.move.dialogLead}`, ‏`onSubmit` ו-`footer` ("הזזה" `type="submit"` ו-`flex-1`, כבוי עד שנבחרה שעה; "ביטול" משני). התוכן נטען רק כשהדיאלוג פתוח (כמו היום, כדי שכל פתיחה תשאל את השרת מחדש). השעה הנוכחית ב-`text-small`; טעינה `LoadingState shape="text" rows={2} label={he.move.loading}`; שגיאה `ErrorState`; אין שעות: ‏`Note`; השעות: ‏`OptionGrid ltr`.
+- [x] `PlanReport`: ‏`Card tone="warning" title role="region" id="report"` (ה-`id` נשאר: ‏`useScrollToReport` מחפש אותו); בלי `ink-muted` בתוכו; "בודקים למה…" ב-`role="status"`; כשל: ‏`Note role="alert"` עם "לנסות שוב"; הרשימות ב-`text-small`; הסיבה אחרי נקודתיים ולא אחרי קו מפריד; הכפתור "להעלות ל-…" ראשי עם `isPending`.
+- [x] `ReplanOffer`: ‏`ui/Dialog` (`title`, ‏`description={reasonText}`, ‏`footer`: "אישור" ראשי `flex-1` עם `isPending={apply.isPending}` וכבוי עד שיש תצוגה מקדימה, "לא עכשיו"/"סגירה" משני). ההערה של `stale_plan`: ‏`Note tone="warning" role="status"`; טעינה `LoadingState shape="text"`; שגיאה `ErrorState`; "מה לא נכנס ללוח": ‏`Note tone="warning" title`; כשל של אישור: טקסט `text-small text-danger` עם `role="alert"`. ה-hooks, ה-`useEffect` של התצוגה המקדימה ו-`ReplanOfferProvider` לא משתנים.
+- [x] הבדיקות נשארות; מותאמות רק שאילתות DOM (למשל הכפתור "סגירה" של הדיאלוג נוסף לכפתור שבתחתית, ולכן `getByRole('button', { name: he.common.close })` עלול למצוא שניים).
+- [x] `npx vitest run src/board/MoveDialog.test.tsx src/board/PlanReport.test.tsx src/plan`; ‏eslint ו-tsc נקיים בקבצים האלה.
 
 ### Task 6: סקירת הבוקר וציר היום
 
 **קבצים:** `web/src/today/ReviewCard.tsx`, ‏`ReviewCard.test.tsx`, ‏`DayTimeline.tsx`, ‏`DayTimeline.test.tsx`; ‏`he.ts`: ‏`review`, ו-`move` (רק המפתחות של הציר).
 
-- [ ] `ReviewCard` (החלטה 4): ‏`ui/Card`; ה-`h2` נשאר אלמנט משלו עם `ref` ו-`tabIndex={-1}` (הוא מחזיק את הפוקוס אחרי השורה האחרונה), ב-`text-body font-semibold`; המשפט ב-`text-small text-ink-muted`; השורות מופרדות ב-`border-t border-line`; בכל שורה שם (`text-body font-semibold`), שורת משנה אחת ("אתמול, 18:30–19:30. הסתברות", הטווח ב-`dir="ltr"`), ושלושה כפתורים: "בוצע" משני, "העבר להיום" משני, "דלג" שקט. `data-review-row`, ‏`aria-labelledby`, ‏`isDisabled={pending}` וכל ה-refs וה-effects של הפוקוס נשארים בדיוק.
-- [ ] `DayTimeline` (החלטה 8): כותרת `SectionHeading` עם ה-`toolbar`; המסגרת `rounded-card border border-line bg-surface`; השעות ב-`text-small text-ink-muted`; קו "עכשיו" ב-`bg-brand`; הבלוקים `rounded-control` לפי המצב (`upcoming`: ‏`border border-line-strong bg-surface` עם `border-s-4 border-s-brand`; ‏`in_progress`: ‏`bg-brand-soft border-s-4 border-s-brand-strong`; ‏`done`: ‏`bg-success-soft border-s-4 border-s-success`; ‏`overdue`: ‏`bg-warning-soft border-s-4 border-s-warning`; ‏`missed`/`skipped`: ‏`bg-surface-muted border-s-4 border-s-line-strong`); שם הבלוק `text-small font-semibold`, והשורה השנייה `text-small` ב-`text-ink` (ב-`upcoming` ו-`missed`/`skipped` מותר `text-ink-muted`); בוצע: `font-normal line-through`; "נעול": ‏`Lock` 14px והמילה; הידית: ‏`GripVertical` מ-lucide, ‏`w-touch`, ‏hover ‏`bg-surface-muted`, כבויה `text-line-strong`; הצללית: ‏`rounded-control`, ובה `he.move.candidate(range, free)` (הטווח ב-`dir="ltr"` והמילה "פנוי"/"תפוס" אחריו). `opacity-50` של הבלוק שנגרר נשאר. כל ה-handlers, הקבועים (`PX_PER_MINUTE` ועוד), ה-live region וה-`data-*` נשארים.
-- [ ] הבדיקות נשארות; מותאמות רק שאילתות DOM.
-- [ ] `npx vitest run src/today/ReviewCard.test.tsx src/today/DayTimeline.test.tsx`; ‏eslint ו-tsc נקיים בקבצים האלה.
+- [x] `ReviewCard` (החלטה 4): ‏`ui/Card`; ה-`h2` נשאר אלמנט משלו עם `ref` ו-`tabIndex={-1}` (הוא מחזיק את הפוקוס אחרי השורה האחרונה), ב-`text-body font-semibold`; המשפט ב-`text-small text-ink-muted`; השורות מופרדות ב-`border-t border-line`; בכל שורה שם (`text-body font-semibold`), שורת משנה אחת ("אתמול, 18:30–19:30. הסתברות", הטווח ב-`dir="ltr"`), ושלושה כפתורים: "בוצע" משני, "העבר להיום" משני, "דלג" שקט. `data-review-row`, ‏`aria-labelledby`, ‏`isDisabled={pending}` וכל ה-refs וה-effects של הפוקוס נשארים בדיוק.
+- [x] `DayTimeline` (החלטה 8): כותרת `SectionHeading` עם ה-`toolbar`; המסגרת `rounded-card border border-line bg-surface`; השעות ב-`text-small text-ink-muted`; קו "עכשיו" ב-`bg-brand`; הבלוקים `rounded-control` לפי המצב (`upcoming`: ‏`border border-line-strong bg-surface` עם `border-s-4 border-s-brand`; ‏`in_progress`: ‏`bg-brand-soft border-s-4 border-s-brand-strong`; ‏`done`: ‏`bg-success-soft border-s-4 border-s-success`; ‏`overdue`: ‏`bg-warning-soft border-s-4 border-s-warning`; ‏`missed`/`skipped`: ‏`bg-surface-muted border-s-4 border-s-line-strong`); שם הבלוק `text-small font-semibold`, והשורה השנייה `text-small` ב-`text-ink` (ב-`upcoming` ו-`missed`/`skipped` מותר `text-ink-muted`); בוצע: `font-normal line-through`; "נעול": ‏`Lock` 14px והמילה; הידית: ‏`GripVertical` מ-lucide, ‏`w-touch`, ‏hover ‏`bg-surface-muted`, כבויה `text-line-strong`; הצללית: ‏`rounded-control`, ובה `he.move.candidate(range, free)` (הטווח ב-`dir="ltr"` והמילה "פנוי"/"תפוס" אחריו). `opacity-50` של הבלוק שנגרר נשאר. כל ה-handlers, הקבועים (`PX_PER_MINUTE` ועוד), ה-live region וה-`data-*` נשארים.
+- [x] הבדיקות נשארות; מותאמות רק שאילתות DOM.
+- [x] `npx vitest run src/today/ReviewCard.test.tsx src/today/DayTimeline.test.tsx`; ‏eslint ו-tsc נקיים בקבצים האלה.
 
 ### Task 7: מסך "שבוע"
 
 **קבצים:** `web/src/week/WeekPage.tsx`, ‏`WeekDay.tsx`, ‏`week.test.tsx`; ‏`he.ts`: רק `week`.
 
-- [ ] `WeekPage` (החלטה 6): ‏`PageHeader title subtitle={range} action={…}`; הפעולה היא `role="group"` עם `aria-label={he.week.moves}`: ‏`IconButton variant="secondary"` "הקודם" (`ChevronRight`), ‏`Button variant="secondary"` "השבוע", ‏`IconButton variant="secondary"` "הבא" (`ChevronLeft`); השמות הנגישים הם אותם טקסטים של היום. טעינה: `LoadingState shape="list" rows={7}`; שגיאה: `ErrorState`; רענון שנכשל: ‏`Note tone="warning"`; שבוע בלי בלוקים: ‏`EmptyState icon={CalendarDays}`.
-- [ ] `WeekDay`: ‏`<section aria-labelledby aria-current>`; שורת כותרת עם `SectionHeading` (היום והתאריך), ‏`Badge tone="brand"` "היום" ליום הנוכחי, ובקצה הסך ב-`text-small text-ink-muted tabular-nums`; מתחתיה `List` של `BlockRow`. יום פנוי: אותה שורת כותרת עם "יום פנוי" בקצה ו-`border-b border-line`, בלי רשימה. בין ימים `space-y-section`.
-- [ ] `week.test.tsx`: הבדיקות נשארות; `article` → שורה ברשימה, "פעולות → בוצע" → העיגול; נוספת בדיקה של שבוע ריק ושל הכותרת בזמן טעינה.
-- [ ] `npx vitest run src/week`; ‏eslint ו-tsc נקיים בקבצים האלה.
+- [x] `WeekPage` (החלטה 6): ‏`PageHeader title subtitle={range} action={…}`; הפעולה היא `role="group"` עם `aria-label={he.week.moves}`: ‏`IconButton variant="secondary"` "הקודם" (`ChevronRight`), ‏`Button variant="secondary"` "השבוע", ‏`IconButton variant="secondary"` "הבא" (`ChevronLeft`); השמות הנגישים הם אותם טקסטים של היום. טעינה: `LoadingState shape="list" rows={7}`; שגיאה: `ErrorState`; רענון שנכשל: ‏`Note tone="warning"`; שבוע בלי בלוקים: ‏`EmptyState icon={CalendarDays}`.
+- [x] `WeekDay`: ‏`<section aria-labelledby aria-current>`; שורת כותרת עם `SectionHeading` (היום והתאריך), ‏`Badge tone="brand"` "היום" ליום הנוכחי, ובקצה הסך ב-`text-small text-ink-muted tabular-nums`; מתחתיה `List` של `BlockRow`. יום פנוי: אותה שורת כותרת עם "יום פנוי" בקצה ו-`border-b border-line`, בלי רשימה. בין ימים `space-y-section`.
+- [x] `week.test.tsx`: הבדיקות נשארות; `article` → שורה ברשימה, "פעולות → בוצע" → העיגול; נוספת בדיקה של שבוע ריק ושל הכותרת בזמן טעינה.
+- [x] `npx vitest run src/week`; ‏eslint ו-tsc נקיים בקבצים האלה.
 
 ### Task 8: איחוד, צילומים, סקירה וסגירה (השיחה הראשית)
 
-- [ ] מחיקת ה-re-export הזמני של `BlockCard`; ‏`npm test`, ‏`npm run lint`, ‏`npm run typecheck`, ‏`npm run build`.
-- [ ] grep שמוכיח שאין מחלקות ישנות בקבצים של ה-scope.
-- [ ] צילומי "אחרי" ב-390 וב-1280 בכל המצבים, ומעבר שלי על כל אחד; תיקונים.
-- [ ] סקירת קוד סופית (סוכן), ותיקונים.
-- [ ] `design-language.md`: שלוש שורות ב-5.8, סעיף 10 מעודכן (מה S27 החליף, מה נרשם ל-S29); מסמך התכנון 7.9 והלשונית שלו ב-artifact; מפת הדרכים: S27 "הושלם", השורה ב"פריטים פתוחים" נסגרת, ופריטים שנדחו נרשמים.
-- [ ] בדיקות ה-API בלי `tests/db`; ‏gitleaks; ‏fetch, ‏rebase, כל הבדיקות שוב, ‏push ל-`main`, מחיקת הענף.
+- [x] מחיקת ה-re-export הזמני של `BlockCard`; ‏`npm test`, ‏`npm run lint`, ‏`npm run typecheck`, ‏`npm run build`.
+- [x] grep שמוכיח שאין מחלקות ישנות בקבצים של ה-scope.
+- [x] צילומי "אחרי" ב-390 וב-1280 בכל המצבים, ומעבר שלי על כל אחד; תיקונים.
+- [x] סקירת קוד סופית (סוכן), ותיקונים.
+- [x] `design-language.md`: שלוש שורות ב-5.8, סעיף 10 מעודכן (מה S27 החליף, מה נרשם ל-S29); מסמך התכנון 7.9 והלשונית שלו ב-artifact; מפת הדרכים: S27 "הושלם", השורה ב"פריטים פתוחים" נסגרת, ופריטים שנדחו נרשמים.
+- [x] בדיקות ה-API בלי `tests/db`; ‏gitleaks; ‏fetch, ‏rebase, כל הבדיקות שוב, ‏push ל-`main`, מחיקת הענף.
+
+---
+
+## מה השתנה בביצוע (18.11.2026)
+
+- **Task 2:** ‏`blockParts.tsx` מחזיק רק רכיבים (`BlockMenu`, ‏`StateBadge`, ‏`PinnedMark`), וה-hook והפונקציות עברו ל-`board/blockControls.ts`, כי כלל ה-lint `react-refresh/only-export-components` לא מרשה קובץ שמייצא גם וגם.
+- **Task 5:** ה-`footer` של `ui/Dialog` הוא prop, ולכן ה-state של `MoveDialog` (השעה שנבחרה) ושל `ReplanOffer` (התצוגה המקדימה והאישור) עלה מעל הדיאלוג. `ReplanOffer` מרכיב `ReplanSession` עם `key` חדש בכל פתיחה, כך שכל פתיחה עדיין שואלת את השרת. בלוח מעודכן הכפתור התחתון הוא "הבנתי".
+- **Task 6:** המילוי האפור על החלק של היום שכבר עבר ירד מהציר; קו "עכשיו" עבר מתחת לבלוקים, כדי שלא יחצה את השם של הבלוק הנוכחי.
+- **Task 7:** ה-fake של `/plan` בבדיקות מסנן עכשיו לפי `from`/`to`, כמו השרת, כי "שבוע ריק" נקבע לפי שבעת הימים שעל המסך.
+- **Task 8, מהצילומים:** המתג "רשימה / ציר" חתך את "רשימה" (עבר ל-grid של עמודות שוות); עטיפה עם `display: contents` ביטלה את הרווח מתחת לסקירת הבוקר; הכפתור של הדוח "לא נכנס" הפך למשני (כפתור ראשי אחד במסך); "בוצע" של המשימה הבאה מוגבל ל-320px במחשב.
+- **Task 8, מהסקירה הסופית:** תשובה שמגיעה אחרי ש-`ReplanOffer` נסגר לא מפעילה תצוגה מקדימה; המנעול במשימה הבאה מחובר בנקודה; `he.board.actions` נמחק.
+- **S16 מוזג באמצע:** ‏rebase בלי התנגשויות. כרטיס ההתקנה ל-iOS (`InstallHint`) צולם במסך "היום"; הוא של S16 ולא שונה, ונרשם ל-S29.
