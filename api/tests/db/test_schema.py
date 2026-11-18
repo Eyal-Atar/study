@@ -66,6 +66,8 @@ def test_core_tables_exist(db: psycopg.Connection) -> None:
         "analyses",
         "badges",
         "blocks",
+        "busy_events",
+        "commitments",
         "exams",
         "jobs",
         "materials",
@@ -141,6 +143,10 @@ def test_only_authenticated_has_table_privileges(db: psycopg.Connection) -> None
         "badges": {"SELECT", "DELETE"},
         # INSERT and UPDATE are granted on columns only (migration 0010).
         "push_subscriptions": {"SELECT", "DELETE"},
+        # INSERT and UPDATE are granted on columns only, and there is no DELETE: both are
+        # soft-deleted (migration 0014).
+        "commitments": {"SELECT"},
+        "busy_events": {"SELECT"},
     }
     for table in _app_tables(db):
         for role in ("anon", "studyflow_api", "service_role"):
