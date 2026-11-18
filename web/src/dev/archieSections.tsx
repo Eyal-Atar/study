@@ -12,7 +12,7 @@ export function ArchieSection() {
     <Section id="archie">
       <p className="text-small text-ink-muted">{t.caption}</p>
       <Example caption={t.cards}>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid items-end gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {ARCHIE_MOODS.map((mood) => (
             <Example key={mood} caption={t.moods[mood]}>
               <Archie mood={mood} size="card" decorative />

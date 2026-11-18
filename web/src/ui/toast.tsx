@@ -74,7 +74,7 @@ export function ToastRegion() {
         return (
           <AriaToast
             toast={toast}
-            className={cx('flex min-h-14 items-center gap-2 rounded-card bg-inverse px-4 py-2 text-on-inverse shadow-overlay', FOCUS_RING)}
+            className={cx('flex min-h-14 items-center gap-2 rounded-button bg-inverse px-4 py-2 text-on-inverse shadow-overlay', FOCUS_RING)}
           >
             {Icon === null ? null : (
               <Icon aria-hidden="true" size={18} strokeWidth={ICON_STROKE} className={cx('shrink-0', tone.iconColor)} />

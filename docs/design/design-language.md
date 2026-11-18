@@ -23,7 +23,7 @@
 
 ## 2. צבע
 
-כל צבע הוא מחלקת Tailwind לפי שם ה-token: `bg-surface`, ‏`text-ink-muted`, ‏`border-line`, ‏`stroke-gold`. אסור צבע מהלוח של Tailwind (`slate-600`, ‏`green-500`) או ערך hex בתוך רכיב. שקיפות מותרת רק בשני מקומות: הרקע שמאחורי דיאלוג (`bg-ink/35`) והסרגל התחתון (`bg-surface/95`). אף פעם לא על טקסט.
+כל צבע הוא מחלקת Tailwind לפי שם ה-token: `bg-surface`, ‏`text-ink-muted`, ‏`border-line`, ‏`stroke-gold`. אסור צבע מהלוח של Tailwind (`slate-600`, ‏`green-500`) או ערך hex בתוך רכיב. שקיפות מותרת רק בשני מקומות: הרקע שמאחורי דיאלוג (`bg-ink/35`) והסרגל התחתון (`bg-surface/97` עם `backdrop-blur-sm`). אף פעם לא על טקסט.
 
 הניגודיות בטבלאות נמדדה על הערכים של `index.css`.
 
@@ -38,7 +38,7 @@
 | `ink` | `#3b2a1e` | כותרות וטקסט ראשי, וכל טקסט בתוך בלוק של מבחן (11.6–12.7:1) | — |
 | `ink-muted` | `#6e5948` | טקסט משני: שעה, משך, תיאור, placeholder, יעד לא פעיל בניווט (5.27–6.59:1) | טקסט על צבע של מבחן; טקסט שחייבים לקרוא כדי לפעול |
 | `line` | `#d9d6c3` | קו הפרדה, קצה של כרטיס ושל popover, גבול של כפתור משני | גבול של שדה (אין לו כלל ניגודיות) |
-| `line-strong` | `#8c7b67` | הגבול שמזהה פקד: שדה, כרטיס בחירה, תיבת סימון ריקה, המקטע הנבחר (3.26 על `surface-muted`, 3.54–3.80 על הרקעים, 4.08 על `field`) | קו הפרדה |
+| `line-strong` | `#8c7b67` | הגבול שמזהה פקד: שדה, תיבת סימון ריקה, המקטע הנבחר (3.26 על `surface-muted`, 3.54–3.80 על הרקעים, 4.08 על `field`) | קו הפרדה |
 
 ### 2.2 המותג והצבעים של ארצ׳י
 
@@ -316,7 +316,7 @@ const c = examColor(block.exam_color_index)
 - התווית מעל השדה, גלויה, ב-`text-small font-medium`. ‏placeholder אינו תווית.
 - כבוי: `bg-surface-muted text-ink-muted border-line`.
 - מקטע בפוקוס (תאריך, שעה): מילוי `brand` עם `on-brand`.
-- כרטיס בחירה (`RadioCards`, ‏`CheckboxCards`, ‏`OptionGrid`): `bg-field` עם גבול `line-strong`, כמו `.opt` של ההדמיה; ‏hover: `bg-surface-muted`; נבחר: `border-brand bg-brand-soft text-brand-strong font-semibold`. הבחירה נישאת בגבול, במילוי ובמשקל יחד.
+- כרטיס בחירה (`RadioCards`, ‏`CheckboxCards`, ‏`OptionGrid`): `bg-field` עם גבול `line`, כמו `.opt` של ההדמיה (לכרטיס יש טקסט משלו, ולכן הגבול לא מה שמזהה אותו, כמו בכפתור המשני; בצילומים `line-strong` היה כבד מדי); ‏hover: `bg-surface-muted`; נבחר: `border-brand bg-brand-soft text-brand-strong font-semibold`. הבחירה נישאת בגבול, במילוי ובמשקל יחד.
 
 ### 5.5 תג
 
@@ -377,7 +377,7 @@ const c = examColor(block.exam_color_index)
 | `StandalonePage` | מסך מחוץ לשלד (כניסה, 404, פרידה): אותו רוחב ושוליים | מסך בתוך השלד |
 | `examColor()` | המחלקות של צבע מבחן (2.8) | כל צבע אחר |
 
-**ה-toast הכהה.** כל toast הוא `bg-inverse text-on-inverse rounded-card shadow-overlay`, בלי גבול, כמו באב-הטיפוס. המצב באייקון: `CircleCheck` ב-`inverse-success`, ‏`CircleAlert` ב-`inverse-danger`; ל-`info` אין אייקון. הפעולה היא `Button variant="inverse"`, והסגירה `IconButton variant="inverse"`. מתחת ל-`lg` הוא יושב מעל הסרגל התחתון (6rem ועוד ה-safe-area), ומ-`lg` במרחק 1rem מהתחתית. ‏`z-[60]`, שכבה מעל הרקע של דיאלוג, כדי ש"בטל" יישאר לחיץ. בלי `action`: ‏6 שניות. עם `action`: ‏10 שניות.
+**ה-toast הכהה.** כל toast הוא `bg-inverse text-on-inverse rounded-button shadow-overlay` (14px, כמו `.toast` של ההדמיה), בלי גבול, כמו באב-הטיפוס. המצב באייקון: `CircleCheck` ב-`inverse-success`, ‏`CircleAlert` ב-`inverse-danger`; ל-`info` אין אייקון. הפעולה היא `Button variant="inverse"`, והסגירה `IconButton variant="inverse"`. מתחת ל-`lg` הוא יושב מעל הסרגל התחתון (6rem ועוד ה-safe-area), ומ-`lg` במרחק 1rem מהתחתית. ‏`z-[60]`, שכבה מעל הרקע של דיאלוג, כדי ש"בטל" יישאר לחיץ. בלי `action`: ‏6 שניות. עם `action`: ‏10 שניות.
 
 **דיאלוג בטלפון הוא גיליון.** מתחת ל-`md` (768px) הדיאלוג מוצמד לתחתית: `rounded-t-sheet`, בלי גבול, `shadow-sheet`, ידית 38×5px ב-`bg-line` (`aria-hidden`, היא לא נגררת), וה-safe-area מתחתיו. מ-`md` הוא חלון במרכז: `rounded-card border border-line shadow-overlay`. הגובה עד 85% מה-visual viewport, כך שהוא נשאר מעל המקלדת. הרקע `bg-ink/35`. הדיאלוג נשאר על `md` ולא על `lg`, כי הוא תלוי ברוחב החלון ולא בשלד.
 
@@ -485,7 +485,7 @@ toast.show({ text: 'המבחן נמחק', action: { label: 'בטל', onAction: u
 - **`ProfileMenu`:** ‏`IconButton` בשם "פרופיל", ובו עיגול 36px `bg-brand-soft text-brand-strong font-semibold` עם האות הראשונה של השם מ-Google, אחרת של המייל, אחרת `User`. התפריט: "הגדרות" ו"יציאה". יציאה מבטלת קודם את המנוי של ה-push במכשיר (עד 3 שניות).
 - **באונבורדינג** בסרגל יש רק הלוגו: אין ניווט, צ'יפ ופרופיל.
 
-**הסרגל התחתון** (מתחת ל-`lg`): אותו `nav`, ‏`fixed` בתחתית, `bg-surface/95` עם `border-t border-line`, ‏`px-safe` וה-safe-area התחתון. כל יעד הוא עמודה ברוחב שווה ובגובה `bottombar`: אייקון 22px ותווית `text-caption`. הנוכחי `text-brand-strong font-semibold`, השאר `text-ink-muted`. המשקל הוא הסימן שאינו צבע. טבעת הפוקוס `ring-inset`, כי הסרגל נוגע בקצוות. ה-`main` מקבל ריפוד תחתון של `7rem` ועוד ה-safe-area, כדי שהשורה האחרונה לא תוסתר. מ-`lg` ‏`3rem`.
+**הסרגל התחתון** (מתחת ל-`lg`): אותו `nav`, ‏`fixed` בתחתית, `bg-surface/97` עם `backdrop-blur-sm` עם `border-t border-line`, ‏`px-safe` וה-safe-area התחתון. כל יעד הוא עמודה ברוחב שווה ובגובה `bottombar`: אייקון 22px ותווית `text-caption`. הנוכחי `text-brand-strong font-semibold`, השאר `text-ink-muted`. המשקל הוא הסימן שאינו צבע. טבעת הפוקוס `ring-inset`, כי הסרגל נוגע בקצוות. ה-`main` מקבל ריפוד תחתון של `7rem` ועוד ה-safe-area, כדי שהשורה האחרונה לא תוסתר. מ-`lg` ‏`3rem`.
 
 **רוחב:** ‏`main` הוא `mx-auto max-w-3xl px-page py-section` לכל המסכים. S32 יפתח רוחב מלא ליומן. מסך לא מוסיף רוחב או שוליים משלו.
 
@@ -653,6 +653,7 @@ S31 בנה את השפה, את הצבע לכל מבחן, את השלד, את ה�
 
 - **`ListRow` על `canvas` לא נראה.** האריח הוא `bg-canvas`, ועל העמוד עצמו הוא נבלע. S34 שם רשימות על `surface` (כרטיס או סרגל), או מוסיף קו. אותו דבר ל-`LoadingState shape="list"`.
 - **`BuildingStep` עדיין מנווט ל-`/today`** (`web/src/onboarding/BuildingStep.tsx`). זה עובד דרך ההפניה, אבל S32 או S34 מעבירים אותו ל-`CALENDAR_PATH`.
+- **הכותרת בטלפון.** בשלד יש כותרת של 56px (לוגו, צ'יפ ופרופיל), כי ה-brief של S31 ביקש פרופיל בכותרת. בשתי ההדמיות אין כותרת כזו: כותרת המסך, והצ'יפ והאווטאר לידה, הם חלק מהמסך. S32 מאחד את כותרת השלד עם כותרת היומן (למשל דרך `ShellToolbar` או מקום דומה בטלפון), כדי שהשלד לא יתפוס 112px מתוך 844.
 - **`CalendarPage` זמני.** S32 מחליף את הקובץ כולו. ‏`/today` ו-`/week` נשארים כהפניות.
 - **שם האפליקציה הוא "ארצ׳י" בממשק בלבד.** ‏`PRODUCT_NAME` מגיע ללשונית, ל-manifest, להתראות ולמסך הכניסה. שם ה-API, הריפו והמסמכים הטכניים עדיין StudyFlow.
 - **כפתור הפרופיל** נשאר האות של המשתמש. בהדמיה במקומו מופיע ארצ׳י כ-placeholder, אבל התפריט הוא של המשתמש.

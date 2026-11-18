@@ -50,7 +50,7 @@ describe('OptionGrid', () => {
   it('an option is a 44px lined box with tabular numbers and the focus ring', () => {
     render(<OptionGrid aria-label={NAME} options={OPTIONS} value={null} onChange={vi.fn()} />)
     const option = screen.getByRole('option', { name: '09:30' })
-    expect(option).toHaveClass('min-h-touch', 'rounded-control', 'border', 'border-line-strong', 'bg-field')
+    expect(option).toHaveClass('min-h-touch', 'rounded-control', 'border', 'border-line', 'bg-field')
     expect(option).toHaveClass('text-small', 'font-medium', 'tabular-nums', 'text-ink')
     expect(option).toHaveClass('outline-none', 'data-[focus-visible]:ring-2', 'data-[focus-visible]:ring-brand')
     expect(option.className).not.toMatch(/shadow|opacity/)
@@ -61,7 +61,7 @@ describe('OptionGrid', () => {
     const selected = screen.getByRole('option', { name: '10:00' })
     expect(selected).toHaveAttribute('aria-selected', 'true')
     expect(selected).toHaveClass('border-brand', 'bg-brand', 'text-on-brand')
-    expect(selected).not.toHaveClass('border-line-strong', 'bg-field', 'text-ink')
+    expect(selected).not.toHaveClass('border-line', 'bg-field', 'text-ink')
     expect(selected.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
 
     const other = screen.getByRole('option', { name: '09:00' })
@@ -123,7 +123,7 @@ describe('OptionGrid', () => {
 
     const other = screen.getByRole('option', { name: '09:00' })
     await user.hover(other)
-    expect(other).toHaveClass('bg-surface-muted', 'border-line-strong')
+    expect(other).toHaveClass('bg-surface-muted', 'border-line')
     expect(other).not.toHaveClass('bg-field')
 
     const selected = screen.getByRole('option', { name: '10:00' })

@@ -161,6 +161,8 @@ function Frame({ mood, size, decorative, className }: { mood: ArchieMood; size: 
       className={cx(
         'archie-frame relative aspect-[900/655] w-full overflow-hidden bg-sky bg-linear-to-b from-sky-from to-sky-to',
         size === 'card' && 'rounded-card shadow-raised',
+        // The art is 900px wide until the full-size scenes arrive: wider would blur it.
+        size === 'scene' && 'mx-auto max-w-[900px]',
         className,
       )}
     >

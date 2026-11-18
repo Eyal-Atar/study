@@ -42,7 +42,7 @@ export function ProfileMenu() {
   return (
     <Menu
       trigger={
-        <IconButton aria-label={he.shell.profile}>
+        <IconButton aria-label={he.shell.profile} className="rounded-full">
           {/* A 36px circle inside the 44px touch target, as the prototype's .avatar. */}
           <span className="flex size-9 items-center justify-center rounded-full bg-brand-soft text-small font-semibold text-brand-strong">
             {initial ?? <User aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />}

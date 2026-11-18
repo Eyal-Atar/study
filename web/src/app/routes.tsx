@@ -37,6 +37,8 @@ const devRoutes: RouteObject[] = import.meta.env.DEV
       {
         path: '/dev/components',
         lazy: async () => ({ Component: (await import('../dev/ComponentsPage')).ComponentsPage }),
+        // Nothing to show while the page's chunk loads; without it the router warns on a first load.
+        HydrateFallback: () => null,
       },
     ]
   : []

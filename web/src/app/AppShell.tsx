@@ -32,7 +32,7 @@ const DESTINATIONS: readonly { to: string; label: string; icon: LucideIcon; stat
 // translucent, above the home indicator (the prototype's .ph-nav); from lg it sits in the top bar
 // as tabs (the prototype's .tabs).
 const NAV = cx(
-  'fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-surface/95 px-safe pb-[env(safe-area-inset-bottom)]',
+  'fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-surface/97 backdrop-blur-sm px-safe pb-[env(safe-area-inset-bottom)]',
   'lg:static lg:z-auto lg:ms-4.5 lg:gap-1 lg:border-t-0 lg:bg-transparent lg:px-0 lg:pb-0',
 )
 

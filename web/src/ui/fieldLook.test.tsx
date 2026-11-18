@@ -14,7 +14,8 @@ import { TimeField } from './TimeField'
 
 // The all-screens mockup draws a place to type or to choose in white (.field, .opt), so it stands
 // out of the surface around it (S31 decision 26): bg-field, with the line-strong border that makes
-// a field a field, and the 12px corners of a control (decision 27).
+// a field a field, and the 12px corners of a control (decision 27). A choice card carries its own
+// text, so its border is the quiet line, like .opt (the screenshots of S31: line-strong was heavy).
 const noop = () => undefined
 const OPTIONS = [
   { value: 'a', label: 'אלף' },
@@ -63,7 +64,7 @@ describe('the white of fields and choice cards', () => {
     render(<RadioCards label="אורך" options={OPTIONS} value="a" onChange={noop} />)
     const other = screen.getByRole('radio', { name: 'בית' }).closest('label')
     expect(other).not.toBeNull()
-    expectField(other as Element)
+    expectField(other as Element, 'line')
   })
 
   it('CheckboxCards: an option that is not chosen', () => {
@@ -71,12 +72,12 @@ describe('the white of fields and choice cards', () => {
     const group = screen.getByRole('group', { name: 'ימים' })
     const option = within(group).getByRole('checkbox', { name: 'אלף' }).closest('label')
     expect(option).not.toBeNull()
-    expectField(option as Element)
+    expectField(option as Element, 'line')
   })
 
   it('OptionGrid: an option that is not chosen', () => {
     render(<OptionGrid aria-label="שעות" options={[{ id: 'a', label: '10:00' }, { id: 'b', label: '11:00' }]} value="a" onChange={noop} />)
-    expectField(screen.getByRole('option', { name: '11:00' }))
+    expectField(screen.getByRole('option', { name: '11:00' }), 'line')
   })
 
   // A compact select is a button-like control with a label, so its border stays the quiet line.

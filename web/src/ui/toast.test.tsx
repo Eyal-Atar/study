@@ -133,7 +133,7 @@ describe('toast', () => {
     })
     const region = screen.getByRole('region', { name: he.common.notifications })
     const item = screen.getByRole('alertdialog')
-    expect(item).toHaveClass('bg-inverse', 'text-on-inverse', 'rounded-card', 'shadow-overlay', 'min-h-14')
+    expect(item).toHaveClass('bg-inverse', 'text-on-inverse', 'rounded-button', 'shadow-overlay', 'min-h-14')
     // Above the scrim of a dialog (z-50): an undo toast must stay pressable when a dialog opens.
     // Above the bottom bar of the shell, which is there below lg.
     expect(region).toHaveClass('fixed', 'z-[60]', 'bottom-[calc(env(safe-area-inset-bottom)+6rem)]', 'lg:bottom-4')
