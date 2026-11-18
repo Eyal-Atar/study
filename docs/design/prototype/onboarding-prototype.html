@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StudyFlow · אב-טיפוס כניסה ואונבורדינג</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f7fb; --surface:#fff; --ink:#1b1f2a; --muted:#6b7385; --line:#e6e8ef; --soft:#f0f1f6;
+  --brand:#4f46e5; --brand2:#7c3aed; --brand-soft:#eef0ff; --done:#16a34a;
+  --ex1:#7c3aed; --ex1-bg:#f1eaff; --ex2:#0891b2; --ex2-bg:#e3f6fb; --ex3:#ea580c; --ex3-bg:#fff0e6;
+  font-family:'Rubik',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:#e9ebf2;color:var(--ink)}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.ltr{direction:ltr;unicode-bidi:isolate;display:inline-block}
+.wrap{display:flex;gap:28px;justify-content:center;align-items:flex-start;padding:24px 16px 40px;flex-wrap:wrap}
+.jump{width:220px;display:flex;flex-direction:column;gap:6px;position:sticky;top:24px}
+.jump h2{font-size:15px;margin:0 0 6px}
+.jump button{text-align:start;padding:10px 12px;border-radius:12px;background:#fff;border:1px solid var(--line);font-size:14px}
+.jump button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.jump p{font-size:12.5px;color:var(--muted);line-height:1.5}
+.phone{width:390px;height:844px;background:var(--surface);border-radius:44px;overflow:hidden;position:relative;
+  box-shadow:0 20px 60px rgba(20,24,40,.18),0 0 0 10px #1b1f2a;flex:none}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;animation:in .35s ease}
+@keyframes in{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---- login ---- */
+.login{background:linear-gradient(160deg,#3730a3 0%,#5b21b6 45%,#9d174d 100%);color:#fff;overflow:hidden}
+.blob{position:absolute;border-radius:50%;filter:blur(40px);opacity:.55;animation:drift 12s ease-in-out infinite}
+.blob.b1{width:260px;height:260px;background:#6366f1;top:-60px;right:-80px}
+.blob.b2{width:220px;height:220px;background:#ec4899;top:200px;left:-90px;animation-delay:-4s}
+.blob.b3{width:180px;height:180px;background:#22d3ee;top:60px;left:120px;opacity:.35;animation-delay:-8s}
+@keyframes drift{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(20px,30px) scale(1.12)}}
+.hero{height:420px;position:relative}
+.mini{position:absolute;top:78px;right:50%;transform:translateX(50%) rotate(-6deg);width:250px;background:#fff;color:var(--ink);border-radius:24px;padding:14px 14px 16px;
+  box-shadow:0 30px 60px rgba(20,10,60,.45);animation:bob 7s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateX(50%) rotate(-6deg) translateY(0)}50%{transform:translateX(50%) rotate(-4deg) translateY(-10px)}}
+.mini .hd{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);margin-bottom:8px}
+.mini .hd b{color:var(--ink);font-size:15px}
+.mini .grid{position:relative;height:200px;border-inline-start:1px solid var(--soft);margin-inline-start:30px}
+.mini .hr{position:absolute;inset-inline:0;border-top:1px solid var(--soft);font-size:9.5px;color:var(--muted)}
+.mini .hr span{position:absolute;inset-inline-start:-30px;top:-7px}
+.mini .blk{position:absolute;inset-inline:6px;border-radius:9px;padding:5px 7px;font-size:11px;font-weight:600;border-inline-start:3px solid;display:flex;gap:6px;align-items:flex-start}
+.mini .blk i{width:13px;height:13px;border-radius:4px;border:1.5px solid currentColor;flex:none;margin-top:1px;font-style:normal;font-size:9px;display:grid;place-items:center}
+.mini .blk.ok i{background:var(--ex1);border-color:var(--ex1);color:#fff}
+.mini .blk.ok b{text-decoration:line-through;opacity:.6}
+.mini .blk b{color:var(--ink);font-weight:600}
+.mini .now{position:absolute;inset-inline:0;border-top:2px solid #ef4444;animation:nowmove 9s linear infinite}
+.mini .now::before{content:"";position:absolute;inset-inline-start:-5px;top:-5px;width:8px;height:8px;border-radius:50%;background:#ef4444}
+@keyframes nowmove{from{top:70px}to{top:150px}}
+.chip{position:absolute;border-radius:999px;padding:8px 13px;font-weight:700;font-size:13.5px;box-shadow:0 12px 30px rgba(20,10,60,.35);animation:float 5s ease-in-out infinite}
+.chip.xp{background:linear-gradient(135deg,#fde68a,#f59e0b);color:#78350f;top:60px;left:26px}
+.chip.fire{background:#fff;color:#c2410c;top:300px;right:22px;animation-delay:-1.5s}
+.chip.lvl{background:rgba(255,255,255,.16);backdrop-filter:blur(8px);color:#fff;border:1px solid rgba(255,255,255,.35);top:318px;left:30px;animation-delay:-3s}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.spark{position:absolute;color:#fde68a;font-size:16px;animation:tw 2.4s ease-in-out infinite}
+@keyframes tw{0%,100%{opacity:.2;transform:scale(.7)}50%{opacity:1;transform:scale(1.15)}}
+.sheet{position:relative;margin-top:auto;background:#fff;color:var(--ink);border-radius:32px 32px 0 0;padding:26px 26px 0;box-shadow:0 -20px 50px rgba(20,10,60,.25)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px}
+.brand i{width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,var(--brand),var(--brand2));display:grid;place-items:center;color:#fff;font-style:normal}
+.login h1{font-size:28px;line-height:1.2;margin:14px 0 14px;font-weight:800;letter-spacing:-.01em}
+.login h1 em{font-style:normal;background:linear-gradient(90deg,var(--brand),#c026d3);-webkit-background-clip:text;background-clip:text;color:transparent}
+.vals{display:flex;flex-direction:column;gap:9px;margin-bottom:18px}
+.vals div{display:flex;align-items:center;gap:10px;font-size:14px;color:#3b4252}
+.vals span{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;font-size:15px;flex:none}
+.gbtn{display:flex;align-items:center;justify-content:center;gap:12px;height:56px;width:100%;border-radius:16px;background:var(--ink);color:#fff;font-weight:600;font-size:16px;box-shadow:0 10px 24px rgba(27,31,42,.25)}
+.gbtn svg{background:#fff;border-radius:50%;padding:3px}
+.legal{font-size:11.5px;color:var(--muted);text-align:center;margin:12px 0 26px;line-height:1.6}
+.legal a{color:var(--brand)}
+
+/* ---- onboarding frame ---- */
+.top{padding:52px 20px 10px;display:flex;align-items:center;gap:12px}
+.back{width:40px;height:40px;border-radius:12px;background:var(--soft);display:grid;place-items:center;font-size:18px}
+.steps{flex:1;display:flex;gap:6px}
+.steps i{flex:1;height:6px;border-radius:6px;background:var(--soft)}
+.steps i.on{background:linear-gradient(90deg,var(--brand),var(--brand2))}
+.stepn{font-size:12px;color:var(--muted);min-width:44px;text-align:left}
+.content{flex:1;overflow:auto;padding:8px 20px 20px}
+.content h1{font-size:26px;margin:8px 0 6px;font-weight:700;line-height:1.25}
+.content .intro{color:var(--muted);font-size:14.5px;line-height:1.55;margin:0 0 18px}
+.foot{padding:12px 20px 30px;background:linear-gradient(transparent,#fff 30%)}
+.cta{width:100%;height:54px;border-radius:16px;background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;font-weight:600;font-size:16px;box-shadow:0 10px 24px rgba(79,70,229,.3)}
+.cta.ghost{background:var(--soft);color:var(--ink);box-shadow:none}
+.cta[disabled]{opacity:.45}
+
+.exam{border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:10px;display:flex;gap:12px;align-items:center}
+.exam .sw{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-weight:700;font-size:18px;flex:none}
+.exam .n{font-weight:600}
+.exam .d{font-size:13px;color:var(--muted);margin-top:2px}
+.exam .x{margin-inline-start:auto;color:var(--muted);width:36px;height:36px;border-radius:10px}
+.form{border:2px dashed #cdd1f6;border-radius:18px;padding:14px;background:#fafaff}
+.field{display:block;margin-bottom:12px}
+.field span{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+.field input{width:100%;height:48px;border-radius:12px;border:1px solid var(--line);padding:0 14px;font:inherit;background:#fff}
+.diff{display:flex;gap:6px}
+.diff button{flex:1;height:44px;border-radius:12px;border:1px solid var(--line);background:#fff;font-size:13px}
+.diff button.on{border-color:var(--brand);background:var(--brand-soft);color:var(--brand);font-weight:600}
+.add{width:100%;height:46px;border-radius:12px;background:var(--ink);color:#fff;font-weight:600;margin-top:4px}
+
+.drop{border:2px dashed var(--line);border-radius:16px;padding:16px;text-align:center;color:var(--muted);font-size:13.5px;margin-top:10px}
+.drop b{color:var(--brand)}
+.file{display:flex;gap:10px;align-items:center;margin-top:10px;font-size:13.5px}
+.file .ic{width:36px;height:36px;border-radius:10px;background:var(--soft);display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--muted)}
+.file small{display:block;color:var(--done)}
+.note{font-size:12.5px;color:var(--muted);background:var(--soft);border-radius:12px;padding:10px 12px;margin-top:12px;line-height:1.5}
+
+.q{font-weight:600;margin:6px 0 10px}
+.hours{display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:8px}
+.hours button{width:48px;height:48px;border-radius:50%;background:var(--soft);font-size:22px}
+.hours b{font-size:44px;font-weight:800;min-width:120px;text-align:center}
+.hours b small{display:block;font-size:13px;color:var(--muted);font-weight:400}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.tile{border:1px solid var(--line);border-radius:18px;padding:14px;text-align:start;background:#fff}
+.tile .e{font-size:24px}
+.tile b{display:block;margin-top:6px}
+.tile small{color:var(--muted)}
+.tile.on{border:2px solid var(--brand);background:var(--brand-soft);padding:13px}
+
+.choice{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.choice button{border:1px solid var(--line);border-radius:18px;padding:16px;font-weight:600;background:#fff}
+.choice button.on{border:2px solid var(--brand);background:var(--brand-soft);color:var(--brand)}
+.wk{display:grid;grid-template-columns:34px repeat(7,1fr);border:1px solid var(--line);border-radius:14px;overflow:hidden;user-select:none;touch-action:none}
+.wk .h{font-size:10px;color:var(--muted);text-align:center;padding-top:2px;border-top:1px solid var(--soft)}
+.wk .dh{font-size:11px;text-align:center;padding:6px 0;background:var(--soft);font-weight:600}
+.wk .c{height:20px;border-top:1px solid var(--soft);border-inline-start:1px solid var(--soft)}
+.wk .c.busy{background:repeating-linear-gradient(135deg,#d7dbe6 0 5px,#e6e9f1 5px 10px)}
+.upload{width:100%;margin-top:12px;height:52px;border-radius:14px;border:1px solid #cdd1f6;background:#fafaff;color:var(--brand);font-weight:600}
+.parsed{margin-top:12px;border-radius:16px;background:var(--brand-soft);padding:12px}
+.parsed .r{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13.5px;border-top:1px solid #dfe2ff}
+.parsed .r:first-of-type{border-top:0}
+.parsed .r input{width:18px;height:18px;accent-color:var(--brand)}
+
+.building{align-items:center;justify-content:center;text-align:center;padding:40px 28px}
+.bring{position:relative;width:180px;height:180px;margin:0 auto 22px}
+.bring svg{transform:rotate(-90deg)}
+.bring b{position:absolute;inset:0;display:grid;place-items:center;font-size:34px;font-weight:800}
+.stages{text-align:start;margin:18px auto 0;display:flex;flex-direction:column;gap:12px;width:100%}
+.stage{display:flex;gap:12px;align-items:center;color:var(--muted)}
+.stage i{width:24px;height:24px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-style:normal;font-size:12px;flex:none}
+.stage.now{color:var(--ink);font-weight:600}
+.stage.now i{border-color:var(--brand);border-top-color:transparent;animation:spin 1s linear infinite}
+.stage.ok{color:var(--ink)}
+.stage.ok i{background:var(--done);border-color:var(--done);color:#fff}
+@keyframes spin{to{transform:rotate(360deg)}}
+.donebox{display:flex;flex-direction:column;align-items:center;gap:6px}
+.burst{font-size:64px;animation:pop .6s ease}
+@keyframes pop{0%{transform:scale(.3);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;margin:18px 0}
+.stats div{background:var(--soft);border-radius:16px;padding:12px 6px}
+.stats b{display:block;font-size:24px}
+.stats span{font-size:12px;color:var(--muted)}
+.xp{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#fff7ed,#ffedd5);color:#9a3412;font-weight:700;border-radius:999px;padding:8px 14px;animation:pop .6s ease .3s both}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="jump" id="jump">
+    <h2>אב-טיפוס: כניסה ואונבורדינג</h2>
+    <p>לחצו על הכפתורים בתוך הטלפון כדי לעבור בין השלבים, או קפצו לשלב מכאן. הכול נתוני דמה.</p>
+  </div>
+  <div class="phone" id="phone"></div>
+</div>
+<script>
+const S=['כניסה','מבחנים','חומרים','שתי שאלות','שעות קבועות','בונים תוכנית','מוכן'];
+let step=0;
+const st={exams:[{n:'הסתברות',d:'10 בדצמבר',diff:3,c:1},{n:'אלגוריתמים',d:'20 בדצמבר',diff:4,c:2}],diff:2,hours:4,win:{m:true,a:false,e:true,n:false},busy:new Set(),fixed:null,parsed:false};
+const G='<svg width="22" height="22" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>';
+const frame=(title,intro,body,cta,opt={})=>`<div class="screen">
+  <div class="top"><button class="back" data-go="${step-1}" aria-label="חזרה">→</button>
+  <div class="steps">${[1,2,3,4].map(i=>`<i class="${i<=step?'on':''}"></i>`).join('')}</div><span class="stepn">${step} מתוך 4</span></div>
+  <div class="content"><h1>${title}</h1><p class="intro">${intro}</p>${body}</div>
+  <div class="foot">${opt.secondary||''}<button class="cta" data-go="${step+1}" ${opt.disabled?'disabled':''}>${cta}</button></div></div>`;
+
+function render(){
+  document.getElementById('jump').querySelectorAll('button').forEach((b,i)=>b.classList.toggle('on',i===step));
+  const p=document.getElementById('phone');
+  if(step===0){p.innerHTML=`<div class="screen login">
+    <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+    <div class="hero" aria-hidden="true">
+      <span class="spark" style="top:64px;right:40px">✦</span><span class="spark" style="top:250px;left:60px;animation-delay:-.8s">✦</span><span class="spark" style="top:30px;left:150px;animation-delay:-1.6s;font-size:11px">✦</span>
+      <div class="mini">
+        <div class="hd"><b>היום</b><span>יום רביעי, 18 בנובמבר</span></div>
+        <div class="grid">
+          ${[9,10,11,12,13,14].map((h,i)=>`<div class="hr" style="top:${i*36}px"><span><bdi>${h}:00</bdi></span></div>`).join('')}
+          <div class="blk ok" style="top:4px;height:48px;background:var(--ex1-bg);color:var(--ex1)"><i>✓</i><b>חזרה: תוחלת ושונות</b></div>
+          <div class="blk" style="top:76px;height:46px;background:var(--ex2-bg);color:var(--ex2)"><i></i><b>מיון מהיר והוכחת נכונות</b></div>
+          <div class="blk" style="top:146px;height:44px;background:var(--ex3-bg);color:var(--ex3)"><i></i><b>תרגול: מצביעים</b></div>
+          <div class="now"></div>
+        </div>
+      </div>
+      <div class="chip xp">⭐ <span class="ltr">+20 XP</span></div>
+      <div class="chip fire">🔥 12 ימים ברצף</div>
+      <div class="chip lvl">🏆 רמה 4</div>
+    </div>
+    <div class="sheet">
+      <div class="brand"><i>✓</i>StudyFlow</div>
+      <h1>מעלים את החומרים.<br><em>אנחנו בונים את התוכנית.</em></h1>
+      <div class="vals">
+        <div><span style="background:var(--ex1-bg)">📚</span>מבחני עבר וסילבוס הופכים ללוח לימוד עד המבחן</div>
+        <div><span style="background:var(--ex2-bg)">🔔</span>תזכורת לפני כל בלוק, והתוכנית מסתדרת לבד</div>
+        <div><span style="background:var(--ex3-bg)">🏆</span>רצף, נקודות ותגים על כל מה שסימנתם</div>
+      </div>
+      <button class="gbtn" data-go="1">${G} המשך עם Google</button>
+      <p class="legal">בהמשך אתם מסכימים ל<a href="#">תנאי השימוש</a> ול<a href="#">מדיניות הפרטיות</a>. החומרים נשלחים לעיבוד אצל Anthropic.</p>
+    </div></div>`;}
+  else if(step===1){
+    const cards=st.exams.map((e,i)=>`<div class="exam"><div class="sw" style="background:var(--ex${e.c}-bg);color:var(--ex${e.c})">${e.n[0]}</div><div><div class="n">${e.n}</div><div class="d">${e.d} · קושי: ${['קל מאוד','קל','בינוני','קשה','קשה מאוד'][e.diff-1]}</div></div><button class="x" data-del="${i}" aria-label="מחיקה">✕</button></div>`).join('');
+    p.innerHTML=frame('אילו מבחנים יש לכם?','מוסיפים כל מבחן עם התאריך שלו וכמה הוא קשה לכם.',`${cards}
+      <div class="form"><label class="field"><span>שם המבחן</span><input id="en" placeholder="למשל: שפת C"></label>
+      <label class="field"><span>תאריך המבחן</span><input id="ed" value="5 בינואר 2027"></label>
+      <span style="font-size:13px;color:var(--muted)">כמה הוא קשה לכם?</span>
+      <div class="diff" style="margin:6px 0 12px">${['קל מאוד','קל','בינוני','קשה','קשה מאוד'].map((l,i)=>`<button class="${st.diff===i+1?'on':''}" data-diff="${i+1}">${l}</button>`).join('')}</div>
+      <button class="add" id="addExam">+ הוספת מבחן</button></div>`,'המשך',{disabled:!st.exams.length});}
+  else if(step===2){
+    p.innerHTML=frame('יש לכם חומרים מהקורס?','לא חובה, אבל עם חומרים התוכנית מתאימה לקורס שלכם. הכי עוזרים מבחני עבר עם פתרונות.',
+      st.exams.map((e,i)=>`<div class="exam" style="display:block"><div style="display:flex;gap:12px;align-items:center"><div class="sw" style="background:var(--ex${e.c}-bg);color:var(--ex${e.c})">${e.n[0]}</div><div class="n">${e.n}</div></div>
+      ${i===0?`<div class="file"><div class="ic">PDF</div><div>מועד א׳ 2025<small>מבחן עבר · מוכן, 12 עמודים</small></div></div><div class="file"><div class="ic">PDF</div><div>סילבוס<small>סילבוס · מוכן, 3 עמודים</small></div></div>`:''}
+      <div class="drop">📎 <b>בחירת קבצים</b> או צילום · PDF, ‏JPG או PNG</div></div>`).join('')+
+      `<div class="note">🔒 הקבצים נשלחים לעיבוד אצל Anthropic כדי לבנות מהם משימות, ונמחקים כשאתם מוחקים אותם.</div>`,'המשך',
+      {secondary:`<button class="cta ghost" data-go="3" style="margin-bottom:8px">המשך בלי חומרים</button>`});}
+  else if(step===3){
+    const W=[['m','🌅','בוקר','06:00–12:00'],['a','☀️','צהריים','12:00–17:00'],['e','🌆','ערב','17:00–21:00'],['n','🌙','לילה','21:00–02:00']];
+    p.innerHTML=frame('עוד שתי שאלות','לפי התשובות נשבץ את הלימוד בשעות שמתאימות לכם.',
+      `<div class="q">כמה שעות ביום אפשר ללמוד?</div>
+      <div class="hours"><button data-h="1" aria-label="יותר">+</button><b>${st.hours===1?'שעה':st.hours===2?'שעתיים':st.hours+' שעות'}<small>ביום לימוד</small></b><button data-h="-1" aria-label="פחות">−</button></div>
+      <div class="q" style="margin-top:18px">מתי נוח לכם ללמוד? <span style="color:var(--muted);font-weight:400;font-size:13px">אפשר כמה</span></div>
+      <div class="tiles">${W.map(([k,e,l,r])=>`<button class="tile ${st.win[k]?'on':''}" data-w="${k}"><span class="e">${e}</span><b>${l}</b><small class="ltr">${r}</small></button>`).join('')}</div>`,'המשך',{disabled:!Object.values(st.win).some(Boolean)});}
+  else if(step===4){
+    const days=['א','ב','ג','ד','ה','ו','ש'];let g='<div></div>'+days.map(d=>`<div class="dh">${d}</div>`).join('');
+    for(let h=8;h<23;h++){g+=`<div class="h ltr">${h}:00</div>`+days.map((_,d)=>`<div class="c ${st.busy.has(d+'-'+h)?'busy':''}" data-cell="${d}-${h}"></div>`).join('')}
+    const parsed=st.parsed?`<div class="parsed"><b style="font-size:14px">מצאנו במערכת השעות 4 שעות קבועות. לאשר?</b>
+      ${[['הסתברות · הרצאה','ראשון','10:00–12:00'],['אלגוריתמים · הרצאה','שני','14:00–17:00'],['שפת C · תרגול','רביעי','12:00–14:00'],['הסתברות · תרגול','חמישי','16:00–18:00']].map(r=>`<label class="r"><input type="checkbox" checked><div style="flex:1">${r[0]}<div style="color:var(--muted);font-size:12px">${r[1]} · <span class="ltr">${r[2]}</span></div></div></label>`).join('')}</div>`:'';
+    p.innerHTML=frame('יש לכם עבודה, הרצאות או שעות קבועות?','נשבץ את הלימוד מסביב, ולא נציע ללמוד כשאתם בעבודה או בהרצאה.',
+      `<div class="choice"><button class="${st.fixed===false?'on':''}" data-fixed="0">לא, אני גמיש</button><button class="${st.fixed===true?'on':''}" data-fixed="1">כן, יש לי</button></div>
+      ${st.fixed?`<div class="q" style="font-size:14px">סמנו את השעות התפוסות <span style="color:var(--muted);font-weight:400">(גוררים על השבוע)</span></div><div class="wk" id="wk">${g}</div>
+      <button class="upload" id="upload">📷 העלאת צילום של מערכת השעות</button>${parsed}`:''}`,'בניית התוכנית',{disabled:st.fixed===null});}
+  else if(step===5){
+    p.innerHTML=`<div class="screen building"><div class="bring"><svg width="180" height="180"><circle cx="90" cy="90" r="76" fill="none" stroke="#eef0f5" stroke-width="14"/><circle id="arc" cx="90" cy="90" r="76" fill="none" stroke="url(#gr)" stroke-width="14" stroke-linecap="round" stroke-dasharray="477" stroke-dashoffset="477" style="transition:stroke-dashoffset .6s"/><defs><linearGradient id="gr"><stop offset="0" stop-color="#4f46e5"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs></svg><b id="pct">0%</b></div>
+      <h1 style="margin:0 0 6px;font-size:24px">בונים לכם תוכנית</h1><p style="color:var(--muted);margin:0;font-size:14px;line-height:1.5">אפשר לסגור את האפליקציה. התוכנית תמשיך להיבנות ותחכה לכם.</p>
+      <div class="stages" id="stages">${['קוראים את החומרים','מנתחים את החומר ובונים משימות','בודקים את המשימות','משבצים בלוח, מסביב לשעות הקבועות'].map(t=>`<div class="stage"><i></i>${t}</div>`).join('')}</div></div>`;
+    let k=0;const steps=[18,56,78,100];const tick=()=>{if(step!==5)return;const els=document.querySelectorAll('.stage');els.forEach((e,i)=>{e.className='stage '+(i<k?'ok':i===k?'now':'');e.querySelector('i').textContent=i<k?'✓':''});
+      document.getElementById('arc').style.strokeDashoffset=477*(1-(k?steps[k-1]:4)/100);document.getElementById('pct').textContent=(k?steps[k-1]:4)+'%';
+      if(k<4){k++;setTimeout(tick,1100)}else setTimeout(()=>{if(step===5){step=6;render()}},700)};tick();}
+  else if(step===6){
+    p.innerHTML=`<div class="screen building"><div class="donebox"><div class="burst">🎉</div><h1 style="margin:6px 0 4px;font-size:28px">התוכנית מוכנה!</h1>
+      <p style="color:var(--muted);margin:0;font-size:14.5px">עד המבחן הראשון שלכם, בעוד 22 ימים</p>
+      <div class="stats"><div><b>2</b><span>מבחנים</span></div><div><b>38</b><span>משימות</span></div><div><b>46</b><span>בלוקים בלוח</span></div></div>
+      <span class="xp">⭐ <span class="ltr">+50 XP</span> · התוכנית הראשונה</span></div>
+      <div style="margin-top:auto;width:100%;padding-top:30px"><button class="cta" data-go="0">למסך היומן ←</button><p style="font-size:12px;color:var(--muted)">באב-הטיפוס: חוזר למסך הכניסה</p></div></div>`;}
+}
+document.getElementById('jump').insertAdjacentHTML('beforeend',S.map((s,i)=>`<button data-go="${i}">${i}. ${s}</button>`).join(''));
+document.addEventListener('click',e=>{
+  const g=e.target.closest('[data-go]');if(g&&!g.disabled){step=Math.max(0,Math.min(6,+g.dataset.go));render();return}
+  const d=e.target.closest('[data-diff]');if(d){st.diff=+d.dataset.diff;render();return}
+  const x=e.target.closest('[data-del]');if(x){st.exams.splice(+x.dataset.del,1);render();return}
+  if(e.target.closest('#addExam')){const n=document.getElementById('en').value.trim()||'שפת C';st.exams.push({n,d:'5 בינואר',diff:st.diff,c:(st.exams.length%3)+1});render();return}
+  const h=e.target.closest('[data-h]');if(h){st.hours=Math.max(1,Math.min(8,st.hours+ +h.dataset.h));render();return}
+  const w=e.target.closest('[data-w]');if(w){st.win[w.dataset.w]=!st.win[w.dataset.w];render();return}
+  const f=e.target.closest('[data-fixed]');if(f){st.fixed=f.dataset.fixed==='1';render();return}
+  if(e.target.closest('#upload')){st.parsed=true;['0-10','0-11','1-14','1-15','1-16','3-12','3-13','4-16','4-17'].forEach(c=>st.busy.add(c));render();return}
+});
+let painting=null;
+document.addEventListener('pointerdown',e=>{const c=e.target.closest('[data-cell]');if(!c)return;painting=!st.busy.has(c.dataset.cell);toggle(c);});
+document.addEventListener('pointermove',e=>{if(painting===null)return;const el=document.elementFromPoint(e.clientX,e.clientY);const c=el&&el.closest('[data-cell]');if(c)toggle(c)});
+document.addEventListener('pointerup',()=>painting=null);
+function toggle(c){const k=c.dataset.cell;if(painting){st.busy.add(k);c.classList.add('busy')}else{st.busy.delete(k);c.classList.remove('busy')}}
+render();
+</script>
+</body>
+</html>
