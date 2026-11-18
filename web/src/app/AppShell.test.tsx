@@ -67,6 +67,9 @@ describe('AppShell', () => {
     expect(nav.queryByRole('link', { name: he.shell.settings })).not.toBeInTheDocument()
     // The icons are decoration: the name of a link is its label alone.
     for (const link of links) expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    // The icons of the mockup's bottom bar: the progress is a sprout (S31 decision 29).
+    expect(links.map((link) => link.querySelector('svg')?.classList.contains('lucide-sprout'))).toEqual([false, false, true])
+    expect(nav.queryByRole('link', { name: he.shell.progress })?.querySelector('.lucide-trending-up')).toBeNull()
   })
 
   it('on the week of the calendar the calendar is the current destination', async () => {
@@ -86,6 +89,14 @@ describe('AppShell', () => {
     const banner = within(await screen.findByRole('banner'))
     expect(screen.getAllByRole('banner')).toHaveLength(1)
     expect(banner.getByText(he.appName)).toBeInTheDocument()
+    // The logo of the mockup (S31 decision 29): Archie's joy as a 34px avatar, decoration beside
+    // the name, and the name in the display font.
+    const logo = screen.getByText(he.appName).parentElement
+    const archie = logo?.querySelector('[data-size="avatar"]')
+    expect(archie).toHaveAttribute('data-mood', 'joy')
+    expect(archie).toHaveClass('size-[34px]')
+    expect(archie?.querySelector('img')).toHaveAttribute('alt', '')
+    expect(screen.getByText(he.appName)).toHaveClass('font-display', 'font-bold')
     expect(await banner.findByRole('button', { name: he.shell.profile })).toBeInTheDocument()
     expect(await banner.findByRole('link', { name: he.shell.progressChip(5, 3) })).toHaveAttribute('href', '/progress')
   })

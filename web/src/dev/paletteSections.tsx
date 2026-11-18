@@ -114,11 +114,15 @@ const COLOURS = [
   { name: 'brand-strong', swatch: 'bg-brand-strong' },
   { name: 'brand-soft', swatch: 'bg-brand-soft' },
   { name: 'on-brand', swatch: 'bg-on-brand' },
+  { name: 'field', swatch: 'bg-field' },
   { name: 'sprout', swatch: 'bg-sprout' },
   { name: 'clay', swatch: 'bg-clay' },
   { name: 'on-clay', swatch: 'bg-on-clay' },
   { name: 'sand', swatch: 'bg-sand' },
   { name: 'gold', swatch: 'bg-gold' },
+  { name: 'gold-soft', swatch: 'bg-gold-soft' },
+  { name: 'gold-ink', swatch: 'bg-gold-ink' },
+  { name: 'gold-track', swatch: 'bg-gold-track' },
   { name: 'sky-from', swatch: 'bg-sky-from' },
   { name: 'sky-to', swatch: 'bg-sky-to' },
   { name: 'sky', swatch: 'bg-sky' },
@@ -196,11 +200,17 @@ export function TypographySection() {
           ))}
         </ul>
       </Example>
+      {/* Amatic SC: the logo and Archie's big headings, 30px here as in the logo. */}
+      <Example caption={t.typography.display}>
+        <p data-sample="font-display" className="font-display text-[1.875rem] leading-none font-bold">
+          {t.typography.displaySample}
+        </p>
+      </Example>
     </Section>
   )
 }
 
-const CORNERS = ['rounded-badge', 'rounded-control', 'rounded-card', 'rounded-sheet'] as const
+const CORNERS = ['rounded-badge', 'rounded-control', 'rounded-button', 'rounded-card', 'rounded-sheet'] as const
 const SHADOWS = ['shadow-raised', 'shadow-overlay', 'shadow-lift', 'shadow-sheet'] as const
 
 export function ShapeSection() {

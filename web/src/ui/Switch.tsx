@@ -18,7 +18,7 @@ export interface SwitchProps {
 function trackColors(isSelected: boolean, isDisabled: boolean): string {
   // Disabled is muted and never transparent; a disabled switch that is on keeps a darker knob.
   if (isDisabled) return 'border-line bg-surface-muted'
-  return isSelected ? 'border-brand bg-brand' : 'border-line-strong bg-surface'
+  return isSelected ? 'border-brand bg-brand' : 'border-line-strong bg-field'
 }
 
 function knobColors(isSelected: boolean, isDisabled: boolean): string {

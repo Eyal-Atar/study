@@ -4,6 +4,7 @@ import { he } from '../i18n/he'
 import { TodayPage } from '../pages/TodayPage'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { WeekPage } from '../week/WeekPage'
+import { DAY_CHOSEN, dayChosen } from './calendarState'
 
 type CalendarView = 'day' | 'week'
 
@@ -11,13 +12,6 @@ const VIEWS: readonly { id: CalendarView; label: string }[] = [
   { id: 'day', label: he.calendar.day },
   { id: 'week', label: he.calendar.week },
 ]
-
-// The history state of a move to the day that the switch asked for (see below).
-const DAY_CHOSEN = { calendarView: 'day' }
-
-function dayChosen(state: unknown): boolean {
-  return typeof state === 'object' && state !== null && (state as { calendarView?: unknown }).calendarView === 'day'
-}
 
 // The query of the week: view=week first, then the rest as it was.
 function weekParams(params: URLSearchParams): URLSearchParams {
@@ -35,8 +29,8 @@ function weekParams(params: URLSearchParams): URLSearchParams {
 // The week screen moves through ?from= and knows nothing about ?view=: its buttons write ?from=X,
 // or nothing for "this week", and drop view. So a forward move (PUSH) that loses view while the
 // week is on screen keeps the week, and view=week is put back into the address in place (REPLACE).
-// The day the switch asks for is told apart by its history state; back and forward (POP) are taken
-// as they are.
+// The day the switch asks for, and the one "יומן" in the navigation asks for, are told apart by
+// their history state (calendarState.ts); back and forward (POP) are taken as they are.
 export function CalendarPage() {
   const [params, setParams] = useSearchParams()
   const state: unknown = useLocation().state

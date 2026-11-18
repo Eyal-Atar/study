@@ -1,6 +1,7 @@
-import { CalendarDays, FileText, TrendingUp, type LucideIcon } from 'lucide-react'
+import { CalendarDays, FileText, Sprout, type LucideIcon } from 'lucide-react'
 import { useRef, useState, type MouseEvent } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
+import { DAY_CHOSEN } from '../calendar/calendarState'
 import { he } from '../i18n/he'
 import { InstallHint } from '../notifications/InstallHint'
 import { PushSync } from '../notifications/PushSync'
@@ -17,11 +18,13 @@ import { useRouteFocus } from './useRouteFocus'
 // The three destinations of the redesign (S31): the calendar, the exams and the progress. Settings
 // and sign out are not destinations: they live in the profile menu. The paths are literals because
 // routes.tsx imports this file. The calendar is current also on ?view=week: NavLink compares the
-// pathname only.
-const DESTINATIONS: readonly { to: string; label: string; icon: LucideIcon }[] = [
-  { to: '/calendar', label: he.shell.calendar, icon: CalendarDays },
+// pathname only. "יומן" asks for the day (DAY_CHOSEN): from the week, CalendarPage would otherwise
+// take the move for one of the week's own and put ?view=week back (S31 decision 30). The progress
+// is a sprout, the leaf of the mockup's bottom bar (decision 29).
+const DESTINATIONS: readonly { to: string; label: string; icon: LucideIcon; state?: unknown }[] = [
+  { to: '/calendar', label: he.shell.calendar, icon: CalendarDays, state: DAY_CHOSEN },
   { to: '/exams', label: he.shell.exams, icon: FileText },
-  { to: '/progress', label: he.shell.progress, icon: TrendingUp },
+  { to: '/progress', label: he.shell.progress, icon: Sprout },
 ]
 
 // One <nav> serves both widths, so a screen reader meets one navigation and the Tab order is the
@@ -30,7 +33,7 @@ const DESTINATIONS: readonly { to: string; label: string; icon: LucideIcon }[] =
 // as tabs (the prototype's .tabs).
 const NAV = cx(
   'fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-surface/95 px-safe pb-[env(safe-area-inset-bottom)]',
-  'lg:static lg:z-auto lg:ms-6 lg:gap-1 lg:border-t-0 lg:bg-transparent lg:px-0 lg:pb-0',
+  'lg:static lg:z-auto lg:ms-4.5 lg:gap-1 lg:border-t-0 lg:bg-transparent lg:px-0 lg:pb-0',
 )
 
 // A destination. Below lg: a column, the icon over a caption, sharing the width of the bar, as tall
@@ -90,7 +93,7 @@ export function AppShell() {
           </a>
           {/* pt: the notch of a phone in landscape and of an installed app; the height is below it. */}
           <header className="border-b border-line bg-surface pt-[env(safe-area-inset-top)]">
-            <div className="flex h-14 items-center gap-3 px-page lg:h-topbar lg:gap-4 lg:px-5">
+            <div className="flex h-14 items-center gap-3 px-page lg:h-topbar lg:gap-3.5 lg:px-gutter">
               <Logo />
               {/* During the onboarding there is no board yet, and the gate sends every screen back:
                   the header has only the logo. */}
@@ -99,8 +102,8 @@ export function AppShell() {
                   {/* Before <main> in the DOM at both widths, so the Tab order is the same on a
                       phone and on a computer. */}
                   <nav aria-label={he.shell.mainNav} className={NAV}>
-                    {DESTINATIONS.map(({ to, label, icon: Icon }) => (
-                      <NavLink key={to} to={to} className={destinationClass}>
+                    {DESTINATIONS.map(({ to, label, icon: Icon, state }) => (
+                      <NavLink key={to} to={to} state={state} className={destinationClass}>
                         {/* In the bar only: the tabs of the top bar are words, as in the prototype. */}
                         <Icon aria-hidden="true" strokeWidth={ICON_STROKE} className="size-[22px] shrink-0 lg:hidden" />
                         <span className="max-w-full truncate">{label}</span>

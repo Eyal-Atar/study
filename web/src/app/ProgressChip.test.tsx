@@ -49,17 +49,27 @@ describe('ProgressChip', () => {
     for (const svg of link.querySelectorAll('svg')) expect(svg).toHaveAttribute('aria-hidden', 'true')
   })
 
-  // Archie's look (S31 decision 21): a green leaf for the streak, where the garden grows, and the
-  // level ring in gold, the colour of XP and the level, on the quiet track.
-  it('draws the streak as a leaf in the green of text, and the level ring in gold', async () => {
+  // The two parts of the mockup's chip (S31 decisions 21 and 29): a green pill with a leaf and the
+  // days of the streak, where the garden grows, and a 34px ring of the level, a gold arc on the
+  // gold track around a surface centre with the level in bold.
+  it('is a green pill of the streak with a leaf, and a gold ring of the level', async () => {
     renderChip(progressWith(5, 3, { total_xp: 1240, level_start_xp: 1000, next_level_xp: 2000 }))
 
     const link = await screen.findByRole('link', { name: he.shell.progressChip(5, 3) })
-    const leaf = link.querySelector('svg.lucide-leaf')
-    expect(leaf).toHaveClass('text-brand-strong')
+    const pill = link.querySelector('[data-part="streak"]')
+    expect(pill).toHaveClass('rounded-full', 'bg-brand-soft', 'text-brand-strong')
+    expect(pill).toHaveTextContent('5')
+    expect(pill?.querySelector('svg.lucide-leaf')).toHaveAttribute('aria-hidden', 'true')
     expect(link.querySelector('svg.lucide-flame')).not.toBeInTheDocument()
+
+    const ring = link.querySelector('[data-part="level"]')
+    expect(ring).toHaveClass('size-[34px]')
+    expect(ring).toHaveTextContent('3')
+    expect(ring?.querySelector('[data-part="value"]')).toHaveClass('font-bold')
+    expect(ring?.querySelector('svg')).toHaveAttribute('width', '34')
     expect(link.querySelector('[data-part="arc"]')).toHaveClass('stroke-gold')
-    expect(link.querySelector('[data-part="track"]')).toHaveClass('stroke-surface-muted')
+    expect(link.querySelector('[data-part="track"]')).toHaveClass('stroke-gold-track')
+    expect(link.querySelector('[data-part="centre"]')).toHaveClass('fill-surface')
   })
 
   it('says one day and two days in words', async () => {

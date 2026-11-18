@@ -25,11 +25,13 @@ export const FIELD_LABEL_CLASS = 'text-small font-medium text-ink'
 export const FIELD_DESCRIPTION_CLASS = 'text-small text-ink-muted'
 export const FIELD_ERROR_CLASS = 'text-small text-danger'
 
-// The box of a control, without its focus: 44px high, the 10px corners of a control, a line-strong
-// border (3:1 on every background: unlike a button, the border is what makes a field a field), and text-body (16px) so iOS does not zoom the page on focus. A disabled box is muted
+// The box of a control, without its focus: 44px high, the 12px corners of a control, the white of a
+// field (bg-field, as the mockup's .field, so it stands out of the surface around it), a
+// line-strong border (3:1 on every background and on the white: unlike a button, the border is
+// what makes a field a field), and text-body (16px) so iOS does not zoom the page on focus. A disabled box is muted
 // and never transparent, so its value stays readable (ink-muted on surface-muted is a checked pair).
 export const FIELD_BOX_CLASS =
-  'min-h-touch w-full rounded-control border border-line-strong bg-surface text-body text-ink outline-none transition-colors duration-(--duration-fast) data-[invalid]:border-danger data-[disabled]:border-line data-[disabled]:bg-surface-muted data-[disabled]:text-ink-muted'
+  'min-h-touch w-full rounded-control border border-line-strong bg-field text-body text-ink outline-none transition-colors duration-(--duration-fast) data-[invalid]:border-danger data-[disabled]:border-line data-[disabled]:bg-surface-muted data-[disabled]:text-ink-muted'
 
 // A box whose focus is inside it (the segments of a date or of a time): the box shows it.
 export const FIELD_FOCUS_WITHIN_CLASS =

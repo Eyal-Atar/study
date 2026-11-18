@@ -14,7 +14,7 @@ export const FOCUS_RING =
 export const FOCUS_RING_NATIVE = 'outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2'
 
 // The same ring on the dark of the toast (bg-inverse): brand is faint on it, so the ring is the
-// light indigo of its action, and the gap is the dark itself instead of white. A control takes one
+// light green of its action, and the gap is the dark itself instead of white. A control takes one
 // of the two rings, never both: two ring colours on one element are settled by the order of the
 // stylesheet, not of the class list.
 export const FOCUS_RING_INVERSE =
@@ -27,10 +27,11 @@ export const ICON_STROKE = 1.75
 
 // The look of a button, shared by Button (React Aria: data-hovered, data-pressed, data-disabled)
 // and ButtonLink (a router link: :hover, :active). Design language 5.3. The label is medium (500),
-// like the "היום" and the tabs of the prototype; semibold is for names and headings.
+// like the "היום" and the tabs of the prototype; semibold is for names and headings. The corners are
+// the 14px of the all-screens mockup's .btn (rounded-button), a little rounder than a field's 12px.
 // The focus ring is not here: each variant brings its own (the inverse one differs).
 export const BUTTON_BASE =
-  'inline-flex min-h-touch cursor-pointer items-center justify-center gap-2 rounded-control border px-4 text-small font-medium transition-colors duration-(--duration-fast)'
+  'inline-flex min-h-touch cursor-pointer items-center justify-center gap-2 rounded-button border px-4 text-small font-medium transition-colors duration-(--duration-fast)'
 
 // inverse: the action on the dark toast ("בטל"), and nowhere else.
 export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'danger' | 'inverse'

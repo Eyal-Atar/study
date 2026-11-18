@@ -58,7 +58,7 @@ export const devText = {
     caption:
       'לכל מבחן צבע קבוע מתוך שמונה. בכל שורה: בלוק ביומן (מילוי רך, גבול, פס התחלה ותיבת סימון בצבע החזק, הטקסט בדיו) וכרטיס "המשימה הבאה" (לבן על הצבע החזק).',
     exams: ['הסתברות', 'אלגוריתמים', 'שפת C', 'פיתוח משחקים', 'מבני נתונים', 'לינארית', 'חדו״א', 'לוגיקה'],
-    hues: ['טרקוטה', 'אבן כחולה', 'חרדל', 'שזיף', 'מנטה כהה', 'ורד עתיק', 'זית', 'אדמה'],
+    hues: ['זית', 'טרקוטה', 'אבן כחולה', 'שזיף', 'חרדל', 'מנטה כהה', 'ורד עתיק', 'אדמה'],
     blockTitle: 'תרגול: נוסחת בייס',
     blockTime: '10:00–10:45',
     nextWhen: 'היום ב-16:00',
@@ -72,12 +72,14 @@ export const devText = {
   },
   colours: {
     caption:
-      'כל צבע כללי ושמו, בפלטה של ארצ׳י. הכללים: טקסט 4.5:1 לפחות, וחלקי פקדים 3:1 (theme.test.ts). ‏brand לא משמש לטקסט: טקסט ירוק הוא brand-strong.',
+      'כל צבע כללי ושמו, בפלטה של ארצ׳י. הכללים: טקסט 4.5:1 לפחות, וחלקי פקדים 3:1 (theme.test.ts). ‏brand לא משמש לטקסט: טקסט ירוק הוא brand-strong. ‏field הוא הלבן של שדה ושל כרטיס בחירה; ‏gold-soft ו-gold-ink הם הצ׳יפ הזהוב של XP, ו-gold-track המסילה של טבעת הרמה.',
     skyCaption: 'השמיים של ארצ׳י: מעבר מ-sky-from למעלה ל-sky-to למטה',
     sky: 'שחר: הרקע של ארצ׳י, של גיליון החגיגה ושל הגן. הטקסט עליו בדיו.',
   },
   typography: {
     weights: 'ארבעה משקלים של Rubik',
+    display: 'פונט התצוגה: Amatic SC במשקל 700 בלבד. ללוגו ולכותרות הגדולות של ארצ׳י, מ-24px ומעלה.',
+    displaySample: 'בוקר טוב, הגן מחכה',
     sizes: 'חמישה גדלים, כל אחד עם גובה השורה שלו',
     sample: 'המשימה הבאה: סיכום הרצאה 5',
     weightNames: {
@@ -99,9 +101,10 @@ export const devText = {
     shadows: 'צללים: צל אומר שהדבר מעל משהו. לכרטיס יש קו ואין צל.',
     names: {
       'rounded-badge': 'badge · 6px',
-      'rounded-control': 'control · 10px',
-      'rounded-card': 'card · 16px',
-      'rounded-sheet': 'sheet · 20px',
+      'rounded-control': 'control · 12px · שדה',
+      'rounded-button': 'button · 14px · כפתור',
+      'rounded-card': 'card · 18px',
+      'rounded-sheet': 'sheet · 24px',
       'shadow-raised': 'raised · המקטע הנבחר',
       'shadow-overlay': 'overlay · תפריט, toast, דיאלוג',
       'shadow-lift': 'lift · בלוק נגרר',

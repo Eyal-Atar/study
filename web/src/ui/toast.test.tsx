@@ -139,6 +139,10 @@ describe('toast', () => {
     expect(region).toHaveClass('fixed', 'z-[60]', 'bottom-[calc(env(safe-area-inset-bottom)+6rem)]', 'lg:bottom-4')
     expect(region).not.toHaveClass('md:bottom-4')
     // Nothing is left of the light toast, nor of the look from before the design language.
-    expect(region.outerHTML).not.toMatch(/\b(shadow-lg|rounded-lg|text-sm|bg-success-soft|bg-danger-soft|bg-surface)\b/)
+    // A class ends at a space or a quote: bg-surface must not be taken for bg-surface-muted.
+    expect(region.outerHTML).not.toMatch(/\b(shadow-lg|rounded-lg|text-sm|bg-success-soft|bg-danger-soft)\b/)
+    for (const element of region.querySelectorAll('[class]')) {
+      expect(element.getAttribute('class')).not.toMatch(/(^|\s)bg-surface(\s|$)/)
+    }
   })
 })

@@ -34,6 +34,27 @@
   unicode-range: U+0020-007E, U+00A0-00FF, U+0131, U+2010-2027, U+2030, U+2032-2033, U+2039-203A, U+20AC, U+2122, U+2212, U+2260, U+2264-2265;
 }
 
+/* Amatic SC (SIL Open Font License, assets/fonts/OFL-AmaticSC.txt), the display font (S31 decision
+   28): the logo now, and Archie's big headings later, from 24px only. Bold alone, in the same two
+   subsets and unicode-ranges as Rubik. */
+@font-face {
+  font-family: 'Amatic SC';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./assets/fonts/amatic-hebrew.woff2') format('woff2');
+  unicode-range: U+0590-05FF, U+200C-200F, U+20AA, U+25CC, U+FB1D-FB4F;
+}
+
+@font-face {
+  font-family: 'Amatic SC';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./assets/fonts/amatic-latin.woff2') format('woff2');
+  unicode-range: U+0020-007E, U+00A0-00FF, U+0131, U+2010-2027, U+2030, U+2032-2033, U+2039-203A, U+20AC, U+2122, U+2212, U+2260, U+2264-2265;
+}
+
 @theme {
   /* ---- Colour ---- */
   /* Archie's palette (docs/superpowers/specs/2026-11-18-archie-look-and-gamification.md, section 2):
@@ -43,18 +64,21 @@
   /* Cards, fields, menus, the top bar: anything that sits on the page. */
   --color-surface: #f8f7f0;
   /* A quiet fill inside a surface, and the track of a progress bar: a neutral badge, a note, a
-     hovered row. */
-  --color-surface-muted: #efede2;
+     hovered row, the rail of the segmented switch (the --soft of the all-screens mockup). */
+  --color-surface-muted: #e6e7d8;
+  /* The white of a field and of a choice card (the mockup's .field and .opt), so a place to type or
+     to choose stands out of the surface around it. Its border is still line-strong. */
+  --color-field: #ffffff;
   /* Bark: the main text. */
   --color-ink: #3b2a1e;
   /* Secondary text, 5.6:1 or more on the three backgrounds (the #7a6553 of the moods page is only
-     4.7 on surface-muted, too close to the line). Not allowed on an exam colour: inside a block the
+     4.7 on surface-muted, too close to the line); 5.27 on surface-muted. Not allowed on an exam colour: inside a block the
      text is ink. */
   --color-ink-muted: #6e5948;
   /* Dividers and the edges of containers (cards, popovers): decoration, no contrast rule. */
   --color-line: #d9d6c3;
   /* The border that shows where a control is (fields, choice cards, the selected segment): 3:1 on
-     canvas, surface and surface-muted. */
+     canvas, surface, surface-muted (3.26) and field. */
   --color-line-strong: #8c7b67;
   /* The leaf, the one brand colour: the primary action, "done", the current place, the focus ring.
      Never text: it is 4.4:1 on the page. Green text is brand-strong, which is also the hover of the
@@ -71,8 +95,13 @@
   --color-on-clay: #ffffff;
   /* Sand: decoration, the edges of Archie's areas. No contrast rule. */
   --color-sand: #c9a77c;
-  /* Gold: XP, the level and badges, with ink on it. */
+  /* Gold: XP, the level and badges, with ink on it. The gold chip of XP is gold-ink on gold-soft
+     (the mockup's .chip.gold), and the ring of the level is a gold arc on gold-track (decoration:
+     the number in it says the level). */
   --color-gold: #d4a24c;
+  --color-gold-soft: #f6e7c6;
+  --color-gold-ink: #6b4a12;
+  --color-gold-track: #eadfc4;
   /* The dawn sky behind Archie, the celebration sheet and the garden: a gradient from sky-from to
      sky-to. Text on it is ink, measured on both ends and on sky, the tone between them. */
   --color-sky-from: #96c6e8;
@@ -93,45 +122,45 @@
   --color-warning-soft: #f5ead0;
   /* The bark toast: its background, its text, its quiet action ("בטל") and its state icons. */
   --color-inverse: #3b2a1e;
-  --color-on-inverse: #f8f7f0;
-  --color-inverse-action: #c5dea0;
+  --color-on-inverse: #f3ead9;
+  --color-inverse-action: #cfe3b4;
   --color-inverse-success: #c5dea0;
   --color-inverse-danger: #f0a98e;
 
   /* The colour of an exam. Eight earthy hues, each with three tokens: -N is the strong colour (a
      stripe, a dot, the card of the next task, with white text on it), -N-soft is the fill of a
-     block, and -N-line is its border. The order keeps near hues apart, and keeps the hues that are
-     close to the brand green (dark mint, olive) away from the start; none is the brand green, so
-     "done" stays recognisable. The API gives every exam an index 0-7 and ui/examColor.ts turns it
-     into these classes. */
-  /* 0 terracotta */
-  --color-exam-0: #b04a26;
-  --color-exam-0-soft: #f8e4da;
-  --color-exam-0-line: #ebb59d;
-  /* 1 blue stone */
-  --color-exam-1: #3d6688;
-  --color-exam-1-soft: #e2ecf3;
-  --color-exam-1-line: #a9c4da;
-  /* 2 mustard */
-  --color-exam-2: #8a6410;
-  --color-exam-2-soft: #f7ecd2;
-  --color-exam-2-line: #e2c78a;
+     block, and -N-line is its border. The first four are the ones of the all-screens mockup, in its
+     order (S31 decision 25); the olive differs from the brand in hue (yellowish against the leaf),
+     and none is the brand green, so "done" stays recognisable. The order keeps near hues apart.
+     The API gives every exam an index 0-7 and ui/examColor.ts turns it into these classes. */
+  /* 0 olive */
+  --color-exam-0: #6b7a2f;
+  --color-exam-0-soft: #eef0d9;
+  --color-exam-0-line: #c9cf9c;
+  /* 1 terracotta */
+  --color-exam-1: #b0532f;
+  --color-exam-1-soft: #f8e6dc;
+  --color-exam-1-line: #e8b79d;
+  /* 2 blue stone */
+  --color-exam-2: #4a6b84;
+  --color-exam-2-soft: #e2ebf2;
+  --color-exam-2-line: #a9c0d2;
   /* 3 plum */
-  --color-exam-3: #7b3f6e;
-  --color-exam-3-soft: #f3e3ee;
-  --color-exam-3-line: #d6aecb;
-  /* 4 dark mint */
-  --color-exam-4: #2f6f62;
-  --color-exam-4-soft: #dcefe9;
-  --color-exam-4-line: #9dcdc0;
-  /* 5 old rose */
-  --color-exam-5: #a3485b;
-  --color-exam-5-soft: #f7e2e6;
-  --color-exam-5-line: #e2aab5;
-  /* 6 olive */
-  --color-exam-6: #5f6a1c;
-  --color-exam-6-soft: #eef0d6;
-  --color-exam-6-line: #c9cf96;
+  --color-exam-3: #7b4a6d;
+  --color-exam-3-soft: #f1e3ec;
+  --color-exam-3-line: #d2aec6;
+  /* 4 mustard */
+  --color-exam-4: #8a6410;
+  --color-exam-4-soft: #f7ecd2;
+  --color-exam-4-line: #e2c78a;
+  /* 5 dark mint */
+  --color-exam-5: #2f6f62;
+  --color-exam-5-soft: #dcefe9;
+  --color-exam-5-line: #9dcdc0;
+  /* 6 old rose */
+  --color-exam-6: #a3485b;
+  --color-exam-6-soft: #f7e2e6;
+  --color-exam-6-line: #e2aab5;
   /* 7 earth */
   --color-exam-7: #7a5236;
   --color-exam-7-soft: #f1e6dc;
@@ -148,8 +177,11 @@
 
   /* ---- Type ---- */
   --font-sans: 'Rubik', system-ui, -apple-system, 'Segoe UI', 'Arial Hebrew', Arial, sans-serif;
+  /* The display font (font-display): the logo, and Archie's big headings, from 24px only. Amatic SC
+     has the bold alone; a character it lacks falls to Rubik. */
+  --font-display: 'Amatic SC', 'Rubik', system-ui, sans-serif;
   /* Four real weights of Rubik: 400 for reading, 500 for labels and tabs, 600 for titles and
-     names, 700 for the logo and the big heading. */
+     names, 700 for the big heading (and the only weight of Amatic SC, the logo). */
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
@@ -176,16 +208,20 @@
   --spacing-card: 1rem;
   /* The gap between two sections of a screen. */
   --spacing-section: 1.5rem;
-  /* The height of the top bar (from 1024px) and of the bottom bar of a phone. */
-  --spacing-topbar: 4rem;
+  /* The height of the top bar (from 1024px, 60px as in the mockup) and of the bottom bar of a
+     phone. */
+  --spacing-topbar: 3.75rem;
   --spacing-bottombar: 3.5rem;
 
   /* ---- Corners ---- */
+  /* The corners of the all-screens mockup (S31 decision 27): 6px for a badge, 12px for a field
+     (.field), 14px for a button (.btn), 18px for a card (.card), 24px for the bottom sheet of a
+     phone (.sheet). */
   --radius-badge: 0.375rem;
-  --radius-control: 0.625rem;
-  --radius-card: 1rem;
-  /* The bottom sheet of a phone. */
-  --radius-sheet: 1.25rem;
+  --radius-control: 0.75rem;
+  --radius-button: 0.875rem;
+  --radius-card: 1.125rem;
+  --radius-sheet: 1.5rem;
 
   /* ---- Shadow ---- */
   /* A card has a line and no shadow. A shadow means the thing is above something. */
@@ -221,7 +257,8 @@ body {
   color: var(--color-ink);
   font-size: var(--text-body);
   line-height: var(--text-body--line-height);
-  /* Rubik has no italic and no weights outside 400-700: never let the browser fake one. */
+  /* Rubik has no italic and no weights outside 400-700, Amatic SC only 700: never let the browser
+     fake one. */
   font-synthesis: none;
 }
 

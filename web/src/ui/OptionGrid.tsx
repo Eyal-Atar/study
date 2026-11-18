@@ -20,7 +20,7 @@ export interface OptionGridProps {
 // the classes, so "selected" could not reliably win over "hovered" (design language 5.8).
 function optionColors(isSelected: boolean, isHovered: boolean): string {
   if (isSelected) return 'border-brand bg-brand text-on-brand'
-  return cx('border-line-strong text-ink', isHovered ? 'bg-surface-muted' : 'bg-surface')
+  return cx('border-line-strong text-ink', isHovered ? 'bg-surface-muted' : 'bg-field')
 }
 
 // One choice out of many short options of the same kind (the free times of a day), all visible

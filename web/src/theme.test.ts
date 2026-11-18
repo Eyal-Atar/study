@@ -25,7 +25,7 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05)
 }
 
-// The eight exam colours (decisions 5 and 20). Each has a strong, a soft and a line token.
+// The eight exam colours (decisions 5, 20 and 25). Each has a strong, a soft and a line token.
 const EXAM = ['0', '1', '2', '3', '4', '5', '6', '7'] as const
 
 // WCAG AA for normal text: 4.5:1 (spec 7.9). Every text and background pair that
@@ -50,8 +50,16 @@ const PAIRS: [string, string][] = [
   ['success', 'success-soft'],
   ['ink', 'warning-soft'],
   ['warning', 'warning-soft'],
-  // Gold carries XP, the level and badges, with ink on it.
+  // Gold carries XP, the level and badges, with ink on it; the gold chip of XP is gold-ink on
+  // gold-soft (S31 decision 26).
   ['ink', 'gold'],
+  ['gold-ink', 'gold-soft'],
+  ['ink', 'gold-soft'],
+  // The white of a field and of a choice card (S31 decision 26): its value, its placeholder and
+  // the selected text of a choice.
+  ['ink', 'field'],
+  ['ink-muted', 'field'],
+  ['danger', 'field'],
   // The dawn sky behind Archie: ink on both ends of the gradient and on the tone between them.
   ['ink', 'sky'],
   ['ink', 'sky-from'],
@@ -79,6 +87,10 @@ const PAIRS: [string, string][] = [
 const NON_TEXT_PAIRS: [string, string][] = [
   ...BACKGROUNDS.map((bg): [string, string] => ['line-strong', bg]),
   ...BACKGROUNDS.map((bg): [string, string] => ['brand', bg]),
+  // The border of a field and the focus ring around it, on its white.
+  ['line-strong', 'field'],
+  ['brand', 'field'],
+  ['danger', 'field'],
   ['brand', 'brand-soft'],
   ['success', 'line'],
   // The filled part of a progress bar on its track.
@@ -103,13 +115,16 @@ const NON_TEXT_PAIRS: [string, string][] = [
 const TOKENS = [
   ...[
     'canvas', 'surface', 'surface-muted', 'ink', 'ink-muted', 'line', 'line-strong', 'brand', 'brand-strong',
-    'brand-soft', 'on-brand', 'sprout', 'clay', 'on-clay', 'sand', 'gold', 'sky-from', 'sky-to', 'sky', 'now',
+    'brand-soft', 'on-brand', 'sprout', 'clay', 'on-clay', 'sand', 'gold', 'gold-soft', 'gold-ink', 'gold-track',
+    'field', 'sky-from', 'sky-to', 'sky', 'now',
     'now-text', 'danger', 'danger-soft', 'success', 'success-soft', 'warning', 'warning-soft', 'inverse',
     'on-inverse', 'inverse-action', 'inverse-success', 'inverse-danger',
     ...EXAM.flatMap((n) => [`exam-${n}`, `exam-${n}-soft`, `exam-${n}-line`]),
     'busy', 'busy-soft', 'busy-line',
   ].map((name) => `--color-${name}`),
   '--radius-sheet',
+  '--radius-button',
+  '--font-display',
   '--shadow-raised',
   '--shadow-lift',
   '--shadow-sheet',
@@ -143,6 +158,38 @@ const TOKENS = [
   '--duration-base',
   '--duration-slow',
 ]
+
+// The values aligned to the all-screens mockup (S31 decisions 25-27): the exam shades, the quiet
+// fill, the toast, the new field and gold tokens, the corners and the height of the top bar.
+const VALUES: [string, string][] = [
+  ['--color-exam-0', '#6b7a2f'], ['--color-exam-0-soft', '#eef0d9'], ['--color-exam-0-line', '#c9cf9c'],
+  ['--color-exam-1', '#b0532f'], ['--color-exam-1-soft', '#f8e6dc'], ['--color-exam-1-line', '#e8b79d'],
+  ['--color-exam-2', '#4a6b84'], ['--color-exam-2-soft', '#e2ebf2'], ['--color-exam-2-line', '#a9c0d2'],
+  ['--color-exam-3', '#7b4a6d'], ['--color-exam-3-soft', '#f1e3ec'], ['--color-exam-3-line', '#d2aec6'],
+  ['--color-exam-4', '#8a6410'], ['--color-exam-4-soft', '#f7ecd2'], ['--color-exam-4-line', '#e2c78a'],
+  ['--color-exam-5', '#2f6f62'], ['--color-exam-5-soft', '#dcefe9'], ['--color-exam-5-line', '#9dcdc0'],
+  ['--color-exam-6', '#a3485b'], ['--color-exam-6-soft', '#f7e2e6'], ['--color-exam-6-line', '#e2aab5'],
+  ['--color-exam-7', '#7a5236'], ['--color-exam-7-soft', '#f1e6dc'], ['--color-exam-7-line', '#d2b49c'],
+  ['--color-surface-muted', '#e6e7d8'],
+  ['--color-on-inverse', '#f3ead9'],
+  ['--color-inverse-action', '#cfe3b4'],
+  ['--color-field', '#ffffff'],
+  ['--color-gold-soft', '#f6e7c6'],
+  ['--color-gold-ink', '#6b4a12'],
+  ['--color-gold-track', '#eadfc4'],
+  ['--radius-badge', '0.375rem'],
+  ['--radius-control', '0.75rem'],
+  ['--radius-button', '0.875rem'],
+  ['--radius-card', '1.125rem'],
+  ['--radius-sheet', '1.5rem'],
+  ['--spacing-topbar', '3.75rem'],
+]
+
+describe('the values of the mockup', () => {
+  it.each(VALUES)('%s is %s', (token, value) => {
+    expect(new RegExp(`${token}:\\s*([^;]+);`).exec(css)?.[1]?.trim().toLowerCase()).toBe(value)
+  })
+})
 
 describe('theme colours', () => {
   it.each(PAIRS)('%s on %s passes AA', (fg, bg) => {
@@ -197,19 +244,21 @@ describe('design tokens', () => {
   })
 })
 
-describe('the font', () => {
+describe('the fonts', () => {
   const faces = css.match(/@font-face \{[\s\S]*?\}/g) ?? []
+  const rubik = faces.filter((face) => /font-family:\s*'Rubik'/.test(face))
+  const amatic = faces.filter((face) => /font-family:\s*'Amatic SC'/.test(face))
 
-  it('is self-hosted in two subsets, Hebrew and Latin', () => {
-    expect(faces).toHaveLength(2)
+  it('are self-hosted: Rubik and Amatic SC, each in two subsets, Hebrew and Latin', () => {
+    expect(faces).toHaveLength(4)
+    expect(rubik).toHaveLength(2)
+    expect(amatic).toHaveLength(2)
     expect(css).not.toMatch(/fonts\.(googleapis|gstatic)\.com/)
   })
 
-  it.each(faces.map((face, i): [number, string] => [i, face]))('face %i swaps, has a unicode-range and a small variable woff2', (_i, face) => {
+  it.each(faces.map((face, i): [number, string] => [i, face]))('face %i swaps, has a unicode-range and a small woff2', (_i, face) => {
     expect(face).toMatch(/font-display:\s*swap;/)
     expect(face).toMatch(/unicode-range:\s*U\+/)
-    // One variable file carries every weight, 400 to 700.
-    expect(face).toMatch(/font-weight:\s*400 700;/)
     const url = /url\('(\.\/assets\/fonts\/[^']+\.woff2)'\)/.exec(face)?.[1]
     expect(url).toBeDefined()
     const file = new URL(url ?? '', import.meta.url)
@@ -217,14 +266,39 @@ describe('the font', () => {
     expect(statSync(file).size).toBeLessThan(60_000)
   })
 
-  it('comes with its licence', () => {
-    const licence = new URL('./assets/fonts/OFL.txt', import.meta.url)
-    expect(existsSync(licence)).toBe(true)
-    expect(readFileSync(licence, 'utf8')).toMatch(/Rubik/)
+  // One variable file of Rubik carries every weight, 400 to 700.
+  it.each(rubik.map((face, i): [number, string] => [i, face]))('Rubik face %i is variable, 400 to 700', (_i, face) => {
+    expect(face).toMatch(/font-weight:\s*400 700;/)
   })
 
-  it('is the first family of --font-sans, with a system fallback', () => {
+  // Amatic SC is the display font of the logo and of Archie's big headings (S31 decision 28):
+  // Bold only, and the browser must never fake another weight of it.
+  it.each(amatic.map((face, i): [number, string] => [i, face]))('Amatic SC face %i is the bold alone', (_i, face) => {
+    expect(face).toMatch(/font-weight:\s*700;/)
+  })
+
+  it('the two subsets of each font cover the same characters', () => {
+    const ranges = (list: string[]) => list.map((face) => /unicode-range:\s*([^;]+);/.exec(face)?.[1]).sort()
+    expect(ranges(amatic)).toEqual(ranges(rubik))
+  })
+
+  it.each([
+    ['OFL.txt', /Rubik/],
+    ['OFL-AmaticSC.txt', /Amatic SC/],
+  ])('come with their licence: %s', (name, author) => {
+    const licence = new URL(`./assets/fonts/${name}`, import.meta.url)
+    expect(existsSync(licence)).toBe(true)
+    const text = readFileSync(licence, 'utf8')
+    expect(text).toMatch(author)
+    expect(text).toMatch(/SIL Open Font License/)
+  })
+
+  it('Rubik is the first family of --font-sans, with a system fallback', () => {
     expect(css).toMatch(/--font-sans:\s*'Rubik',[^;]*sans-serif;/)
+  })
+
+  it('Amatic SC is the first family of --font-display, then Rubik', () => {
+    expect(css).toMatch(/--font-display:\s*'Amatic SC',\s*'Rubik',[^;]*sans-serif;/)
   })
 })
 

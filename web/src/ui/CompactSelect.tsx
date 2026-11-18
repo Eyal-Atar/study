@@ -16,7 +16,7 @@ export interface CompactSelectProps {
 // A button as wide as its value, with the look of a secondary Button: its value and its chevron say
 // what it is, so it has the quiet line of that button. Disabled is muted and never transparent.
 const TRIGGER = cx(
-  'inline-flex min-h-touch max-w-full cursor-pointer items-center gap-2 rounded-control border border-line bg-surface px-3 text-small font-medium text-ink',
+  'inline-flex min-h-touch max-w-full cursor-pointer items-center gap-2 rounded-control border border-line bg-field px-3 text-small font-medium text-ink',
   'transition-colors duration-(--duration-fast) data-[hovered]:bg-surface-muted data-[pressed]:bg-surface-muted',
   'data-[disabled]:cursor-not-allowed data-[disabled]:bg-surface-muted data-[disabled]:text-ink-muted',
   FOCUS_RING,

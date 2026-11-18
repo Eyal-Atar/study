@@ -101,6 +101,32 @@ describe('the calendar (S31, temporary)', () => {
     expect(option(he.calendar.day)).toBeChecked()
   })
 
+  // "יומן" in the navigation while the week is on screen asks for the day (S31 decision 30): one
+  // new entry for the day, and not the week put back over it. A second press on the day replaces
+  // its own entry, so one step back is the week.
+  it('"יומן" in the navigation, from the week, lands on the day without a second history entry', async () => {
+    const user = userEvent.setup()
+    const { router } = open('/calendar?view=week')
+    expect(await screen.findByRole('heading', { level: 1, name: he.week.title })).toBeInTheDocument()
+
+    const nav = within(screen.getByRole('navigation', { name: he.shell.mainNav }))
+    await user.click(nav.getByRole('link', { name: he.shell.calendar }))
+    expect(await screen.findByRole('heading', { level: 1, name: he.today.title })).toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(router.state.location.search).toBe('')
+    expect(option(he.calendar.day)).toBeChecked()
+
+    await user.click(nav.getByRole('link', { name: he.shell.calendar }))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(router.state.location.search).toBe('')
+
+    await router.navigate(-1)
+    await waitFor(() => {
+      expect(router.state.location.search).toBe('?view=week')
+    })
+    expect(await screen.findByRole('heading', { level: 1, name: he.week.title })).toBeInTheDocument()
+  })
+
   // The week screen moves through ?from= alone, and does not know about ?view=: the calendar keeps
   // the week on screen and puts view=week back into the address.
   it('the moves of the week stay in the week', async () => {

@@ -109,7 +109,11 @@ describe('the components page (dev only)', () => {
 
       const rows = region('exam-palette').querySelectorAll('[data-exam]')
       expect(rows).toHaveLength(8)
+      // The hues in the order of the all-screens mockup (S31 decision 25).
+      const hues = ['זית', 'טרקוטה', 'אבן כחולה', 'שזיף', 'חרדל', 'מנטה כהה', 'ורד עתיק', 'אדמה']
+      expect(devText.palette.hues).toEqual(hues)
       rows.forEach((row, n) => {
+        expect(row).toHaveTextContent(hues[n] ?? '')
         const c = examColor(n)
         expect(row).toHaveAttribute('data-exam', String(n))
         expect(row).toHaveTextContent(devText.palette.exams[n] ?? '')
@@ -142,7 +146,8 @@ describe('the components page (dev only)', () => {
 
     const colours = region('colours')
     for (const name of ['canvas', 'surface', 'surface-muted', 'ink', 'ink-muted', 'line', 'line-strong', 'brand',
-      'brand-strong', 'brand-soft', 'on-brand', 'sprout', 'clay', 'on-clay', 'sand', 'gold', 'sky-from', 'sky-to',
+      'brand-strong', 'brand-soft', 'on-brand', 'field', 'sprout', 'clay', 'on-clay', 'sand', 'gold', 'gold-soft',
+      'gold-ink', 'gold-track', 'sky-from', 'sky-to',
       'sky', 'now', 'now-text', 'danger', 'danger-soft', 'success', 'success-soft', 'warning', 'warning-soft',
       'inverse', 'on-inverse', 'inverse-action', 'inverse-success', 'inverse-danger', 'busy', 'busy-soft',
       'busy-line']) {
@@ -174,11 +179,21 @@ describe('the components page (dev only)', () => {
     }
   })
 
+  // Amatic SC, the display font of the logo and of Archie's big headings (S31 decision 28).
+  it('the typography section shows the display font, bold and big', async () => {
+    await open()
+
+    const sample = region('typography').querySelector('[data-sample="font-display"]')
+    expect(sample).toHaveClass('font-display', 'font-bold')
+    expect(sample).toHaveTextContent(devText.typography.displaySample)
+    expect(region('typography')).toHaveTextContent(devText.typography.display)
+  })
+
   it('the shape section shows the corners and the shadows', async () => {
     await open()
 
     const shape = region('shape')
-    for (const cls of ['rounded-badge', 'rounded-control', 'rounded-card', 'rounded-sheet', 'shadow-raised',
+    for (const cls of ['rounded-badge', 'rounded-control', 'rounded-button', 'rounded-card', 'rounded-sheet', 'shadow-raised',
       'shadow-overlay', 'shadow-lift', 'shadow-sheet']) {
       expect(shape.querySelector(`.${cls}`)).not.toBeNull()
     }

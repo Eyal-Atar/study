@@ -54,7 +54,7 @@ describe('Button', () => {
 })
 
 describe('Button variant inverse', () => {
-  it('is the action of the dark toast: light indigo text, no border, and a light ring on the dark', async () => {
+  it('is the action of the dark toast: light green text, no border, and a light ring on the dark', async () => {
     const user = userEvent.setup()
     const onPress = vi.fn()
     render(
@@ -149,7 +149,9 @@ describe('Button look', () => {
     const classes = screen.getByRole('button', { name: 'היום' }).className.split(' ')
     expect(classes).toContain('border-line')
     expect(classes).not.toContain('border-line-strong')
-    expect(classes).toContain('rounded-control')
+    // The 14px corners of the mockup's .btn (S31 decision 27); 12px is the corner of a field.
+    expect(classes).toContain('rounded-button')
+    expect(classes).not.toContain('rounded-control')
     expect(classes).toContain('font-medium')
     expect(classes).not.toContain('font-semibold')
   })
@@ -174,5 +176,26 @@ describe('ButtonLink', () => {
     expect(link.className).toContain('focus-visible:ring-2')
     await user.tab()
     expect(link).toHaveFocus()
+  })
+
+  it('inverse: the light action of the dark toast, with the ring of the dark and no other', async () => {
+    const { MemoryRouter } = await import('react-router')
+    const { ButtonLink } = await import('./ButtonLink')
+    render(
+      <MemoryRouter>
+        <ButtonLink to="/calendar" variant="inverse">
+          לפתוח
+        </ButtonLink>
+      </MemoryRouter>,
+    )
+    const classes = screen.getByRole('link', { name: 'לפתוח' }).className.split(' ')
+    expect(classes).toContain('text-inverse-action')
+    expect(classes).toContain('border-transparent')
+    expect(classes).toContain('hover:text-on-inverse')
+    expect(classes).toContain('rounded-button')
+    expect(classes).toContain('focus-visible:ring-inverse-action')
+    expect(classes).toContain('focus-visible:ring-offset-inverse')
+    expect(classes).not.toContain('focus-visible:ring-brand')
+    expect(classes).not.toContain('text-ink')
   })
 })

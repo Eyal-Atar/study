@@ -17,7 +17,7 @@ const SECONDARY = cx(
 )
 
 // inverse: white on the dark of the toast (on-inverse on inverse is a checked pair), turning the
-// light indigo of the toast's action under the pointer; no fill of the scale reads on the dark.
+// light green of the toast's action under the pointer; no fill of the scale reads on the dark.
 // The ring is the light one of the dark (FOCUS_RING_INVERSE), not the brand ring of the base.
 const INVERSE = cx(
   ICON_BUTTON_SHAPE,
