@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StudyFlow · אב-טיפוס יומן</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f7fb; --surface:#ffffff; --ink:#1b1f2a; --muted:#6b7385; --line:#e6e8ef; --line-soft:#f0f1f6;
+  --brand:#4f46e5; --brand-soft:#eef0ff; --now:#ef4444;
+  --ex1:#7c3aed; --ex1-bg:#f1eaff; --ex1-bd:#c9b3fb;
+  --ex2:#0891b2; --ex2-bg:#e3f6fb; --ex2-bd:#9fdcec;
+  --ex3:#ea580c; --ex3-bg:#fff0e6; --ex3-bd:#fbc39f;
+  --done:#16a34a;
+  --hour:56px; --start:7; --end:24;
+  font-family:'Rubik',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+.ltr{direction:ltr;unicode-bidi:isolate;display:inline-block}
+html,body{margin:0;background:#e9ebf2;color:var(--ink)}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+.switcher{display:flex;gap:8px;justify-content:center;padding:16px}
+.switcher button{padding:10px 18px;border-radius:999px;background:#fff;border:1px solid var(--line);font-weight:500}
+.switcher button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.note{text-align:center;color:var(--muted);font-size:13px;margin:-6px 0 14px}
+
+/* ---------- desktop ---------- */
+.desk{width:1280px;height:800px;margin:0 auto 32px;background:var(--bg);border-radius:18px;overflow:hidden;
+  box-shadow:0 20px 60px rgba(20,24,40,.15);display:grid;grid-template-columns:300px 1fr;grid-template-rows:64px 1fr}
+.topbar{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:0 20px;background:var(--surface);border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
+.logo i{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--brand),#8b5cf6);display:grid;place-items:center;color:#fff;font-style:normal;font-size:16px}
+.tabs{display:flex;gap:4px;margin-inline-start:24px}
+.tabs button{padding:8px 14px;border-radius:10px;color:var(--muted);font-weight:500}
+.tabs button.on{background:var(--brand-soft);color:var(--brand)}
+.weeknav{display:flex;align-items:center;gap:6px;margin-inline-start:auto}
+.weeknav .today{padding:8px 14px;border:1px solid var(--line);border-radius:10px;font-weight:500;background:#fff}
+.iconbtn{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--muted)}
+.iconbtn:hover{background:var(--line-soft)}
+.range{font-weight:600;min-width:170px;text-align:center}
+.seg{display:flex;background:var(--line-soft);border-radius:10px;padding:3px}
+.seg button{padding:6px 12px;border-radius:8px;font-size:14px;color:var(--muted)}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.avatar{width:36px;height:36px;border-radius:50%;background:#dfe3ff;color:var(--brand);display:grid;place-items:center;font-weight:600}
+
+.side{background:var(--surface);border-inline-end:1px solid var(--line);padding:18px;overflow:auto;display:flex;flex-direction:column;gap:18px}
+.side h3{margin:0 0 10px;font-size:13px;color:var(--muted);font-weight:500;letter-spacing:.02em}
+.next{border-radius:16px;padding:16px;color:#fff;position:relative;overflow:hidden}
+.next small{opacity:.85}
+.next .t{font-size:17px;font-weight:600;margin:6px 0 2px}
+.next .m{font-size:13px;opacity:.9}
+.next .acts{display:flex;gap:8px;margin-top:14px}
+.next .acts button{background:rgba(255,255,255,.95);color:var(--ink);padding:9px 14px;border-radius:10px;font-weight:600;font-size:14px}
+.next .acts button.ghost{background:rgba(255,255,255,.18);color:#fff}
+.ring{display:flex;align-items:center;gap:12px}
+.ring svg{flex:none}
+.ring b{font-size:20px}
+.tasks{display:flex;flex-direction:column;gap:6px}
+.task{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;background:var(--bg)}
+.task .dot{width:4px;align-self:stretch;border-radius:4px}
+.task .tt{flex:1;font-size:14px;line-height:1.3}
+.task .tt span{display:block;color:var(--muted);font-size:12px}
+.task.done .tt{color:var(--muted);text-decoration:line-through}
+.chk{width:22px;height:22px;border-radius:7px;border:2px solid currentColor;display:grid;place-items:center;flex:none;background:#fff}
+.chk svg{opacity:0}
+.done .chk,.blk.done .chk{background:currentColor}
+.done .chk svg,.blk.done .chk svg{opacity:1}
+.exams{display:flex;flex-direction:column;gap:10px}
+.exam{display:grid;grid-template-columns:12px 1fr auto;gap:4px 10px;align-items:center}
+.exam .sw{width:12px;height:12px;border-radius:4px}
+.exam .n{font-weight:500;font-size:14px}
+.exam .d{font-size:12px;color:var(--muted)}
+.exam .bar{grid-column:2/-1;height:6px;border-radius:6px;background:var(--line-soft);overflow:hidden}
+.exam .bar i{display:block;height:100%;border-radius:6px}
+
+/* ---------- calendar grid ---------- */
+.cal{display:flex;flex-direction:column;min-height:0;background:var(--surface)}
+.dayheads{display:grid;border-bottom:1px solid var(--line);padding-inline-end:8px}
+.dayhead{text-align:center;padding:10px 0 8px}
+.dayhead .dn{font-size:12px;color:var(--muted)}
+.dayhead .dd{font-size:20px;font-weight:600;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;margin:2px auto 0}
+.dayhead.today .dd{background:var(--brand);color:#fff}
+.dayhead.today .dn{color:var(--brand);font-weight:600}
+.scroller{flex:1;overflow:auto;position:relative}
+.grid{display:grid;position:relative}
+.hours{position:relative}
+.hours div{position:absolute;inset-inline-start:0;width:100%;text-align:center;font-size:11px;color:var(--muted);transform:translateY(-7px)}
+.col{position:relative;border-inline-start:1px solid var(--line-soft)}
+.col.today{background:linear-gradient(#fafaff,#fafaff)}
+.hline{position:absolute;inset-inline:0;border-top:1px solid var(--line-soft)}
+.hline.half{border-top-style:dashed;opacity:.6}
+.blk{position:absolute;inset-inline:4px;border-radius:10px;padding:6px 8px;font-size:12.5px;line-height:1.25;
+  border:1px solid;border-inline-start-width:4px;cursor:grab;user-select:none;touch-action:none;overflow:hidden;
+  transition:box-shadow .15s, opacity .15s}
+.blk:hover{box-shadow:0 4px 14px rgba(20,24,40,.12)}
+.blk.drag{cursor:grabbing;box-shadow:0 12px 28px rgba(20,24,40,.22);z-index:20;opacity:.95}
+.blk.bad{outline:2px solid var(--now)}
+.blk .row{display:flex;gap:6px;align-items:flex-start}
+.blk .chk{width:18px;height:18px;border-radius:6px;margin-top:1px}
+.blk .ti{font-weight:600;flex:1}
+.blk .tm{opacity:.75;font-size:11.5px;margin-top:2px}
+.blk.done{opacity:.55}
+.blk.done .ti{text-decoration:line-through}
+.blk .pin{font-size:11px;margin-inline-start:4px}
+.blk.past:not(.done){filter:saturate(.6)}
+.exam1{color:var(--ex1);background:var(--ex1-bg);border-color:var(--ex1-bd)}
+.exam2{color:var(--ex2);background:var(--ex2-bg);border-color:var(--ex2-bd)}
+.exam3{color:var(--ex3);background:var(--ex3-bg);border-color:var(--ex3-bd)}
+.blk .ti,.blk .tm{color:var(--ink)}
+.now{position:absolute;inset-inline:0;height:0;border-top:2px solid var(--now);z-index:15;pointer-events:none}
+.now::before{content:"";position:absolute;inset-inline-start:-6px;top:-6px;width:10px;height:10px;border-radius:50%;background:var(--now)}
+.nowlbl{position:absolute;inset-inline-start:4px;transform:translateY(-50%);background:var(--now);color:#fff;font-size:10.5px;font-weight:600;padding:2px 5px;border-radius:6px;z-index:16}
+.ghost{position:absolute;inset-inline-end:6px;font-size:11px;font-weight:600;background:var(--ink);color:#fff;padding:2px 6px;border-radius:6px;z-index:30;pointer-events:none}
+
+/* ---------- phone ---------- */
+.phone{width:390px;height:844px;margin:0 auto 40px;background:var(--surface);border-radius:44px;overflow:hidden;position:relative;
+  box-shadow:0 20px 60px rgba(20,24,40,.18),0 0 0 10px #1b1f2a;display:flex;flex-direction:column}
+.ph-top{padding:50px 18px 8px;display:flex;align-items:center;gap:10px}
+.ph-top h1{margin:0;font-size:26px;font-weight:700}
+.ph-top .sub{color:var(--muted);font-size:13px}
+.ph-top .avatar{margin-inline-start:auto}
+.strip{display:flex;gap:4px;padding:6px 12px 10px;border-bottom:1px solid var(--line)}
+.sd{flex:1;text-align:center;padding:6px 0;border-radius:14px}
+.sd .dn{font-size:11px;color:var(--muted)}
+.sd .dd{font-size:17px;font-weight:600;margin-top:2px}
+.sd .dots{display:flex;gap:2px;justify-content:center;height:6px;margin-top:3px}
+.sd .dots i{width:5px;height:5px;border-radius:50%}
+.sd.on{background:var(--ink);color:#fff}
+.sd.on .dn{color:#cfd3dd}
+.sd.today:not(.on) .dd{color:var(--brand)}
+.ph-scroll{flex:1;overflow:auto;position:relative}
+.ph-grid{display:grid;grid-template-columns:44px 1fr;position:relative}
+.ph-sheet{position:absolute;inset-inline:10px;bottom:84px;background:var(--surface);border-radius:20px;box-shadow:0 -6px 30px rgba(20,24,40,.16);
+  padding:10px 14px 14px;z-index:40;transition:transform .25s}
+.ph-sheet .grab{width:38px;height:5px;border-radius:5px;background:var(--line);margin:0 auto 8px}
+.ph-sheet .hd{display:flex;align-items:center;justify-content:space-between;font-weight:600}
+.ph-sheet .hd span{color:var(--muted);font-weight:400;font-size:13px}
+.ph-sheet .tasks{margin-top:10px;max-height:0;overflow:hidden;transition:max-height .25s}
+.ph-sheet.open .tasks{max-height:320px;overflow:auto}
+.ph-nav{position:absolute;inset-inline:0;bottom:0;height:78px;background:rgba(255,255,255,.96);border-top:1px solid var(--line);display:flex;padding:8px 18px 22px;z-index:50}
+.ph-nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--muted)}
+.ph-nav button.on{color:var(--brand);font-weight:600}
+.swipe-wrap{position:absolute;inset-inline:4px}
+.swipe-acts{position:absolute;inset:0;display:flex;justify-content:flex-end;border-radius:10px;overflow:hidden}
+.swipe-acts button{width:72px;color:#fff;font-size:12px;font-weight:600}
+.swipe-acts .defer{background:#f59e0b}
+.swipe-acts .skip{background:var(--now)}
+.swipe-wrap .blk{inset-inline:0;transition:transform .2s}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120px);background:var(--ink);color:#fff;padding:12px 16px;border-radius:12px;
+  display:flex;gap:14px;align-items:center;font-size:14px;transition:transform .25s;z-index:100}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast button{color:#a5b4fc;font-weight:600}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="switcher" role="group" aria-label="תצוגה">
+  <button id="sw-desk" aria-pressed="true">מחשב · שבוע</button>
+  <button id="sw-phone" aria-pressed="false">טלפון · יום</button>
+</div>
+<p class="note">אב-טיפוס: גררו בלוק למעלה או למטה (קפיצות של 15 דקות), סמנו ✓ בתוך הבלוק. בטלפון: החליקו בלוק הצידה לפעולות.</p>
+
+<section id="desk" class="desk">
+  <header class="topbar">
+    <div class="logo"><i>✓</i>StudyFlow</div>
+    <nav class="tabs"><button class="on">יומן</button><button>מבחנים</button><button>התקדמות</button></nav>
+    <div class="weeknav">
+      <button class="today" id="d-today">היום</button>
+      <button class="iconbtn" aria-label="שבוע קודם">›</button>
+      <div class="range" id="d-range"></div>
+      <button class="iconbtn" aria-label="שבוע הבא">‹</button>
+      <div class="seg"><button>יום</button><button class="on">שבוע</button></div>
+      <div class="avatar">א</div>
+    </div>
+  </header>
+  <aside class="side">
+    <div>
+      <h3>המשימה הבאה</h3>
+      <div class="next" id="d-next"></div>
+    </div>
+    <div class="ring" id="d-ring"></div>
+    <div>
+      <h3>המשימות של היום</h3>
+      <div class="tasks" id="d-tasks"></div>
+    </div>
+    <div>
+      <h3>המבחנים שלך</h3>
+      <div class="exams" id="d-exams"></div>
+    </div>
+  </aside>
+  <main class="cal">
+    <div class="dayheads" id="d-heads"></div>
+    <div class="scroller" id="d-scroll"><div class="grid" id="d-grid"></div></div>
+  </main>
+</section>
+
+<section id="phone" class="phone" hidden>
+  <div class="ph-top">
+    <div><h1 id="p-title">היום</h1><div class="sub" id="p-sub"></div></div>
+    <div class="avatar">א</div>
+  </div>
+  <div class="strip" id="p-strip"></div>
+  <div class="ph-scroll" id="p-scroll"><div class="ph-grid" id="p-grid"></div></div>
+  <div class="ph-sheet" id="p-sheet">
+    <div class="grab"></div>
+    <button class="hd" id="p-sheet-hd" style="width:100%"><div>המשימות של היום</div><span id="p-left"></span></button>
+    <div class="tasks" id="p-tasks"></div>
+  </div>
+  <nav class="ph-nav">
+    <button class="on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>יומן</button>
+    <button><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/></svg>מבחנים</button>
+    <button><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19l5-6 4 3 7-9"/></svg>התקדמות</button>
+  </nav>
+</section>
+
+<div class="toast" id="toast" role="status"><span id="toast-t"></span><button id="toast-undo">בטל</button></div>
+
+<script>
+const EXAMS=[
+  {id:1,name:'הסתברות',daysAdd:22,progress:.38},
+  {id:2,name:'אלגוריתמים',daysAdd:32,progress:.21},
+  {id:3,name:'שפת C',daysAdd:48,progress:.12},
+];
+const DAYN=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+const DAYS=['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+const now=new Date();
+const weekStart=new Date(now);weekStart.setHours(0,0,0,0);weekStart.setDate(now.getDate()-now.getDay());
+const todayIdx=now.getDay();
+const H=56,START=7,END=24;
+const titles={1:['למידה: משתנים מקריים רציפים','תרגול: התפלגות נורמלית','חזרה: תוחלת ושונות','סימולציה: מועד א׳ 2025'],
+  2:['למידה: מיון מהיר והוכחת נכונות','תרגול: עצי חיפוש','למידה: גרפים ו-BFS','תרגול: תכנון דינמי'],
+  3:['למידה: מצביעים ומערכים','תרגול: malloc ו-free','חזרה: מבנים (struct)','תרגול: קבצים']};
+let blocks=[];let uid=1;
+const plan=[[9,90],[11,60],[14,90],[16.5,60],[19,90],[21,45]];
+for(let d=0;d<7;d++){
+  if(d===6) continue; // שבת יום מנוחה
+  const n= d===5?2:(d%2?4:5);
+  for(let i=0;i<n;i++){
+    const [s,len]=plan[(i+d)%plan.length===5&&n<6?i:i];
+    const ex=((d+i)%3)+1;
+    blocks.push({id:uid++,day:d,start:s*60,len,ex,title:titles[ex][(d+i)%4],done:d<todayIdx||(d===todayIdx&&s*60+len<=now.getHours()*60+now.getMinutes()&&i%3!==2),pinned:false});
+  }
+}
+// clean overlaps from the seed
+blocks.sort((a,b)=>a.day-b.day||a.start-b.start);
+for(let i=1;i<blocks.length;i++){const p=blocks[i-1],c=blocks[i];if(p.day===c.day&&c.start<p.start+p.len+10)c.start=p.start+p.len+15;}
+blocks=blocks.filter(b=>b.start+b.len<=END*60);
+
+const fmt=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+const exCls=e=>'exam'+e;
+const exColor=e=>getComputedStyle(document.documentElement).getPropertyValue('--ex'+e);
+const dateOf=d=>{const x=new Date(weekStart);x.setDate(x.getDate()+d);return x};
+const nowMin=()=>{const n=new Date();return n.getHours()*60+n.getMinutes()};
+const isPast=b=>b.day<todayIdx||(b.day===todayIdx&&b.start+b.len<=nowMin());
+const check='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 13l4 4L19 7"/></svg>';
+
+let pDay=todayIdx;let lastUndo=null;
+function toast(t,undo){const el=document.getElementById('toast');document.getElementById('toast-t').textContent=t;lastUndo=undo;
+  document.getElementById('toast-undo').style.display=undo?'':'none';el.classList.add('show');clearTimeout(toast.h);toast.h=setTimeout(()=>el.classList.remove('show'),4000)}
+document.getElementById('toast-undo').onclick=()=>{if(lastUndo){lastUndo();lastUndo=null;render()}document.getElementById('toast').classList.remove('show')};
+
+function blockHtml(b,compact){
+  const h=b.len/60*H-3;
+  return `<div class="blk ${exCls(b.ex)} ${b.done?'done':''} ${isPast(b)?'past':''}" data-id="${b.id}" style="top:${(b.start/60-START)*H+1}px;height:${h}px">
+    <div class="row"><button class="chk" data-chk="${b.id}" aria-label="${b.done?'בטל סימון':'סמן בוצע'}: ${b.title}">${check}</button>
+    <div style="flex:1;min-width:0"><div class="ti">${b.title}${b.pinned?'<span class="pin">🔒</span>':''}</div>
+    ${h>34?`<div class="tm"><span class="ltr">${fmt(b.start)}–${fmt(b.start+b.len)}</span> · ${EXAMS[b.ex-1].name}</div>`:''}</div></div></div>`;
+}
+function gridLines(){let s='';for(let h=START;h<END;h++){s+=`<div class="hline" style="top:${(h-START)*H}px"></div><div class="hline half" style="top:${(h-START+.5)*H}px"></div>`}return s}
+function hoursCol(withNow){let s='';for(let h=START+1;h<END;h++)s+=`<div style="top:${(h-START)*H}px">${String(h).padStart(2,'0')}:00</div>`;const m=nowMin();const lbl=withNow&&m>=START*60&&m<=END*60?`<span class="nowlbl" style="top:${(m/60-START)*H}px">${fmt(m)}</span>`:'';return `<div class="hours" style="height:${(END-START)*H}px">${s}${lbl}</div>`}
+function nowLine(){const m=nowMin();if(m<START*60||m>END*60)return'';const y=(m/60-START)*H;return `<div class="now" style="top:${y}px"></div>`}
+
+function renderDesk(){
+  const s=dateOf(0),e=dateOf(6);
+  document.getElementById('d-range').textContent=`${s.getDate()}–${e.getDate()} ב${e.toLocaleDateString('he-IL',{month:'long'})} ${e.getFullYear()}`;
+  const cols='56px repeat(7,1fr)';
+  const heads=document.getElementById('d-heads');heads.style.gridTemplateColumns=cols;
+  heads.innerHTML='<div></div>'+DAYN.map((n,i)=>`<div class="dayhead ${i===todayIdx?'today':''}"><div class="dn">${n}</div><div class="dd">${dateOf(i).getDate()}</div></div>`).join('');
+  const g=document.getElementById('d-grid');g.style.gridTemplateColumns=cols;
+  g.innerHTML=hoursCol(true)+DAYN.map((_,i)=>`<div class="col ${i===todayIdx?'today':''}" data-day="${i}" style="height:${(END-START)*H}px">${gridLines()}${blocks.filter(b=>b.day===i).map(b=>blockHtml(b)).join('')}${i===todayIdx?nowLine():''}${i===6?`<div style="position:absolute;top:${(12-START)*H}px;inset-inline:0;text-align:center;color:var(--muted);font-size:12px">יום מנוחה</div>`:''}</div>`).join('');
+  // side
+  const today=blocks.filter(b=>b.day===todayIdx).sort((a,b)=>a.start-b.start);
+  const next=today.find(b=>!b.done&&b.start+b.len>nowMin())||blocks.find(b=>b.day>todayIdx&&!b.done);
+  const nx=document.getElementById('d-next');
+  if(next){nx.style.background=`linear-gradient(135deg, ${exColor(next.ex)}, color-mix(in srgb, ${exColor(next.ex)} 70%, #000))`;
+    nx.innerHTML=`<small>${next.day===todayIdx?(next.start<=nowMin()?'עכשיו':'היום ב-'+fmt(next.start)):DAYN[next.day]+' ב-'+fmt(next.start)} · ${EXAMS[next.ex-1].name}</small><div class="t">${next.title}</div><div class="m">${next.len} דקות</div><div class="acts"><button data-chk="${next.id}">✓ בוצע</button><button class="ghost">דחייה</button></div>`}
+  const doneMin=today.filter(b=>b.done).reduce((a,b)=>a+b.len,0),tot=today.reduce((a,b)=>a+b.len,0)||1;
+  const r=26,c=2*Math.PI*r;
+  document.getElementById('d-ring').innerHTML=`<svg width="64" height="64"><circle cx="32" cy="32" r="${r}" fill="none" stroke="#eef0f5" stroke-width="7"/><circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--done)" stroke-width="7" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-doneMin/tot)}" transform="rotate(-90 32 32)"/></svg><div><b>${Math.round(doneMin/tot*100)}%</b><div style="color:var(--muted);font-size:13px">${doneMin} מתוך ${tot} דקות היום</div></div>`;
+  document.getElementById('d-tasks').innerHTML=taskList(today);
+  document.getElementById('d-exams').innerHTML=EXAMS.map(e=>{const d=new Date(now);d.setDate(d.getDate()+e.daysAdd);return `<div class="exam"><span class="sw" style="background:var(--ex${e.id})"></span><span class="n">${e.name}</span><span class="d">בעוד ${e.daysAdd} ימים</span><div class="bar"><i style="width:${e.progress*100}%;background:var(--ex${e.id})"></i></div></div>`}).join('');
+}
+function taskList(list){return list.map(b=>`<div class="task ${b.done?'done':''}"><span class="dot" style="background:var(--ex${b.ex})"></span><div class="tt">${b.title}<span><span class="ltr">${fmt(b.start)}</span> · ${b.len} דק׳</span></div><button class="chk" style="color:var(--ex${b.ex})" data-chk="${b.id}" aria-label="סמן בוצע">${check}</button></div>`).join('')}
+
+function renderPhone(){
+  const d=dateOf(pDay);
+  document.getElementById('p-title').textContent=pDay===todayIdx?'היום':'יום '+DAYN[pDay];
+  document.getElementById('p-sub').textContent=d.toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'});
+  document.getElementById('p-strip').innerHTML=DAYS.map((n,i)=>`<button class="sd ${i===pDay?'on':''} ${i===todayIdx?'today':''}" data-pday="${i}"><div class="dn">${n}</div><div class="dd">${dateOf(i).getDate()}</div><div class="dots">${[...new Set(blocks.filter(b=>b.day===i).map(b=>b.ex))].map(e=>`<i style="background:var(--ex${e})"></i>`).join('')}</div></button>`).join('');
+  const g=document.getElementById('p-grid');
+  const list=blocks.filter(b=>b.day===pDay);
+  g.innerHTML=hoursCol(pDay===todayIdx)+`<div class="col" data-day="${pDay}" style="height:${(END-START)*H}px;border-inline-start:1px solid var(--line)">${gridLines()}${list.map(b=>`<div class="swipe-wrap" style="top:${(b.start/60-START)*H+1}px;height:${b.len/60*H-3}px"><div class="swipe-acts"><button class="defer" data-defer="${b.id}">דחייה</button><button class="skip" data-skip="${b.id}">דילוג</button></div>${blockHtml(b).replace(/top:[^;]+;/,'top:0;')}</div>`).join('')}${pDay===todayIdx?nowLine():''}${pDay===6?`<div style="position:absolute;top:${(12-START)*H}px;inset-inline:0;text-align:center;color:var(--muted)">יום מנוחה 🌿</div>`:''}</div>`;
+  const left=list.filter(b=>!b.done);
+  document.getElementById('p-left').textContent=left.length?`${left.length} נשארו · ${left.reduce((a,b)=>a+b.len,0)} דק׳`:'הכול בוצע 🎉';
+  document.getElementById('p-tasks').innerHTML=taskList(list.sort((a,b)=>a.start-b.start));
+}
+function render(){renderDesk();renderPhone()}
+
+/* ---------- interactions ---------- */
+document.addEventListener('click',e=>{
+  const c=e.target.closest('[data-chk]');
+  if(c){const b=blocks.find(x=>x.id==c.dataset.chk);b.done=!b.done;render();toast(b.done?`בוצע: ${b.title}`:'הסימון בוטל',()=>{b.done=!b.done});return}
+  const p=e.target.closest('[data-pday]');if(p){pDay=+p.dataset.pday;renderPhone();scrollNow();return}
+  const sk=e.target.closest('[data-skip]');if(sk){const b=blocks.find(x=>x.id==sk.dataset.skip);const i=blocks.indexOf(b);blocks.splice(i,1);render();toast('דילגת על המשימה',()=>blocks.splice(i,0,b));return}
+  const df=e.target.closest('[data-defer]');if(df){const b=blocks.find(x=>x.id==df.dataset.defer);const old=b.day;b.day=Math.min(5,b.day+1);render();toast(`נדחה ליום ${DAYN[b.day]} ב-${fmt(b.start)}`,()=>{b.day=old});return}
+  if(e.target.closest('#p-sheet-hd'))document.getElementById('p-sheet').classList.toggle('open');
+});
+
+let drag=null;
+document.addEventListener('pointerdown',e=>{
+  const el=e.target.closest('.blk');if(!el||e.target.closest('.chk'))return;
+  const b=blocks.find(x=>x.id==el.dataset.id);if(!b)return;
+  const wrap=el.parentElement.classList.contains('swipe-wrap')?el.parentElement:null;
+  drag={el,b,wrap,x0:e.clientX,y0:e.clientY,start0:b.start,mode:null,top0:parseFloat((wrap||el).style.top)};
+  el.setPointerCapture(e.pointerId);
+});
+document.addEventListener('pointermove',e=>{
+  if(!drag)return;const dx=e.clientX-drag.x0,dy=e.clientY-drag.y0;
+  if(!drag.mode){if(Math.abs(dx)<6&&Math.abs(dy)<6)return;drag.mode=(drag.wrap&&Math.abs(dx)>Math.abs(dy))?'swipe':'move';if(drag.mode==='move')drag.el.classList.add('drag')}
+  if(drag.mode==='swipe'){const off=Math.max(-144,Math.min(0,-Math.abs(dx)));drag.el.style.transform=`translateX(${dx<0?off:-off}px)`;return}
+  const step=H/4;const snapped=Math.round(dy/step)*step;
+  let ns=drag.start0+Math.round(snapped/step)*15;ns=Math.max(START*60,Math.min(END*60-drag.b.len,ns));
+  const y=(ns/60-START)*H+1;(drag.wrap||drag.el).style.top=y+'px';drag.ns=ns;
+  const clash=blocks.some(o=>o!==drag.b&&o.day===drag.b.day&&ns<o.start+o.len&&o.start<ns+drag.b.len);
+  drag.el.classList.toggle('bad',clash);drag.clash=clash;
+  let g=drag.el.parentElement.closest('.col').querySelector('.ghost');if(!g){g=document.createElement('div');g.className='ghost';drag.el.closest('.col').appendChild(g)}
+  g.style.top=(y-20)+'px';g.style.direction='ltr';g.textContent=clash?'תפוס':fmt(ns)+'–'+fmt(ns+drag.b.len);
+});
+document.addEventListener('pointerup',()=>{
+  if(!drag)return;const d=drag;drag=null;
+  if(d.mode==='swipe'){const t=d.el.style.transform.match(/-?\d+/);const open=t&&Math.abs(+t[0])>60;d.el.style.transform=open?`translateX(${d.el.style.transform.includes('-')?-144:144}px)`:'';return}
+  if(d.mode!=='move')return;
+  if(d.clash||d.ns==null||d.ns===d.start0){if(d.clash)toast('השעה הזו תפוסה, הבלוק חזר למקומו');render();return}
+  const old=d.b.start,oldPin=d.b.pinned;d.b.start=d.ns;d.b.pinned=true;render();
+  toast(`הוזז ל-${fmt(d.ns)} ונעול`,()=>{d.b.start=old;d.b.pinned=oldPin});
+});
+
+function scrollNow(){const y=Math.max(0,(nowMin()/60-START)*H-160);document.getElementById('d-scroll').scrollTop=y;document.getElementById('p-scroll').scrollTop=y}
+document.getElementById('d-today').onclick=scrollNow;
+const sw=(phone)=>{document.getElementById('desk').hidden=phone;document.getElementById('phone').hidden=!phone;
+  document.getElementById('sw-desk').setAttribute('aria-pressed',!phone);document.getElementById('sw-phone').setAttribute('aria-pressed',phone);scrollNow()};
+document.getElementById('sw-desk').onclick=()=>sw(false);document.getElementById('sw-phone').onclick=()=>sw(true);
+if(location.hash==='#phone'||innerWidth<700)sw(true);
+render();scrollNow();setInterval(()=>{if(!drag)render()},30000);
+</script>
+</body>
+</html>
