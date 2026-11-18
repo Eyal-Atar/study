@@ -34,7 +34,7 @@ EXPORT_VERSION: Final = 1
 # composed as identifiers, never taken from a request.
 _EXPORTED: Final[Mapping[str, tuple[tuple[str, ...], tuple[str, ...]]]] = {
     "exams": (
-        ("id", "name", "exam_date", "difficulty", "deleted_at", "created_at"),
+        ("id", "name", "exam_date", "difficulty", "color_index", "deleted_at", "created_at"),
         ("created_at", "id"),
     ),
     "tasks": (

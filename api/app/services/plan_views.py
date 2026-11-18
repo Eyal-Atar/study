@@ -39,7 +39,8 @@ _QUERY_MARGIN: Final = dt.timedelta(days=2)
 _BLOCK_QUERY: Final = (
     "SELECT "
     + ", ".join(f"b.{column.strip()}" for column in BLOCK_COLUMNS.split(","))
-    + ", t.exam_id, t.title AS task_title, t.kind AS task_kind, e.name AS exam_name "
+    + ", t.exam_id, t.title AS task_title, t.kind AS task_kind, e.name AS exam_name, "
+    "e.color_index AS exam_color_index "
     "FROM app.blocks b "
     "JOIN app.tasks t ON t.id = b.task_id AND t.user_id = b.user_id "
     "JOIN app.exams e ON e.id = t.exam_id AND e.user_id = t.user_id "
@@ -55,6 +56,7 @@ class BlockView:
     task_title: str
     task_kind: TaskKind
     exam_name: str
+    exam_color_index: int
     starts_at: dt.datetime
     ends_at: dt.datetime
     study_date: dt.date
@@ -71,6 +73,7 @@ class UnplacedTask:
     exam_id: UUID
     title: str
     minutes: int
+    exam_color_index: int
 
 
 @dataclass(frozen=True)
@@ -135,6 +138,7 @@ def _view(row: Mapping[str, Any], profile: Profile, now: dt.datetime) -> BlockVi
         task_title=row["task_title"],
         task_kind=TaskKind(row["task_kind"]),
         exam_name=row["exam_name"],
+        exam_color_index=row["exam_color_index"],
         starts_at=block.starts_at,
         ends_at=block.ends_at,
         study_date=study_date(profile, block.starts_at),
@@ -274,15 +278,23 @@ def _unplaced(conn: Conn, user_id: UUID, now: dt.datetime) -> tuple[UnplacedTask
     ]
     if not missing:
         return ()
-    titles = {
-        row["id"]: row["title"]
+    rows = {
+        row["id"]: row
         for row in conn.execute(
-            "SELECT id, title FROM app.tasks WHERE user_id = %s AND id = ANY(%s)",
+            "SELECT t.id, t.title, e.color_index FROM app.tasks t "
+            "JOIN app.exams e ON e.id = t.exam_id AND e.user_id = t.user_id "
+            "WHERE t.user_id = %s AND t.id = ANY(%s)",
             (user_id, [task.id for task, _ in missing]),
         ).fetchall()
     }
     return tuple(
-        UnplacedTask(task_id=task.id, exam_id=task.exam_id, title=titles[task.id], minutes=left)
+        UnplacedTask(
+            task_id=task.id,
+            exam_id=task.exam_id,
+            title=rows[task.id]["title"],
+            minutes=left,
+            exam_color_index=rows[task.id]["color_index"],
+        )
         for task, left in missing
     )
 

@@ -272,6 +272,7 @@ def test_export_has_the_documented_shape(
         "name",
         "exam_date",
         "difficulty",
+        "color_index",
         "deleted_at",
         "created_at",
     }

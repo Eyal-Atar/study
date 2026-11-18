@@ -13,7 +13,7 @@ from app.services.board import load_board
 from app.services.plan_writes import VersionReason, delete_open_blocks
 from app.services.profiles import Conn, ensure_profile, to_planner_profile
 
-EXAM_COLUMNS: Final = "id, name, exam_date, difficulty, created_at"
+EXAM_COLUMNS: Final = "id, name, exam_date, difficulty, color_index, created_at"
 _UPDATABLE: Final = frozenset({"name", "exam_date", "difficulty"})
 _PLAN_FIELDS: Final = ("exam_date", "difficulty")
 # How far ahead an exam may be: the planner works day by day up to the exam, so a date

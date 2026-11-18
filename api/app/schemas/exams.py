@@ -20,6 +20,7 @@ class ExamOut(BaseModel):
     name: str
     exam_date: dt.date
     difficulty: int
+    color_index: int
     created_at: dt.datetime
 
 

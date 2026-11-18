@@ -212,3 +212,27 @@ def test_exam_name_with_a_nul_character_is_422(
     assert response.status_code == 422
     assert response.json()["code"] == "validation_error"
     assert response.json()["errors"][0]["loc"][:2] == ["body", "name"]
+
+
+def test_exams_carry_a_stable_colour(
+    api: TestClient, user: ApiUser, make_api_user: MakeApiUser, db: psycopg.Connection
+) -> None:
+    first = api.post("/exams", json={"name": "א", "exam_date": "2026-12-01"}, headers=user.headers)
+    second = api.post("/exams", json={"name": "ב", "exam_date": "2026-12-02"}, headers=user.headers)
+    assert first.json()["exam"]["color_index"] == 0
+    assert second.json()["exam"]["color_index"] == 1
+    listed = api.get("/exams", headers=user.headers).json()
+    assert [exam["color_index"] for exam in listed] == [0, 1]
+
+    exam_id = second.json()["exam"]["id"]
+    patched = api.patch(f"/exams/{exam_id}", json={"name": "חדש"}, headers=user.headers)
+    assert patched.json()["exam"]["color_index"] == 1
+    rejected = api.patch(f"/exams/{exam_id}", json={"color_index": 3}, headers=user.headers)
+    assert rejected.status_code == 422
+
+    other = make_api_user()
+    set_profile(db, other.id, **TEST_PROFILE)
+    mine = api.post("/exams", json={"name": "ג", "exam_date": "2026-12-03"}, headers=other.headers)
+    assert mine.json()["exam"]["color_index"] == 0
+    assert [e["color_index"] for e in api.get("/exams", headers=other.headers).json()] == [0]
+    assert [e["color_index"] for e in api.get("/exams", headers=user.headers).json()] == [0, 1]

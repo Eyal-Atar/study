@@ -19,6 +19,7 @@ class BlockOut(BaseModel):
     task_title: str
     task_kind: TaskKind
     exam_name: str
+    exam_color_index: int
     starts_at: dt.datetime
     ends_at: dt.datetime
     study_date: dt.date
@@ -40,6 +41,7 @@ class UnplacedOut(BaseModel):
     exam_id: UUID
     title: str
     minutes: int
+    exam_color_index: int
 
 
 class BusyOut(BaseModel):

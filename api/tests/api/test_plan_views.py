@@ -83,6 +83,7 @@ def test_plan_range_by_study_date(api: TestClient, user: ApiUser, db: psycopg.Co
         "task_title": "פרק 1",
         "task_kind": "learn",
         "exam_name": "אלגברה",
+        "exam_color_index": 0,
         "starts_at": "2026-11-17T00:30:00Z",
         "ends_at": "2026-11-17T01:00:00Z",
         "study_date": "2026-11-16",
@@ -182,7 +183,13 @@ def test_unplaced_and_undo_in_plan(api: TestClient, user: ApiUser, db: psycopg.C
     insert_block(db, user.id, task, Z(2026, 11, 16, 8, 0), Z(2026, 11, 16, 9, 0))
     body = api.get("/plan", headers=user.headers).json()
     assert body["unplaced"] == [
-        {"task_id": str(task), "exam_id": str(exam), "title": "חסרה", "minutes": 60}
+        {
+            "task_id": str(task),
+            "exam_id": str(exam),
+            "title": "חסרה",
+            "minutes": 60,
+            "exam_color_index": 0,
+        }
     ]
     assert body["undo"] is None
 
@@ -338,3 +345,23 @@ def test_busy_time_follows_the_profile_timezone(
             "ends_at": "2026-11-16T20:00:00Z",
         }
     ]
+
+
+def test_blocks_and_unplaced_carry_the_colour_of_their_exam(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, clock: FrozenClock
+) -> None:
+    clock.set(Z(2026, 11, 16, 12, 0))  # after the wake-up: today is 2026-11-16
+    first = insert_exam(db, user.id, exam_date="2026-11-25")
+    second = insert_exam(db, user.id, exam_date="2026-11-26")
+    for hour, exam in enumerate((first, second)):
+        task = insert_task(db, user.id, exam)
+        insert_block(
+            db, user.id, task, Z(2026, 11, 16, 8 + hour), Z(2026, 11, 16, 9 + hour), status="done"
+        )
+    missing = insert_task(db, user.id, second, minutes=120, title="חסרה")
+    plan = api.get("/plan", headers=user.headers).json()
+    today = api.get("/today", headers=user.headers).json()
+    for body in (plan, today):
+        by_exam = {block["exam_id"]: block["exam_color_index"] for block in body["blocks"]}
+        assert by_exam == {str(first): 0, str(second): 1}
+    assert [(u["task_id"], u["exam_color_index"]) for u in plan["unplaced"]] == [(str(missing), 1)]

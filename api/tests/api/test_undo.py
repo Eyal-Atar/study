@@ -716,3 +716,23 @@ def test_undo_of_busy_changed_refuses_a_malformed_before(
     ).fetchone()
     assert row == (Z(2026, 11, 18, 10), Z(2026, 11, 18, 11))
     assert scalar(db, "SELECT undone_at FROM app.plan_versions WHERE id = %s", version) is None
+
+
+def test_undo_of_a_deleted_exam_keeps_its_colour_even_if_a_new_exam_took_it(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    assert scalar(db, "SELECT color_index FROM app.exams WHERE id = %s", exam) == 0
+    deleted = api.delete(f"/exams/{exam}", headers=user.headers)
+    assert deleted.status_code == 200, deleted.text
+    created = api.post(
+        "/exams", json={"name": "חדש", "exam_date": "2026-12-01"}, headers=user.headers
+    )
+    assert created.json()["exam"]["color_index"] == 0  # takes the freed colour
+
+    response = _undo(api, user, deleted.json()["version_id"])
+    assert response.status_code == 200, response.text
+    assert scalar(db, "SELECT color_index FROM app.exams WHERE id = %s", exam) == 0
+    colours = {e["id"]: e["color_index"] for e in api.get("/exams", headers=user.headers).json()}
+    assert colours[str(exam)] == 0
+    assert colours[created.json()["exam"]["id"]] == 0
