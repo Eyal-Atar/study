@@ -167,6 +167,44 @@ def test_settings_reject_a_timeout_longer_than_the_lock(monkeypatch: pytest.Monk
         Settings(supabase_url="https://test-ref.supabase.co", _env_file=None)
 
 
+def test_timetable_settings_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("AI_MODEL_TIMETABLE", raising=False)
+    settings = Settings(supabase_url="https://test-ref.supabase.co", _env_file=None)
+    assert settings.ai_model_timetable is None
+    assert settings.ai_timetable_effort == "low"
+    assert settings.ai_timetable_max_tokens == 16000
+    assert settings.ai_daily_timetable_limit == 5
+    assert settings.max_timetable_image_bytes == 5 * 1024 * 1024
+    assert settings.max_timetable_pdf_pages == 4
+
+
+def test_empty_timetable_model_is_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AI_MODEL_TIMETABLE", "  ")
+    settings = Settings(supabase_url="https://test-ref.supabase.co", _env_file=None)
+    assert settings.ai_model_timetable is None
+    monkeypatch.setenv("AI_MODEL_TIMETABLE", "some-model")
+    settings = Settings(supabase_url="https://test-ref.supabase.co", _env_file=None)
+    assert settings.ai_model_timetable == "some-model"
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("AI_TIMETABLE_MAX_TOKENS", "0"),
+        ("AI_DAILY_TIMETABLE_LIMIT", "-1"),
+        ("MAX_TIMETABLE_IMAGE_BYTES", "0"),
+        ("MAX_TIMETABLE_PDF_PAGES", "0"),
+        ("AI_TIMETABLE_EFFORT", "extreme"),
+    ],
+)
+def test_timetable_limits_are_checked(
+    monkeypatch: pytest.MonkeyPatch, name: str, value: str
+) -> None:
+    monkeypatch.setenv(name, value)
+    with pytest.raises(ValidationError):
+        Settings(supabase_url="https://test-ref.supabase.co", _env_file=None)
+
+
 def test_quota_settings_defaults() -> None:
     settings = Settings(supabase_url="https://test-ref.supabase.co", _env_file=None)
     assert settings.ai_daily_generation_limit == 3

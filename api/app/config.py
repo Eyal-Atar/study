@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     anthropic_api_key: SecretStr | None = None
     ai_model_analysis: str | None = None
     ai_model_light: str | None = None
+    # Reading a timetable photo (S35): its own model, so the eval can choose it without moving
+    # AI_MODEL_LIGHT for the rest of the system.
+    ai_model_timetable: str | None = None
     ai_analysis_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
     # Streaming, so a long answer does not time out; the limit includes the thinking.
     ai_analysis_max_tokens: int = Field(default=64000, gt=0)
@@ -60,6 +63,13 @@ class Settings(BaseSettings):
     ai_max_retries: int = Field(default=2, ge=0, le=5)
     # Plan generation: attempts per local day, where the day is in ai_quota_timezone.
     ai_daily_generation_limit: int = Field(default=3, ge=0)
+    # Timetable parsing: requests per local day (the same day and rule as generations), the
+    # call's limits, and the file's: 5 MiB is the API's limit for one image.
+    ai_daily_timetable_limit: int = Field(default=5, ge=0)
+    ai_timetable_effort: Literal["low", "medium", "high", "xhigh", "max"] = "low"
+    ai_timetable_max_tokens: int = Field(default=16000, gt=0)
+    max_timetable_image_bytes: int = Field(default=5 * 1024 * 1024, gt=0)
+    max_timetable_pdf_pages: int = Field(default=4, gt=0)
     ai_quota_timezone: str = "Asia/Jerusalem"
     max_analysis_minutes: int = Field(default=6000, gt=0)
     max_analysis_scanned_pages: int = Field(default=100, ge=0)
@@ -84,6 +94,7 @@ class Settings(BaseSettings):
         "anthropic_api_key",
         "ai_model_analysis",
         "ai_model_light",
+        "ai_model_timetable",
         "vapid_private_key",
         "vapid_public_key",
         "vapid_subject",

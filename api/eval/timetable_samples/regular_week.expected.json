@@ -1,0 +1,71 @@
+{
+  "window": [
+    1268,
+    964
+  ],
+  "commitments": [
+    {
+      "title": "הסתברות - הרצאה",
+      "kind": "class",
+      "weekday": 0,
+      "start": "08:00",
+      "end": "10:00"
+    },
+    {
+      "title": "אלגוריתמים - הרצאה",
+      "kind": "class",
+      "weekday": 0,
+      "start": "12:00",
+      "end": "14:00"
+    },
+    {
+      "title": "שפת C - הרצאה",
+      "kind": "class",
+      "weekday": 1,
+      "start": "10:00",
+      "end": "12:00"
+    },
+    {
+      "title": "הסתברות - תרגול",
+      "kind": "class",
+      "weekday": 1,
+      "start": "14:00",
+      "end": "15:00"
+    },
+    {
+      "title": "אלגוריתמים - תרגול",
+      "kind": "class",
+      "weekday": 2,
+      "start": "09:00",
+      "end": "10:00"
+    },
+    {
+      "title": "פיתוח משחקים - הרצאה",
+      "kind": "class",
+      "weekday": 2,
+      "start": "16:00",
+      "end": "19:00"
+    },
+    {
+      "title": "שפת C - מעבדה",
+      "kind": "class",
+      "weekday": 3,
+      "start": "12:00",
+      "end": "14:00"
+    },
+    {
+      "title": "לוגיקה - הרצאה",
+      "kind": "class",
+      "weekday": 3,
+      "start": "14:00",
+      "end": "16:00"
+    },
+    {
+      "title": "לוגיקה - תרגול",
+      "kind": "class",
+      "weekday": 4,
+      "start": "10:00",
+      "end": "11:00"
+    }
+  ]
+}

@@ -17,7 +17,8 @@ finds the fence closed, the job was claimed again by another worker: they raise 
 and the worker leaves the job alone without writing (an INFO line only). An end write
 (finish, requeue, fail) that finds it closed is logged as a WARNING ("claim lost").
 
-`JobContext.ai_client()` builds the Claude client once per job, from the worker's factory,
+`JobContext.ai_client()` builds the Claude client once per job, from the worker's factory
+(`timetable_ai_client()` the same way, for AI_MODEL_TIMETABLE),
 and `record_usage` writes the ledger app.ai_usage as the schema owner, outside any user
 transaction; app.jobs and app.ai_usage are the only tables the worker writes as the owner.
 `JobContext.auth_admin()` builds the Auth admin client the same way, and
@@ -123,6 +124,10 @@ class JobContext:
         repr=False, default=AnthropicAnalysisClient.from_settings
     )
     _ai_client: AnalysisClient | None = field(repr=False, default=None, init=False)
+    _timetable_ai_client_factory: AiClientFactory = field(
+        repr=False, default=AnthropicAnalysisClient.for_timetable
+    )
+    _timetable_ai_client: AnalysisClient | None = field(repr=False, default=None, init=False)
     _auth_admin_factory: AuthAdminFactory = field(
         repr=False, default=SupabaseAuthAdmin.from_settings
     )
@@ -254,6 +259,12 @@ class JobContext:
             self._ai_client = self._ai_client_factory(self.settings)
         return self._ai_client
 
+    def timetable_ai_client(self) -> AnalysisClient:
+        """The Claude client for timetable parsing (AI_MODEL_TIMETABLE), built on first use."""
+        if self._timetable_ai_client is None:
+            self._timetable_ai_client = self._timetable_ai_client_factory(self.settings)
+        return self._timetable_ai_client
+
     def auth_admin(self) -> AuthAdmin:
         """The Auth admin client, built on first use; AuthUnavailable propagates."""
         if self._auth_admin is None:
@@ -330,6 +341,7 @@ class Worker:
         on_crashed: Mapping[str, CrashHandler] | None = None,
         ai_client_factory: AiClientFactory | None = None,
         auth_admin_factory: AuthAdminFactory | None = None,
+        timetable_ai_client_factory: AiClientFactory | None = None,
     ) -> None:
         self._conninfo = conninfo
         self._storage = storage
@@ -341,6 +353,11 @@ class Worker:
             ai_client_factory
             if ai_client_factory is not None
             else AnthropicAnalysisClient.from_settings
+        )
+        self._timetable_ai_client_factory: AiClientFactory = (
+            timetable_ai_client_factory
+            if timetable_ai_client_factory is not None
+            else AnthropicAnalysisClient.for_timetable
         )
         self._auth_admin_factory: AuthAdminFactory = (
             auth_admin_factory
@@ -387,6 +404,7 @@ class Worker:
             _clock=self._clock,
             _ai_client_factory=self._ai_client_factory,
             _auth_admin_factory=self._auth_admin_factory,
+            _timetable_ai_client_factory=self._timetable_ai_client_factory,
         )
         if job.attempts > job.max_attempts:
             crashed = self._on_crashed.get(job.kind)

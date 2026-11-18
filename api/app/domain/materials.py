@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final
+from uuid import UUID
 
 
 class MaterialKind(StrEnum):
@@ -38,12 +39,22 @@ JOB_DELETE_MATERIAL_FILE: Final = "delete_material_file"
 JOB_GENERATE_PLAN: Final = "generate_plan"
 JOB_REANALYZE_EXAM: Final = "reanalyze_exam"
 JOB_DELETE_ACCOUNT: Final = "delete_account"
+JOB_PARSE_TIMETABLE: Final = "parse_timetable"
+
+# Timetable photos (S35) live in the materials bucket too, in their own folder under the
+# user's id (the upload policy allows exactly two folders there), and only until parsed.
+TIMETABLE_FOLDER: Final = "timetables"
 
 _PDF_SIGNATURE: Final = b"%PDF-"
 _PDF_SIGNATURE_WINDOW: Final = 1024
 _JPEG_SIGNATURE: Final = b"\xff\xd8\xff"
 _PNG_SIGNATURE: Final = b"\x89PNG\r\n\x1a\n"
 _BLANK_RUN: Final = re.compile(r"\n{3,}")
+
+
+def timetable_path(user_id: UUID, upload_id: UUID) -> str:
+    """Where the API lets the browser upload a timetable file, and where the job reads it."""
+    return f"{user_id}/{TIMETABLE_FOLDER}/{upload_id}"
 
 
 def sniff_mime(data: bytes) -> str | None:

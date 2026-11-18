@@ -1,0 +1,64 @@
+{
+  "window": [
+    1268,
+    964
+  ],
+  "commitments": [
+    {
+      "title": "חדו\"א 2 - הרצאה",
+      "kind": "class",
+      "weekday": 0,
+      "start": "10:15",
+      "end": "11:45"
+    },
+    {
+      "title": "פיזיקה 1 - הרצאה",
+      "kind": "class",
+      "weekday": 0,
+      "start": "12:30",
+      "end": "14:00"
+    },
+    {
+      "title": "חדו\"א 2 - תרגול",
+      "kind": "class",
+      "weekday": 1,
+      "start": "16:50",
+      "end": "18:20"
+    },
+    {
+      "title": "פיזיקה 1 - הרצאה",
+      "kind": "class",
+      "weekday": 2,
+      "start": "12:30",
+      "end": "14:00"
+    },
+    {
+      "title": "אלגברה לינארית 1 - תרגול",
+      "kind": "class",
+      "weekday": 2,
+      "start": "16:50",
+      "end": "18:20"
+    },
+    {
+      "title": "חדו\"א 2 - הרצאה",
+      "kind": "class",
+      "weekday": 3,
+      "start": "10:15",
+      "end": "11:45"
+    },
+    {
+      "title": "אלגברה לינארית 1 - הרצאה",
+      "kind": "class",
+      "weekday": 3,
+      "start": "14:10",
+      "end": "15:40"
+    },
+    {
+      "title": "פיזיקה 1 - מעבדה",
+      "kind": "class",
+      "weekday": 4,
+      "start": "08:30",
+      "end": "11:15"
+    }
+  ]
+}

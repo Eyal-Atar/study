@@ -111,6 +111,24 @@ class AnthropicAnalysisClient:
             max_retries=settings.ai_max_retries,
         )
 
+    @classmethod
+    def for_timetable(cls, settings: Settings) -> AnthropicAnalysisClient:
+        """The client for timetable parsing: AI_MODEL_TIMETABLE and its own call limits."""
+        if settings.anthropic_api_key is None or not settings.ai_model_timetable:
+            raise AiError("ai_not_configured")
+        return cls(
+            api_key=settings.anthropic_api_key.get_secret_value(),
+            model=settings.ai_model_timetable,
+            effort=settings.ai_timetable_effort,
+            max_tokens=settings.ai_timetable_max_tokens,
+            timeout=settings.ai_timeout_seconds,
+            max_retries=settings.ai_max_retries,
+        )
+
+    @property
+    def model(self) -> str:
+        return self._model
+
     def complete(
         self,
         *,

@@ -23,6 +23,7 @@ from app.domain.materials import (
     JOB_DELETE_MATERIAL_FILE,
     JOB_GENERATE_PLAN,
     JOB_INGEST_MATERIAL,
+    JOB_PARSE_TIMETABLE,
     JOB_REANALYZE_EXAM,
     PDF_MIME,
     ExtractedText,
@@ -34,6 +35,7 @@ from app.jobs.account import delete_account
 from app.jobs.pdf_text import PdfUnreadable, extract_pdf
 from app.jobs.plan_jobs import generate_plan, reanalyze_exam
 from app.jobs.storage import FileMissing, FileTooLarge, StorageUnavailable
+from app.jobs.timetable import parse_timetable, parse_timetable_crashed
 from app.jobs.worker import CrashHandler, Handler, JobContext, JobFailed
 
 logger = logging.getLogger(__name__)
@@ -243,6 +245,7 @@ HANDLERS: Final[Mapping[str, Handler]] = {
     JOB_GENERATE_PLAN: generate_plan,
     JOB_REANALYZE_EXAM: reanalyze_exam,
     JOB_DELETE_ACCOUNT: delete_account,
+    JOB_PARSE_TIMETABLE: parse_timetable,
 }
 
 # generate_plan and reanalyze_exam need no crash callback: they leave no row in an
@@ -250,4 +253,9 @@ HANDLERS: Final[Mapping[str, Handler]] = {
 # delete_account needs none either: DELETE /me already removed every app row, and the job
 # writes none; a crashed one is rerun (each step is idempotent) or fails as worker_crashed.
 
-ON_CRASHED: Final[Mapping[str, CrashHandler]] = {JOB_INGEST_MATERIAL: ingest_material_crashed}
+# parse_timetable's callback deletes the uploaded file, which is kept only until parsed.
+
+ON_CRASHED: Final[Mapping[str, CrashHandler]] = {
+    JOB_INGEST_MATERIAL: ingest_material_crashed,
+    JOB_PARSE_TIMETABLE: parse_timetable_crashed,
+}
