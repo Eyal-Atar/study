@@ -4,19 +4,22 @@ import { RequireAuth } from '../auth/RequireAuth'
 import { ExamPage } from '../exam/ExamPage'
 import { ExamsPage } from '../exam/ExamsPage'
 import { ProgressPage } from '../progress/ProgressPage'
+import { CalendarPage } from '../calendar/CalendarPage'
 import { AuthCallbackPage } from '../pages/AuthCallbackPage'
 import { LoginPage } from '../pages/LoginPage'
 import { onboardingRoutes } from '../onboarding/routes'
 import { NotFoundPage } from '../pages/NotFoundPage'
-import { TodayPage } from '../pages/TodayPage'
-import { WeekPage } from '../week/WeekPage'
 import { DeleteAccountPage } from '../settings/DeleteAccountPage'
 import { GoodbyePage } from '../settings/GoodbyePage'
 import { SettingsPage } from '../settings/SettingsPage'
 import { RouteCrash } from './AppErrorBoundary'
 import { AppShell } from './AppShell'
+import { TodayRedirect, WeekRedirect } from './legacyRedirects'
 import { OnboardingGate } from './OnboardingGate'
 
+// S31: the home of the app. /, /today and /week all lead here.
+export const CALENDAR_PATH = '/calendar'
+// The first two destinations, kept as redirects to the calendar (legacyRedirects.tsx).
 export const TODAY_PATH = '/today'
 export const WEEK_PATH = '/week'
 export const EXAMS_PATH = '/exams'
@@ -59,9 +62,11 @@ export const routes: RouteObject[] = [
               {
                 Component: OnboardingGate,
                 children: [
-                  { index: true, element: <Navigate to={TODAY_PATH} replace /> },
-                  { path: TODAY_PATH, Component: TodayPage },
-                  { path: WEEK_PATH, Component: WeekPage },
+                  { index: true, element: <Navigate to={CALENDAR_PATH} replace /> },
+                  { path: CALENDAR_PATH, Component: CalendarPage },
+                  // Inside the gate: a user without a plan goes from /today straight to the onboarding.
+                  { path: TODAY_PATH, Component: TodayRedirect },
+                  { path: WEEK_PATH, Component: WeekRedirect },
                   { path: EXAMS_PATH, Component: ExamsPage },
                   { path: `${EXAMS_PATH}/:examId`, Component: ExamPage },
                   { path: PROGRESS_PATH, Component: ProgressPage },

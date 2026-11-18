@@ -43,8 +43,8 @@ export function ProfileMenu() {
     <Menu
       trigger={
         <IconButton aria-label={he.shell.profile}>
-          {/* A 32px circle inside the 44px touch target. */}
-          <span className="flex size-8 items-center justify-center rounded-full bg-brand-soft text-small font-semibold text-brand-strong">
+          {/* A 36px circle inside the 44px touch target, as the prototype's .avatar. */}
+          <span className="flex size-9 items-center justify-center rounded-full bg-brand-soft text-small font-semibold text-brand-strong">
             {initial ?? <User aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />}
           </span>
         </IconButton>

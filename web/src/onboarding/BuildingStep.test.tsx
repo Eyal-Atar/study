@@ -146,7 +146,7 @@ describe('BuildingStep', () => {
     const meReads = fake.calls('GET', '/me').length
     await user.click(screen.getByRole('button', { name: he.building.toToday }))
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe('/today')
+      expect(router.state.location.pathname).toBe('/calendar')
     })
     expect(fake.calls('GET', '/me').length).toBeGreaterThan(meReads)
     expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
@@ -189,7 +189,7 @@ describe('BuildingStep', () => {
     expect(screen.queryByRole('button', { name: he.common.retry })).not.toBeInTheDocument()
   })
 
-  it('409 nothing_to_analyze opens ReplanOffer, and applying it goes to /today', async () => {
+  it('409 nothing_to_analyze opens ReplanOffer, and applying it goes to the calendar (through /today)', async () => {
     const user = userEvent.setup()
     const { fake, state } = server()
     fake.on('POST /plans/generate', () => problem(409, 'nothing_to_analyze'))
@@ -206,7 +206,7 @@ describe('BuildingStep', () => {
 
     await user.click(await within(dialog).findByRole('button', { name: he.replan.confirm }))
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe('/today')
+      expect(router.state.location.pathname).toBe('/calendar')
     })
     expect(fake.calls('POST', '/plan/replan').at(-1)?.body).toEqual({ preview: false, basis: 'b1' })
   })
@@ -272,7 +272,10 @@ describe('BuildingStep', () => {
       expect(router.state.location.search).toBe('?job=j1')
     })
     expect(generateCalls(fake)).toHaveLength(1)
-    expect(sessionStorage.getItem(JOB_KEY)).toBe('j1')
+    // The router's state changes before React commits the screen whose effect remembers the job.
+    await waitFor(() => {
+      expect(sessionStorage.getItem(JOB_KEY)).toBe('j1')
+    })
   })
 
   it('409 nothing_to_analyze without any exam goes back to the exams step', async () => {
@@ -288,7 +291,7 @@ describe('BuildingStep', () => {
     expect(fake.calls('POST', '/plan/replan')).toHaveLength(0)
   })
 
-  it('applying the offer after nothing_to_analyze shows "הלוח עודכן" on /today', async () => {
+  it('applying the offer after nothing_to_analyze shows "הלוח עודכן" on the calendar', async () => {
     const user = userEvent.setup()
     const { fake, state } = server()
     fake.on('POST /plans/generate', () => problem(409, 'nothing_to_analyze'))
@@ -302,7 +305,7 @@ describe('BuildingStep', () => {
     const dialog = await screen.findByRole('dialog', { name: he.replan.title })
     await user.click(await within(dialog).findByRole('button', { name: he.replan.confirm }))
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe('/today')
+      expect(router.state.location.pathname).toBe('/calendar')
     })
     expect(await screen.findByText(he.replan.applied)).toBeInTheDocument()
   })

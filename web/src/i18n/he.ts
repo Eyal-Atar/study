@@ -6,6 +6,10 @@ import { hePwa } from './hePwa'
 // Directional Isolate keep a Latin name from reordering the Hebrew sentence around it.
 const isolate = (name: string) => `\u2068${name}\u2069`
 
+// A count of days in words: "יום אחד", "יומיים", "5 ימים". Shared by the progress board and the
+// progress chip of the shell.
+const dayCount = (n: number) => (n === 1 ? 'יום אחד' : n === 2 ? 'יומיים' : `${String(n)} ימים`)
+
 // Every text the user reads or hears. One section per screen; shared pieces in `common`,
 // `errors` and `codes`. A screen fills only its own section.
 export const he = {
@@ -31,8 +35,8 @@ export const he = {
   shell: {
     signOut: 'יציאה',
     mainNav: 'ניווט ראשי',
-    today: 'היום',
-    week: 'שבוע',
+    // S31: the calendar is the home destination (it replaced "today" and "week").
+    calendar: 'יומן',
     // S15
     exams: 'מבחנים',
     settings: 'הגדרות',
@@ -41,6 +45,14 @@ export const he = {
     // S26
     skipToContent: 'דלג לתוכן',
     profile: 'פרופיל',
+    // S31: the name of the progress chip in the header, a link to the progress board.
+    progressChip: (streak: number, level: number) => `רצף של ${dayCount(streak)}, רמה ${String(level)}`,
+  },
+  // S31: the temporary /calendar, which shows the day or the week (S32 replaces it).
+  calendar: {
+    view: 'תצוגה',
+    day: 'יום',
+    week: 'שבוע',
   },
   login: {
     google: 'התחברות עם Google',
@@ -771,7 +783,7 @@ export const he = {
       title: 'רצף ימי לימוד',
       current: 'הרצף הנוכחי',
       longest: 'הרצף הארוך ביותר',
-      days: (n: number) => (n === 1 ? 'יום אחד' : n === 2 ? 'יומיים' : `${String(n)} ימים`),
+      days: dayCount,
       start: 'היום הוא יום טוב להתחיל.',
       studiedToday: 'למדתם היום.',
       keepGoing: 'בלוק אחד היום ממשיך את הרצף.',

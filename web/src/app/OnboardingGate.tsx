@@ -6,6 +6,8 @@ import { STEP_PATHS } from '../onboarding/steps'
 import { ErrorState, LoadingState } from '../ui/states'
 
 const ONBOARDING_PATH = '/onboarding'
+// Not imported from routes.tsx, which imports this file.
+const CALENDAR_PATH = '/calendar'
 
 function underOnboarding(pathname: string): boolean {
   return pathname === ONBOARDING_PATH || pathname.startsWith(`${ONBOARDING_PATH}/`)
@@ -44,7 +46,7 @@ export function OnboardingGate() {
     }
   } else if (inOnboarding) {
     const showingJob = pathname === STEP_PATHS.building && new URLSearchParams(search).has('job')
-    if (!showingJob) return <Navigate to="/today" replace />
+    if (!showingJob) return <Navigate to={CALENDAR_PATH} replace />
   }
   return <Outlet />
 }

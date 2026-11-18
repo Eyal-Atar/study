@@ -48,7 +48,7 @@ beforeEach(() => {
 })
 
 describe('the onboarding, end to end', () => {
-  it('/ → exams → skip materials → the two questions → building → done → /today', async () => {
+  it('/ → exams → skip materials → the two questions → building → done → /today → /calendar', async () => {
     const user = userEvent.setup()
     const { fake } = server()
     const { router } = renderRoute('/', { auth: createFakeAuth(fakeSession()), api: fake.api })
@@ -96,7 +96,7 @@ describe('the onboarding, end to end', () => {
 
     await user.click(screen.getByRole('button', { name: he.building.toToday }))
     expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/today')
+    expect(router.state.location.pathname).toBe('/calendar')
     expect(fake.calls('POST', '/plans/generate')).toHaveLength(1)
   })
 

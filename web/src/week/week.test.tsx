@@ -134,18 +134,27 @@ describe('the week screen', () => {
     expect(within(screen.getByRole('group', { name: he.week.moves })).getAllByRole('button')).toHaveLength(3)
 
     await user.click(screen.getByRole('button', { name: he.week.next }))
-    expect(router.state.location.search).toBe('?from=2026-11-22')
+    // The week screen writes ?from= alone; the calendar puts view=week back (S31).
+    await waitFor(() => {
+      expect(router.state.location.search).toBe('?view=week&from=2026-11-22')
+    })
     await weekShown('2026-11-22')
     expect(planCalls(fake)).toContain(planPath('2026-11-22', '2026-11-28'))
 
     await user.click(screen.getByRole('button', { name: he.week.previous }))
     await user.click(screen.getByRole('button', { name: he.week.previous }))
-    expect(router.state.location.search).toBe('?from=2026-11-08')
+    // The week screen writes ?from= alone; the calendar puts view=week back (S31).
+    await waitFor(() => {
+      expect(router.state.location.search).toBe('?view=week&from=2026-11-08')
+    })
     await weekShown('2026-11-08')
     expect(planCalls(fake)).toContain(planPath('2026-11-08', '2026-11-14'))
 
     await user.click(screen.getByRole('button', { name: he.week.thisWeek }))
-    expect(router.state.location.search).toBe('')
+    // The week screen writes ?from= alone; the calendar puts view=week back (S31).
+    await waitFor(() => {
+      expect(router.state.location.search).toBe('?view=week')
+    })
     await weekShown()
   })
 
@@ -190,8 +199,10 @@ describe('the week screen', () => {
     expect(queryClient.getQueryData<{ blocks: Block[] }>(todayKey(USER_ID))?.blocks[0]?.status).toBe('done')
     expect(fake.calls('POST', '/blocks/block-1/complete')).toHaveLength(1)
 
-    await user.click(within(screen.getByRole('navigation', { name: he.shell.mainNav })).getByRole('link', { name: he.shell.today }))
-    expect(router.state.location.pathname).toBe('/today')
+    // S31: the day is the other view of the calendar.
+    await user.click(screen.getByRole('radio', { name: he.calendar.day }))
+    expect(router.state.location.pathname).toBe('/calendar')
+    expect(router.state.location.search).toBe('')
     expect(queryClient.getQueryData<{ blocks: Block[] }>(todayKey(USER_ID))?.blocks[0]?.state).toBe('done')
   })
 
@@ -272,7 +283,10 @@ describe('the week screen', () => {
     expect(screen.getByText(he.week.range(formatDay(SUNDAY), formatDay(SATURDAY)))).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: he.week.next }))
-    expect(router.state.location.search).toBe('?from=2026-11-22')
+    // The week screen writes ?from= alone; the calendar puts view=week back (S31).
+    await waitFor(() => {
+      expect(router.state.location.search).toBe('?view=week&from=2026-11-22')
+    })
     await weekShown('2026-11-22')
     expect(screen.queryByText(he.week.empty)).not.toBeInTheDocument()
   })

@@ -4,6 +4,7 @@ import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { he } from '../i18n/he'
 import { COMPLETED_AT, examFixture, meFixture } from '../onboarding/testFixtures'
+import { makeProgress } from '../progress/testFixtures'
 import { createFakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
@@ -35,7 +36,7 @@ beforeEach(() => {
 describe('AppShell', () => {
   it('the first Tab stop is "skip to content", and Enter on it moves the focus to main', async () => {
     const user = userEvent.setup()
-    const { router } = open('/today')
+    const { router } = open('/calendar')
     await profileButton()
 
     await user.tab()
@@ -48,11 +49,11 @@ describe('AppShell', () => {
     expect(main).toHaveFocus()
     expect(main).toHaveAttribute('id', 'main')
     // The router did not see a navigation.
-    expect(router.state.location.pathname).toBe('/today')
+    expect(router.state.location.pathname).toBe('/calendar')
     expect(router.state.location.hash).toBe('')
   })
 
-  it('has one main navigation with the four destinations in order, and only the current one is marked', async () => {
+  it('has one main navigation with the three destinations in order, and only the current one is marked', async () => {
     open('/exams')
 
     const navs = await screen.findAllByRole('navigation', { name: he.shell.mainNav })
@@ -60,12 +61,44 @@ describe('AppShell', () => {
     expect(screen.getAllByRole('navigation')).toHaveLength(1)
     const nav = within(screen.getByRole('navigation', { name: he.shell.mainNav }))
     const links = nav.getAllByRole('link')
-    expect(links.map((link) => link.textContent)).toEqual([he.shell.today, he.shell.week, he.shell.exams, he.shell.progress])
-    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/today', '/week', '/exams', '/progress'])
-    expect(links.map((link) => link.getAttribute('aria-current'))).toEqual([null, null, 'page', null])
+    expect(links.map((link) => link.textContent)).toEqual([he.shell.calendar, he.shell.exams, he.shell.progress])
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/calendar', '/exams', '/progress'])
+    expect(links.map((link) => link.getAttribute('aria-current'))).toEqual([null, 'page', null])
     expect(nav.queryByRole('link', { name: he.shell.settings })).not.toBeInTheDocument()
     // The icons are decoration: the name of a link is its label alone.
     for (const link of links) expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('on the week of the calendar the calendar is the current destination', async () => {
+    open('/calendar?view=week')
+
+    const nav = within(await screen.findByRole('navigation', { name: he.shell.mainNav }))
+    expect(nav.getAllByRole('link').map((link) => link.getAttribute('aria-current'))).toEqual(['page', null, null])
+  })
+
+  it('one banner holds the logo, the progress chip and the profile button', async () => {
+    const auth = createFakeAuth(fakeSession())
+    const api = createFakeApi()
+      .on('GET /me', meFixture({ onboarding_completed_at: COMPLETED_AT }))
+      .on('GET /progress', makeProgress({ streak: { current: 5, longest: 9, studied_today: true, today: '2026-11-16' }, level: 3 })).api
+    renderRoute('/exams', { auth, api })
+
+    const banner = within(await screen.findByRole('banner'))
+    expect(screen.getAllByRole('banner')).toHaveLength(1)
+    expect(banner.getByText(he.appName)).toBeInTheDocument()
+    expect(await banner.findByRole('button', { name: he.shell.profile })).toBeInTheDocument()
+    expect(await banner.findByRole('link', { name: he.shell.progressChip(5, 3) })).toHaveAttribute('href', '/progress')
+  })
+
+  it('without an answer from GET /progress the shell has no chip and no error', async () => {
+    open('/settings')
+
+    expect(await screen.findByRole('heading', { level: 1, name: he.settings.title })).toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const banner = within(screen.getByRole('banner'))
+    expect(banner.queryByRole('link', { name: /רצף/ })).not.toBeInTheDocument()
+    expect(banner.queryByRole('alert')).not.toBeInTheDocument()
+    expect(banner.getByRole('button', { name: he.shell.profile })).toBeInTheDocument()
   })
 
   it('on the settings screen no destination is marked', async () => {
@@ -134,12 +167,13 @@ describe('AppShell', () => {
     })
   })
 
-  it('during the onboarding there is no navigation and no profile menu, only the name', async () => {
+  it('during the onboarding there is no navigation, no progress chip and no profile menu, only the name', async () => {
     const auth = createFakeAuth(fakeSession())
     const api = createFakeApi()
       .on('GET /me', meFixture({ onboarding_completed_at: null }))
       .on('GET /exams', [examFixture()])
-      .on('GET /exams/e1/materials', []).api
+      .on('GET /exams/e1/materials', [])
+      .on('GET /progress', makeProgress()).api
     const { router } = renderRoute('/onboarding/exams', { auth, api })
 
     expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
@@ -147,6 +181,7 @@ describe('AppShell', () => {
     expect(screen.getByRole('banner')).toHaveTextContent(he.appName)
     // The onboarding has a navigation of its own, the steps: the shell's is the one that is gone.
     expect(screen.queryByRole('navigation', { name: he.shell.mainNav })).not.toBeInTheDocument()
+    // No link at all in the banner: neither a destination nor the progress chip.
     expect(within(screen.getByRole('banner')).queryByRole('link')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: he.shell.profile })).not.toBeInTheDocument()
     // The skip link is part of every screen.
@@ -157,11 +192,11 @@ describe('AppShell', () => {
 describe('focus after a navigation', () => {
   it('a navigation link moves the focus to the h1 of the new screen', async () => {
     const user = userEvent.setup()
-    open('/today')
+    open('/calendar')
 
     const nav = within(await screen.findByRole('navigation', { name: he.shell.mainNav }))
-    await user.click(nav.getByRole('link', { name: he.shell.week }))
-    const heading = await screen.findByRole('heading', { level: 1, name: he.week.title })
+    await user.click(nav.getByRole('link', { name: he.shell.exams }))
+    const heading = await screen.findByRole('heading', { level: 1, name: he.exam.list.title })
     await waitFor(() => {
       expect(heading).toHaveFocus()
     })
@@ -188,19 +223,19 @@ describe('focus after a navigation', () => {
     const { router } = open('/')
 
     const heading = await screen.findByRole('heading', { level: 1, name: he.today.title })
-    expect(router.state.location.pathname).toBe('/today')
+    expect(router.state.location.pathname).toBe('/calendar')
     expect(heading).not.toHaveFocus()
     expect(screen.getByRole('main')).not.toHaveFocus()
     expect(document.body).toHaveFocus()
   })
 
   it('a change of the search params alone does not move the focus', async () => {
-    const { router } = open('/week')
+    const { router } = open('/calendar?view=week')
 
     const heading = await screen.findByRole('heading', { level: 1, name: he.week.title })
-    await router.navigate('/week?from=2026-11-22')
+    await router.navigate('/calendar?view=week&from=2026-11-22')
     await waitFor(() => {
-      expect(router.state.location.search).toBe('?from=2026-11-22')
+      expect(router.state.location.search).toBe('?view=week&from=2026-11-22')
     })
     expect(heading).not.toHaveFocus()
     expect(document.body).toHaveFocus()

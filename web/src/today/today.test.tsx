@@ -224,7 +224,7 @@ describe('the today screen', () => {
     // No empty list with a heading under the card (S27 review focus).
     expect(screen.queryByRole('heading', { name: he.today.blocks })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: he.today.moreBlocks })).not.toBeInTheDocument()
-    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
+    expect(screen.queryByRole('radiogroup', { name: he.move.viewLabel })).not.toBeInTheDocument()
   })
 
   it('with nothing on the board at all, says there are no tasks', async () => {

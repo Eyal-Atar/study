@@ -89,10 +89,10 @@ describe('OnboardingGate', () => {
     expect(router.state.location.pathname).toBe('/onboarding/schedule')
   })
 
-  it('sends a user with a plan from the onboarding to /today', async () => {
+  it('sends a user with a plan from the onboarding to /calendar', async () => {
     const { router } = open(server(COMPLETED_AT), '/onboarding/materials')
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe('/today')
+      expect(router.state.location.pathname).toBe('/calendar')
     })
     expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
   })
@@ -103,10 +103,10 @@ describe('OnboardingGate', () => {
     expect(router.state.location.pathname).toBe('/onboarding/building')
   })
 
-  it('sends a user with a plan from the building screen without a job to /today', async () => {
+  it('sends a user with a plan from the building screen without a job to /calendar', async () => {
     const { router } = open(server(COMPLETED_AT), '/onboarding/building')
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe('/today')
+      expect(router.state.location.pathname).toBe('/calendar')
     })
   })
 
@@ -130,6 +130,6 @@ describe('OnboardingGate', () => {
     fail = false
     await user.click(screen.getByRole('button', { name: he.common.retry }))
     expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/today')
+    expect(router.state.location.pathname).toBe('/calendar')
   })
 })

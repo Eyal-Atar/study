@@ -32,7 +32,7 @@ describe('PushSync', () => {
       user_agent: navigator.userAgent,
     })
 
-    await user.click(await screen.findByRole('link', { name: he.shell.week }))
+    await user.click(await screen.findByRole('link', { name: he.shell.exams }))
     await settle()
     expect(server.calls('POST', '/push/subscriptions')).toHaveLength(1)
   })
