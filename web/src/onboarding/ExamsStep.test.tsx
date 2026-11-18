@@ -24,7 +24,7 @@ function examsApi(initial: Exam[] = []) {
     .on('GET /exams', () => exams)
     .on('POST /exams', (call: ApiCall) => {
       const body = call.body as ExamCreate
-      const exam: Exam = { id: `e${String(exams.length + 1)}`, ...body, created_at: '2026-11-16T08:00:00Z' }
+      const exam: Exam = { id: `e${String(exams.length + 1)}`, ...body, created_at: '2026-11-16T08:00:00Z', color_index: 0 }
       exams = [...exams, exam]
       return { exam, plan_affected: false }
     })
@@ -174,7 +174,7 @@ describe('ExamsStep', () => {
 
   it('delete hides the exam, shows a toast with undo, and undo sends the version_id', async () => {
     const user = userEvent.setup()
-    const exam: Exam = { id: 'e1', name: 'שפת C', exam_date: daysFromToday(20).iso, difficulty: 3, created_at: '2026-11-16T08:00:00Z' }
+    const exam: Exam = { id: 'e1', name: 'שפת C', exam_date: daysFromToday(20).iso, difficulty: 3, created_at: '2026-11-16T08:00:00Z', color_index: 0 }
     const fake = examsApi([exam])
     renderExams(fake)
 
@@ -204,7 +204,7 @@ describe('ExamsStep', () => {
         new Promise((resolve) => {
           const body = call.body as ExamCreate
           answer = () => {
-            resolve({ exam: { id: 'e1', ...body, created_at: '2026-11-16T08:00:00Z' }, plan_affected: false })
+            resolve({ exam: { id: 'e1', ...body, created_at: '2026-11-16T08:00:00Z', color_index: 0 }, plan_affected: false })
           }
         }),
     )
@@ -229,7 +229,7 @@ describe('ExamsStep', () => {
 
   it('a long exam name without spaces wraps inside its row and does not widen the page', async () => {
     const name = 'א'.repeat(120)
-    const exam: Exam = { id: 'e1', name, exam_date: daysFromToday(20).iso, difficulty: 3, created_at: '2026-11-16T08:00:00Z' }
+    const exam: Exam = { id: 'e1', name, exam_date: daysFromToday(20).iso, difficulty: 3, created_at: '2026-11-16T08:00:00Z', color_index: 0 }
     renderExams(examsApi([exam]))
 
     const title = await screen.findByText(name)

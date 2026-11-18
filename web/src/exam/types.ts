@@ -90,6 +90,6 @@ export interface PlanResponse {
   from: string
   to: string
   blocks: Block[]
-  unplaced: { task_id: string; exam_id: string; title: string; minutes: number }[]
+  unplaced: { task_id: string; exam_id: string; exam_color_index: number; title: string; minutes: number }[]
   undo: { version_id: string; reason: string; created_at: string } | null
 }

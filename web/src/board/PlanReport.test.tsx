@@ -15,8 +15,8 @@ const EXAM_2 = 'exam-2'
 const exams = [...EXAMS, { id: EXAM_2, name: 'הסתברות' }]
 
 const UNPLACED: Unplaced[] = [
-  { task_id: 'task-1', exam_id: EXAM_ID, title: 'פרק 3: גרפים', minutes: 90 },
-  { task_id: 'task-2', exam_id: EXAM_ID, title: 'סימולציה 1', minutes: 180 },
+  { task_id: 'task-1', exam_id: EXAM_ID, exam_color_index: 0, title: 'פרק 3: גרפים', minutes: 90 },
+  { task_id: 'task-2', exam_id: EXAM_ID, exam_color_index: 0, title: 'סימולציה 1', minutes: 180 },
 ]
 
 function setup({ unplaced = UNPLACED, preview = makePreview() }: { unplaced?: Unplaced[]; preview?: ReplanPreview | Error } = {}) {

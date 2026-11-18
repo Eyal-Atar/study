@@ -14,7 +14,7 @@ import { ToastRegion } from '../ui/toast'
 import { MaterialsStep } from './MaterialsStep'
 import type { Exam, Material, MaterialRegister } from './types'
 
-const exam: Exam = { id: 'e1', name: 'חדו"א', exam_date: '2027-01-20', difficulty: 3, created_at: '2026-11-16T08:00:00Z' }
+const exam: Exam = { id: 'e1', name: 'חדו"א', exam_date: '2027-01-20', difficulty: 3, created_at: '2026-11-16T08:00:00Z', color_index: 0 }
 
 function material(overrides: Partial<Material> = {}): Material {
   return {

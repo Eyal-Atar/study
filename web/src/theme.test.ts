@@ -25,6 +25,9 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05)
 }
 
+// The eight exam colours (decision 5). Each has a strong, a soft and a line token.
+const EXAM = ['0', '1', '2', '3', '4', '5', '6', '7'] as const
+
 // WCAG AA for normal text: 4.5:1 (spec 7.9). Every text and background pair that
 // docs/design/design-language.md allows is here; a new pair is added here first.
 const TEXT = ['ink', 'ink-muted', 'brand', 'brand-strong', 'danger', 'success', 'warning'] as const
@@ -44,11 +47,18 @@ const PAIRS: [string, string][] = [
   ['success', 'success-soft'],
   ['ink', 'warning-soft'],
   ['warning', 'warning-soft'],
-  // The quiet action button of a toast ("בטל") on the soft background of a success or error toast.
-  ['brand', 'success-soft'],
-  ['brand', 'danger-soft'],
-  ['brand-strong', 'success-soft'],
-  ['brand-strong', 'danger-soft'],
+  // The dark toast (S31): its text, its quiet action ("בטל") and its state icons, all on `inverse`.
+  ['on-inverse', 'inverse'],
+  ['inverse-action', 'inverse'],
+  ['inverse-success', 'inverse'],
+  ['inverse-danger', 'inverse'],
+  // The colour of an exam (S31): text inside a block is `ink` on the soft fill or on the line,
+  // and the "next task" card is white on the strong colour.
+  ...EXAM.flatMap((n): [string, string][] => [
+    ['ink', `exam-${n}-soft`],
+    ['ink', `exam-${n}-line`],
+    ['on-brand', `exam-${n}`],
+  ]),
 ]
 
 // WCAG 1.4.11 for the parts of controls (field and choice borders, the focus ring, the filled
@@ -58,11 +68,35 @@ const NON_TEXT_PAIRS: [string, string][] = [
   ...BACKGROUNDS.map((bg): [string, string] => ['brand', bg]),
   ['brand', 'brand-soft'],
   ['success', 'line'],
+  // The filled part of a progress bar on its track.
+  ['success', 'surface-muted'],
+  ['brand', 'surface-muted'],
+  // The "now" line of the calendar (a line, not text).
+  ['now', 'surface'],
+  ['now', 'canvas'],
+  // An exam colour as a mark (a stripe, a dot, a border) on its soft fill and on the page.
+  ...EXAM.flatMap((n): [string, string][] => [
+    [`exam-${n}`, `exam-${n}-soft`],
+    [`exam-${n}`, 'surface'],
+    [`exam-${n}`, 'canvas'],
+  ]),
 ]
 
 // The tokens the design language names (docs/design/design-language.md). S26-S28 build on these
 // names, so removing or renaming one is a breaking change.
 const TOKENS = [
+  ...[
+    'canvas', 'surface', 'surface-muted', 'ink', 'ink-muted', 'line', 'line-strong', 'brand', 'brand-strong',
+    'brand-soft', 'brand-accent', 'on-brand', 'now', 'danger', 'danger-soft', 'success', 'success-soft',
+    'warning', 'warning-soft', 'inverse', 'on-inverse', 'inverse-action', 'inverse-success', 'inverse-danger',
+    ...EXAM.flatMap((n) => [`exam-${n}`, `exam-${n}-soft`, `exam-${n}-line`]),
+  ].map((name) => `--color-${name}`),
+  '--radius-sheet',
+  '--shadow-raised',
+  '--shadow-lift',
+  '--shadow-sheet',
+  '--spacing-topbar',
+  '--spacing-bottombar',
   '--font-sans',
   '--font-weight-medium',
   '--font-weight-bold',
@@ -107,6 +141,16 @@ describe('design tokens', () => {
     expect(css).toMatch(new RegExp(`${token}:\\s*[^;]+;`))
   })
 
+  it('the eight exam colours differ from each other', () => {
+    const strong = EXAM.map((n) => color(`exam-${n}`).toLowerCase())
+    expect(new Set(strong).size).toBe(8)
+  })
+
+  it('the weights are the real ones of Rubik: 500 for labels, 700 for the logo', () => {
+    expect(css).toMatch(/--font-weight-medium:\s*500;/)
+    expect(css).toMatch(/--font-weight-bold:\s*700;/)
+  })
+
   it('the touch target is 44px', () => {
     expect(css).toMatch(/--spacing-touch:\s*2\.75rem;/)
   })
@@ -129,8 +173,8 @@ describe('the font', () => {
   it.each(faces.map((face, i): [number, string] => [i, face]))('face %i swaps, has a unicode-range and a small variable woff2', (_i, face) => {
     expect(face).toMatch(/font-display:\s*swap;/)
     expect(face).toMatch(/unicode-range:\s*U\+/)
-    // One variable file carries both weights (400 and 600).
-    expect(face).toMatch(/font-weight:\s*\d+ \d+;/)
+    // One variable file carries every weight, 400 to 700.
+    expect(face).toMatch(/font-weight:\s*400 700;/)
     const url = /url\('(\.\/assets\/fonts\/[^']+\.woff2)'\)/.exec(face)?.[1]
     expect(url).toBeDefined()
     const file = new URL(url ?? '', import.meta.url)
@@ -139,10 +183,12 @@ describe('the font', () => {
   })
 
   it('comes with its licence', () => {
-    expect(existsSync(new URL('./assets/fonts/OFL.txt', import.meta.url))).toBe(true)
+    const licence = new URL('./assets/fonts/OFL.txt', import.meta.url)
+    expect(existsSync(licence)).toBe(true)
+    expect(readFileSync(licence, 'utf8')).toMatch(/Rubik/)
   })
 
   it('is the first family of --font-sans, with a system fallback', () => {
-    expect(css).toMatch(/--font-sans:\s*'Assistant',[^;]*sans-serif;/)
+    expect(css).toMatch(/--font-sans:\s*'Rubik',[^;]*sans-serif;/)
   })
 })

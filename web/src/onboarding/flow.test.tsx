@@ -21,7 +21,7 @@ function server() {
     })
     .on('GET /exams', () => state.exams)
     .on('POST /exams', (call: ApiCall) => {
-      const exam: Exam = { id: 'e1', ...(call.body as ExamCreate), created_at: '2026-11-16T08:00:00Z' }
+      const exam: Exam = { id: 'e1', ...(call.body as ExamCreate), created_at: '2026-11-16T08:00:00Z', color_index: 0 }
       state.exams = [...state.exams, exam]
       return { exam, plan_affected: false }
     })
@@ -102,7 +102,7 @@ describe('the onboarding, end to end', () => {
 
   it('a student who leaves while the job runs and comes back to / sees that job, not a new one', async () => {
     const { fake, state } = server()
-    state.exams = [{ id: 'e1', name: 'חדו"א', exam_date: daysFromToday(30).iso, difficulty: 3, created_at: '2026-11-16T08:00:00Z' }]
+    state.exams = [{ id: 'e1', name: 'חדו"א', exam_date: daysFromToday(30).iso, difficulty: 3, created_at: '2026-11-16T08:00:00Z', color_index: 0 }]
     fake.on('GET /jobs/j1', jobFixture({ stage: 'analyzing', percent: 30 }))
     const first = renderRoute('/onboarding/building', { auth: createFakeAuth(fakeSession()), api: fake.api })
     await waitFor(() => {

@@ -25,6 +25,7 @@ export function makeBlock(overrides: Partial<Block> = {}): Block {
     task_title: 'פרק 3: גרפים',
     task_kind: 'learn',
     exam_name: 'אלגוריתמים',
+    exam_color_index: 0,
     starts_at: '2026-11-16T12:00:00Z',
     ends_at: '2026-11-16T13:00:00Z',
     study_date: '2026-11-16',

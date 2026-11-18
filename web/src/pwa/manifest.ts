@@ -11,10 +11,12 @@ export const manifest: Partial<ManifestOptions> = {
   lang: 'he',
   dir: 'rtl',
   display: 'standalone',
+  // S31 made /calendar the home, but start_url stays /today: /today redirects to it, and changing
+  // start_url without an id would make the installed app a different app (decision 13).
   start_url: '/today',
   scope: '/',
-  theme_color: '#2f5aa8',
-  background_color: '#faf9f6',
+  theme_color: '#4f46e5',
+  background_color: '#f6f7fb',
   icons: [
     { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
     { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },

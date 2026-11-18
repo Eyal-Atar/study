@@ -42,7 +42,7 @@ const me: Me = {
   onboarding_completed_at: null,
 }
 
-const exam: Exam = { id: 'e1', name: 'חדו"א', exam_date: '2027-01-20', difficulty: 3, created_at: '2026-11-16T08:00:00Z' }
+const exam: Exam = { id: 'e1', name: 'חדו"א', exam_date: '2027-01-20', difficulty: 3, created_at: '2026-11-16T08:00:00Z', color_index: 0 }
 
 function material(id: string, ingest_status: Material['ingest_status']): Material {
   return {

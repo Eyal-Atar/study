@@ -9,6 +9,8 @@ export interface Exam {
   exam_date: string
   difficulty: number
   created_at: string
+  // 0-7, the colour of the exam (S31): the server gives each exam a stable one; see ui/examColor.ts.
+  color_index: number
 }
 
 export interface ExamCreate {

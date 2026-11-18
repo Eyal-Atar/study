@@ -509,7 +509,7 @@ describe('the today screen', () => {
   it('shows the report when the plan has tasks that did not fit', async () => {
     setup({
       today: makeToday([LATER]),
-      plan: makePlan([LATER], { unplaced: [{ task_id: 't-x', exam_id: EXAMS[0]?.id ?? '', title: 'סימולציה מלאה', minutes: 90 }] }),
+      plan: makePlan([LATER], { unplaced: [{ task_id: 't-x', exam_id: EXAMS[0]?.id ?? '', exam_color_index: 0, title: 'סימולציה מלאה', minutes: 90 }] }),
     })
 
     expect(await screen.findByRole('heading', { name: he.board.report.title })).toBeInTheDocument()
@@ -525,7 +525,7 @@ describe('the today screen', () => {
     setup({
       path: '/today#report',
       today: makeToday([LATER]),
-      plan: makePlan([LATER], { unplaced: [{ task_id: 't-x', exam_id: EXAMS[0]?.id ?? '', title: 'סימולציה מלאה', minutes: 90 }] }),
+      plan: makePlan([LATER], { unplaced: [{ task_id: 't-x', exam_id: EXAMS[0]?.id ?? '', exam_color_index: 0, title: 'סימולציה מלאה', minutes: 90 }] }),
     })
 
     await screen.findByRole('heading', { name: he.board.report.title })

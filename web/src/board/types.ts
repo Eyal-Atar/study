@@ -16,6 +16,8 @@ export interface Block {
   task_title: string
   task_kind: TaskKind
   exam_name: string
+  // 0-7, the colour of the block's exam (S31); see ui/examColor.ts.
+  exam_color_index: number
   starts_at: string
   ends_at: string
   study_date: string
@@ -45,6 +47,7 @@ export interface Today {
 export interface Unplaced {
   task_id: string
   exam_id: string
+  exam_color_index: number
   title: string
   minutes: number
 }

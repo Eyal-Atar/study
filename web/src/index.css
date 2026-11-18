@@ -1,104 +1,161 @@
 @import "tailwindcss";
 
 /*
-  The design language of the app (S25, direction "נייר"), as Tailwind theme variables. Every
-  variable here is also a class: --color-surface gives bg-surface, --radius-card gives
-  rounded-card, --text-title gives text-title, --spacing-touch gives min-h-touch. Components use
-  only these names, so a change of look is a change of values here and nothing else.
-  docs/design/design-language.md says when each one is used; theme.test.ts checks that every
-  token exists, the AA contrast of every text pair, and 3:1 for the parts of controls
-  (WCAG 1.4.11).
+  The design language of the app, as Tailwind theme variables. S25 set it ("נייר"); S31 redesigned
+  it around a calendar, after the approved prototype docs/design/prototype/calendar-prototype.html:
+  Rubik, an indigo brand on a cool white page, soft corners, and a palette of eight exam colours.
+  Every variable here is also a class: --color-surface gives bg-surface, --radius-card gives
+  rounded-card, --text-title gives text-title, --spacing-touch gives min-h-touch, --color-exam-3
+  gives bg-exam-3 and fill-exam-3. Components use only these names, so a change of look is a change
+  of values here and nothing else. docs/design/design-language.md says when each one is used;
+  theme.test.ts checks that every token exists, the AA contrast of every text pair, and 3:1 for the
+  parts of controls (WCAG 1.4.11). There is no dark mode (a decision of the user: "light").
 */
 
-/* Assistant (SIL Open Font License, assets/fonts/OFL.txt), served by us: one variable file per
-   script carries every weight, and the browser downloads a file only when the page has
+/* Rubik (SIL Open Font License, assets/fonts/OFL.txt), served by us: one variable file per script
+   carries every weight from 400 to 700, and the browser downloads a file only when the page has
    characters in its unicode-range. */
 @font-face {
-  font-family: 'Assistant';
+  font-family: 'Rubik';
   font-style: normal;
-  font-weight: 200 800;
+  font-weight: 400 700;
   font-display: swap;
-  src: url('./assets/fonts/assistant-hebrew.woff2') format('woff2');
+  src: url('./assets/fonts/rubik-hebrew.woff2') format('woff2');
   unicode-range: U+0590-05FF, U+200C-200F, U+20AA, U+25CC, U+FB1D-FB4F;
 }
 
 @font-face {
-  font-family: 'Assistant';
+  font-family: 'Rubik';
   font-style: normal;
-  font-weight: 200 800;
+  font-weight: 400 700;
   font-display: swap;
-  src: url('./assets/fonts/assistant-latin.woff2') format('woff2');
+  src: url('./assets/fonts/rubik-latin.woff2') format('woff2');
   unicode-range: U+0020-007E, U+00A0-00FF, U+0131, U+2010-2027, U+2030, U+2032-2033, U+2039-203A, U+20AC, U+2122, U+2212, U+2260, U+2264-2265;
 }
 
 @theme {
   /* ---- Colour ---- */
-  /* The page itself: a warm white. Only <body> and bars that sit on the page use it. */
-  --color-canvas: #faf9f6;
-  /* Cards, fields, menus, the navigation bar: anything that sits on the page. */
+  /* The page itself: a cool white. Only <body> and bars that sit on the page use it. */
+  --color-canvas: #f6f7fb;
+  /* Cards, fields, menus, the top bar: anything that sits on the page. */
   --color-surface: #ffffff;
-  /* A quiet fill inside a surface: a neutral badge, a note, a hovered row. */
-  --color-surface-muted: #f2f0eb;
-  --color-ink: #1c2024;
-  --color-ink-muted: #5a6068;
+  /* A quiet fill inside a surface, and the track of a progress bar: a neutral badge, a note, a
+     hovered row. */
+  --color-surface-muted: #f0f1f6;
+  --color-ink: #1b1f2a;
+  /* 5.3:1 on the canvas (the prototype's #6b7385 is 4.44, under AA). Not allowed on an exam
+     colour: inside a block the text is ink. */
+  --color-ink-muted: #5f6779;
   /* Dividers and the edges of containers (cards, popovers): decoration, no contrast rule. */
-  --color-line: #e4e1da;
-  /* The border that shows where a control is (fields, choice cards, secondary buttons): 3:1 on
+  --color-line: #e6e8ef;
+  /* The border that shows where a control is (fields, choice cards, the selected segment): 3:1 on
      canvas, surface and surface-muted. */
-  --color-line-strong: #8a8880;
+  --color-line-strong: #7d8496;
   /* The one brand colour: the primary action, the current place, the focus ring. */
-  --color-brand: #2f5aa8;
-  --color-brand-strong: #1f3f7d;
-  --color-brand-soft: #eaf0fa;
+  --color-brand: #4f46e5;
+  --color-brand-strong: #4338ca;
+  --color-brand-soft: #eef0ff;
   --color-on-brand: #ffffff;
+  /* Only the far end of the gradient of the logo mark (brand to brand-accent). Never text. */
+  --color-brand-accent: #8b5cf6;
+  /* The "now" line of the calendar: a line, not text; 3:1 on surface. */
+  --color-now: #ef4444;
   /* State only, never decoration: an error or a destructive action, done, late. */
-  --color-danger: #b3261e;
-  --color-danger-soft: #fcebe9;
-  --color-success: #1d6b3a;
-  --color-success-soft: #e6f4ea;
-  --color-warning: #8a4b0f;
-  --color-warning-soft: #fbf1e0;
+  --color-danger: #c81e1e;
+  --color-danger-soft: #fdecec;
+  /* Also the filled part of a progress bar and of the ring of the day. */
+  --color-success: #147a3b;
+  --color-success-soft: #e7f6ec;
+  --color-warning: #a14a07;
+  --color-warning-soft: #fdf1e2;
+  /* The dark toast: its background, its text, its quiet action ("בטל") and its state icons. */
+  --color-inverse: #1b1f2a;
+  --color-on-inverse: #ffffff;
+  --color-inverse-action: #a5b4fc;
+  --color-inverse-success: #86efac;
+  --color-inverse-danger: #fca5a5;
+
+  /* The colour of an exam. Eight hues, each with three tokens: -N is the strong colour (a stripe,
+     a dot, the card of the next task, with white text on it), -N-soft is the fill of a block, and
+     -N-line is its border. The order keeps near hues apart: blue, which is close to the brand, is
+     seventh, and grey, which looks switched off, is last. The API gives every exam an index 0-7
+     and ui/examColor.ts turns it into these classes. */
+  --color-exam-0: #7c3aed;
+  --color-exam-0-soft: #f1eaff;
+  --color-exam-0-line: #c9b3fb;
+  --color-exam-1: #0e7490;
+  --color-exam-1-soft: #e3f6fb;
+  --color-exam-1-line: #9fdcec;
+  --color-exam-2: #c2410c;
+  --color-exam-2-soft: #fff0e6;
+  --color-exam-2-line: #fbc39f;
+  --color-exam-3: #047857;
+  --color-exam-3-soft: #e3f7ee;
+  --color-exam-3-line: #9fdfc4;
+  --color-exam-4: #be185d;
+  --color-exam-4-soft: #fde8f1;
+  --color-exam-4-line: #f7b3d0;
+  --color-exam-5: #a16207;
+  --color-exam-5-soft: #fdf4d8;
+  --color-exam-5-line: #f0d48a;
+  --color-exam-6: #1d4ed8;
+  --color-exam-6-soft: #e6efff;
+  --color-exam-6-line: #a9c3fb;
+  --color-exam-7: #475569;
+  --color-exam-7-soft: #eef1f5;
+  --color-exam-7-line: #c3cbd6;
 
   /* ---- Type ---- */
-  --font-sans: 'Assistant', system-ui, -apple-system, 'Segoe UI', 'Arial Hebrew', Arial, sans-serif;
-  /* Two weights only: 400 for reading and 600 for emphasis. font-medium and font-bold, which
-     components from before S25 use, both give 600, so no screen shows a third weight. */
+  --font-sans: 'Rubik', system-ui, -apple-system, 'Segoe UI', 'Arial Hebrew', Arial, sans-serif;
+  /* Four real weights of Rubik: 400 for reading, 500 for labels and tabs, 600 for titles and
+     names, 700 for the logo and the big heading. */
   --font-weight-normal: 400;
-  --font-weight-medium: 600;
+  --font-weight-medium: 500;
   --font-weight-semibold: 600;
-  --font-weight-bold: 600;
+  --font-weight-bold: 700;
   /* Five sizes. Each comes with its line height, so text-title alone is enough. */
-  --text-display: 2.125rem;
-  --text-display--line-height: 1.1;
+  --text-display: 1.625rem;
+  --text-display--line-height: 1.15;
   --text-title: 1.25rem;
   --text-title--line-height: 1.3;
   --text-body: 1rem;
-  --text-body--line-height: 1.45;
+  --text-body--line-height: 1.5;
   --text-small: 0.875rem;
   --text-small--line-height: 1.4;
   --text-caption: 0.75rem;
   --text-caption--line-height: 1.35;
 
   /* ---- Space ---- */
-  /* The scale itself is Tailwind's (steps of 4px). These four have a name because they repeat. */
+  /* The scale itself is Tailwind's (steps of 4px). These have a name because they repeat. */
   /* The smallest touch target, 44px (WCAG 2.5.8 asks for 24px; ours is the iOS guideline). */
   --spacing-touch: 2.75rem;
-  /* The side padding of the page on a phone. */
-  --spacing-gutter: 1.25rem;
+  /* The side padding of the page on a phone (18px, as in the prototype). */
+  --spacing-gutter: 1.125rem;
   /* The padding inside a card. */
   --spacing-card: 1rem;
   /* The gap between two sections of a screen. */
   --spacing-section: 1.5rem;
+  /* The height of the top bar (from 1024px) and of the bottom bar of a phone. */
+  --spacing-topbar: 4rem;
+  --spacing-bottombar: 3.5rem;
 
   /* ---- Corners ---- */
-  --radius-badge: 0.25rem;
-  --radius-control: 0.5rem;
-  --radius-card: 0.75rem;
+  --radius-badge: 0.375rem;
+  --radius-control: 0.625rem;
+  --radius-card: 1rem;
+  /* The bottom sheet of a phone. */
+  --radius-sheet: 1.25rem;
 
   /* ---- Shadow ---- */
-  /* Only for what floats above the page (a menu, a popover, a toast, a dialog). A card has a
-     line and no shadow. */
-  --shadow-overlay: 0 1px 2px rgb(28 32 36 / 0.06), 0 12px 28px -8px rgb(28 32 36 / 0.18);
+  /* A card has a line and no shadow. A shadow means the thing is above something. */
+  /* The selected segment of a switch. */
+  --shadow-raised: 0 1px 3px rgb(0 0 0 / 0.08);
+  /* What floats above the page: a menu, a popover, a toast, a dialog. */
+  --shadow-overlay: 0 1px 2px rgb(20 24 40 / 0.06), 0 12px 28px -8px rgb(20 24 40 / 0.18);
+  /* A block that is being dragged (S32). */
+  --shadow-lift: 0 12px 28px rgb(20 24 40 / 0.22);
+  /* The bottom sheet: the shadow falls upwards. */
+  --shadow-sheet: 0 -6px 30px rgb(20 24 40 / 0.16);
 
   /* ---- Motion ---- */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
@@ -123,7 +180,7 @@ body {
   color: var(--color-ink);
   font-size: var(--text-body);
   line-height: var(--text-body--line-height);
-  /* Assistant has no italic and no weights outside 200-800: never let the browser fake one. */
+  /* Rubik has no italic and no weights outside 400-700: never let the browser fake one. */
   font-synthesis: none;
 }
 
