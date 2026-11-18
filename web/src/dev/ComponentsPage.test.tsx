@@ -8,10 +8,12 @@ import { devText, SECTIONS } from './devText'
 
 const PATH = '/dev/components'
 
-// The route is lazy, so the first look at the page waits for it.
+// The route is lazy, so the first look at the page waits for it. The catalogue grows with every
+// component, and on a busy machine (several suites at once) importing it takes longer than the
+// default second of findBy, so the wait is given room; the assertions are unchanged.
 async function open() {
   const view = renderRoute(PATH, { auth: createFakeAuth(null) })
-  await screen.findByRole('heading', { level: 1, name: devText.page.title })
+  await screen.findByRole('heading', { level: 1, name: devText.page.title }, { timeout: 4000 })
   return view
 }
 
