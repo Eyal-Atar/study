@@ -55,8 +55,8 @@ function SampleNext({ index }: { index: number }) {
       <p className="text-small">{t.palette.nextLength}</p>
       {/* The look of the actions only: no handlers on this page. */}
       <div aria-hidden="true" className="mt-3.5 flex gap-2 text-small font-semibold">
-        <span className="rounded-control bg-surface/95 px-3.5 py-2 text-ink">{t.palette.nextDone}</span>
-        <span className="rounded-control bg-on-brand/20 px-3.5 py-2">{t.palette.nextDefer}</span>
+        <span className="rounded-button bg-surface px-3.5 py-2 text-ink">{t.palette.nextDone}</span>
+        <span className="rounded-button border border-on-brand/70 px-3.5 py-2 text-on-brand">{t.palette.nextDefer}</span>
       </div>
     </div>
   )

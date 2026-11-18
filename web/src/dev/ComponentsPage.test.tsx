@@ -28,7 +28,9 @@ async function open() {
   return view
 }
 
-describe('the components page (dev only)', () => {
+// The page renders every component at once (13 Archies, 39 swatches), so a test of it can pass
+// 5s on a busy machine; 15s is its own budget, not a looser check.
+describe('the components page (dev only)', { timeout: 15_000 }, () => {
   it('opens signed out, without a redirect to login', async () => {
     const { router } = await open()
 

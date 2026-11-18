@@ -90,6 +90,18 @@ describe('Archie', () => {
     expect(container.querySelector('img')).toHaveAttribute('alt', '')
   })
 
+  it('eager loads at once, for an Archie that is always above the fold (the logo)', () => {
+    render(<Archie mood="joy" size="avatar" eager />)
+
+    expect(screen.getByRole('img', { name: he.archie.alt.joy })).toHaveAttribute('loading', 'eager')
+  })
+
+  it('the avatar asks for a width close to what it shows, so a phone takes the small file', () => {
+    render(<Archie mood="joy" size="avatar" />)
+
+    expect(screen.getByRole('img', { name: he.archie.alt.joy })).toHaveAttribute('sizes', '104px')
+  })
+
   it('loads lazily and asynchronously, from webp in two widths', () => {
     render(<Archie mood="rest" />)
 

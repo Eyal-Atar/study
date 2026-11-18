@@ -106,12 +106,14 @@ function useParticles(mood: ArchieMood, playing: boolean) {
 
 // The width the illustration takes on screen, for the browser's choice between the two files.
 const SIZES: Record<ArchieSize, string> = {
-  avatar: '160px',
+  // The face is zoomed in the circle (about 2.6 times a 40px avatar), so 104px: a 3x phone takes
+  // the 450w file.
+  avatar: '104px',
   card: '(min-width: 768px) 420px, 100vw',
   scene: '100vw',
 }
 
-function Illustration({ mood, size, decorative, style, className }: { mood: ArchieMood; size: ArchieSize; decorative: boolean; style?: CSSProperties; className?: string }) {
+function Illustration({ mood, size, decorative, eager = false, style, className }: { mood: ArchieMood; size: ArchieSize; decorative: boolean; eager?: boolean; style?: CSSProperties; className?: string }) {
   const art = MOOD_ART[mood]
   return (
     <img
@@ -121,7 +123,7 @@ function Illustration({ mood, size, decorative, style, className }: { mood: Arch
       width={art.width}
       height={art.height}
       alt={decorative ? '' : he.archie.alt[mood]}
-      loading="lazy"
+      loading={eager ? 'eager' : 'lazy'}
       decoding="async"
       draggable={false}
       style={style}
@@ -177,11 +179,14 @@ export function Archie({
   mood,
   size = 'card',
   decorative = false,
+  eager = false,
   className,
 }: {
   mood: ArchieMood
   size?: ArchieSize
   decorative?: boolean
+  // For an Archie that is always on the first screen (the logo): load at once, not lazily.
+  eager?: boolean
   className?: string
 }) {
   if (size === 'avatar') {
@@ -191,7 +196,7 @@ export function Archie({
         data-size="avatar"
         className={cx('archie-avatar relative inline-block shrink-0 overflow-hidden rounded-full bg-sky', className)}
       >
-        <Illustration mood={mood} size="avatar" decorative={decorative} style={avatarStyle(mood)} />
+        <Illustration mood={mood} size="avatar" decorative={decorative} eager={eager} style={avatarStyle(mood)} />
       </span>
     )
   }

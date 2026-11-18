@@ -71,9 +71,9 @@
   --color-field: #ffffff;
   /* Bark: the main text. */
   --color-ink: #3b2a1e;
-  /* Secondary text, 5.6:1 or more on the three backgrounds (the #7a6553 of the moods page is only
-     4.7 on surface-muted, too close to the line); 5.27 on surface-muted. Not allowed on an exam colour: inside a block the
-     text is ink. */
+  /* Secondary text: 5.27 on surface-muted up to 6.59 on field (the #7a6553 of the moods page is
+     only 4.7 on surface-muted, too close to the line). Not allowed on an exam colour: inside a
+     block the text is ink. */
   --color-ink-muted: #6e5948;
   /* Dividers and the edges of containers (cards, popovers): decoration, no contrast rule. */
   --color-line: #d9d6c3;

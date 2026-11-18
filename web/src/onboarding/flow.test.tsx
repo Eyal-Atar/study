@@ -47,7 +47,9 @@ beforeEach(() => {
   sessionStorage.clear()
 })
 
-describe('the onboarding, end to end', () => {
+// Five screens and a polled job in one test: it can pass 5s on a busy machine, so it has its own
+// budget of 15s.
+describe('the onboarding, end to end', { timeout: 15_000 }, () => {
   it('/ → exams → skip materials → the two questions → building → done → /today → /calendar', async () => {
     const user = userEvent.setup()
     const { fake } = server()
