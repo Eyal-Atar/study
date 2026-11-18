@@ -313,7 +313,6 @@ export const he = {
     deferring: 'דוחה…',
     pin: 'נעילה',
     unpin: 'שחרור',
-    actions: 'פעולות',
     // Every list has several "בוצע" buttons, so the accessible name says which task.
     completeLabel: (title: string) => `בוצע: ${title}`,
     uncompleteLabel: (title: string) => `ביטול הסימון: ${title}`,

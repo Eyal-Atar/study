@@ -70,10 +70,18 @@ function ReplanSession({
     runPreview()
   }, [runPreview])
 
+  // The session stays mounted while the dialog fades out, so an answer that arrives after it was
+  // closed must not start a preview nobody sees.
+  const open = useRef(isOpen)
+  useEffect(() => {
+    open.current = isOpen
+  }, [isOpen])
+
   function confirm(basis: string) {
     setNote(null)
     apply.mutate(basis, {
       onError: (error) => {
+        if (!open.current) return
         if (error.code === 'stale_plan') {
           setNote(codeText('stale_plan'))
           apply.reset()

@@ -52,7 +52,7 @@ export function NextBlock({ block, tz, when }: NextBlockProps) {
           {partSuffix(block)}
           {block.pinned ? (
             <>
-              {' '}
+              {he.move.detailsJoiner}
               <PinnedMark />
             </>
           ) : null}
