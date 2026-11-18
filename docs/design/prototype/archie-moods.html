@@ -1,0 +1,388 @@
+<title>ארצ׳י בגזירות נייר</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amatic+SC:wght@700&family=Assistant:wght@400;600;700&display=swap">
+<style>
+/* Layout: a garden shelf of hanging cut-paper frames, then one live "Archie in the app" panel. */
+:root{
+  --bg:#eef0e4;          /* pale sage linen */
+  --surface:#f8f7f0;
+  --ink:#3b2a1e;         /* bark */
+  --muted:#7a6553;
+  --line:#d9d6c3;
+  --clay:#9a5f38;
+  --sand:#c9a77c;
+  --leaf:#4f7a3a;        /* plant green, the accent */
+  --sprout:#8db45e;
+  --gold:#d4a24c;
+  --sky:#a9d3ee;         /* morning sky, the art's background */
+  --shadow:rgba(59,42,30,.16);
+  --f-display:'Amatic SC','Assistant',system-ui,sans-serif;
+  --f-body:'Assistant',system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#191510;--surface:#231d16;--ink:#efe5d4;--muted:#b4a28b;--line:#3a3127;
+  --clay:#d08a5c;--sand:#d7b98f;--leaf:#8fbf6a;--sprout:#a9d07c;--gold:#e5b862;--sky:#8fc0e3;--shadow:rgba(0,0,0,.45);color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#191510;--surface:#231d16;--ink:#efe5d4;--muted:#b4a28b;--line:#3a3127;
+  --clay:#d08a5c;--sand:#d7b98f;--leaf:#8fbf6a;--sprout:#a9d07c;--gold:#e5b862;--sky:#8fc0e3;--shadow:rgba(0,0,0,.45);color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.6;direction:rtl}
+.wrap{max-width:1180px;margin:0 auto;padding-block:40px 64px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:grid;gap:56px}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;line-height:1;margin:0;text-wrap:balance}
+h1{font-size:clamp(56px,9vw,96px);color:var(--ink)}
+h2{font-size:clamp(40px,5vw,54px)}
+h3{font-size:38px}
+p{margin:0}
+.eyebrow{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--leaf);font-weight:700;direction:ltr;unicode-bidi:isolate;display:inline-block;justify-self:start}
+.lede{max-width:62ch;color:var(--muted);font-size:18px}
+header{display:grid;gap:14px}
+
+/* palette */
+.tones{display:flex;flex-wrap:wrap;gap:8px}
+.tones button{font:inherit;font-size:15px;font-weight:600;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 14px 5px 5px;display:flex;align-items:center;gap:8px;cursor:pointer}
+.tones button i{width:26px;height:26px;border-radius:50%}
+.tones button[aria-pressed="true"]{border-color:var(--leaf);box-shadow:0 0 0 2px var(--leaf)}
+.tones button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.palette{display:flex;flex-wrap:wrap;gap:10px}
+.sw{display:flex;align-items:center;gap:10px;padding:6px 14px 6px 6px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:14px}
+.sw i{width:28px;height:28px;border-radius:50%;box-shadow:inset 0 -3px 0 rgba(0,0,0,.18)}
+
+/* mood cards */
+.moods{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px}
+@media (max-width:980px){.moods{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:620px){.moods{grid-template-columns:1fr}}
+.mood{display:grid;gap:14px;align-content:start;min-width:0}
+.frame{position:relative;aspect-ratio:900/655;max-width:100%;border-radius:18px;overflow:hidden;background:var(--sky);
+  box-shadow:0 2px 0 var(--shadow),0 18px 40px -18px var(--shadow);isolation:isolate}
+.frame img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transform-origin:50% 100%;
+  animation:breathe 7s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.014)}}
+.fx{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.fx > *{position:absolute;will-change:transform,opacity}
+.paper{filter:drop-shadow(0 1.5px 0 rgba(0,0,0,.28)) drop-shadow(0 3px 3px rgba(0,0,0,.18))}
+.meta{display:grid;gap:6px}
+.names{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.names .eyebrow{color:var(--clay)}
+.when{font-size:15px;color:var(--muted)}
+.when b{color:var(--ink);font-weight:600}
+.voice{font-size:17px;padding-inline-start:12px;border-inline-start:3px solid var(--sprout);color:var(--ink)}
+.bonus{font-size:12px;font-weight:700;color:var(--leaf);border:1px solid var(--leaf);border-radius:999px;padding:0 10px}
+
+/* in-app demo */
+.demo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:32px;align-items:center;
+  background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:28px}
+@media (max-width:820px){.demo{grid-template-columns:1fr;padding:20px}}
+.demo-copy{display:grid;gap:16px;min-width:0}
+.moments{display:flex;flex-wrap:wrap;gap:8px}
+.moments button{font:inherit;font-size:15px;font-weight:600;color:var(--ink);background:var(--bg);border:1px solid var(--line);
+  border-radius:999px;padding:8px 16px;cursor:pointer;transition:background .2s,border-color .2s}
+.moments button:hover{border-color:var(--leaf)}
+.moments button[aria-pressed="true"]{background:var(--leaf);border-color:var(--leaf);color:var(--surface)}
+.moments button:focus-visible,.toast button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.stage{perspective:900px;min-width:0}
+.toast{display:grid;grid-template-columns:220px minmax(0,1fr);gap:16px;align-items:center;background:var(--bg);
+  border:1px solid var(--line);border-radius:20px;padding:14px;box-shadow:0 20px 40px -24px var(--shadow);transform-origin:50% 0}
+.toast.in{animation:unfold .7s cubic-bezier(.2,.8,.2,1)}
+@keyframes unfold{0%{transform:rotateX(-80deg) translateY(-8px);opacity:0}60%{transform:rotateX(8deg);opacity:1}100%{transform:none}}
+@media (max-width:520px){.toast{grid-template-columns:1fr}}
+.toast .frame{border-radius:14px}
+.toast .frame img{animation:none}
+.toast-body{display:grid;gap:6px;min-width:0}
+.toast-title{font-family:var(--f-display);font-size:34px;line-height:1}
+.toast-text{font-size:16px}
+.toast button{justify-self:start;font:inherit;font-weight:700;font-size:14px;color:var(--surface);background:var(--clay);border:0;border-radius:10px;padding:7px 14px;cursor:pointer}
+.xp{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.notes{display:grid;gap:8px;color:var(--muted);font-size:15px;max-width:70ch}
+.notes li{margin-inline-start:18px}
+
+@media (prefers-reduced-motion: reduce){
+  .frame img,.toast.in{animation:none}
+  .fx{display:none}
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Archie · cut paper moods</span>
+    <h1>ארצ׳י בגזירות נייר</h1>
+    <p class="lede">חמשת המצבים של ארצ׳י מתוך העיצוב שהבאת, כל אחד עם אנימציה משלו בשכבות נייר. הרקע הכחול הכהה הוחלף בתכלת של בוקר. אפשר להחליף בין שלושה גוונים ולבחור אחד.</p>
+    <div class="tones" role="group" aria-label="גוון התכלת">
+      <button type="button" id="t-dawn" data-t="dawn" aria-pressed="true"><i style="background:linear-gradient(#96c6e8,#d6ecf8)"></i>שחר</button>
+      <button type="button" id="t-clear" data-t="clear" aria-pressed="false"><i style="background:linear-gradient(#78b8e4,#bee0f4)"></i>שמיים בהירים</button>
+      <button type="button" id="t-mist" data-t="mist" aria-pressed="false"><i style="background:linear-gradient(#b2d4ea,#e2f0f8)"></i>ערפל בוקר</button>
+    </div>
+    <div class="palette" aria-label="פלטת הצבעים">
+      <span class="sw"><i style="background:#3b2a1e"></i>קליפת עץ</span>
+      <span class="sw"><i style="background:#9a5f38"></i>חימר</span>
+      <span class="sw"><i style="background:#c9a77c"></i>חול</span>
+      <span class="sw"><i style="background:#4f7a3a"></i>עלה</span>
+      <span class="sw"><i style="background:#8db45e"></i>נבט</span>
+      <span class="sw"><i style="background:#d4a24c"></i>זהב</span>
+      <span class="sw"><i style="background:#a9d3ee"></i>תכלת בוקר</span>
+    </div>
+  </header>
+
+  <section class="moods" aria-label="המצבים">
+    <article class="mood">
+      <div class="frame" data-fx="intentions"><img src="archie/intentions-dawn.jpg" alt="ארצ׳י משקה עציץ שממנו נובטים ספרים"><div class="fx"></div></div>
+      <div class="meta">
+        <div class="names"><h3>זריעת כוונות</h3><span class="eyebrow">Intentions</span></div>
+        <p class="when"><b>מתי:</b> סקירת הבוקר ותכנון השבוע</p>
+        <p class="voice">שלוש כוונות קטנות להיום. השאר יצמח.</p>
+      </div>
+    </article>
+    <article class="mood">
+      <div class="frame" data-fx="eureka"><img src="archie/eureka-dawn.jpg" alt="ארצ׳י במדיטציה עם אבן זהב והילת ספירלה"><div class="fx"></div></div>
+      <div class="meta">
+        <div class="names"><h3>רגע אאוריקה</h3><span class="eyebrow">Eureka</span></div>
+        <p class="when"><b>מתי:</b> משימה הושלמה, יעד שבועי, עלייה ברמה</p>
+        <p class="voice">אאוריקה. עוד אבן זהב בגן שלך.</p>
+      </div>
+    </article>
+    <article class="mood">
+      <div class="frame" data-fx="wisdom"><img src="archie/wisdom-dawn.jpg" alt="ארצ׳י כותב במברשת על מגילה ליד קטורת"><div class="fx"></div></div>
+      <div class="meta">
+        <div class="names"><h3>קליגרפיה של חוכמה</h3><span class="eyebrow">Wisdom</span></div>
+        <p class="when"><b>מתי:</b> בלוק למידה ארוך וסיכום השבוע</p>
+        <p class="voice">לאט ובדיוק. כל קו שכתבת נשאר.</p>
+      </div>
+    </article>
+    <article class="mood">
+      <div class="frame" data-fx="flow"><img src="archie/flow.jpg" alt="ארצ׳י מגרף ספירלות בגן זן"><div class="fx"></div></div>
+      <div class="meta">
+        <div class="names"><h3>זרימה בגן הזן</h3><span class="eyebrow">Flow</span></div>
+        <p class="when"><b>מתי:</b> משימה שנדחתה כמה פעמים, עומס או תקיעות</p>
+        <p class="voice">כשתקועים, מסדרים את החול. מתחילים בעשר דקות.</p>
+      </div>
+    </article>
+    <article class="mood">
+      <div class="frame" data-fx="rest"><img src="archie/rest-dawn.jpg" alt="ארצ׳י שותה תה על מחצלת תחת פריחת דובדבן"><div class="fx"></div></div>
+      <div class="meta">
+        <div class="names"><h3>טקס התה</h3><span class="eyebrow">Rest</span></div>
+        <p class="when"><b>מתי:</b> הפסקה בין בלוקים וסוף היום</p>
+        <p class="voice">הספל חם. חמש דקות בלי מסך.</p>
+      </div>
+    </article>
+    <article class="mood">
+      <div class="frame" data-fx="joy"><img src="archie/joy-dawn.jpg" alt="ארצ׳י מחייך ומחזיק אבן זהב"><div class="fx"></div></div>
+      <div class="meta">
+        <div class="names"><h3>ארצ׳י מקבל אותך</h3><span class="eyebrow">Welcome</span><span class="bonus">הסצנה השישית בתמונה</span></div>
+        <p class="when"><b>מתי:</b> תמונת פרופיל, מסך הכניסה, התראות</p>
+        <p class="voice">שלום, אני ארצ׳י. נעשה סדר יחד.</p>
+      </div>
+    </article>
+  </section>
+
+  <section class="demo" aria-label="ארצ׳י בתוך האפליקציה">
+    <div class="demo-copy">
+      <span class="eyebrow">In the app</span>
+      <h2>ככה זה נראה ביומן</h2>
+      <p class="lede">בוחרים רגע ביום, וארצ׳י נפתח כמו דף מקופל, עם המצב המתאים והמשפט שלו.</p>
+      <div class="moments" role="group" aria-label="רגע ביום">
+        <button type="button" id="m-intentions" data-m="intentions" aria-pressed="true">בוקר</button>
+        <button type="button" id="m-wisdom" data-m="wisdom" aria-pressed="false">בלוק למידה</button>
+        <button type="button" id="m-flow" data-m="flow" aria-pressed="false">תקוע</button>
+        <button type="button" id="m-rest" data-m="rest" aria-pressed="false">הפסקה</button>
+        <button type="button" id="m-eureka" data-m="eureka" aria-pressed="false">סיימתי</button>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="toast in" id="toast" aria-live="polite">
+        <div class="frame" id="toast-frame" data-fx="intentions"><img id="toast-img" src="archie/intentions-dawn.jpg" alt=""><div class="fx"></div></div>
+        <div class="toast-body">
+          <div class="toast-title" id="toast-title">בוקר טוב</div>
+          <p class="toast-text" id="toast-text">שלוש משימות מחכות היום. נתחיל בהסתברות, 50 דקות.</p>
+          <span class="xp" id="toast-xp">רצף: 6 ימים</span>
+          <button type="button" id="toast-cta">לתכנון היום</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <h2>איך זה בנוי</h2>
+    <ul>
+      <li>האיורים חתוכים מהתמונה שלך כמו שהם. כל אנימציה היא שכבה נפרדת מעל האיור, בצבעי נייר ועם צל קטן, כדי שתיראה כמו עוד גזירה.</li>
+      <li>האיור עצמו רק "נושם" (הגדלה של אחוז אחד וחצי במשך 7 שניות), כדי לא לעוות את הדמות.</li>
+      <li>אנימציות עוצרות כשהכרטיס מחוץ למסך, ומתבטלות לגמרי למי שביקש פחות תנועה במכשיר.</li>
+      <li>לגרסה הסופית צריך את האיורים ברזולוציה מלאה (התמונה שהגיעה היא 1024 פיקסלים לכל הלוח), ועדיף כל סצנה בקובץ נפרד עם רקע שקוף.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(function(){
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const rnd=(a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.floor(Math.random()*a.length)];
+  const NS='http://www.w3.org/2000/svg';
+  function svg(w,h,inner,cls){const s=document.createElementNS(NS,'svg');s.setAttribute('viewBox',`0 0 ${w} ${h}`);s.setAttribute('class',cls||'paper');s.innerHTML=inner;return s}
+  const shapes={
+    leaf:c=>svg(20,26,`<path d="M10 1C18 7 18 17 10 25C2 17 2 7 10 1Z" fill="${c}"/><path d="M10 4V23" stroke="rgba(0,0,0,.25)" stroke-width="1.2" fill="none"/>`),
+    maple:c=>svg(24,24,`<path d="M12 1l2.5 5 4-2-1 5 5 1-4 4 2 4-5-1-1 6h-1l-1-6-5 1 2-4-4-4 5-1-1-5 4 2z" fill="${c}"/>`),
+    petal:c=>svg(16,14,`<path d="M8 1C14 1 16 8 8 13C0 8 2 1 8 1Z" fill="${c}"/><path d="M8 3V8" stroke="rgba(255,255,255,.5)" stroke-width="1" fill="none"/>`),
+    drop:()=>svg(10,14,`<path d="M5 0C8 5 10 8 10 10A5 4 0 0 1 0 10C0 8 2 5 5 0Z" fill="#7fb3d9"/><path d="M5 0C6 5 7 8 7 10A2 3 0 0 1 3 10C3 8 4 5 5 0Z" fill="#a9cfe9"/>`),
+    spark:c=>svg(20,20,`<path d="M10 0L12 8L20 10L12 12L10 20L8 12L0 10L8 8Z" fill="${c}"/>`),
+    page:()=>svg(16,20,`<rect x="1" y="1" width="14" height="18" rx="1" fill="#efe2c4"/><path d="M4 6H12M4 9H12M4 12H10" stroke="#b49a73" stroke-width="1"/>`),
+    willow:()=>svg(14,30,`<path d="M7 0C13 8 12 22 7 30C2 22 1 8 7 0Z" fill="${pick(['#6f9443','#87a858','#5c7f37'])}"/><path d="M7 2V28" stroke="rgba(0,0,0,.2)" stroke-width="1" fill="none"/>`)
+  };
+  function place(fx,el,x,y,size){el.style.left=x+'%';el.style.top=y+'%';el.style.width=size+'px';fx.appendChild(el);return el}
+  function life(el,frames,dur){const a=el.animate(frames,{duration:dur,easing:'ease-in-out',fill:'forwards'});a.onfinish=()=>el.remove();return a}
+
+  /* one fall: a paper shape drifting down with sway */
+  function fall(fx,shape,x,y,size,dur,drift){
+    const el=place(fx,shape,x,y,size);const r=rnd(-60,60),h=fx.clientHeight;
+    life(el,[{transform:`translate(0,0) rotate(${r}deg)`,opacity:0},{opacity:1,offset:.12},
+      {transform:`translate(${drift*.5}px,${h*.45}px) rotate(${r+90}deg)`,offset:.5},
+      {transform:`translate(${drift}px,${h*1.0}px) rotate(${r+200}deg)`,opacity:0}],dur);
+  }
+
+  const FX={
+    intentions(fx,w){
+      // sprouts: green paper leaves that grow out of the pot rim and sway
+      if(!fx.dataset.static){fx.dataset.static=1;
+        [[60.5,73,-35,26],[63,70,-12,30],[72,70,18,30],[75,73,40,24]].forEach(([x,y,r,s],i)=>{
+          const el=place(fx,shapes.leaf(i%2?'#6f9a45':'#4f7a3a'),x,y,s);el.style.transformOrigin='50% 100%';
+          el.animate([{transform:`rotate(${r}deg) scale(.15)`},{transform:`rotate(${r}deg) scale(1)`,offset:.35},
+            {transform:`rotate(${r+8}deg) scale(1)`,offset:.65},{transform:`rotate(${r}deg) scale(1)`}],{duration:5200,delay:i*350,iterations:Infinity,direction:'alternate',easing:'ease-in-out'});
+        });}
+      return [
+        [380,()=>{ // water drops from the spout into the pot
+          const el=place(fx,shapes.drop(),rnd(57,59),rnd(63,65),w*.022);
+          life(el,[{transform:'translate(0,0) scale(.6)',opacity:0},{opacity:1,offset:.15},{transform:`translate(${w*.05}px,${w*.12}px) scale(1)`,opacity:.9,offset:.85},{transform:`translate(${w*.06}px,${w*.15}px) scale(.4)`,opacity:0}],900);
+        }],
+        [1500,()=>fall(fx,pick([shapes.maple,shapes.leaf])(pick(['#a4552c','#c27a3a','#7d4a2a','#8a8a3a'])),rnd(2,95),-6,w*rnd(.03,.05),rnd(7000,10000),rnd(-60,40))],
+        [2600,()=>{ // a page lifting off the book
+          const el=place(fx,shapes.page(),rnd(66,72),rnd(55,60),w*.03);
+          life(el,[{transform:'translate(0,0) rotate(0)',opacity:0},{opacity:1,offset:.2},{transform:`translate(${rnd(-20,30)}px,${-w*.22}px) rotate(${rnd(-40,40)}deg)`,opacity:0}],4200);
+        }]
+      ];
+    },
+    eureka(fx,w){
+      if(!fx.dataset.static){fx.dataset.static=1;
+        // layered gold rings turning slowly in opposite directions
+        const halo=svg(200,200,`
+          <circle cx="100" cy="100" r="92" fill="none" stroke="#e7c36b" stroke-width="2" stroke-dasharray="3 9" opacity=".8"/>
+          <circle cx="100" cy="100" r="78" fill="none" stroke="#d4a24c" stroke-width="3" stroke-dasharray="40 14 8 14" opacity=".7"/>
+          <circle cx="100" cy="100" r="99" fill="none" stroke="#f3dc9a" stroke-width="1" stroke-dasharray="1 6" opacity=".7"/>`,'paper');
+        halo.style.cssText+=`left:50%;top:31%;width:${w*.66}px;height:${w*.66}px;margin:${-w*.33}px 0 0 ${-w*.33}px`;fx.appendChild(halo);
+        halo.animate([{transform:'rotate(0)'},{transform:'rotate(360deg)'}],{duration:40000,iterations:Infinity});
+        const g=document.createElement('div');
+        g.style.cssText=`left:48%;top:79%;width:${w*.16}px;height:${w*.16}px;margin:${-w*.08}px 0 0 ${-w*.08}px;border-radius:50%;background:radial-gradient(circle,rgba(255,226,140,.85),rgba(255,200,80,.25) 45%,transparent 70%)`;
+        fx.appendChild(g);g.animate([{transform:'scale(.8)',opacity:.6},{transform:'scale(1.25)',opacity:1},{transform:'scale(.8)',opacity:.6}],{duration:2600,iterations:Infinity,easing:'ease-in-out'});
+      }
+      return [
+        [260,()=>{ // sparkles around the halo
+          const a=rnd(0,Math.PI*2),r=rnd(.24,.42);
+          const el=place(fx,shapes.spark(pick(['#f3dc9a','#e7c36b','#fff3c4'])),50+Math.cos(a)*r*100,31+Math.sin(a)*r*136,w*rnd(.015,.035));
+          life(el,[{transform:'scale(0) rotate(0)',opacity:0},{transform:'scale(1) rotate(45deg)',opacity:1,offset:.4},{transform:`translateY(${-w*.04}px) scale(0) rotate(90deg)`,opacity:0}],rnd(1400,2400));
+        }],
+        [700,()=>{ // gold paper flecks rising from the stone
+          const el=place(fx,shapes.leaf('#e2b252'),rnd(44,52),78,w*.012);
+          life(el,[{transform:'translate(0,0) rotate(0)',opacity:0},{opacity:1,offset:.2},{transform:`translate(${rnd(-30,30)}px,${-w*.3}px) rotate(${rnd(-200,200)}deg)`,opacity:0}],rnd(3000,4200));
+        }]
+      ];
+    },
+    wisdom(fx,w){
+      if(!fx.dataset.static){fx.dataset.static=1;
+        // ink line being written on the scroll, near the brush tip
+        const ink=svg(100,30,`<path d="M4 20C18 4 26 26 40 12S62 6 70 18S88 22 96 10" fill="none" stroke="#5a3d22" stroke-width="2.4" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/>`,'');
+        ink.style.cssText+=`left:46%;top:75%;width:${w*.16}px;opacity:.85`;fx.appendChild(ink);
+        ink.querySelector('path').animate([{strokeDashoffset:100,opacity:1},{strokeDashoffset:0,opacity:1,offset:.6},{strokeDashoffset:0,opacity:1,offset:.85},{strokeDashoffset:0,opacity:0}],{duration:6000,iterations:Infinity});
+      }
+      return [
+        [1100,()=>{ // curls of grey paper smoke rising from the incense burner
+          const s=svg(40,90,`<path d="M20 88C6 70 34 58 20 42S8 18 22 2" fill="none" stroke="${pick(['#9aa0a8','#b6bac0','#848a92'])}" stroke-width="5" stroke-linecap="round"/>`);
+          const el=place(fx,s,rnd(82,85),40,w*.07);
+          life(el,[{transform:'translate(0,30px) scaleY(.6)',opacity:0},{opacity:.85,offset:.25},{transform:`translate(${rnd(-14,10)}px,${-w*.16}px) scaleY(1.2) rotate(${rnd(-12,12)}deg)`,opacity:0}],5200);
+        }]
+      ];
+    },
+    flow(fx,w){
+      if(!fx.dataset.static){fx.dataset.static=1;
+        // willow leaves hanging from the branch, swaying
+        [[58,4],[64,9],[70,6],[77,12],[84,8],[90,14],[52,10],[22,6],[30,10]].forEach(([x,y],i)=>{
+          const el=place(fx,shapes.willow(),x,y,w*.026);el.style.transformOrigin='50% 0';
+          el.animate([{transform:'rotate(-10deg)'},{transform:'rotate(10deg)'}],{duration:rnd(2800,3800),delay:-i*400,iterations:Infinity,direction:'alternate',easing:'ease-in-out'});
+        });}
+      return [
+        [1600,()=>{ // a new sand ripple drawn around the rake
+          const el=document.createElement('div');
+          el.style.cssText=`left:30%;top:83%;width:${w*.1}px;height:${w*.04}px;margin:${-w*.02}px 0 0 ${-w*.05}px;border-radius:50%;border:2px solid rgba(140,105,65,.55);box-shadow:0 1px 0 rgba(255,250,235,.7)`;
+          fx.appendChild(el);
+          life(el,[{transform:'scale(.3)',opacity:0},{opacity:1,offset:.2},{transform:'scale(3.2)',opacity:0}],4200);
+        }],
+        [3400,()=>fall(fx,shapes.leaf(pick(['#a4552c','#c27a3a','#6f9443'])),rnd(40,95),2,w*.028,rnd(8000,11000),rnd(-80,-20))]
+      ];
+    },
+    rest(fx,w){
+      const steam=(x,y,s)=>{const p=svg(30,80,`<path d="M15 78C4 60 26 50 15 34S6 12 16 2" fill="none" stroke="rgba(255,255,255,.95)" stroke-width="4.5" stroke-linecap="round"/>`);
+        const el=place(fx,p,x,y,s);life(el,[{transform:'translateY(10px) scaleY(.5)',opacity:0},{opacity:.8,offset:.3},{transform:`translate(${rnd(-8,8)}px,${-w*.08}px) scaleY(1.1)`,opacity:0}],3600)};
+      return [
+        [900,()=>steam(rnd(48,50),18,w*.04)],
+        [1500,()=>steam(rnd(20,21.5),70,w*.03)],
+        [900,()=>{const left=Math.random()<.6;
+          fall(fx,pick([shapes.petal,shapes.petal,shapes.leaf])(pick(['#e7a7b4','#f1c3cb','#d98a9a','#b0683c'])),left?rnd(2,30):rnd(70,96),left?rnd(4,18):rnd(2,12),w*rnd(.02,.032),rnd(7000,10000),rnd(10,70))}]
+      ];
+    },
+    joy(fx,w){
+      if(!fx.dataset.static){fx.dataset.static=1;
+        const g=document.createElement('div');
+        g.style.cssText=`left:75%;top:50%;width:${w*.22}px;height:${w*.22}px;margin:${-w*.11}px 0 0 ${-w*.11}px;border-radius:50%;background:radial-gradient(circle,rgba(255,226,140,.8),rgba(255,200,80,.2) 45%,transparent 70%)`;
+        fx.appendChild(g);g.animate([{transform:'scale(.85)',opacity:.6},{transform:'scale(1.2)',opacity:1},{transform:'scale(.85)',opacity:.6}],{duration:2400,iterations:Infinity,easing:'ease-in-out'});
+      }
+      return [
+        [420,()=>{const a=rnd(0,Math.PI*2),r=rnd(.06,.16);
+          const el=place(fx,shapes.spark(pick(['#f3dc9a','#fff3c4'])),75+Math.cos(a)*r*100,50+Math.sin(a)*r*136,w*rnd(.015,.03));
+          life(el,[{transform:'scale(0)',opacity:0},{transform:'scale(1) rotate(45deg)',opacity:1,offset:.4},{transform:`translate(${Math.cos(a)*30}px,${Math.sin(a)*30}px) scale(0)`,opacity:0}],1600)}],
+        [1800,()=>fall(fx,shapes.leaf(pick(['#6f9443','#a4552c','#c27a3a'])),rnd(2,40),-5,w*.03,rnd(8000,10000),rnd(20,80))]
+      ];
+    }
+  };
+
+  /* run each frame's emitters only while it is on screen */
+  const runners=new Map();
+  function start(frame){
+    stop(frame);const fx=frame.querySelector('.fx');const w=frame.clientWidth||300;
+    const em=FX[frame.dataset.fx](fx,w);em.forEach(([,f])=>f());
+    runners.set(frame,em.map(([ms,f])=>setInterval(()=>{if(!document.hidden)f()},ms)));
+  }
+  function stop(frame){(runners.get(frame)||[]).forEach(clearInterval);runners.delete(frame)}
+  function reset(frame){stop(frame);const fx=frame.querySelector('.fx');fx.innerHTML='';delete fx.dataset.static}
+  if(!reduce){
+    const io=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting?start(e.target):stop(e.target)),{rootMargin:'80px'});
+    document.querySelectorAll('.frame[data-fx]').forEach(f=>io.observe(f));
+    let t;addEventListener('resize',()=>{clearTimeout(t);t=setTimeout(()=>runners.forEach((_,f)=>{reset(f);start(f)}),300)});
+  }
+
+  /* sky tone */
+  let tone='dawn';
+  const src=k=>k==='flow'?'archie/flow.jpg':`archie/${k}-${tone}.jpg`;
+  function applyTone(){document.querySelectorAll('.frame[data-fx] img').forEach(i=>{i.src=src(i.closest('.frame').dataset.fx)})}
+  document.querySelectorAll('.tones button').forEach(b=>b.addEventListener('click',()=>{tone=b.dataset.t;
+    document.querySelectorAll('.tones button').forEach(o=>o.setAttribute('aria-pressed',String(o===b)));applyTone()}));
+
+  /* in-app demo */
+  const M={
+    intentions:['בוקר טוב','שלוש משימות מחכות היום. נתחיל בהסתברות, 50 דקות.','רצף: 6 ימים','לתכנון היום','30% 40%'],
+    wisdom:['בלוק עמוק','אלגוריתמים, פרק 5. טלפון בצד, ארצ׳י שומר על הזמן.','45:00 נשארו','להתחיל','40% 40%'],
+    flow:['נתקעת קצת?','"תרגיל 3 ב-C" נדחה פעמיים. ננסה עשר דקות ונראה מה יוצא.','בלי לחץ','עשר דקות','58% 30%'],
+    rest:['זמן לתה','עבדת 90 דקות ברצף. חמש דקות הפסקה, ואז הבלוק הבא.','05:00','התחלתי הפסקה','50% 35%'],
+    eureka:['אאוריקה!','סיימת את כל המשימות של היום. אבן זהב חדשה בגן.','+120 XP · רמה 7','לגן שלי','50% 40%']
+  };
+  const toast=document.getElementById('toast'),tf=document.getElementById('toast-frame'),img=document.getElementById('toast-img');
+  document.querySelectorAll('.moments button').forEach(b=>b.addEventListener('click',()=>{
+    const k=b.dataset.m,[t,x,xp,cta,pos]=M[k];
+    document.querySelectorAll('.moments button').forEach(o=>o.setAttribute('aria-pressed',String(o===b)));
+    img.src=src(k);
+    document.getElementById('toast-title').textContent=t;document.getElementById('toast-text').textContent=x;
+    document.getElementById('toast-xp').textContent=xp;document.getElementById('toast-cta').textContent=cta;
+    toast.classList.remove('in');void toast.offsetWidth;toast.classList.add('in');
+    if(!reduce){reset(tf);tf.dataset.fx=k;start(tf)}else tf.dataset.fx=k;
+  }));
+})();
+</script>
