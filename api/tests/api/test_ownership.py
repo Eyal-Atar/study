@@ -352,6 +352,8 @@ def dump(db: psycopg.Connection, user_id: UUID) -> Dump:
         ("xp_events", "user_id"),
         ("badges", "user_id"),
         ("push_subscriptions", "user_id"),
+        ("commitments", "user_id"),
+        ("busy_events", "user_id"),
     ):
         order = "badge_key" if table == "badges" else "id"
         out[table] = [
@@ -667,6 +669,8 @@ def test_unauthenticated_everywhere(
         analysis_id=uuid4(),
         topic_id=uuid4(),
         subscription_id=uuid4(),
+        commitment_id=uuid4(),
+        event_id=uuid4(),
     )
     for headers in ({}, {"Authorization": "Bearer not-a-token"}):
         response = api.request(method, url, headers=headers)
@@ -748,3 +752,234 @@ def test_review_of_another_user_is_404(
     assert response.json()["code"] == "not_found"
     assert dump(db, a.id) == before
     assert dump(db, b.id) == b_before
+
+
+# S35: commitments, busy events, free time, the defer choices and the timetable. A gets a
+# commitment, a future busy event and a finished parse_timetable job; B calls every route that
+# takes their ids. The routes without an id join WITHOUT_ID, and
+# test_availability_lists_show_only_own_rows checks that B never sees A's rows in them.
+A_COMMITMENT = {
+    "title": "עבודה של א",
+    "kind": "work",
+    "weekday": 3,
+    "start_time": "16:00",
+    "end_time": "22:00",
+}
+
+
+@dataclass(frozen=True)
+class AvailabilityIds:
+    commitment: UUID
+    event: UUID
+    timetable_job: UUID
+
+
+@pytest.fixture
+def availability(
+    api: TestClient, db: psycopg.Connection, world: tuple[ApiUser, ApiUser, Ids]
+) -> AvailabilityIds:
+    a, _, _ = world
+    commitment = api.post("/commitments", json=A_COMMITMENT, headers=a.headers)
+    assert commitment.status_code == 201, commitment.text
+    event = api.post(
+        "/busy-events",
+        json={
+            "title": "חתונה של א",
+            "starts_at": "2026-11-19T17:00:00Z",
+            "ends_at": "2026-11-19T21:00:00Z",
+        },
+        headers=a.headers,
+    )
+    assert event.status_code == 201, event.text
+    upload = uuid4()
+    job = UUID(
+        str(
+            scalar(
+                db,
+                "INSERT INTO app.jobs (user_id, kind, payload, status, result) "
+                "VALUES (%s, 'parse_timetable', %s, 'done', %s) RETURNING id",
+                a.id,
+                Jsonb(
+                    {
+                        "upload_id": str(upload),
+                        "storage_path": f"{a.id}/timetables/{upload}",
+                        "mime": "image/png",
+                    }
+                ),
+                Jsonb({"commitments": [], "model": "fake"}),
+            )
+        )
+    )
+    return AvailabilityIds(
+        commitment=UUID(commitment.json()["commitment"]["id"]),
+        event=UUID(event.json()["event"]["id"]),
+        timetable_job=job,
+    )
+
+
+@dataclass(frozen=True)
+class AvailabilityCase:
+    name: str
+    method: str
+    route: str
+    path_params: Callable[[Ids, AvailabilityIds], dict[str, UUID]]
+    body: Callable[[Ids], dict[str, Any] | None]
+
+
+AVAILABILITY_CASES: tuple[AvailabilityCase, ...] = (
+    AvailabilityCase(
+        "patch_commitment",
+        "PATCH",
+        "/commitments/{commitment_id}",
+        lambda _, v: {"commitment_id": v.commitment},
+        lambda _: {"end_time": "21:00"},
+    ),
+    AvailabilityCase(
+        "delete_commitment",
+        "DELETE",
+        "/commitments/{commitment_id}",
+        lambda _, v: {"commitment_id": v.commitment},
+        _none,
+    ),
+    AvailabilityCase(
+        "patch_busy_event",
+        "PATCH",
+        "/busy-events/{event_id}",
+        lambda _, v: {"event_id": v.event},
+        lambda _: {"ends_at": "2026-11-19T22:00:00Z"},
+    ),
+    AvailabilityCase(
+        "delete_busy_event",
+        "DELETE",
+        "/busy-events/{event_id}",
+        lambda _, v: {"event_id": v.event},
+        _none,
+    ),
+    AvailabilityCase(
+        "apply_timetable",
+        "POST",
+        "/timetables/{job_id}/apply",
+        lambda _, v: {"job_id": v.timetable_job},
+        lambda _: {"items": [A_COMMITMENT]},
+    ),
+    AvailabilityCase(
+        "defer_block_tomorrow",
+        "POST",
+        "/blocks/{block_id}/defer",
+        lambda i, _: {"block_id": i.a_block},
+        lambda _: {"to": "tomorrow"},
+    ),
+    AvailabilityCase(
+        "defer_block_at",
+        "POST",
+        "/blocks/{block_id}/defer",
+        lambda i, _: {"block_id": i.a_block},
+        lambda _: {"to": "at", "starts_at": "2026-11-17T08:00:00Z"},
+    ),
+    AvailabilityCase(
+        "block_slots_of_a_day",
+        "GET",
+        "/blocks/{block_id}/slots?date=2026-11-17",
+        lambda i, _: {"block_id": i.a_block},
+        _none,
+    ),
+)
+CASES = (
+    *CASES,
+    *(
+        Case(case.name, case.method, case.route.split("?")[0], lambda _: {}, case.body)
+        for case in AVAILABILITY_CASES
+    ),
+)
+WITHOUT_ID = WITHOUT_ID | {
+    ("GET", "/commitments"),
+    ("POST", "/commitments"),
+    ("GET", "/busy-events"),
+    ("POST", "/busy-events"),
+    ("POST", "/plan/free-time"),
+    # The upload id is the caller's own: the path is built under the caller's folder.
+    ("POST", "/timetables"),
+}
+
+
+@pytest.mark.parametrize("case", AVAILABILITY_CASES, ids=[c.name for c in AVAILABILITY_CASES])
+def test_other_user_gets_404_on_availability(
+    api: TestClient,
+    db: psycopg.Connection,
+    world: tuple[ApiUser, ApiUser, Ids],
+    availability: AvailabilityIds,
+    case: AvailabilityCase,
+) -> None:
+    a, b, ids = world
+    before = dump(db, a.id)
+    b_before = dump(db, b.id)
+    url = case.route.format(**{k: str(v) for k, v in case.path_params(ids, availability).items()})
+    response = api.request(case.method, url, headers=b.headers, json=case.body(ids))
+    assert response.status_code == 404, response.text
+    assert response.json()["code"] == "not_found"
+    assert dump(db, a.id) == before
+    assert dump(db, b.id) == b_before
+
+
+def test_availability_lists_show_only_own_rows(
+    api: TestClient,
+    db: psycopg.Connection,
+    world: tuple[ApiUser, ApiUser, Ids],
+    availability: AvailabilityIds,
+) -> None:
+    a, b, _ = world
+    forbidden = {
+        str(availability.commitment),
+        str(availability.event),
+        str(availability.timetable_job),
+        "עבודה של א",
+        "חתונה של א",
+    }
+    a_rows = dump(db, a.id)
+
+    def assert_clean(response: Any) -> None:
+        assert response.status_code in (200, 201, 202, 409), response.text
+        leaked = {value for value in forbidden if value in response.text}
+        assert not leaked, f"{response.request.method} {response.request.url}: {leaked}"
+
+    assert_clean(api.get("/commitments", headers=b.headers))
+    assert api.get("/commitments", headers=b.headers).json() == {"commitments": []}
+    assert_clean(api.get("/busy-events", headers=b.headers))
+    assert api.get("/busy-events", headers=b.headers).json() == {"events": []}
+    plan = api.get("/plan", params={"from": "2026-11-16", "to": "2026-11-22"}, headers=b.headers)
+    assert_clean(plan)
+    assert plan.json()["busy"] == []
+    assert_clean(api.get("/today", headers=b.headers))
+    assert_clean(api.get("/me/export", headers=b.headers))
+    assert_clean(api.post("/plan/free-time", json={"minutes": 60}, headers=b.headers))
+    assert_clean(
+        api.post(
+            "/commitments",
+            json={**A_COMMITMENT, "title": "עבודה של ב"},
+            headers=b.headers,
+        )
+    )
+    assert_clean(
+        api.post(
+            "/busy-events",
+            json={"starts_at": "2026-11-19T17:00:00Z", "ends_at": "2026-11-19T21:00:00Z"},
+            headers=b.headers,
+        )
+    )
+    # B registers its own upload under the same id as A's: B's folder, a new job of B's.
+    upload = scalar(
+        db, "SELECT payload->>'upload_id' FROM app.jobs WHERE id = %s", availability.timetable_job
+    )
+    registered = api.post(
+        "/timetables",
+        json={"id": upload, "mime": "image/png", "size_bytes": 1000},
+        headers=b.headers,
+    )
+    assert_clean(registered)
+    path = scalar(
+        db,
+        "SELECT payload->>'storage_path' FROM app.jobs WHERE id = %s",
+        registered.json()["job_id"],
+    )
+    assert path == f"{b.id}/timetables/{upload}"
+    assert dump(db, a.id) == a_rows
