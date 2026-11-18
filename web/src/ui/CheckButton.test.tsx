@@ -20,16 +20,16 @@ describe('CheckButton', () => {
     const circle = circleOf(button)
     expect(circle).toHaveClass('size-5.5', 'rounded-[7px]', 'border-2', 'border-line-strong', 'bg-surface')
     expect(circle).not.toHaveClass('rounded-full')
-    expect(circle).not.toHaveClass('bg-success')
+    expect(circle).not.toHaveClass('bg-brand')
     expect(button.querySelector('svg')).toBeNull()
   })
 
-  it('when done it is pressed, filled with success, and shows the check', () => {
+  it('when done it is pressed, filled with brand green, and shows the check', () => {
     render(<CheckButton isDone onChange={vi.fn()} aria-label={NAME} />)
     const button = screen.getByRole('button', { name: NAME })
     expect(button).toHaveAttribute('aria-pressed', 'true')
     const circle = circleOf(button)
-    expect(circle).toHaveClass('size-5.5', 'rounded-[7px]', 'border-2', 'border-success', 'bg-success', 'text-on-brand')
+    expect(circle).toHaveClass('size-5.5', 'rounded-[7px]', 'border-2', 'border-brand', 'bg-brand', 'text-on-brand')
     expect(circle).not.toHaveClass('border-line-strong', 'bg-surface')
     expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
   })
@@ -71,7 +71,7 @@ describe('CheckButton', () => {
     expect(circleOf(button)).not.toHaveClass('bg-surface')
 
     rerender(<CheckButton isDone onChange={vi.fn()} aria-label={NAME} />)
-    expect(circleOf(button)).toHaveClass('bg-success')
+    expect(circleOf(button)).toHaveClass('bg-brand')
     expect(circleOf(button)).not.toHaveClass('bg-surface-muted')
   })
 
@@ -87,7 +87,7 @@ describe('CheckButton', () => {
     expect(button).toHaveClass('data-[disabled]:cursor-not-allowed')
     const circle = circleOf(button)
     expect(circle).toHaveClass(...classes)
-    expect(circle).not.toHaveClass('bg-success', 'border-success')
+    expect(circle).not.toHaveClass('bg-brand', 'border-brand')
     expect(circle.className).not.toMatch(/opacity/)
     expect(button.querySelector('svg') !== null).toBe(isDone)
 

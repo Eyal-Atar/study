@@ -16,7 +16,7 @@ export interface PageHeaderProps {
 // The h1 takes the focus after a navigation (useRouteFocus in the shell), so it has tabIndex -1
 // and no ring: it is not a control, and Tab never reaches it.
 //
-// It also names the browser tab ("שבוע · StudyFlow"), since it is the component that knows the
+// It also names the browser tab ("שבוע · ארצ׳י"), since it is the component that knows the
 // name of the screen (WCAG 2.4.2). On unmount the plain name comes back, so a screen without a
 // PageHeader (login after a sign-out) is not left with the name of the previous one; the next
 // header's effect runs after this cleanup and sets its own.

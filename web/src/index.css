@@ -226,13 +226,13 @@
   /* ---- Shadow ---- */
   /* A card has a line and no shadow. A shadow means the thing is above something. */
   /* The selected segment of a switch. */
-  --shadow-raised: 0 1px 3px rgb(0 0 0 / 0.08);
+  --shadow-raised: 0 1px 3px rgb(59 42 30 / 0.1);
   /* What floats above the page: a menu, a popover, a toast, a dialog. */
-  --shadow-overlay: 0 1px 2px rgb(20 24 40 / 0.06), 0 12px 28px -8px rgb(20 24 40 / 0.18);
+  --shadow-overlay: 0 1px 2px rgb(59 42 30 / 0.06), 0 18px 40px -10px rgb(59 42 30 / 0.25);
   /* A block that is being dragged (S32). */
-  --shadow-lift: 0 12px 28px rgb(20 24 40 / 0.22);
+  --shadow-lift: 0 12px 28px rgb(59 42 30 / 0.24);
   /* The bottom sheet: the shadow falls upwards. */
-  --shadow-sheet: 0 -6px 30px rgb(20 24 40 / 0.16);
+  --shadow-sheet: 0 -10px 40px rgb(59 42 30 / 0.25);
 
   /* ---- Motion ---- */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);

@@ -183,7 +183,7 @@ describe('Dialog', () => {
     expect(grab).toHaveAttribute('aria-hidden', 'true')
     expect(grab).toHaveClass('h-[5px]', 'w-[38px]', 'rounded-full', 'bg-line', 'md:hidden')
     expect(grab?.nextElementSibling).toBe(dialog)
-    expect(overlayOf(dialog)).toHaveClass('items-end', 'md:items-center', 'bg-ink/40')
+    expect(overlayOf(dialog)).toHaveClass('items-end', 'md:items-center', 'bg-ink/35')
   })
 
   it('the scrim is as high as the visible viewport, so the sheet sits above the on-screen keyboard', () => {

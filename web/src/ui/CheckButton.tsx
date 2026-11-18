@@ -18,7 +18,7 @@ export interface CheckButtonProps {
 function circleColors(isDone: boolean, isHovered: boolean, isDisabled: boolean): string {
   // Disabled is muted and never transparent, like a disabled Button.
   if (isDisabled) return isDone ? 'border-line-strong bg-line-strong text-on-brand' : 'border-line bg-surface-muted'
-  if (isDone) return 'border-success bg-success text-on-brand'
+  if (isDone) return 'border-brand bg-brand text-on-brand'
   return cx('border-line-strong', isHovered ? 'bg-surface-muted' : 'bg-surface')
 }
 
