@@ -11,7 +11,7 @@ import psycopg.errors
 from psycopg import sql
 from psycopg.rows import DictRow
 
-from app.domain.planner import Profile, StudyWindow
+from app.domain.planner import Commitment, Interval, Profile, StudyWindow
 from app.domain.time import parse_timezone
 from app.errors import ApiError
 
@@ -29,8 +29,6 @@ UPDATABLE_COLUMNS: Final = frozenset(
         "rest_days_before_exam",
         "notify_lead_minutes",
         "study_start_delay_minutes",
-        "hobby_start",
-        "hobby_minutes",
     }
 )
 PLAN_FIELDS: Final = frozenset(
@@ -42,8 +40,6 @@ PLAN_FIELDS: Final = frozenset(
         "study_windows",
         "rest_days_before_exam",
         "study_start_delay_minutes",
-        "hobby_start",
-        "hobby_minutes",
     }
 )
 _WINDOW_ORDER: Final = tuple(window.value for window in StudyWindow)
@@ -68,10 +64,9 @@ class ProfileRow:
     notify_lead_minutes: int
     onboarding_completed_at: dt.datetime | None
     created_at: dt.datetime
-    # Migration 0009 (S15); the defaults are the column defaults.
+    # Migration 0009 (S15); the default is the column default. The hobby columns of 0009 are
+    # no longer read: 0014 moved the hobby into app.commitments (S35).
     study_start_delay_minutes: int = 60
-    hobby_start: dt.time | None = None
-    hobby_minutes: int | None = None
 
 
 _ROW_FIELDS: Final = frozenset(field.name for field in fields(ProfileRow))
@@ -142,7 +137,17 @@ def complete_onboarding(conn: Conn, user_id: UUID, now: dt.datetime) -> None:
     )
 
 
-def to_planner_profile(row: ProfileRow) -> Profile:
+def to_planner_profile(
+    row: ProfileRow,
+    commitments: tuple[Commitment, ...] = (),
+    busy: tuple[Interval, ...] = (),
+) -> Profile:
+    """The planner's Profile; only callers that read times, never free time, may omit the rest.
+
+    Free time (the board, moves, slots, free time now) must come from
+    app.services.availability.planner_profile, which loads the commitments and busy events.
+    The hobby columns are not read: migration 0014 moved the hobby into commitments (S35).
+    """
     return Profile(
         timezone=parse_timezone(row.timezone),
         wake_time=row.wake_time,
@@ -151,10 +156,6 @@ def to_planner_profile(row: ProfileRow) -> Profile:
         study_windows=frozenset(StudyWindow(name) for name in row.study_windows),
         rest_days_before_exam=row.rest_days_before_exam,
         study_start_delay=dt.timedelta(minutes=row.study_start_delay_minutes),
-        # The database keeps the two set together, or neither (profiles_hobby_together).
-        hobby=(
-            None
-            if row.hobby_start is None or row.hobby_minutes is None
-            else (row.hobby_start, row.hobby_minutes)
-        ),
+        commitments=commitments,
+        busy=busy,
     )

@@ -60,11 +60,19 @@ class VersionReason(StrEnum):
     EXAM_REANALYZED = "exam_reanalyzed"
     REVIEW_MOVED = "review_moved"
     REVIEW_SKIPPED = "review_skipped"
+    BUSY_ADDED = "busy_added"
+    BUSY_CHANGED = "busy_changed"
+    FREE_TIME = "free_time"
+    DEFER_AT = "defer_at"
 
 
 # The morning review's versions: block_id is the past block they marked missed or skipped,
 # which undo sets back to planned (no snapshot holds it: it is over).
 REVIEW_REASONS = frozenset({VersionReason.REVIEW_MOVED, VersionReason.REVIEW_SKIPPED})
+
+# The versions that write pinned blocks of their own (S35): undo deletes those blocks, which
+# would otherwise look like blocks the user pinned after the change (decision 12).
+CREATES_PINNED = frozenset({VersionReason.FREE_TIME, VersionReason.DEFER_AT})
 
 
 @dataclass(frozen=True)
@@ -160,11 +168,13 @@ def create_version(
     analysis_id: UUID | None = None,
     *,
     block_id: UUID | None = None,
+    busy_event_id: UUID | None = None,
+    busy_event_before: Mapping[str, Any] | None = None,
 ) -> UUID:
     row = conn.execute(
         "INSERT INTO app.plan_versions (user_id, reason, snapshot, exam_id, task_id, "
-        "task_before, analysis_id, block_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
-        "RETURNING id",
+        "task_before, analysis_id, block_id, busy_event_id, busy_event_before) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
         (
             user_id,
             reason.value,
@@ -174,6 +184,8 @@ def create_version(
             None if before is None else Jsonb(dict(before)),
             analysis_id,
             block_id,
+            busy_event_id,
+            None if busy_event_before is None else Jsonb(dict(busy_event_before)),
         ),
     ).fetchone()
     if row is None:
@@ -198,7 +210,7 @@ def write_changes(conn: Conn, user_id: UUID, diff: Changes, version_id: UUID | N
         if diff.added:
             cursor.executemany(
                 "INSERT INTO app.blocks (user_id, task_id, starts_at, ends_at, part_index, "
-                "part_count, plan_version_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                "part_count, pinned, plan_version_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                 [
                     (
                         user_id,
@@ -207,6 +219,7 @@ def write_changes(conn: Conn, user_id: UUID, diff: Changes, version_id: UUID | N
                         block.interval.end,
                         block.part_index,
                         block.part_count,
+                        block.pinned,
                         version_id,
                     )
                     for block in diff.added
@@ -236,6 +249,8 @@ def apply_result(
     before: Mapping[str, Any] | None = None,
     analysis_id: UUID | None = None,
     block_id: UUID | None = None,
+    busy_event_id: UUID | None = None,
+    busy_event_before: Mapping[str, Any] | None = None,
     always_version: bool = False,
 ) -> UUID | None:
     """Write a planner result computed from `board`, with a version; None if it changes nothing.
@@ -252,7 +267,17 @@ def apply_result(
     if not diff and not always_version:
         return None
     version_id = create_version(
-        conn, user_id, board, reason, exam_id, task_id, before, analysis_id, block_id=block_id
+        conn,
+        user_id,
+        board,
+        reason,
+        exam_id,
+        task_id,
+        before,
+        analysis_id,
+        block_id=block_id,
+        busy_event_id=busy_event_id,
+        busy_event_before=busy_event_before,
     )
     write_changes(conn, user_id, diff, version_id)
     return version_id

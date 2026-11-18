@@ -47,7 +47,10 @@ class MeResponse(BaseModel):
     hobby_minutes: int | None
 
     @classmethod
-    def from_row(cls, row: ProfileRow, email: str | None) -> Self:
+    def from_row(
+        cls, row: ProfileRow, email: str | None, hobby: tuple[dt.time, int] | None = None
+    ) -> Self:
+        """The profile; the hobby comes from the commitments (app.services.hobby, S35)."""
         return cls(
             id=row.id,
             email=email,
@@ -61,8 +64,8 @@ class MeResponse(BaseModel):
             notify_lead_minutes=row.notify_lead_minutes,
             onboarding_completed_at=row.onboarding_completed_at,
             study_start_delay_minutes=row.study_start_delay_minutes,
-            hobby_start=None if row.hobby_start is None else row.hobby_start.strftime("%H:%M"),
-            hobby_minutes=row.hobby_minutes,
+            hobby_start=None if hobby is None else hobby[0].strftime("%H:%M"),
+            hobby_minutes=None if hobby is None else hobby[1],
         )
 
 

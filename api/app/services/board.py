@@ -21,12 +21,12 @@ from app.domain.planner import (
     TaskStatus,
 )
 from app.domain.time import local_date
+from app.services.availability import planner_profile
 from app.services.profiles import (
     Conn,
     ProfileRow,
     ensure_profile,
     lock_user,
-    to_planner_profile,
 )
 
 BLOCK_LOOKBACK = dt.timedelta(hours=48)
@@ -111,7 +111,7 @@ def to_snapshot_block(block: BlockRow) -> SnapshotBlock:
 
 def load_board(conn: Conn, user_id: UUID, now: dt.datetime, *, lock: bool = False) -> Board:
     profile_row = lock_user(conn, user_id) if lock else ensure_profile(conn, user_id)
-    profile = to_planner_profile(profile_row)
+    profile = planner_profile(conn, user_id, profile_row, now)
     today = local_date(now, profile.timezone)
 
     exams = tuple(
@@ -187,9 +187,17 @@ def fingerprint(board: Board) -> str:
             "study_windows": sorted(window.value for window in profile.study_windows),
             "rest_days_before_exam": profile.rest_days_before_exam,
             "study_start_delay": profile.study_start_delay.total_seconds(),
-            "hobby": (
-                None if profile.hobby is None else [profile.hobby[0].isoformat(), profile.hobby[1]]
-            ),
+            "commitments": [
+                [
+                    c.weekday,
+                    c.start.isoformat(),
+                    c.end.isoformat(),
+                    c.valid_from.isoformat(),
+                    None if c.valid_until is None else c.valid_until.isoformat(),
+                ]
+                for c in profile.commitments
+            ],
+            "busy": [[b.start.isoformat(), b.end.isoformat()] for b in profile.busy],
         },
         "exams": [
             {"id": str(e.id), "date": e.exam_date.isoformat(), "difficulty": e.difficulty}

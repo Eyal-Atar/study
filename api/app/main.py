@@ -12,7 +12,10 @@ from app.errors import CatchAllMiddleware, register_error_handlers
 from app.routers import (
     account,
     blocks,
+    busy_events,
+    commitments,
     exams,
+    free_time,
     generation,
     health,
     jobs,
@@ -23,6 +26,7 @@ from app.routers import (
     push,
     review,
     tasks,
+    timetables,
     topics,
 )
 
@@ -85,4 +89,8 @@ def create_app(
     app.include_router(account.router)
     app.include_router(progress.router)
     app.include_router(push.router)
+    app.include_router(commitments.router)
+    app.include_router(busy_events.router)
+    app.include_router(free_time.router)
+    app.include_router(timetables.router)
     return app
