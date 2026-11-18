@@ -1,4 +1,4 @@
-import { Ellipsis, Info, Pencil, SkipForward, Trash2, Undo2 } from 'lucide-react'
+import { CircleSlash, Ellipsis, Info, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { errorMessage } from '../api/client'
 import { he } from '../i18n/he'
@@ -124,7 +124,9 @@ export function TaskRow({
               </>
             )}
           </p>
-          {hasReason && showReason ? <Note className="mt-2">{task.reason}</Note> : null}
+          {hasReason && showReason ? <Note role="status" className="mt-2">
+              {task.reason}
+            </Note> : null}
         </>
       }
       trailing={
@@ -171,7 +173,7 @@ export function TaskRow({
               ) : null}
               {finished ? (
                 <MenuItem
-                  icon={Undo2}
+                  icon={RotateCcw}
                   isDisabled={update.isPending}
                   onAction={() => {
                     send({ status: 'todo' })
@@ -181,7 +183,7 @@ export function TaskRow({
                 </MenuItem>
               ) : (
                 <MenuItem
-                  icon={SkipForward}
+                  icon={CircleSlash}
                   isDisabled={update.isPending}
                   onAction={() => {
                     send({ status: 'skipped' })

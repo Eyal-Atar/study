@@ -19,5 +19,8 @@ describe('splitFileName', () => {
   it('a dot that does not start an extension stays in the name', () => {
     expect(splitFileName('סיכום.')).toEqual({ name: 'סיכום.', type: null })
     expect(splitFileName('סיכום פרק 3.5 סופי')).toEqual({ name: 'סיכום פרק 3.5 סופי', type: null })
+    // Digits alone are not an extension: a chapter number is part of the name.
+    expect(splitFileName('סיכום פרק 3.5')).toEqual({ name: 'סיכום פרק 3.5', type: null })
+    expect(splitFileName('הקלטה.mp4')).toEqual({ name: 'הקלטה', type: 'MP4' })
   })
 })

@@ -500,6 +500,8 @@ export const he = {
     header: {
       edit: 'עריכה',
       editLabel: 'עריכת פרטי המבחן',
+      // The name of the button starts with its visible text ("עריכה"), so voice control finds it.
+      editNamed: 'עריכה: פרטי המבחן',
       // "23 בנובמבר 2026, בעוד 6 ימים. קושי: קשה": the parts around the days left, which are emphasised.
       dateThen: (date: string) => `${date}, `,
       thenDifficulty: (difficulty: string) => `. ${difficulty}`,

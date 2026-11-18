@@ -23,7 +23,7 @@ const t = he.exam
 function BackLink() {
   return (
     <TextLink to="/exams" className="inline-flex min-h-touch items-center gap-1 self-start text-small">
-      <ChevronRight aria-hidden="true" size={16} strokeWidth={ICON_STROKE} />
+      <ChevronRight aria-hidden="true" size={14} strokeWidth={ICON_STROKE} />
       {t.backToList}
     </TextLink>
   )

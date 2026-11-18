@@ -103,7 +103,7 @@ export function ExamHeader({ exam, today }: { exam: Exam; today: string }) {
           editing ? null : (
             <Button
               variant="secondary"
-              aria-label={t.header.editLabel}
+              aria-label={t.header.editNamed}
               onPress={() => {
                 setEditing(true)
               }}

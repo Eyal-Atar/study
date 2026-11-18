@@ -9,8 +9,9 @@ export interface FileNameParts {
   type: string | null
 }
 
-// An extension is short and made of letters and digits; "סיכום פרק 3.5 סופי" has a dot and no extension.
-const EXTENSION = /^[A-Za-z0-9]{1,5}$/
+// An extension is short, made of letters and digits, and has a letter: "סיכום פרק 3.5 סופי" and
+// "סיכום פרק 3.5" have a dot and no extension.
+const EXTENSION = /^(?=.*[A-Za-z])[A-Za-z0-9]{1,5}$/
 
 export function splitFileName(filename: string): FileNameParts {
   const dot = filename.lastIndexOf('.')

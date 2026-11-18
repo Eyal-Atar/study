@@ -142,6 +142,10 @@ describe('MaterialsSection', () => {
     expect(screen.getByRole('button', { name: new RegExp(t.kindLabel('מבחן 2024.pdf')) })).toHaveTextContent(
       kinds.summary,
     )
+    // Review Focus 3: the hint is outside the section, so closing the section does not hide it.
+    await user.click(await sectionButton())
+    expect(await sectionButton()).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('status')).toBeVisible()
   })
 
   it('without AI tasks a kind change needs no hint: the build button covers it', async () => {

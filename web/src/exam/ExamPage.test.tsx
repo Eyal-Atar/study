@@ -103,15 +103,15 @@ describe('ExamPage', () => {
     expect(line).toHaveTextContent(
       `${longDate(EXAM.exam_date)}, ${t.inDays(5)}. ${f.difficultyOf(f.difficultyLevels[EXAM.difficulty - 1] ?? '')}`,
     )
-    expect(screen.getByRole('button', { name: t.header.editLabel })).toHaveTextContent(t.header.edit)
+    expect(screen.getByRole('button', { name: t.header.editNamed })).toHaveTextContent(t.header.edit)
   })
 
   it('while editing the h1 stays, the edit button goes, and the form opens under the title', async () => {
     const user = userEvent.setup()
     openRoute(examServer(), '/exams/e1')
-    await user.click(await screen.findByRole('button', { name: t.header.editLabel }))
+    await user.click(await screen.findByRole('button', { name: t.header.editNamed }))
     expect(screen.getByRole('heading', { level: 1, name: EXAM.name })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: t.header.editLabel })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: t.header.editNamed })).not.toBeInTheDocument()
     expect(screen.getByRole('form', { name: t.header.editLabel })).toBeInTheDocument()
   })
 
@@ -129,7 +129,7 @@ describe('ExamPage', () => {
       plan_affected: true,
     })
     openRoute(fake, '/exams/e1')
-    await user.click(await screen.findByRole('button', { name: t.header.editLabel }))
+    await user.click(await screen.findByRole('button', { name: t.header.editNamed }))
     expect(screen.getByRole('textbox', { name: f.name })).toHaveValue(EXAM.name)
     await user.click(screen.getByRole('radio', { name: f.difficultyLevels[4] }))
     await user.click(screen.getByRole('button', { name: he.common.save }))
@@ -147,9 +147,9 @@ describe('ExamPage', () => {
     const user = userEvent.setup()
     const fake = examServer()
     openRoute(fake, '/exams/e1')
-    await user.click(await screen.findByRole('button', { name: t.header.editLabel }))
+    await user.click(await screen.findByRole('button', { name: t.header.editNamed }))
     await user.click(screen.getByRole('button', { name: he.common.save }))
-    expect(await screen.findByRole('button', { name: t.header.editLabel })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: t.header.editNamed })).toBeInTheDocument()
     expect(fake.calls('PATCH')).toHaveLength(0)
   })
 
@@ -157,7 +157,7 @@ describe('ExamPage', () => {
     const user = userEvent.setup()
     const fake = examServer()
     openRoute(fake, '/exams/e1')
-    await user.click(await screen.findByRole('button', { name: t.header.editLabel }))
+    await user.click(await screen.findByRole('button', { name: t.header.editNamed }))
     await user.clear(screen.getByRole('textbox', { name: f.name }))
     await user.click(screen.getByRole('button', { name: he.common.cancel }))
     expect(screen.getByRole('heading', { level: 1, name: EXAM.name })).toBeInTheDocument()

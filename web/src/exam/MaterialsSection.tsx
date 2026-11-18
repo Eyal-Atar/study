@@ -76,7 +76,7 @@ export function MaterialsSection({ examId }: MaterialsSectionProps) {
   const exam = exams.data?.find((e) => e.id === examId)
   if (exam === undefined) return null
 
-  return (
+  const section = (
     <CollapsibleSection
       title={t.title}
       summary={materials.isSuccess ? t.count(count) : undefined}
@@ -101,8 +101,19 @@ export function MaterialsSection({ examId }: MaterialsSectionProps) {
             />
           )}
         />
-        {changed && analyzed ? <Note role="status">{t.reanalyzeHint}</Note> : null}
       </div>
     </CollapsibleSection>
+  )
+  // The hint sits outside the section: a file that finished being read while the section was
+  // closed must not change the next analysis without the user seeing it.
+  return (
+    <>
+      {section}
+      {changed && analyzed ? (
+        <Note role="status" className="mb-4">
+          {t.reanalyzeHint}
+        </Note>
+      ) : null}
+    </>
   )
 }
