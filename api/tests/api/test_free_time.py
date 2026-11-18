@@ -132,6 +132,30 @@ def test_undo_deletes_the_session_and_restores_the_board(
         assert scalar(db, "SELECT count(*) FROM app.blocks WHERE id = %s", block["id"]) == 0
 
 
+def test_undo_after_the_session_started_takes_it_back_without_a_double_booking(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, clock: FrozenClock
+) -> None:
+    """The session starts at once, so an undo a few minutes later meets a started block."""
+    first, _ = _planned(api, user, db)
+    before = _board(db, user.id)
+    clock.set(EVENING + dt.timedelta(seconds=40))
+    body = _free(api, user, 60).json()
+    assert body["session_starts_at"] == "2026-11-16T18:01:00Z"
+    clock.set(EVENING + dt.timedelta(minutes=5))
+
+    response = api.post("/plan/undo", json={"version_id": body["version_id"]}, headers=user.headers)
+
+    assert response.status_code == 200, response.text
+    assert _board(db, user.id) == before
+    planned = scalar(
+        db,
+        "SELECT coalesce(sum(extract(epoch FROM ends_at - starts_at) / 60), 0)::int "
+        "FROM app.blocks WHERE task_id = %s AND status = 'planned'",
+        first,
+    )
+    assert planned == 60
+
+
 def test_undo_deletes_a_session_block_the_user_moved_since(
     api: TestClient, user: ApiUser, db: psycopg.Connection
 ) -> None:

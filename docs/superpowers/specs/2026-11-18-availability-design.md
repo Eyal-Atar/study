@@ -112,5 +112,9 @@
 | מעקב | `GET /jobs/{job_id}` | ב-`done`: ‏`result.commitments: [{title, kind, weekday, start, end}]`. ב-`failed`: ‏`error` אחד מ: `timetable_unreadable`, ‏`timetable_invalid`, ‏`unsupported_file`, ‏`file_too_large`, ‏`too_many_pages`, ‏`pdf_unreadable`, ‏`file_missing`, ‏`ai_*`. בכל כשל: הודעה ברורה, ומעבר לסימון ידני |
 | אישור | `POST /timetables/{job_id}/apply {items: [...כמו POST /commitments], valid_from?, valid_until?}` | ‏201 `{commitments, plan_affected: true}`. אפשר לשלוח רק חלק ולערוך. ‏`valid_until` (למשל סוף הסמסטר) חל על פריטים בלי תאריך משלהם. ‏409 ‏`job_not_ready`, ‏`invalid_state`, ‏`already_applied` |
 
+- **אישור חוזר של צילום** מותר אחרי שכל ההתחייבויות שנוצרו ממנו נמחקו (`already_applied` בודק רק שורות חיות): כך משתמש שמחק הכול יכול לאשר שוב בלי להעלות מחדש. פריט ששולח `valid_until: null` משלו נשאר בלי תאריך סיום גם כשיש `valid_until` משותף.
+- **"מחר" בדחייה** לא מקדים בלוק: ההנחה מתחילה מתחילת יום הלימוד הבא, או מסוף הבלוק אם הוא מאוחר יותר.
+- **תמונה עד 3.75 MiB:** המגבלה של ה-API לתמונה (5 MB) נמדדת על ה-base64, שגדול ב-4/3 מהקובץ, ולא נבדקה בקריאה אמיתית. ‏S34 מקטין את התמונה בדפדפן לפני ההעלאה (צד ארוך של כ-2000 פיקסלים, ובכל מקרה פחות מ-8000).
+- **קבוצת התחביב** שנערכה דרך `/commitments` (למשל יום אחד הוזז) כבר לא נחשבת "התחביב" ב-`/me`. שמירה חוזרת של התחביב מחליפה את השורות בשעה הישנה ובשעה החדשה, ולא מוסיפה עליהן.
 - **התחביב בהגדרות:** כשמסך ההגדרות החדש מנהל התחייבויות, מוחקים את `hobby_start`/`hobby_minutes` מ-`GET`/`PATCH /me` ואת `app/services/hobby.py`, ומיגרציה מוחקת את שתי העמודות.
 - **`busy` ב-`Plan` וב-`Today`** מוגדר אופציונלי ב-`board/types.ts`, כדי שה-fixtures של המסכים הקיימים לא יישברו. השרת שולח אותו תמיד, ו-S32 הופך אותו לחובה.

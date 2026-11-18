@@ -2,7 +2,6 @@
 // instants (ISO strings); `study_date` is the day in the profile's timezone, decided by the server.
 import type { BusyItem } from '../availability/types'
 
-
 export type TaskKind = 'learn' | 'practice' | 'review' | 'simulation' | 'simulation_review' | 'custom'
 
 export type BlockStatus = 'planned' | 'done' | 'missed' | 'skipped'

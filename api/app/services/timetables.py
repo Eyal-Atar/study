@@ -80,7 +80,12 @@ def _with_shared_dates(
     update: dict[str, dt.date] = {}
     if item.valid_from is None and valid_from is not None:
         update["valid_from"] = valid_from
-    if item.valid_until is None and valid_until is not None:
+    # An item that sent valid_until: null itself keeps "no end".
+    if (
+        item.valid_until is None
+        and "valid_until" not in item.model_fields_set
+        and valid_until is not None
+    ):
         update["valid_until"] = valid_until
     return item.model_copy(update=update) if update else item
 

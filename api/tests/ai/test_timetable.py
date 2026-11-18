@@ -153,6 +153,8 @@ def test_unreadable_or_empty_is_unreadable(text: str) -> None:
         ({"title": "א" * 101}, "commitments.0.title: too_long"),
         ({"title": "a\nb"}, "commitments.0.title: control_character"),
         ({"title": "a\x07b"}, "commitments.0.title: control_character"),
+        ({"title": "a\u202eb"}, "commitments.0.title: control_character"),
+        ({"title": "a\u200bb"}, "commitments.0.title: control_character"),
     ],
 )
 def test_invalid_items_give_codes_with_the_index(fields: dict[str, Any], error: str) -> None:

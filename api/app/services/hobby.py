@@ -5,14 +5,18 @@ weekday, so the planner has one mechanism for taken time. The settings screen of
 reads and writes the hobby through GET/PATCH /me, so the API keeps those two fields: they read
 and replace the "hobby set", exactly the set the migration writes and its downgrade
 recognises: seven live commitments of kind 'other' titled HOBBY_TITLE, with no valid_until,
-the same start and end, one on each weekday, 15 to 240 minutes long. When several such sets
-exist, the one created first is the hobby. S34 deletes this module (decision 7).
+the same start and end, covering every weekday, 15 to 240 minutes long (a duplicate row
+on a weekday does not hide it). When several such sets exist, the one created first is the
+hobby. Writing it replaces every live hobby-titled row at the old time and at the new time,
+so an edited or duplicated set never piles up. S34 deletes this module (decision 7).
 """
 
 import datetime as dt
 from typing import Final
 from uuid import UUID
 
+from app.errors import ApiError
+from app.services.commitments import MAX_LIVE_COMMITMENTS, live_count
 from app.services.profiles import Conn
 
 HOBBY_TITLE: Final = "זמן לעצמי"
@@ -26,7 +30,7 @@ _SETS_SQL: Final = """
     WHERE user_id = %(user_id)s AND deleted_at IS NULL AND kind = 'other'
       AND title = %(title)s AND valid_until IS NULL
     GROUP BY start_time, end_time
-    HAVING count(*) = 7 AND count(DISTINCT weekday) = 7
+    HAVING count(DISTINCT weekday) = 7
     ORDER BY min(created_at), start_time, end_time
 """
 
@@ -55,21 +59,18 @@ def write_hobby(
     current = read_hobby(conn, user_id)
     if current == hobby:
         return False
-    if current is not None:
+    times = {(h[0], _end(*h)) for h in (current, hobby) if h is not None}
+    for start, end in times:
         conn.execute(
             "UPDATE app.commitments SET deleted_at = %(now)s "
             "WHERE user_id = %(user_id)s AND deleted_at IS NULL AND kind = 'other' "
             "AND title = %(title)s AND valid_until IS NULL "
             "AND start_time = %(start)s AND end_time = %(end)s",
-            {
-                "now": now,
-                "user_id": user_id,
-                "title": HOBBY_TITLE,
-                "start": current[0],
-                "end": _end(*current),
-            },
+            {"now": now, "user_id": user_id, "title": HOBBY_TITLE, "start": start, "end": end},
         )
     if hobby is not None:
+        if live_count(conn, user_id) + _WEEKDAYS > MAX_LIVE_COMMITMENTS:
+            raise ApiError("too_many_commitments", extra={"limit": MAX_LIVE_COMMITMENTS})
         start, minutes = hobby
         with conn.cursor() as cursor:
             cursor.executemany(

@@ -197,8 +197,8 @@ def undo(
     closed: it is never deleted, and it blocks the saved blocks that overlap it or
     share its id. The exception is a block in `created`, the ids the version being
     undone wrote itself (free time, a defer to a chosen time): it is pinned because the
-    change pinned it, so it is open while it is PLANNED and has not started, even if the
-    user has moved it since (it is part of the change being undone).
+    change pinned it, so it is open while it is PLANNED and not over (also once it has
+    started), even if the user has moved it since (it is part of the change being undone).
 
     A saved block comes back if it has not started, was not closed since (same id) and
     does not overlap a closed PLANNED or DONE block; otherwise it is dropped.
@@ -210,10 +210,14 @@ def undo(
     open_blocks: list[SnapshotBlock] = []
     closed: list[SnapshotBlock] = []
     for block in current:
-        if (
-            block.status is BlockStatus.PLANNED
-            and block.interval.start >= start
-            and (not block.pinned or block.id in made or _place(block) in saved_places)
+        if block.status is BlockStatus.PLANNED and (
+            # A block the undone version wrote is open even once it has started: free time
+            # starts its session at once, and undo must still take it back.
+            (block.id in made and block.interval.end > start)
+            or (
+                block.interval.start >= start
+                and (not block.pinned or _place(block) in saved_places)
+            )
         ):
             open_blocks.append(block)
         else:

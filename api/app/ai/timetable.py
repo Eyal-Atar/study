@@ -24,12 +24,12 @@ from app.ai.client import AiError, AnalysisClient, Usage
 from app.ai.prompts import retry_message
 from app.ai.schema import MAX_REPORTED_ERRORS, _clean_schema
 from app.domain.materials import IMAGE_MIMES, PDF_MIME
+from app.domain.planner import MIN_COMMITMENT_MINUTES
 
 CommitmentKind = Literal["work", "class", "other"]
 
 MAX_COMMITMENTS: Final = 60
 MAX_TITLE_CHARS: Final = 100
-MIN_COMMITMENT_MINUTES: Final = 15
 MAX_ATTEMPTS: Final = 2
 MINUTES_PER_DAY: Final = 24 * 60
 
@@ -169,7 +169,9 @@ def _title_error(title: str) -> str | None:
         return "empty"
     if len(title) > MAX_TITLE_CHARS:
         return "too_long"
-    if any(unicodedata.category(char) == "Cc" for char in title):
+    # Cc (control) and Cf (format: bidi overrides, zero-width marks), which could reorder
+    # or hide text once shown in an RTL screen.
+    if any(unicodedata.category(char) in ("Cc", "Cf") for char in title):
         return "control_character"
     return None
 

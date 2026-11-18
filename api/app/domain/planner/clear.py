@@ -26,6 +26,7 @@ from app.domain.planner.model import (
     Task,
     TaskStatus,
     Unscheduled,
+    UnscheduledReason,
 )
 from app.domain.planner.place import place_task
 from app.domain.planner.plan import number_parts
@@ -85,8 +86,10 @@ def clear_interval(
     before it. Every released block is left out of that board from the start, since
     it leaves the calendar whatever happens. A task that finds no room loses its
     released blocks anyway and is reported with place_task's reason and the minutes it
-    now misses. A released block of a task that is not a todo task of the input is
-    only removed.
+    now misses. When it fails only because a dependent's candidate blocks come too early,
+    those are released as well and the dependent is placed right after it (a pinned or
+    running dependent stays, and the task is reported). A released block of a task that is
+    not a todo task of the input is only removed.
     """
     if not isinstance(interval, Interval):
         raise PlannerInputError("interval must be an Interval")
@@ -117,7 +120,10 @@ def clear_interval(
     board = [block for block in existing_blocks if block.id not in released_ids]
     blocks: list[PlannedBlock] = []
     unscheduled: list[Unscheduled] = []
-    for task_id in order:
+    queue = list(order)
+    index = 0
+    while index < len(queue):
+        task_id = queue[index]
         own = by_task[task_id]
         result = place_task(
             profile,
@@ -128,10 +134,36 @@ def clear_interval(
             now,
             release=[block.id for block in own],
         )
-        if result.unscheduled:
+        failure = result.unscheduled[0] if result.unscheduled else None
+        if (
+            failure is not None
+            and failure.reason is UnscheduledReason.DEPENDENT_TOO_EARLY
+            and failure.blocked_by is not None
+        ):
+            # A dependent that is still only a candidate is in the way: release it too and
+            # place it after its prerequisite (review of S35), instead of dropping the
+            # prerequisite and leaving the dependent ahead of it. A fixed one stays.
+            dependent = failure.blocked_by
+            movable = [
+                block
+                for block in board
+                if block.task_id == dependent and block_role(block, start) is BlockRole.CANDIDATE
+            ]
+            # A dependent placed earlier in this loop is not moved again: its blocks are new.
+            if movable and dependent in todo and dependent not in queue[:index]:
+                moved = {block.id for block in movable}
+                board = [block for block in board if block.id not in moved]
+                released.extend(movable)
+                by_task.setdefault(dependent, []).extend(movable)
+                if dependent in queue[index + 1 :]:
+                    queue.remove(dependent)
+                queue.insert(index + 1, dependent)
+                continue  # place the same task again, now without the dependent's blocks
+        if failure is not None:
             unscheduled.extend(result.unscheduled)
             left = [b for b in board if b.task_id == task_id and is_live(b, start)]
             blocks.extend(number_parts([todo[task_id]], left, []))
+            index += 1
             continue
         blocks.extend(result.blocks)
         board.extend(
@@ -139,6 +171,7 @@ def clear_interval(
             for block in result.blocks
             if block.block_id is None
         )
+        index += 1
     return ClearResult(
         blocks=tuple(blocks),
         removed=tuple(block.id for block in released),

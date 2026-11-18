@@ -43,7 +43,7 @@ PROBLEMS: Mapping[str, Problem] = MappingProxyType(
         "too_many_materials": Problem(422, "הגעתם למספר הקבצים המקסימלי למבחן הזה."),
         "file_too_large": Problem(422, "הקובץ גדול מדי."),
         "already_exists": Problem(409, "הפריט הזה כבר קיים."),
-        "ai_quota_exceeded": Problem(429, "הגעתם למספר יצירות התוכנית היומי. אפשר לנסות שוב מחר."),
+        "ai_quota_exceeded": Problem(429, "הגעתם למספר הבקשות היומי. אפשר לנסות שוב מחר."),
         "nothing_to_analyze": Problem(409, "כל המבחנים כבר נותחו. אפשר לתכנן מחדש את הלוח."),
         "slot_taken": Problem(409, "השעה הזו תפוסה בבלוק אחר. בחרו שעה אחרת."),
         "outside_day": Problem(422, "אפשר להזיז בלוק רק לשעות הערות של אותו יום, ולא לפני עכשיו."),

@@ -98,8 +98,18 @@ def test_clearing_an_event_keeps_the_invariants(
         and b.interval.end > start
         and _overlaps(b.interval, event)
     ]
-    assert result.removed == tuple(b.id for b in released)
-    affected = {b.task_id for b in released} & todo
+    released_ids = {b.id for b in released}
+    # Besides those, only candidate blocks of a todo dependent that was in a re-placed
+    # prerequisite's way are released (it follows its prerequisite again).
+    extra = [b for b in existing if b.id in set(result.removed) - released_ids]
+    depends_on = {task.id: task.depends_on for task in tasks}
+    for moved in extra:
+        assert moved.task_id in todo
+        assert block_role(moved, start) is BlockRole.CANDIDATE
+        assert depends_on[moved.task_id] is not None
+    assert released_ids <= set(result.removed)
+    assert len(set(result.removed)) == len(result.removed)
+    affected = ({b.task_id for b in released} & todo) | {b.task_id for b in extra}
 
     # Only the affected tasks come back, each placed or reported, never both.
     by_task = Counter(b.task_id for b in result.blocks)

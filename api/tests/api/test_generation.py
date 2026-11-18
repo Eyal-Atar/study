@@ -218,7 +218,7 @@ def test_fourth_request_of_the_day_is_refused(
         make_job(db, user.id, created_at=created_at)
     response = generate(api, user)
     assert_quota_exceeded(response)
-    assert response.json()["title"] == "הגעתם למספר יצירות התוכנית היומי. אפשר לנסות שוב מחר."
+    assert response.json()["title"] == "הגעתם למספר הבקשות היומי. אפשר לנסות שוב מחר."
     assert job_count(db, user.id) == 3
 
 

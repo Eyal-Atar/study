@@ -193,3 +193,74 @@ def test_a_hobby_set_after_a_preview_makes_its_apply_stale(
     )
     assert response.status_code == 409
     assert response.json()["code"] == "stale_plan"
+
+
+# S35: the hobby is a view over the commitments (app/services/hobby.py).
+def _live_hobby_rows(db: psycopg.Connection, user: ApiUser) -> int:
+    row = db.execute(
+        "SELECT count(*) FROM app.commitments WHERE user_id = %s AND deleted_at IS NULL "
+        "AND title = 'זמן לעצמי'",
+        (user.id,),
+    ).fetchone()
+    assert row is not None
+    return int(row[0])
+
+
+def test_a_hobby_row_edited_elsewhere_is_replaced_without_piling_up(
+    api: TestClient, make_api_user: MakeApiUser, db: psycopg.Connection
+) -> None:
+    user = make_api_user()
+    _patch(api, user, {"hobby_start": "19:00", "hobby_minutes": 60})
+    commitments = api.get("/commitments", headers=user.headers).json()["commitments"]
+    assert len(commitments) == 7
+    edited = api.patch(
+        f"/commitments/{commitments[0]['id']}",
+        json={"start_time": "20:00", "end_time": "21:00"},
+        headers=user.headers,
+    )
+    assert edited.status_code == 200, edited.text
+    # Six rows left at 19:00: no longer a whole set, so no hobby.
+    assert api.get("/me", headers=user.headers).json()["hobby_start"] is None
+
+    for _ in range(3):
+        again = _patch(api, user, {"hobby_start": "19:00", "hobby_minutes": 60})
+        assert again.status_code == 200, again.text
+        assert again.json()["hobby_start"] == "19:00"
+    # The six old rows at 19:00 were replaced, not added to: seven at 19:00, one at 20:00.
+    assert _live_hobby_rows(db, user) == 8
+
+
+def test_a_duplicate_hobby_row_does_not_hide_the_hobby(
+    api: TestClient, make_api_user: MakeApiUser
+) -> None:
+    user = make_api_user()
+    _patch(api, user, {"hobby_start": "19:00", "hobby_minutes": 60})
+    extra = api.post(
+        "/commitments",
+        json={
+            "title": "זמן לעצמי",
+            "kind": "other",
+            "weekday": 2,
+            "start_time": "19:00",
+            "end_time": "20:00",
+        },
+        headers=user.headers,
+    )
+    assert extra.status_code == 201, extra.text
+    assert api.get("/me", headers=user.headers).json()["hobby_start"] == "19:00"
+
+
+def test_the_hobby_respects_the_commitment_limit(
+    api: TestClient, make_api_user: MakeApiUser, db: psycopg.Connection
+) -> None:
+    user = make_api_user()
+    api.get("/me", headers=user.headers)
+    db.execute(
+        "INSERT INTO app.commitments (user_id, title, kind, weekday, start_time, end_time, "
+        "valid_from) SELECT %s, 'עבודה', 'work', n %% 7, '08:00', '09:00', '2026-01-01' "
+        "FROM generate_series(1, 95) AS n",
+        (user.id,),
+    )
+    response = _patch(api, user, {"hobby_start": "19:00", "hobby_minutes": 60})
+    assert response.status_code == 422, response.text
+    assert response.json()["code"] == "too_many_commitments"

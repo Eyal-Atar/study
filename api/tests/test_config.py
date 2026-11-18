@@ -174,7 +174,7 @@ def test_timetable_settings_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.ai_timetable_effort == "low"
     assert settings.ai_timetable_max_tokens == 16000
     assert settings.ai_daily_timetable_limit == 5
-    assert settings.max_timetable_image_bytes == 5 * 1024 * 1024
+    assert settings.max_timetable_image_bytes == 5 * 1024 * 1024 * 3 // 4
     assert settings.max_timetable_pdf_pages == 4
 
 

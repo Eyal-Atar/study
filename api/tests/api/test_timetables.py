@@ -313,6 +313,20 @@ def test_null_valid_until_means_no_end(
     assert _commitments(db, user.id)[0][6] is None
 
 
+def test_an_item_that_sent_no_end_keeps_it_over_a_shared_valid_until(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    job = make_job(db, user.id)
+    response = _apply(
+        api,
+        user,
+        job,
+        {"items": [_item(valid_until=None), _item(weekday=2)], "valid_until": "2027-01-10"},
+    )
+    assert response.status_code == 201, response.text
+    assert [row[6] for row in _commitments(db, user.id)] == [None, dt.date(2027, 1, 10)]
+
+
 def test_apply_twice_is_already_applied(
     api: TestClient, user: ApiUser, db: psycopg.Connection
 ) -> None:

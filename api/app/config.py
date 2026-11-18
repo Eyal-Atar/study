@@ -64,11 +64,12 @@ class Settings(BaseSettings):
     # Plan generation: attempts per local day, where the day is in ai_quota_timezone.
     ai_daily_generation_limit: int = Field(default=3, ge=0)
     # Timetable parsing: requests per local day (the same day and rule as generations), the
-    # call's limits, and the file's: 5 MiB is the API's limit for one image.
+    # call's limits, and the file's. The API's 5 MB limit for one image is measured on the
+    # base64 text, which is 4/3 of the file, so a file may be at most 3.75 MiB.
     ai_daily_timetable_limit: int = Field(default=5, ge=0)
     ai_timetable_effort: Literal["low", "medium", "high", "xhigh", "max"] = "low"
     ai_timetable_max_tokens: int = Field(default=16000, gt=0)
-    max_timetable_image_bytes: int = Field(default=5 * 1024 * 1024, gt=0)
+    max_timetable_image_bytes: int = Field(default=5 * 1024 * 1024 * 3 // 4, gt=0)
     max_timetable_pdf_pages: int = Field(default=4, gt=0)
     ai_quota_timezone: str = "Asia/Jerusalem"
     max_analysis_minutes: int = Field(default=6000, gt=0)

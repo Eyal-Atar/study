@@ -139,7 +139,8 @@ def _open_windows(
 ) -> list[tuple[dt.date, list[Interval]]]:
     """Per study day, its windows cut at now, at the previous day and at the cutoffs.
 
-    Neither busy time nor the 30-minute minimum is applied yet. now is a whole minute in UTC.
+    Neither the fixed blocks (the `busy` of study_days) nor the 30-minute minimum is applied
+    yet; commitments and events are already out (day_windows). now is a whole minute in UTC.
     """
     if not exams:
         return []
@@ -175,7 +176,8 @@ def _open_windows(
 def open_windows(
     profile: Profile, exams: Sequence[Exam], now: dt.datetime
 ) -> dict[dt.date, tuple[Interval, ...]]:
-    """The windows of each study day without busy time and without the 30-minute minimum."""
+    """The windows of each study day (commitments and events taken out) before the fixed
+    blocks are, and without the 30-minute minimum."""
     return {
         day: tuple(windows) for day, windows in _open_windows(profile, exams, start_minute(now))
     }

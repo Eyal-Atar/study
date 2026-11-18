@@ -208,7 +208,8 @@ def defer_block(
         span = awake_span(board.profile, study_date(board.profile, now) + dt.timedelta(days=1))
         if span is None:
             raise _placement_failed(UnscheduledReason.NO_STUDY_DAYS.value, None)
-        not_before = span.start
+        # A block already on tomorrow (or later) is not pulled earlier or back to its place.
+        not_before = max(span.start, block.ends_at)
     # Without a not_before, deferring means "after this block": the planner alone would put
     # the released block straight back into its own slot.
     result = place_task(

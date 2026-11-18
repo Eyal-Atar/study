@@ -583,3 +583,106 @@ def test_another_user_cannot_see_or_change_an_event(
 
     assert db.execute("SELECT * FROM app.busy_events ORDER BY id").fetchall() == before
     assert scalar(db, "SELECT count(*) FROM app.plan_versions WHERE user_id = %s", other.id) == 0
+
+
+def test_undo_of_a_move_releases_a_block_dragged_into_the_freed_time(
+    api: TestClient,
+    make_api_user: Callable[[], ApiUser],
+    db: psycopg.Connection,
+    clock: FrozenClock,
+) -> None:
+    """Review of S35: event moved away, a block dragged into the freed time, then undo of the
+    move. The event comes back, and the block on it is released and placed again elsewhere."""
+    from tests.api.factories import (
+        NOW,
+        TEST_PROFILE,
+        insert_exam,
+        insert_task,
+        replan_apply,
+        set_profile,
+    )
+
+    user = make_api_user()
+    set_profile(db, user.id, **TEST_PROFILE)
+    clock.set(NOW)
+    exam = insert_exam(db, user.id, exam_date="2026-11-20")
+    insert_task(db, user.id, exam, minutes=120, title="a")
+    insert_task(db, user.id, exam, minutes=90, title="b")
+    replan_apply(api, user)
+    headers = user.headers
+    created = api.post(
+        "/busy-events",
+        json={"starts_at": "2026-11-16T12:00:00Z", "ends_at": "2026-11-16T13:00:00Z"},
+        headers=headers,
+    )
+    assert created.status_code == 201, created.text
+    event_id = created.json()["event"]["id"]
+    moved = api.patch(
+        f"/busy-events/{event_id}",
+        json={"starts_at": "2026-11-18T20:00:00Z", "ends_at": "2026-11-18T21:00:00Z"},
+        headers=headers,
+    )
+    assert moved.status_code == 200, moved.text
+    block_id = scalar(
+        db,
+        "SELECT id FROM app.blocks WHERE user_id = %s AND status = 'planned' AND starts_at > %s "
+        "ORDER BY starts_at LIMIT 1",
+        user.id,
+        NOW,
+    )
+    dragged = api.patch(
+        f"/blocks/{block_id}", json={"starts_at": "2026-11-16T12:00:00Z"}, headers=headers
+    )
+    assert dragged.status_code == 200, dragged.text
+
+    undone = api.post(
+        "/plan/undo", json={"version_id": moved.json()["version_id"]}, headers=headers
+    )
+    assert undone.status_code == 200, undone.text
+
+    event_row = db.execute(
+        "SELECT starts_at, ends_at FROM app.busy_events WHERE id = %s", (event_id,)
+    ).fetchone()
+    assert event_row is not None
+    starts_at, ends_at = event_row
+    assert starts_at == dt.datetime(2026, 11, 16, 12, tzinfo=dt.UTC)  # the event is back
+    rows = db.execute(
+        "SELECT starts_at, ends_at FROM app.blocks WHERE user_id = %s AND status = 'planned' "
+        "AND ends_at > %s",
+        (user.id, NOW),
+    ).fetchall()
+    assert not [row for row in rows if row[0] < ends_at and starts_at < row[1]]
+    # The task of the released block still has all its minutes on the board.
+    minutes = scalar(
+        db,
+        "SELECT coalesce(sum(extract(epoch FROM ends_at - starts_at) / 60), 0)::int "
+        "FROM app.blocks WHERE user_id = %s AND status = 'planned'",
+        user.id,
+    )
+    assert minutes == 210
+
+
+def test_undo_of_a_time_change_keeps_a_title_edited_since(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    _planned_board(api, user, db)
+    created = _posted(api, user, _event(Z(2026, 11, 19, 20), Z(2026, 11, 19, 23)))
+    event_id = created["event"]["id"]
+    moved = _patch(
+        api,
+        user,
+        event_id,
+        {"starts_at": "2026-11-19T19:00:00Z", "ends_at": "2026-11-19T22:00:00Z"},
+    )
+    assert moved.status_code == 200, moved.text
+    # A title-only edit writes no version: it is the user's latest word.
+    renamed = _patch(api, user, event_id, {"title": "חתונה של דנה"})
+    assert renamed.json()["version_id"] is None
+
+    undone = _undo(api, user, moved.json()["version_id"])
+
+    assert undone.status_code == 200, undone.text
+    row = db.execute(
+        "SELECT title, starts_at, ends_at FROM app.busy_events WHERE id = %s", (event_id,)
+    ).fetchone()
+    assert row == ("חתונה של דנה", Z(2026, 11, 19, 20), Z(2026, 11, 19, 23))

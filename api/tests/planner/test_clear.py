@@ -196,3 +196,56 @@ def test_duplicate_block_ids_are_rejected() -> None:
     block = make_block(a, Z(2026, 11, 1, 7), Z(2026, 11, 1, 8), id=uuid4())
     with pytest.raises(PlannerInputError):
         clear_interval(make_profile(), [exam], [a], [block, block], NOW, span(7, 8))
+
+
+def test_a_dependent_in_the_way_is_released_and_follows_its_prerequisite() -> None:
+    """Review finding: learn 08-09, practice 10-11 that depends on it, an event 07-10.
+
+    Learn cannot go back before practice, so practice (a candidate) is released too and placed
+    after learn; neither leaves the plan while there is room for both.
+    """
+    profile = make_profile()
+    exam = make_exam(nov(5))
+    learn = make_task(exam, 60)
+    practice = make_task(exam, 60, depends_on=learn.id)
+    learn_block = make_block(learn, Z(2026, 11, 1, 8), Z(2026, 11, 1, 9))
+    practice_block = make_block(practice, Z(2026, 11, 1, 10), Z(2026, 11, 1, 11))
+    event = Interval(Z(2026, 11, 1, 7), Z(2026, 11, 1, 10))
+    result = clear_interval(
+        replace(profile, busy=(event,)),
+        [exam],
+        [learn, practice],
+        [learn_block, practice_block],
+        NOW,
+        event,
+    )
+    assert result.unscheduled == ()
+    assert set(result.removed) == {learn_block.id, practice_block.id}
+    learn_end = max(b.interval.end for b in result.blocks if b.task_id == learn.id)
+    practice_start = min(b.interval.start for b in result.blocks if b.task_id == practice.id)
+    assert learn_end <= practice_start
+    assert not any(
+        b.interval.start < event.end and event.start < b.interval.end for b in result.blocks
+    )
+
+
+def test_a_pinned_dependent_in_the_way_is_not_released() -> None:
+    profile = make_profile()
+    exam = make_exam(nov(5))
+    learn = make_task(exam, 60)
+    practice = make_task(exam, 60, depends_on=learn.id)
+    learn_block = make_block(learn, Z(2026, 11, 1, 8), Z(2026, 11, 1, 9))
+    practice_block = replace(
+        make_block(practice, Z(2026, 11, 1, 10), Z(2026, 11, 1, 11)), pinned=True
+    )
+    event = Interval(Z(2026, 11, 1, 7), Z(2026, 11, 1, 10))
+    result = clear_interval(
+        replace(profile, busy=(event,)),
+        [exam],
+        [learn, practice],
+        [learn_block, practice_block],
+        NOW,
+        event,
+    )
+    assert result.removed == (learn_block.id,)
+    assert [u.reason.value for u in result.unscheduled] == ["dependent_too_early"]

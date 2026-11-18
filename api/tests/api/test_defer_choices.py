@@ -156,6 +156,18 @@ def test_tomorrow_before_waking_is_the_same_local_day(
     assert Z(2026, 11, 16, 7) <= start < Z(2026, 11, 16, 23)
 
 
+def test_tomorrow_never_pulls_a_later_block_earlier(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, clock: FrozenClock
+) -> None:
+    clock.set(Z(2026, 11, 16, 8))
+    _, task = _setup(db, user)
+    # Already on tomorrow's evening: "tomorrow" may only move it on, never earlier.
+    block = insert_block(db, user.id, task, Z(2026, 11, 17, 17), Z(2026, 11, 17, 18))
+    response = _defer(api, user, block, {"to": "tomorrow"})
+    assert response.status_code == 200, response.text
+    assert _instant(response.json()["blocks"][0]["starts_at"]) >= Z(2026, 11, 17, 18)
+
+
 def test_tomorrow_skips_a_commitment(
     api: TestClient, user: ApiUser, db: psycopg.Connection, clock: FrozenClock
 ) -> None:

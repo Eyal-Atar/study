@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient, type UseMutationResult, type Use
 import { useApi } from '../api/ApiContext'
 import type { ApiError } from '../api/client'
 import { boardKey, useBoardUserId } from '../board/api'
-import type { DeferResult } from '../board/types'
+import type { DeferResult, Slots } from '../board/types'
 import type {
   BusyEvent,
   BusyEventInput,
@@ -142,6 +142,23 @@ export function useFreeTime(): UseMutationResult<FreeTimeResponse, ApiError, num
   return useMutation<FreeTimeResponse, ApiError, number>({
     mutationFn: (minutes) => api.post<FreeTimeResponse>('/plan/free-time', { minutes }),
     onSuccess: refresh,
+  })
+}
+
+// "בחירת שעה": the free starts of one study day for the block (any day from today to the exam's
+// last study day; a date outside → 422 with loc ["query","date"]).
+export function deferSlotsKey(userId: string | null, blockId: string, date: string) {
+  return [...boardKey(userId), 'defer-slots', blockId, date] as const
+}
+
+export function useDeferSlots(blockId: string, date: string): UseQueryResult<Slots, ApiError> {
+  const api = useApi()
+  const userId = useBoardUserId()
+  return useQuery<Slots, ApiError>({
+    queryKey: deferSlotsKey(userId, blockId, date),
+    queryFn: ({ signal }) =>
+      api.get<Slots>(`/blocks/${id(blockId)}/slots?date=${encodeURIComponent(date)}`, { signal }),
+    enabled: userId !== null,
   })
 }
 

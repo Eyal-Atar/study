@@ -453,7 +453,7 @@ def _parse_instant(value: Any) -> dt.datetime:
 
 
 def _restore_event(conn: Conn, user_id: UUID, event_id: UUID, before: Any) -> None:
-    """Put a moved busy event's title and time back (busy_event_before), if it is still live.
+    """Put a moved busy event's time back (busy_event_before), if it is still live.
 
     `before` must hold exactly BUSY_EVENT_BEFORE_FIELDS: a title (a string or null) and two
     ISO instants that make a valid event; anything else is invalid.
@@ -472,10 +472,13 @@ def _restore_event(conn: Conn, user_id: UUID, event_id: UUID, before: Any) -> No
             raise ValueError("starts_at..ends_at is not an event's time")
     except (KeyError, TypeError, ValueError) as error:
         raise SnapshotError(f"invalid busy_event_before: {error}") from error
+    # Only the time comes back: a title edit writes no version, so a title changed after the
+    # move is the user's latest word and stays (the saved title is still checked above).
+    del title
     conn.execute(
-        "UPDATE app.busy_events SET title = %s, starts_at = %s, ends_at = %s "
+        "UPDATE app.busy_events SET starts_at = %s, ends_at = %s "
         "WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
-        (title, starts_at, ends_at, user_id, event_id),
+        (starts_at, ends_at, user_id, event_id),
     )
 
 
@@ -619,20 +622,65 @@ def _current_blocks(
 
 
 def _created_by(
-    version: VersionRow, rows: Sequence[BlockRow], now: dt.datetime
+    version: VersionRow,
+    rows: Sequence[BlockRow],
+    saved: Sequence[SnapshotBlock],
+    now: dt.datetime,
 ) -> tuple[UUID, ...]:
     """The blocks a version that creates pinned blocks wrote itself, still planned and not
-    started (plan decision 12); nothing for any other version."""
+    over, also once started (plan decision 12); nothing for any other version.
+
+    write_changes also stamps the version on the task's older blocks it only renumbered;
+    those are in the snapshot, so they are not the version's own (review of S35).
+    """
     if version.reason not in CREATES_PINNED:
         return ()
     start = start_minute(now)
+    before = {block.id for block in saved}
     return tuple(
         row.id
         for row in rows
         if row.plan_version_id == version.id
+        and row.id not in before
         and row.status is BlockStatus.PLANNED
-        and row.starts_at >= start
+        and row.ends_at > start
     )
+
+
+def _on_restored_event(
+    conn: Conn,
+    user_id: UUID,
+    version: VersionRow,
+    rows: Sequence[BlockRow],
+    deleted: Collection[UUID],
+    now: dt.datetime,
+) -> list[BlockRow]:
+    """The planned blocks that stay but now sit on the event a busy_changed undo put back.
+
+    A block moved into the time the event had freed (a move writes no version, so the event's
+    undo is still the latest) would otherwise stay on busy time. Like adding an event, the
+    undo releases it, pinned or running too, and its task is placed again (review of S35).
+    """
+    if version.reason != VersionReason.BUSY_CHANGED or version.busy_event_id is None:
+        return []
+    event = conn.execute(
+        "SELECT starts_at, ends_at FROM app.busy_events "
+        "WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
+        (user_id, version.busy_event_id),
+    ).fetchone()
+    if event is None:
+        return []
+    starts_at, ends_at = event["starts_at"], event["ends_at"]
+    start = start_minute(now)
+    return [
+        row
+        for row in rows
+        if row.status is BlockStatus.PLANNED
+        and row.ends_at > start
+        and row.id not in deleted
+        and row.starts_at < ends_at
+        and starts_at < row.ends_at
+    ]
 
 
 def _on_busy_time(profile: Profile, blocks: Sequence[SnapshotBlock]) -> list[SnapshotBlock]:
@@ -678,7 +726,9 @@ def undo_version(conn: Conn, user_id: UUID, version_id: UUID, now: dt.datetime) 
 
     rows = _current_blocks(conn, user_id, now, saved)
     current = tuple(to_snapshot_block(row) for row in rows)
-    result = undo(saved, current, now, created=_created_by(version, rows, now))
+    result = undo(saved, current, now, created=_created_by(version, rows, saved, now))
+    on_event = _on_restored_event(conn, user_id, version, rows, result.delete, now)
+    on_event_ids = {row.id for row in on_event}
     # Only blocks of a todo task that is still in the plan come back (a done, deleted
     # or vanished task would fail the foreign key or plan what needs no time).
     todo = {task.id for task in board.tasks if task.status is TaskStatus.TODO}
@@ -696,11 +746,12 @@ def undo_version(conn: Conn, user_id: UUID, version_id: UUID, now: dt.datetime) 
             *(block for block in result.dropped if _identity(block) not in present),
             *(block for block in result.restore if block.task_id not in todo),
             *on_busy,
+            *(to_snapshot_block(row) for row in on_event),
         ],
         key=_sort_key,
     )
 
-    delete_planned(conn, user_id, result.delete)
+    delete_planned(conn, user_id, [*result.delete, *on_event_ids])
     if restore:
         with conn.cursor() as cursor:
             cursor.executemany(

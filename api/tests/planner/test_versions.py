@@ -391,9 +391,17 @@ def test_undo_deletes_a_created_block_the_user_moved_since() -> None:
     assert result == UndoResult(delete=(created.id,), restore=(), dropped=())
 
 
-def test_undo_keeps_a_created_block_that_started() -> None:
+def test_undo_takes_back_a_created_block_that_started() -> None:
+    # Free time starts its session at once: undo a few minutes later must still remove it,
+    # or the task would keep the session and get its saved blocks back too.
     created = block(9, 10, pinned=True)
     result = undo([], [created], at(9, 30), created=[created.id])
+    assert result == UndoResult(delete=(created.id,), restore=(), dropped=())
+
+
+def test_undo_keeps_a_created_block_that_is_over() -> None:
+    created = block(9, 10, pinned=True)
+    result = undo([], [created], at(10, 30), created=[created.id])
     assert result == UndoResult(delete=(), restore=(), dropped=())
 
 
