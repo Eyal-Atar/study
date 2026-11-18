@@ -1,6 +1,6 @@
 # S28 — עיצוב כניסה, אונבורדינג, מבחנים והגדרות: תוכנית עבודה
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **מטרה:** כל המסכים שאינם "היום", "שבוע" ו"התקדמות" עוברים לשפה "נייר": כניסה (וארבעת המסכים שמחוץ לשלד), ארבעת שלבי האונבורדינג, רשימת המבחנים ומסך המבחן, הגדרות ומחיקת חשבון. אחרי ה-scope אין בקבצים האלה אף מחלקה מלפני S25, וכל מסך מורכב רק מהרכיבים של `web/src/ui/`.
 
@@ -55,7 +55,7 @@ flowchart TB
 
 ## ההחלטות שלי
 
-1. **מסך המבחן: שורה לכל משימה, ופעולות בתפריט.** משימה היא `ListRow`: שם, שורת משנה אחת ("לימוד, 60 דקות. ריכוז 3/10. בלוח: יום ג׳ 10:00"), `CheckButton` לסימון "בוצעה", ותפריט "פעולות" עם עריכה, דילוג ומחיקה. כך 40 כפתורים הופכים ל-10 עיגולי סימון, והעין רואה רשימת משימות ולא ערימת כרטיסים (סעיף 5.2: "פעולות נוספות על שורה נמצאות בתפריט"). משימה שדולגה מקבלת תג "דולגה" במקום עיגול, ו"החזרה לביצוע" בתפריט. הנימוק ("למה המשימה הזו?") נשאר `Disclosure` מתחת לשורת המשנה.
+1. **מסך המבחן: שורה לכל משימה, ופעולות בתפריט.** משימה היא `ListRow`: שם, שורת משנה אחת ("לימוד, 60 דקות. ריכוז 3/10. בלוח: יום ג׳ 10:00"), `CheckButton` לסימון "בוצעה", ותפריט "פעולות" עם עריכה, דילוג ומחיקה. כך 40 כפתורים הופכים ל-10 עיגולי סימון, והעין רואה רשימת משימות ולא ערימת כרטיסים (סעיף 5.2: "פעולות נוספות על שורה נמצאות בתפריט"). משימה שדולגה מקבלת תג "דולגה" במקום עיגול, ו"החזרה לביצוע" בתפריט. הנימוק ("למה המשימה הזו?") נפתח מהתפריט ומוצג כ-`Note` מתחת לשורת המשנה (עודכן אחרי הצילומים, ראו בסוף).
 2. **מסך המבחן: ההיררכיה.** מלמעלה למטה: קישור חזרה, כותרת (שם, ומתחתיו "23 בנובמבר 2026, בעוד 6 ימים. קושי: קשה") עם כפתור "עריכה", הציר, נושאים ומשימות, ואז שני קטעים **מתקפלים**: "חומרים" ו"ניתוח החומרים". הם משניים למי שכבר יש לו תוכנית, ולכן סגורים כברירת מחדל, עם שורת סיכום ("3 קבצים"). הם נפתחים לבד כשהם העיקר: למבחן שעוד לא נותח (שם "בניית תוכנית למבחן" היא הפעולה הראשית של המסך), כשניתוח רץ, נכשל, או כשטיוטה מחכה לאישור.
 3. **`Disclosure` הקיים הוא הערה קטנה בתוך שורה, לא קטע של מסך.** לכן נוסף `ui/CollapsibleSection.tsx`: כותרת `h2` שהיא כפתור עם חץ ושורת סיכום. אפשר היה להרחיב את `Disclosure`, אבל אסור לשנות רכיב קיים ב-scope הזה, ואלה באמת שני דברים שונים (האחד בלי כותרת במבנה העמוד, השני עם).
 4. **הציר:** עמודה "מתוכנן" היא מסגרת `line-strong` על לבן, והחלק שבוצע מתמלא ב-`success` מלמטה: אותה שפה כמו עיגול הסימון (ריק = עוד לא, ירוק = בוצע), ושניהם עומדים ב-3:1. יום המבחן ויום מנוחה מסומנים באייקון (`Flag`, ‏`Coffee`) ולא בבלוק צבע ובטקסט שנשבר; המקרא מסביר את ארבעת הסימנים, ולכל יום יש `aria-label` מלא כמו היום. העמודות ב-48px. התוויות של הציר ב-`text-caption`: זה השימוש השני שלו (אחרי הניווט התחתון), ונרשם במסמך העיצוב.
@@ -123,10 +123,10 @@ flowchart TB
 - `CompactSelect({ 'aria-label': string, value: string, options: readonly SelectOption[], onChange: (value: string) => void, isDisabled?: boolean })`: כפתור של 44px ברוחב התוכן, אותה רשימה כמו `Select`.
 - `CollapsibleSection({ title: string, summary?: string, isExpanded: boolean, onExpandedChange: (open: boolean) => void, children })`: ‏`section` עם `h2` שבתוכו הכפתור (`aria-expanded`), חץ שמסתובב, והסיכום ב-`text-small text-ink-muted` בקצה השורה. התוכן נשאר ב-DOM כשהוא סגור (`hidden="until-found"`).
 
-- [ ] בדיקות (נכשלות): תפקיד ושם של כל רכיב; `Switch` מתחלף ברווח ולא מגיב כשהוא כבוי; `CompactSelect` קורא ל-`onChange` עם הערך; `CollapsibleSection` מדווח `aria-expanded` וקורא ל-`onExpandedChange`; ‏`Note` עם `role="alert"`.
-- [ ] הרכיבים, ואז `npm test -- src/ui src/dev`, ‏`npm run lint`, ‏`npm run typecheck`.
-- [ ] ארבעה קטעים בדף הרכיבים (`#switch`, ‏`#note`, ‏`#compact-select`, ‏`#collapsible-section`).
-- [ ] commit: `feat(web): Switch, Note, CompactSelect and CollapsibleSection, the components S28 was missing`.
+- [x] בדיקות (נכשלות): תפקיד ושם של כל רכיב; `Switch` מתחלף ברווח ולא מגיב כשהוא כבוי; `CompactSelect` קורא ל-`onChange` עם הערך; `CollapsibleSection` מדווח `aria-expanded` וקורא ל-`onExpandedChange`; ‏`Note` עם `role="alert"`.
+- [x] הרכיבים, ואז `npm test -- src/ui src/dev`, ‏`npm run lint`, ‏`npm run typecheck`.
+- [x] ארבעה קטעים בדף הרכיבים (`#switch`, ‏`#note`, ‏`#compact-select`, ‏`#collapsible-section`).
+- [x] commit: `feat(web): Switch, Note, CompactSelect and CollapsibleSection, the components S28 was missing`.
 
 ### Task 1: המסכים שמחוץ לשלד
 
@@ -138,7 +138,7 @@ flowchart TB
 - 404 ופרידה: `PageHeader`, משפט, ו-`ButtonLink` (ב-404 `TextLink` נשאר).
 - `RequireAuth`: ‏`StandalonePage` עם `LoadingState shape="card"`.
 - `index.html`: ה-`body` נשאר עם `min-h-dvh antialiased` בלבד; הצבעים מגיעים מ-`index.css`. ‏`viewport-fit=cover` נשאר.
-- [ ] בדיקה לפני קוד לכל מסך (ה-`h1`, ה-role של המצב, היעד של הקישור), מימוש, `npm test -- src/pages src/auth src/settings/GoodbyePage`.
+- [x] בדיקה לפני קוד לכל מסך (ה-`h1`, ה-role של המצב, היעד של הקישור), מימוש, `npm test -- src/pages src/auth src/settings/GoodbyePage`.
 
 ### Task 2: אונבורדינג וחומרים
 
@@ -151,7 +151,7 @@ flowchart TB
 - `ScheduleStep`: ‏`Note` להערת הלילה; החלטה 6 לטווחים.
 - `BuildingStep`: ‏`ui/ProgressBar` (עם `label` ו-`valueText` של השלב), הכישלון ב-`Card tone="danger"`, הסיכום כ-`List` של מבחנים, "לא נכנס" ב-`Card tone="warning"`, ו"למסך היום" הוא הכפתור הראשי.
 - `MaterialsSection` לפי החלטות 2 ו-15: ‏`CollapsibleSection title="חומרים" summary="3 קבצים"`, פתוח כשהמבחן לא נותח או כשהמשתמש פתח; ‏`CompactSelect` לסוג; הרמז לניתוח חוזר ב-`Note role="status"`.
-- [ ] בדיקות לפני קוד, כולל Review Focus 1, 4, 5; ‏`npm test -- src/onboarding src/exam/MaterialsSection`.
+- [x] בדיקות לפני קוד, כולל Review Focus 1, 4, 5; ‏`npm test -- src/onboarding src/exam/MaterialsSection`.
 
 ### Task 3: רשימת מבחנים, כותרת וציר
 
@@ -161,7 +161,7 @@ flowchart TB
 - `ExamPage`: קישור החזרה הוא `TextLink` עם `ChevronRight` (ב-RTL "חזרה" פונה ימינה); `LoadingState`/`ErrorState`; מבחן שלא נמצא: `EmptyState` עם קישור. ה-`h1` מופיע מיד: בזמן טעינה `PageHeader title={he.exam.title}` ("מבחן").
 - `ExamHeader` לפי החלטה 2: ‏`PageHeader` נשאר גם בזמן עריכה, והטופס נפתח מתחתיו ב-`Card`.
 - `Timeline` לפי החלטה 4.
-- [ ] בדיקות לפני קוד, כולל Review Focus 1 ו-4; ‏`npm test -- src/exam/ExamsPage src/exam/ExamPage src/exam/dates`.
+- [x] בדיקות לפני קוד, כולל Review Focus 1 ו-4; ‏`npm test -- src/exam/ExamsPage src/exam/ExamPage src/exam/dates`.
 
 ### Task 4: נושאים ומשימות
 
@@ -170,7 +170,7 @@ flowchart TB
 - לפי החלטה 1. נושא: `h3` (שם, נקודות המשקל עם הטקסט "חשיבות 4 מתוך 5" גלוי ב-`text-small`, כך שהמשקל לא מועבר רק בצבע), כפתור "עריכה" שקט, וה-`Disclosure` של הביסוס.
 - טופס עריכה של משימה או נושא: בתוך השורה, על `surface-muted` עם `rounded-control`. "הוספת משימה": כפתור משני עם `Plus`, והטופס ב-`Card title=…`.
 - "נושאים בלי חומר": `Card tone="warning" title=…`.
-- [ ] בדיקות לפני קוד, כולל Review Focus 1 ו-2; ‏`npm test -- src/exam/TaskList`.
+- [x] בדיקות לפני קוד, כולל Review Focus 1 ו-2; ‏`npm test -- src/exam/TaskList`.
 
 ### Task 5: ניתוח ותצוגה מקדימה
 
@@ -178,7 +178,7 @@ flowchart TB
 
 - `AnalysisSection` לפי החלטה 2: ‏`CollapsibleSection`; ‏`ui/ProgressBar`; כישלון ב-`Card tone="danger"`; הטיוטה שמחכה היא `Card` עם הכפתור הראשי, ואז "ניתוח חוזר" משני.
 - `AnalysisPreview` עובר ל-`ui/Dialog` (`title`, ‏`footer` עם "אישור" ראשי ו-`isPending`, ו"לא עכשיו"); הרשימות ב-`List`; הדוח ב-`Note tone="warning"`.
-- [ ] בדיקות לפני קוד, כולל Review Focus 3; ‏`npm test -- src/exam/AnalysisSection`.
+- [x] בדיקות לפני קוד, כולל Review Focus 3; ‏`npm test -- src/exam/AnalysisSection`.
 
 ### Task 6: הגדרות ומחיקת חשבון
 
@@ -186,12 +186,21 @@ flowchart TB
 
 - לפי החלטות 11–13. המתג הוא `ui/Switch`; השעות `ui/TimeField`; ההערה על שינה אחרי חצות ב-`Note`.
 - מחיקת חשבון: `PageHeader`; "מה נמחק" ברשימה; הקישור לייצוא `TextLink`; האישור ב-`Card tone="danger"` עם השדה, `Button variant="danger" isPending`, ו-`ButtonLink` חזרה להגדרות.
-- [ ] בדיקות לפני קוד, כולל Review Focus 4; ‏`npm test -- src/settings`.
+- [x] בדיקות לפני קוד, כולל Review Focus 4; ‏`npm test -- src/settings`.
 
 ### Task 7: צילומים, סקירה, מסמכים ומיזוג (השיחה הראשית)
 
-- [ ] כל הפקודות של `web/` (בדיקות, lint, טיפוסים, build), ו-grep שמוכיח שאין מחלקות ישנות בקבצים של S28.
-- [ ] צילומי "אחרי" ל-`~/studyflow-manager/s28-screens/after/`, מעבר על כל צילום, ותיקון מה שלא נראה טוב.
-- [ ] סקירת קוד (subagent), ותיקון הממצאים.
-- [ ] `design-language.md` (5.8: ארבעת הרכיבים; סעיף 3: `text-caption` בציר; סעיף 10: מה נסגר ומה עובר ל-S29), סעיף 7.9 במסמך התכנון ובלשונית שלו, מפת הדרכים (הושלם; שלוש שורות הבאגים ושורת הפריטים הפתוחים).
-- [ ] בדיקות ה-API בלי `tests/db`, ‏gitleaks, ‏`git fetch` ו-`rebase origin/main`, כל הבדיקות שוב, `git push origin s28-entry-exam-settings:main`, ואחרי שהצליח מחיקת הענף ב-`origin`.
+- [x] כל הפקודות של `web/` (בדיקות, lint, טיפוסים, build), ו-grep שמוכיח שאין מחלקות ישנות בקבצים של S28.
+- [x] צילומי "אחרי" ל-`~/studyflow-manager/s28-screens/after/`, מעבר על כל צילום, ותיקון מה שלא נראה טוב.
+- [x] סקירת קוד (subagent), ותיקון הממצאים.
+- [x] `design-language.md` (5.8: ארבעת הרכיבים; סעיף 3: `text-caption` בציר; סעיף 10: מה נסגר ומה עובר ל-S29), סעיף 7.9 במסמך התכנון ובלשונית שלו, מפת הדרכים (הושלם; שלוש שורות הבאגים ושורת הפריטים הפתוחים).
+- [x] בדיקות ה-API בלי `tests/db`, ‏gitleaks, ‏`git fetch` ו-`rebase origin/main`, כל הבדיקות שוב, `git push origin s28-entry-exam-settings:main`, ואחרי שהצליח מחיקת הענף ב-`origin`.
+
+## מה השתנה מול התוכנית (נכתב בסוף, 18.11.2026)
+
+- **הנימוק של משימה עבר לתפריט.** בצילומים הראשונים "למה המשימה הזו?" היה קישור כחול בכל שורה, ושוב הפך את הרשימה לעמוסה. עכשיו הוא פריט בתפריט "פעולות" שמציג ומסתיר `Note` מתחת לשורה (החלטה 1 תוקנה בהתאם).
+- **עמודות הציר גמישות** (44px לפחות, מתרחבות) ולא 48px קבועים: כך שבוע שלם נכנס ב-390px בלי גלילה.
+- **הקבוצות בהגדרות** הן `h3` בגודל של שם שורה ולא `SectionHeading`: שתי רמות של תווית אפורה קטנה נקראו כאותה רמה. לקבוצה "זמן לעצמי" אין כותרת גלויה, כי המתג שמתחתיה אומר אותו דבר.
+- **S16 מוזג באמצע.** "תזכורות" בהגדרות הוא הרכיב של S16 בתוך `Section`; שני הכרטיסים שלו נשארו כמו שהם ונרשמו ל-S29.
+- **הסקירה הסופית** מצאה שהרמז "החומרים השתנו" נבלע בקטע סגור (Review Focus 3, בקטע החומרים ולא רק בניתוח). הוא יצא מחוץ לקטע. עוד תוקנו: אייקונים עם כיוון בתפריט, שם נגיש של "עריכה" שלא התחיל בטקסט הגלוי, וספרות בלבד שנחשבו סיומת של קובץ.
+- **נבדק בצילומים ולא בדפדפן חי:** פורט 5173 היה תפוס, ולכן הבדיקה הייתה על build עם נתוני דמה בפורט 4228 (`~/studyflow-manager/s28-screens/before` ו-`after`, 390 ו-1280, כל המצבים).
