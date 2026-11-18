@@ -102,7 +102,7 @@ describe('RadioCards', () => {
     expect(within(group).getByRole('radio', { name: /קל/ })).toBeChecked()
     expect(within(group).getByRole('radio', { name: /בינוני/ })).not.toBeChecked()
     expect(within(group).getByText('90 דקות').className).toContain('text-caption')
-    expect(within(group).getByText('רמת קושי').className).toContain('text-small font-semibold')
+    expect(within(group).getByText('רמת קושי').className).toContain('text-small font-medium')
   })
 
   it('the arrow keys move the choice and report it, with a visible focus', async () => {

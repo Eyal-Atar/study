@@ -12,7 +12,7 @@ export interface CheckButtonProps {
   isDisabled?: boolean | undefined
 }
 
-// The colours of the 24px circle. They are chosen here from React Aria's render state and not
+// The colours of the 22px box. They are chosen here from React Aria's render state and not
 // with data-[…] variants: Tailwind orders those by the name of the attribute and not by the order
 // of the classes, so "selected" could not reliably win over "hovered" or lose to "disabled".
 function circleColors(isDone: boolean, isHovered: boolean, isDisabled: boolean): string {
@@ -23,8 +23,9 @@ function circleColors(isDone: boolean, isHovered: boolean, isDisabled: boolean):
 }
 
 // The check button of a task or a block (design language 5.2): marks it done, and unmarks it. It
-// goes in the `trailing` of a ListRow. The drawing is a 24px circle; the button around it is the
-// 44px touch target, and the focus ring goes around that. It is a toggle button (aria-pressed)
+// goes in the `trailing` of a ListRow. The drawing is the .chk of the prototype, a 22px square with
+// 7px corners and a 2px border, filled with a check when done; the button around it is the 44px
+// touch target, with the corners of a control, and the focus ring goes around that. It is a toggle button (aria-pressed)
 // and not a checkbox: pressing it acts at once, it is not a field of a form.
 export function CheckButton({ isDone, onChange, 'aria-label': label, isDisabled }: CheckButtonProps) {
   return (
@@ -34,14 +35,14 @@ export function CheckButton({ isDone, onChange, 'aria-label': label, isDisabled 
       onChange={onChange}
       isDisabled={isDisabled ?? false}
       className={cx(
-        'inline-flex size-touch shrink-0 cursor-pointer items-center justify-center rounded-full data-[disabled]:cursor-not-allowed',
+        'inline-flex size-touch shrink-0 cursor-pointer items-center justify-center rounded-control data-[disabled]:cursor-not-allowed',
         FOCUS_RING,
       )}
     >
       {({ isHovered, isDisabled: disabled }) => (
         <span
           className={cx(
-            'flex size-6 items-center justify-center rounded-full border-2 transition-colors duration-(--duration-fast)',
+            'flex size-5.5 items-center justify-center rounded-[7px] border-2 transition-colors duration-(--duration-fast)',
             circleColors(isDone, isHovered, disabled),
           )}
         >

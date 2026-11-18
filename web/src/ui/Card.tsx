@@ -31,8 +31,8 @@ const TITLE_TONES = {
 } as const
 
 // One thing that stands on its own: the next task, a form, a report. Items of the same kind are
-// rows of a List, not a pile of cards, and a card never sits inside a card. A card is defined by
-// its line: it has no shadow.
+// rows of a List, not a pile of cards, and a card never sits inside a card. As in the prototype, a
+// card is defined by its line and its 16px corners: it has no shadow.
 export function Card({ tone = 'plain', title, titleLevel = 2, className, children, ...rest }: CardProps) {
   const titleId = useId()
   const Heading = titleLevel === 3 ? 'h3' : 'h2'

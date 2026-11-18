@@ -9,7 +9,8 @@ export interface PageHeaderProps {
   action?: ReactNode
 }
 
-// The title of a screen: its only h1. A div and not a <header>, because the banner of the page is
+// The title of a screen: its only h1, in the display size and the bold (700) of the prototype's
+// phone title. A div and not a <header>, because the banner of the page is
 // the shell's. The space under it belongs to the caller (space-y-section).
 //
 // The h1 takes the focus after a navigation (useRouteFocus in the shell), so it has tabIndex -1
@@ -31,7 +32,7 @@ export function PageHeader({ title, subtitle, action }: PageHeaderProps) {
     <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
       {/* min-w-0: inside a flex row the block may shrink below a long word, which then breaks. */}
       <div className="min-w-0">
-        <h1 tabIndex={-1} className="text-display font-semibold break-words text-ink outline-none">
+        <h1 tabIndex={-1} className="text-display font-bold break-words text-ink outline-none">
           {title}
         </h1>
         {subtitle === undefined ? null : <p className="mt-1 text-small text-ink-muted">{subtitle}</p>}

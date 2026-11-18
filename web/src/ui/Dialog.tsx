@@ -38,14 +38,21 @@ const COLUMN = 'flex flex-col gap-4'
 const OVERLAY =
   'fixed inset-x-0 top-0 z-50 flex h-(--visual-viewport-height) items-end justify-center bg-ink/40 md:items-center md:p-4 transition-opacity duration-(--duration-slow) data-[entering]:opacity-0 data-[exiting]:opacity-0'
 
-// One component, two shapes. Below md it is a sheet attached to the bottom (top corners only, and
-// the safe area of the phone under it); from md it is a centred window. It floats, so it is one of
-// the few things with the shadow. It enters with a fade and 8px of movement; Tailwind 4 writes
-// translate-y-* to the `translate` property, which is why that is the property in transition.
+// One component, two shapes. Below md it is a sheet attached to the bottom, like the sheet of the
+// prototype: the larger corners of a sheet on top only, no border, the upward shadow of a sheet, a
+// small grab handle, and the safe area of the phone under it. From md it is a centred window that
+// floats like a menu: the corners of a card, a line and the shadow of what floats. It enters with a
+// fade and 8px of movement; Tailwind 4 writes translate-y-* to the `translate` property, which is
+// why that is the property in transition.
 // The height limit is 85% of the same visual viewport (the variable is inherited from the overlay):
 // 85dvh ignores the keyboard, and would push the top of a long sheet off the screen.
 const MODAL =
-  'max-h-[calc(var(--visual-viewport-height)*0.85)] w-full overflow-y-auto rounded-t-card border border-line bg-surface pb-[env(safe-area-inset-bottom)] shadow-overlay md:max-w-md md:rounded-card transition-[translate,opacity] duration-(--duration-slow) data-[entering]:translate-y-2 data-[entering]:opacity-0 data-[exiting]:translate-y-2 data-[exiting]:opacity-0'
+  'max-h-[calc(var(--visual-viewport-height)*0.85)] w-full overflow-y-auto rounded-t-sheet bg-surface pb-[env(safe-area-inset-bottom)] shadow-sheet md:max-w-md md:rounded-card md:border md:border-line md:shadow-overlay transition-[translate,opacity] duration-(--duration-slow) data-[entering]:translate-y-2 data-[entering]:opacity-0 data-[exiting]:translate-y-2 data-[exiting]:opacity-0'
+
+// The handle at the top of the sheet (38x5, the .grab of the prototype). It only draws: the sheet
+// is not dragged, it closes with its close button, Escape or a press on the scrim, so the handle is
+// hidden from assistive technology, and it is not there on the window of md.
+const GRAB = 'mx-auto mt-2.5 h-[5px] w-[38px] rounded-full bg-line md:hidden'
 
 // React Aria's ModalOverlay gives the modal behaviour: the focus moves in, is held inside, and
 // returns to what opened the dialog; the page behind is hidden from assistive technology; Escape
@@ -80,6 +87,7 @@ export function Dialog({
       className={OVERLAY}
     >
       <Modal className={MODAL}>
+        <div aria-hidden="true" data-grab="" className={GRAB} />
         <AriaDialog
           role={role}
           aria-describedby={description === undefined ? undefined : descriptionId}

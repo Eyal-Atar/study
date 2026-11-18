@@ -84,14 +84,15 @@ describe('toast', () => {
     expect(onExpire).toHaveBeenCalledTimes(1)
   })
 
-  it('an error toast says so with an icon and a border, not with the colour of its text', () => {
+  it('an error toast says so with an icon, not with the colour of its text', () => {
     const toast = setup()
     act(() => {
       toast.show({ text: 'השמירה נכשלה', tone: 'error' })
     })
     const item = screen.getByRole('alertdialog')
-    expect(item).toHaveClass('border-danger', 'bg-danger-soft', 'text-ink')
-    const icon = item.querySelector('svg.text-danger')
+    // Dark, like every toast of the prototype: the tone is the icon alone.
+    expect(item).toHaveClass('bg-inverse', 'text-on-inverse')
+    const icon = item.querySelector('svg.text-inverse-danger')
     expect(icon).toHaveAttribute('aria-hidden', 'true')
   })
 
@@ -101,15 +102,28 @@ describe('toast', () => {
       toast.show({ text: 'נשמר', tone: 'success' })
     })
     const success = screen.getByRole('alertdialog')
-    expect(success).toHaveClass('border-success', 'bg-success-soft', 'text-ink')
-    expect(success.querySelector('svg.text-success')).toBeInTheDocument()
+    expect(success).toHaveClass('bg-inverse', 'text-on-inverse')
+    expect(success.querySelector('svg.text-inverse-success')).toBeInTheDocument()
     act(() => {
       toast.show({ text: 'לידיעה' })
     })
     const info = screen.getAllByRole('alertdialog').find((item) => item.textContent.includes('לידיעה'))
-    expect(info).toHaveClass('border-line', 'bg-surface', 'text-ink')
+    expect(info).toHaveClass('bg-inverse', 'text-on-inverse')
     // Only the icon of the close button.
     expect(info?.querySelectorAll('svg')).toHaveLength(1)
+  })
+
+  it('its undo and its close are the inverse buttons, readable on the dark', () => {
+    const toast = setup()
+    act(() => {
+      toast.show({ text: 'המבחן נמחק', action: { label: he.common.undo, onAction: vi.fn() } })
+    })
+    const undo = screen.getByRole('button', { name: he.common.undo })
+    expect(undo).toHaveClass('text-inverse-action')
+    expect(undo).not.toHaveClass('text-brand')
+    const close = screen.getByRole('button', { name: he.common.close })
+    expect(close).toHaveClass('text-on-inverse')
+    expect(close).not.toHaveClass('text-ink-muted')
   })
 
   it('floats with the one shadow and card corners, above the bottom bar of the phone', () => {
@@ -119,10 +133,12 @@ describe('toast', () => {
     })
     const region = screen.getByRole('region', { name: he.common.notifications })
     const item = screen.getByRole('alertdialog')
-    expect(item).toHaveClass('rounded-card', 'shadow-overlay', 'min-h-14')
+    expect(item).toHaveClass('bg-inverse', 'text-on-inverse', 'rounded-card', 'shadow-overlay', 'min-h-14')
     // Above the scrim of a dialog (z-50): an undo toast must stay pressable when a dialog opens.
-    expect(region).toHaveClass('fixed', 'z-[60]', 'bottom-[calc(env(safe-area-inset-bottom)+6rem)]', 'md:bottom-4')
-    // Nothing is left of the look from before the design language.
-    expect(region.outerHTML).not.toMatch(/\b(shadow-lg|rounded-lg|text-sm|font-medium)\b/)
+    // Above the bottom bar of the shell, which is there below lg.
+    expect(region).toHaveClass('fixed', 'z-[60]', 'bottom-[calc(env(safe-area-inset-bottom)+6rem)]', 'lg:bottom-4')
+    expect(region).not.toHaveClass('md:bottom-4')
+    // Nothing is left of the light toast, nor of the look from before the design language.
+    expect(region.outerHTML).not.toMatch(/\b(shadow-lg|rounded-lg|text-sm|bg-success-soft|bg-danger-soft|bg-surface)\b/)
   })
 })

@@ -12,13 +12,14 @@ function circleOf(button: HTMLElement): HTMLElement {
 }
 
 describe('CheckButton', () => {
-  it('is a 44px button named by its aria-label, with an empty 24px circle while not done', () => {
+  it('is a 44px button named by its aria-label, with the empty 22px box of the prototype while not done', () => {
     render(<CheckButton isDone={false} onChange={vi.fn()} aria-label={NAME} />)
     const button = screen.getByRole('button', { name: NAME })
     expect(button).toHaveAttribute('aria-pressed', 'false')
-    expect(button).toHaveClass('size-touch', 'rounded-full', 'outline-none', 'data-[focus-visible]:ring-2', 'data-[focus-visible]:ring-brand')
+    expect(button).toHaveClass('size-touch', 'rounded-control', 'outline-none', 'data-[focus-visible]:ring-2', 'data-[focus-visible]:ring-brand')
     const circle = circleOf(button)
-    expect(circle).toHaveClass('size-6', 'rounded-full', 'border-2', 'border-line-strong', 'bg-surface')
+    expect(circle).toHaveClass('size-5.5', 'rounded-[7px]', 'border-2', 'border-line-strong', 'bg-surface')
+    expect(circle).not.toHaveClass('rounded-full')
     expect(circle).not.toHaveClass('bg-success')
     expect(button.querySelector('svg')).toBeNull()
   })
@@ -28,7 +29,7 @@ describe('CheckButton', () => {
     const button = screen.getByRole('button', { name: NAME })
     expect(button).toHaveAttribute('aria-pressed', 'true')
     const circle = circleOf(button)
-    expect(circle).toHaveClass('size-6', 'border-2', 'border-success', 'bg-success', 'text-on-brand')
+    expect(circle).toHaveClass('size-5.5', 'rounded-[7px]', 'border-2', 'border-success', 'bg-success', 'text-on-brand')
     expect(circle).not.toHaveClass('border-line-strong', 'bg-surface')
     expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
   })

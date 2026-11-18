@@ -16,8 +16,10 @@ export interface SegmentedControlProps<T extends string> {
 // the classes, so "selected" could not reliably win over "hovered" (design language 5.8).
 // The border is always there, transparent while not chosen, so choosing does not move the label.
 function optionColors(isSelected: boolean, isHovered: boolean): string {
-  // The chosen option is a piece of surface on the track, set apart by a line and not by a shadow.
-  if (isSelected) return 'border-line-strong bg-surface text-ink'
+  // The .seg of the prototype: the chosen option is a raised piece of surface on the track, in ink.
+  // The shadow alone is too faint to carry the choice (WCAG 1.4.11), so it also has the line-strong
+  // border, which is 3:1 on the track.
+  if (isSelected) return 'border-line-strong bg-surface text-ink shadow-raised'
   return cx('border-transparent', isHovered ? 'text-ink' : 'text-ink-muted')
 }
 
@@ -47,7 +49,8 @@ export function SegmentedControl<T extends string>({
       onSelectionChange={choose}
       // A grid of equal columns as wide as the longest label: with flex-1 the options split the sum of
       // their widths evenly, and the longer label was cut.
-      className="inline-grid max-w-full auto-cols-fr grid-flow-col gap-0.5 rounded-control bg-surface-muted p-0.5"
+      // The track: surface-muted with the corners of a control and 3px of padding, as in the prototype.
+      className="inline-grid max-w-full auto-cols-fr grid-flow-col gap-0.5 rounded-control bg-surface-muted p-0.75"
     >
       {options.map((option) => (
         <ToggleButton
@@ -55,7 +58,9 @@ export function SegmentedControl<T extends string>({
           id={option.id}
           className={({ isSelected, isHovered }) =>
             cx(
-              'inline-flex min-h-touch min-w-0 cursor-pointer items-center justify-center rounded-control border px-4 text-small font-semibold transition-colors duration-(--duration-fast)',
+              // 8px corners inside the 10px of the track (the prototype's own, written as they are),
+              // and a medium label, like the tabs.
+              'inline-flex min-h-touch min-w-0 cursor-pointer items-center justify-center rounded-[8px] border px-3 text-small font-medium transition-colors duration-(--duration-fast)',
               FOCUS_RING,
               optionColors(isSelected, isHovered),
             )

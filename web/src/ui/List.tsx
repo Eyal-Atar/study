@@ -8,8 +8,9 @@ export interface ListProps {
   className?: string
 }
 
-// Items of the same kind (blocks, exams, tasks) are rows with a line between them, on the
-// background of the page, without a box around each (design language 5.2).
+// Items of the same kind (blocks, exams, tasks) are rows (design language 5.2). The list adds no
+// layout of its own: the rows space themselves, so a caller's className (a line above, a margin)
+// never fights a gap of the list.
 // role="list" is explicit: Safari drops the list role of a <ul> without bullets.
 export function List({ children, className, 'aria-label': label }: ListProps) {
   return (
@@ -39,7 +40,13 @@ export interface ListRowProps {
 
 // The title of a row that is a link or a button is stretched over the whole row: its ::after
 // covers the <li>, and the focus ring is drawn on it, so it goes around the row and not the words.
-const STRETCHED = 'outline-none after:absolute after:inset-0 after:rounded-control focus-visible:after:ring-2 focus-visible:after:ring-brand'
+const STRETCHED = 'outline-none after:absolute after:inset-0 after:rounded-[12px] focus-visible:after:ring-2 focus-visible:after:ring-brand'
+
+// The .task of the prototype: a soft tile in the canvas colour with 12px corners, 6px from the next
+// one, and no line between them. The radius is the prototype's own, between a control (10px) and a
+// card (16px), so it is written here as it is. It reads as a tile on a white surface (a card, a
+// panel); on the canvas of the page it is the spacing that separates the rows.
+const ROW = 'flex min-h-16 items-center gap-3 rounded-[12px] bg-canvas px-2.5 py-2 mt-1.5 first:mt-0'
 
 // A row of at least 64px. With `to` (a link) or `onPress` (a button), the title is that link or
 // button, stretched over the whole row, so the row has one control with a short name instead of
@@ -49,10 +56,7 @@ export function ListRow({ leading, title, subtitle, trailing, to, onPress, done 
   const isPressable = to !== undefined || onPress !== undefined
   return (
     <li
-      className={cx(
-        'flex min-h-16 items-center gap-3 border-b border-line py-2',
-        isPressable && 'relative transition-colors duration-(--duration-fast) hover:bg-surface-muted',
-      )}
+      className={cx(ROW, isPressable && 'relative transition-colors duration-(--duration-fast) hover:bg-surface-muted')}
     >
       {leading === undefined ? null : <div className="shrink-0 text-body font-semibold tabular-nums">{leading}</div>}
       {/* min-w-0 lets a long title without spaces wrap instead of widening the page. */}

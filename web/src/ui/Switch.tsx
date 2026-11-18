@@ -45,7 +45,7 @@ export function Switch({ label, description, isSelected, onChange, isDisabled }:
         <SwitchButton className="flex min-h-touch cursor-pointer items-center justify-between gap-3 data-[disabled]:cursor-not-allowed">
           {({ isSelected: on, isDisabled: disabled, isFocusVisible }) => (
             <>
-              <span className={cx('min-w-0 text-body font-semibold break-words', disabled ? 'text-ink-muted' : 'text-ink')}>{label}</span>
+              <span className={cx('min-w-0 text-body font-medium break-words', disabled ? 'text-ink-muted' : 'text-ink')}>{label}</span>
               <span
                 aria-hidden="true"
                 className={cx(

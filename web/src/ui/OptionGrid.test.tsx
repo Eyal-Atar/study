@@ -51,7 +51,7 @@ describe('OptionGrid', () => {
     render(<OptionGrid aria-label={NAME} options={OPTIONS} value={null} onChange={vi.fn()} />)
     const option = screen.getByRole('option', { name: '09:30' })
     expect(option).toHaveClass('min-h-touch', 'rounded-control', 'border', 'border-line-strong', 'bg-surface')
-    expect(option).toHaveClass('text-small', 'font-semibold', 'tabular-nums', 'text-ink')
+    expect(option).toHaveClass('text-small', 'font-medium', 'tabular-nums', 'text-ink')
     expect(option).toHaveClass('outline-none', 'data-[focus-visible]:ring-2', 'data-[focus-visible]:ring-brand')
     expect(option.className).not.toMatch(/shadow|opacity/)
   })

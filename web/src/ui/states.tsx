@@ -41,14 +41,19 @@ export function LoadingState({ shape = 'list', rows = 3, label = he.common.loadi
       <div aria-hidden="true">
         {shape === 'list'
           ? indexes.map((index) => (
-              // The same box as a ListRow: 64px, a line under it.
-              <div key={index} data-skeleton-row="" className="flex min-h-16 items-center gap-3 border-b border-line py-2">
+              // The same tile as a ListRow: 64px, canvas, 12px corners, 6px apart.
+              <div
+                key={index}
+                data-skeleton-row=""
+                className="mt-1.5 flex min-h-16 items-center gap-3 rounded-[12px] bg-canvas px-2.5 py-2 first:mt-0"
+              >
                 <Skeleton className="h-4 w-10 shrink-0" />
                 <div className="flex min-w-0 flex-1 flex-col gap-2">
                   <Skeleton className="h-4 w-1/2" />
                   <Skeleton className="h-3 w-1/3" />
                 </div>
-                <Skeleton className="size-6 shrink-0 rounded-full" />
+                {/* The check box of the row (CheckButton). */}
+                <Skeleton className="size-5.5 shrink-0 rounded-[7px]" />
               </div>
             ))
           : null}
@@ -85,11 +90,16 @@ export interface EmptyStateProps {
 }
 
 // A list or a screen with nothing in it yet. It is ordinary content and not a message, so it has
-// no role and is not announced.
+// no role and is not announced. The icon sits in a soft brand circle, like the avatar of the
+// prototype (brand on brand-soft: a graphic, 3:1 is enough, and it is well above).
 export function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center gap-2 py-10 text-center">
-      {Icon === undefined ? null : <Icon aria-hidden="true" size={28} strokeWidth={ICON_STROKE} className="text-ink-muted" />}
+      {Icon === undefined ? null : (
+        <span data-empty-icon="" className="mb-1 flex size-14 items-center justify-center rounded-full bg-brand-soft text-brand">
+          <Icon aria-hidden="true" size={28} strokeWidth={ICON_STROKE} />
+        </span>
+      )}
       <p className="text-body font-semibold break-words text-ink">{title}</p>
       {description === undefined ? null : <p className="max-w-prose text-small text-ink-muted">{description}</p>}
       {action === undefined ? null : <div className="mt-2">{action}</div>}

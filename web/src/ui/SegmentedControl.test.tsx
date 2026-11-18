@@ -37,19 +37,21 @@ describe('SegmentedControl', () => {
     expect(screen.getByRole('radio', { name: 'ציר' })).toHaveAttribute('aria-checked', 'true')
   })
 
-  it('the track is a quiet fill, and only the chosen option is a lined surface, never a shadow', () => {
+  it('the track is a quiet fill, and only the chosen option is a raised, lined surface', () => {
     render(<SegmentedControl aria-label={NAME} options={OPTIONS} value="list" onChange={vi.fn()} />)
-    expect(screen.getByRole('radiogroup', { name: NAME })).toHaveClass('bg-surface-muted', 'rounded-control', 'p-0.5', 'auto-cols-fr')
+    expect(screen.getByRole('radiogroup', { name: NAME })).toHaveClass('bg-surface-muted', 'rounded-control', 'p-0.75', 'auto-cols-fr')
 
     const chosen = screen.getByRole('radio', { name: 'רשימה' })
-    expect(chosen).toHaveClass('min-h-touch', 'px-4', 'text-small', 'font-semibold', 'border')
-    expect(chosen).toHaveClass('bg-surface', 'text-ink', 'border-line-strong')
+    expect(chosen).toHaveClass('min-h-touch', 'px-3', 'text-small', 'font-medium', 'border', 'rounded-[8px]')
+    // The .seg of the prototype: raised by a shadow, and set apart by a 3:1 line as well, since a
+    // shadow alone is too faint to carry the choice.
+    expect(chosen).toHaveClass('bg-surface', 'shadow-raised', 'text-ink', 'border-line-strong')
     expect(chosen).toHaveClass('outline-none', 'data-[focus-visible]:ring-2', 'data-[focus-visible]:ring-brand')
-    expect(chosen.className).not.toMatch(/shadow|opacity/)
+    expect(chosen.className).not.toMatch(/opacity/)
 
     const other = screen.getByRole('radio', { name: 'ציר' })
     expect(other).toHaveClass('min-h-touch', 'border', 'border-transparent', 'text-ink-muted')
-    expect(other).not.toHaveClass('bg-surface', 'border-line-strong')
+    expect(other).not.toHaveClass('bg-surface', 'border-line-strong', 'shadow-raised')
   })
 
   it('a click on another option asks for its id, and shows only what it is given', async () => {

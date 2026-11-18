@@ -10,7 +10,7 @@ describe('Disclosure', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByText('מופיע בכל מבחן עבר.')).not.toBeVisible()
     // The look of the design language: a 44px target in the brand colour, never an underline.
-    expect(trigger).toHaveClass('min-h-touch', 'text-small', 'font-semibold', 'text-brand')
+    expect(trigger).toHaveClass('min-h-touch', 'text-small', 'font-medium', 'text-brand')
     expect(trigger.className).not.toMatch(/underline/)
     expect(trigger.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
   })

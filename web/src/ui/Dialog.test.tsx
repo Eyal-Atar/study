@@ -171,11 +171,18 @@ describe('Dialog', () => {
     })
   })
 
-  it('floats: the one shadow, card corners, and a sheet below md', () => {
+  it('a sheet below md (sheet corners and shadow, a grab handle), a floating window from md', () => {
     setup()
     const dialog = screen.getByRole('dialog')
     const modal = dialog.parentElement as HTMLElement
-    expect(modal).toHaveClass('bg-surface', 'shadow-overlay', 'rounded-t-card', 'md:rounded-card', 'md:max-w-md')
+    expect(modal).toHaveClass('bg-surface', 'rounded-t-sheet', 'shadow-sheet')
+    expect(modal).toHaveClass('md:rounded-card', 'md:border', 'md:border-line', 'md:shadow-overlay', 'md:max-w-md')
+    expect(modal).not.toHaveClass('rounded-t-card', 'shadow-overlay')
+    // The handle only draws: hidden from assistive technology, and gone on the window of md.
+    const grab = modal.querySelector('[data-grab]')
+    expect(grab).toHaveAttribute('aria-hidden', 'true')
+    expect(grab).toHaveClass('h-[5px]', 'w-[38px]', 'rounded-full', 'bg-line', 'md:hidden')
+    expect(grab?.nextElementSibling).toBe(dialog)
     expect(overlayOf(dialog)).toHaveClass('items-end', 'md:items-center', 'bg-ink/40')
   })
 

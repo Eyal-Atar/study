@@ -29,7 +29,9 @@ describe('LoadingState', () => {
     const rows = skeletonRows(status)
     expect(rows).toHaveLength(3)
     for (const row of rows) {
-      expect(row).toHaveClass('min-h-16', 'border-b', 'border-line')
+      // The same tile as a ListRow.
+      expect(row).toHaveClass('min-h-16', 'rounded-[12px]', 'bg-canvas', 'mt-1.5', 'first:mt-0')
+      expect(row).not.toHaveClass('border-b')
     }
     // Everything drawn is hidden from screen readers; only the label is read.
     const blocks = status.querySelectorAll('.animate-pulse')
@@ -76,6 +78,8 @@ describe('EmptyState', () => {
     expect(screen.getByText('עוד אין מבחנים')).toHaveClass('text-body', 'font-semibold', 'text-ink')
     expect(screen.getByText('מוסיפים מבחן, ומקבלים לוח לימודים.')).toHaveClass('text-small', 'text-ink-muted', 'max-w-prose')
     expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    // The icon sits in a soft brand circle, like the avatar of the prototype.
+    expect(container.querySelector('svg')?.parentElement).toHaveClass('rounded-full', 'bg-brand-soft', 'text-brand')
     // Ordinary content: no live region.
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()

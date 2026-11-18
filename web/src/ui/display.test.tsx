@@ -91,11 +91,12 @@ describe('Card', () => {
 })
 
 describe('SectionHeading', () => {
-  it('is an h2 that reads as a label: small, semibold, muted', () => {
+  it('is an h2 that reads as a label: small, medium, muted', () => {
     render(<SectionHeading id="today">עוד היום</SectionHeading>)
     const heading = screen.getByRole('heading', { level: 2, name: 'עוד היום' })
     expect(heading).toHaveAttribute('id', 'today')
-    expect(heading).toHaveClass('text-small', 'font-semibold', 'text-ink-muted')
+    expect(heading).toHaveClass('text-small', 'font-medium', 'text-ink-muted')
+    expect(heading).not.toHaveClass('font-semibold')
   })
 
   it('level 3 is an h3, and it takes a class', () => {
@@ -109,7 +110,7 @@ describe('SectionHeading', () => {
 })
 
 describe('List', () => {
-  it('is a named list of rows with a title and a subtitle, separated by a line and not boxed', () => {
+  it('is a named list of rows with a title and a subtitle, each a soft canvas tile like the task of the prototype', () => {
     render(
       <List aria-label="עוד היום">
         <ListRow leading="10:00" title="תרגול תוחלת" subtitle="הסתברות, תרגול. שעה" />
@@ -125,8 +126,9 @@ describe('List', () => {
     expect(within(first).getByText('הסתברות, תרגול. שעה')).toHaveClass('text-small', 'text-ink-muted')
     expect(within(first).getByText('10:00')).toHaveClass('tabular-nums', 'shrink-0')
     for (const row of rows) {
-      expect(row).toHaveClass('min-h-16', 'border-b', 'border-line')
-      expect(row.className).not.toMatch(/rounded-card|bg-surface(\s|$)|shadow/)
+      // 6px apart (the first has no margin), no line between them, no card and no shadow.
+      expect(row).toHaveClass('min-h-16', 'rounded-[12px]', 'bg-canvas', 'mt-1.5', 'first:mt-0')
+      expect(row.className).not.toMatch(/border-b|rounded-card|bg-surface(\s|$)|shadow/)
     }
     // No link without `to`.
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
@@ -310,7 +312,8 @@ describe('Badge', () => {
     render(<Badge tone={tone}>{text}</Badge>)
     const badge = screen.getByText(text)
     expect(badge.tagName).toBe('SPAN')
-    expect(badge).toHaveClass('rounded-badge', 'px-2', 'text-small', 'font-semibold', background, colour)
+    // A pill with a medium label.
+    expect(badge).toHaveClass('rounded-full', 'px-2.5', 'text-small', 'font-medium', background, colour)
   })
 
   it('a long badge stays on one line and is cut with an ellipsis at the width of its container', () => {
@@ -331,10 +334,11 @@ describe('ProgressBar', () => {
     expect(bar).toHaveAttribute('aria-valuemax', '345')
     expect(bar).toHaveAttribute('aria-valuetext', '60 מתוך 345 דקות')
     expect(within(bar).getByText('התקדמות היום')).toHaveClass('text-small', 'text-ink-muted')
-    expect(within(bar).getByText('60 מתוך 345 דקות')).toHaveClass('text-small', 'font-semibold', 'tabular-nums')
+    expect(within(bar).getByText('60 מתוך 345 דקות')).toHaveClass('text-small', 'font-medium', 'tabular-nums')
     const fill = bar.querySelector('[data-fill]')
     expect(fill).toHaveClass('bg-success', 'rounded-full')
-    expect(fill?.parentElement).toHaveClass('h-1', 'rounded-full', 'bg-line')
+    // The 6px rounded bar of the prototype's exams, on the surface-muted track.
+    expect(fill?.parentElement).toHaveClass('h-1.5', 'rounded-full', 'bg-surface-muted')
     expect((fill as HTMLElement).style.width).toMatch(/^17\.39/)
   })
 
@@ -367,7 +371,7 @@ describe('ProgressBar without a visible label', () => {
     expect(bar).toHaveAttribute('aria-valuetext', '40%')
     expect(bar).toHaveTextContent('')
     expect(bar.children).toHaveLength(1)
-    expect(bar.firstElementChild).toHaveClass('h-1', 'bg-line')
+    expect(bar.firstElementChild).toHaveClass('h-1.5', 'bg-surface-muted')
     expect((bar.querySelector('[data-fill]') as HTMLElement).style.width).toBe('40%')
   })
 
@@ -383,7 +387,7 @@ describe('ProgressBar without a visible label', () => {
     render(<ProgressBar label="התקדמות היום" value={60} max={345} />)
     const bar = screen.getByRole('progressbar', { name: 'התקדמות היום' })
     expect(bar).toHaveAttribute('aria-valuetext', '17%')
-    expect(within(bar).getByText('17%')).toHaveClass('text-small', 'font-semibold', 'tabular-nums')
+    expect(within(bar).getByText('17%')).toHaveClass('text-small', 'font-medium', 'tabular-nums')
   })
 })
 

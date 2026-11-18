@@ -13,6 +13,8 @@ describe('PageHeader', () => {
 
     const heading = screen.getByRole('heading', { level: 1, name: 'שבוע' })
     expect(heading).toHaveAttribute('tabindex', '-1')
+    // The big title of the prototype: the display size in bold (700).
+    expect(heading).toHaveClass('text-display', 'font-bold')
     // The shell owns the banner: a screen title is not one.
     expect(screen.queryByRole('banner')).not.toBeInTheDocument()
   })

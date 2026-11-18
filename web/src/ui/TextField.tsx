@@ -19,13 +19,14 @@ export interface TextFieldProps extends Omit<AriaTextFieldProps, 'children' | 'c
 
 // The parts of a field (design language 5.4), shared with Select and DatePicker so the three look
 // like one family. The label is always visible above the control: a placeholder is not a label.
+// It is medium (500), the weight of every label in the prototype.
 export const FIELD_CLASS = 'flex flex-col gap-1.5'
-export const FIELD_LABEL_CLASS = 'text-small font-semibold text-ink'
+export const FIELD_LABEL_CLASS = 'text-small font-medium text-ink'
 export const FIELD_DESCRIPTION_CLASS = 'text-small text-ink-muted'
 export const FIELD_ERROR_CLASS = 'text-small text-danger'
 
-// The box of a control, without its focus: 44px high, a line-strong border (3:1 on every
-// background), and text-body (16px) so iOS does not zoom the page on focus. A disabled box is muted
+// The box of a control, without its focus: 44px high, the 10px corners of a control, a line-strong
+// border (3:1 on every background: unlike a button, the border is what makes a field a field), and text-body (16px) so iOS does not zoom the page on focus. A disabled box is muted
 // and never transparent, so its value stays readable (ink-muted on surface-muted is a checked pair).
 export const FIELD_BOX_CLASS =
   'min-h-touch w-full rounded-control border border-line-strong bg-surface text-body text-ink outline-none transition-colors duration-(--duration-fast) data-[invalid]:border-danger data-[disabled]:border-line data-[disabled]:bg-surface-muted data-[disabled]:text-ink-muted'

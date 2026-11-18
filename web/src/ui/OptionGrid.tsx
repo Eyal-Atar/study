@@ -55,7 +55,7 @@ export function OptionGrid({ 'aria-label': label, options, value, onChange, ltr 
           textValue={option.label}
           className={({ isSelected, isHovered }) =>
             cx(
-              'flex min-h-touch min-w-0 cursor-pointer items-center justify-center gap-1 rounded-control border px-2 text-small font-semibold tabular-nums transition-colors duration-(--duration-fast)',
+              'flex min-h-touch min-w-0 cursor-pointer items-center justify-center gap-1 rounded-control border px-2 text-small font-medium tabular-nums transition-colors duration-(--duration-fast)',
               FOCUS_RING,
               optionColors(isSelected, isHovered),
             )
