@@ -124,9 +124,11 @@ export function TaskRow({
               </>
             )}
           </p>
-          {hasReason && showReason ? <Note role="status" className="mt-2">
-              {task.reason}
-            </Note> : null}
+          {hasReason && showReason ? (
+            <div className="mt-2">
+              <Note role="status">{task.reason}</Note>
+            </div>
+          ) : null}
         </>
       }
       trailing={

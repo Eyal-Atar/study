@@ -260,9 +260,9 @@ export function PreferencesForm({ me }: { me: Me }) {
           />
         </div>
         {afterMidnight ? (
-          <Note className="flex flex-col gap-1">
+          <Note>
             <p>{t.afterMidnight}</p>
-            {values.rest > 0 ? <p>{t.nightShiftRest}</p> : null}
+            {values.rest > 0 ? <p className="mt-1">{t.nightShiftRest}</p> : null}
           </Note>
         ) : null}
         <RadioCards

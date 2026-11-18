@@ -110,9 +110,9 @@ export function MaterialsSection({ examId }: MaterialsSectionProps) {
     <>
       {section}
       {changed && analyzed ? (
-        <Note role="status" className="mb-4">
-          {t.reanalyzeHint}
-        </Note>
+        <div className="mb-4">
+          <Note role="status">{t.reanalyzeHint}</Note>
+        </div>
       ) : null}
     </>
   )

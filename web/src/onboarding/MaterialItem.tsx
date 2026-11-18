@@ -61,9 +61,9 @@ export function MaterialItem({ filename, kind, status, tone, warnings = [], acti
             </span>
           </p>
           {warnings.map((warning) => (
-            <Note key={warning} tone="warning" className="mt-2">
-              {warning}
-            </Note>
+            <div key={warning} className="mt-2">
+              <Note tone="warning">{warning}</Note>
+            </div>
           ))}
           {/* -ms-4: a quiet button has no border, so its text lines up with the text above it. */}
           {recovery === undefined ? null : <div className="-ms-4 mt-1 flex flex-wrap gap-1">{recovery}</div>}
