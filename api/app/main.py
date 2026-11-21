@@ -13,6 +13,7 @@ from app.routers import (
     account,
     blocks,
     busy_events,
+    closures,
     commitments,
     exams,
     free_time,
@@ -22,6 +23,7 @@ from app.routers import (
     jobs,
     materials,
     me,
+    moed_b,
     plan,
     progress,
     push,
@@ -96,4 +98,6 @@ def create_app(
     app.include_router(busy_events.router)
     app.include_router(free_time.router)
     app.include_router(timetables.router)
+    app.include_router(closures.router)
+    app.include_router(moed_b.router)
     return app

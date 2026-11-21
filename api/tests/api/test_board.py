@@ -91,6 +91,46 @@ def test_deleted_and_past_exams_are_left_out(
     assert {task.id for task in late.tasks} == set(kept)
 
 
+def test_closed_exams_are_left_out(
+    database: Database, make_user: MakeUser, db: psycopg.Connection
+) -> None:
+    user = make_user()
+    done = _exam(db, user, "2026-11-15")
+    waiting = _exam(db, user, "2026-11-15")
+    open_today = _exam(db, user, "2026-11-15")
+    for exam in (done, waiting, open_today):
+        _task(db, user, exam)
+    db.execute("UPDATE app.exams SET closure = 'done', closed_at = %s WHERE id = %s", (NOW, done))
+    db.execute(
+        "UPDATE app.exams SET closure = 'moed_b', closed_at = %s WHERE id = %s", (NOW, waiting)
+    )
+    board = _board(database, user)
+    assert [exam.id for exam in board.exams] == [open_today]
+    assert {task.exam_id for task in board.tasks} == {open_today}
+
+
+def test_only_the_exams_current_sitting_is_planned(
+    database: Database, make_user: MakeUser, db: psycopg.Connection
+) -> None:
+    user = make_user()
+    exam = _exam(db, user, "2026-11-20")
+    first_sitting = _task(db, user, exam, created_at="2026-11-01 00:00Z")
+    db.execute(
+        "UPDATE app.exams SET sitting = 2, first_exam_date = '2026-11-10', "
+        "exam_date = '2026-12-20' WHERE id = %s",
+        (exam,),
+    )
+    # The trigger gives a new task the exam's sitting; this one depends on a Moed A task,
+    # which is not on the board, so the dependency is dropped.
+    second_sitting = _task(db, user, exam, created_at="2026-11-02 00:00Z", depends_on=first_sitting)
+    other = _exam(db, user, "2026-12-01")
+    other_task = _task(db, user, other, created_at="2026-11-03 00:00Z")
+    board = _board(database, user)
+    assert {exam.id for exam in board.exams} == {exam, other}
+    assert [task.id for task in board.tasks] == [second_sitting, other_task]
+    assert board.tasks[0].depends_on is None
+
+
 def test_tasks_keep_creation_order_and_drop_dangling_dependencies(
     database: Database, make_user: MakeUser, db: psycopg.Connection
 ) -> None:

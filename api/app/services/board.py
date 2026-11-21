@@ -114,21 +114,28 @@ def load_board(conn: Conn, user_id: UUID, now: dt.datetime, *, lock: bool = Fals
     profile = planner_profile(conn, user_id, profile_row, now)
     today = local_date(now, profile.timezone)
 
+    # A closed exam (done, or waiting for Moed B) is out of the plan even on its own date.
     exams = tuple(
         Exam(id=row["id"], exam_date=row["exam_date"], difficulty=row["difficulty"])
         for row in conn.execute(
             "SELECT id, exam_date, difficulty FROM app.exams "
-            "WHERE user_id = %s AND deleted_at IS NULL AND exam_date >= %s "
+            "WHERE user_id = %s AND deleted_at IS NULL AND closure IS NULL "
+            "AND exam_date >= %s "
             "ORDER BY exam_date, id",
             (user_id, today),
         ).fetchall()
     )
 
+    # Only the tasks of the exam's current sitting: Moed A's tasks stay as history when
+    # Moed B gets its own.
     task_rows = conn.execute(
-        "SELECT id, exam_id, kind, estimated_minutes, focus, depends_on_task_id, status, "
-        "bite_minutes FROM app.tasks "
-        "WHERE user_id = %s AND deleted_at IS NULL AND exam_id = ANY(%s) "
-        "ORDER BY position NULLS LAST, created_at, id",
+        "SELECT t.id, t.exam_id, t.kind, t.estimated_minutes, t.focus, t.depends_on_task_id, "
+        "t.status, t.bite_minutes "
+        "FROM app.tasks t "
+        "JOIN app.exams e ON e.id = t.exam_id AND e.user_id = t.user_id "
+        "WHERE t.user_id = %s AND t.deleted_at IS NULL AND t.exam_id = ANY(%s) "
+        "AND t.sitting = e.sitting "
+        "ORDER BY t.position NULLS LAST, t.created_at, t.id",
         (user_id, [exam.id for exam in exams]),
     ).fetchall()
     task_ids = {row["id"] for row in task_rows}

@@ -467,6 +467,8 @@ def test_column_grants(db: psycopg.Connection) -> None:
                 "block_id",
                 "busy_event_id",
                 "busy_event_before",
+                # Added by 0016.
+                "exam_before",
             ]
         ),
     )
