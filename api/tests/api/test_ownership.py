@@ -108,6 +108,14 @@ CASES: tuple[Case, ...] = (
     Case(
         "list_exam_tasks", "GET", "/exams/{exam_id}/tasks", lambda i: {"exam_id": i.a_exam}, _none
     ),
+    # S45: the exam is not B's, so the state check never runs.
+    Case(
+        "open_moed_b",
+        "POST",
+        "/exams/{exam_id}/moed-b",
+        lambda i: {"exam_id": i.a_exam},
+        lambda _: {"exam_date": "2026-12-20"},
+    ),
     Case("create_task_in_a_exam", "POST", "/tasks", _no_params, lambda i: _new_task(i.a_exam)),
     Case(
         "create_task_depending_on_a_task",
