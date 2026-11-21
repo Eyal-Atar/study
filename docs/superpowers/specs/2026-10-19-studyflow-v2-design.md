@@ -315,6 +315,7 @@ flowchart RL
 | סקירת בוקר | `GET /review` | S18 |
 | תוספות | `GET /progress`, `POST /plan/change-requests` | S19, S20 |
 | זמינות | `GET/POST /commitments`, `PATCH/DELETE /commitments/{id}`, `GET/POST /busy-events`, `PATCH/DELETE /busy-events/{id}`, `POST /plan/free-time`, `POST /timetables`, `POST /timetables/{job_id}/apply`; ‏`busy` ב-`GET /plan` וב-`GET /today`; ‏`POST /blocks/{id}/defer {to}` ו-`GET /blocks/{id}/slots?date=` | S35 |
+| הצעת פיצול (דחיינות) | `GET /split-offers`, `POST /tasks/{id}/split`, `POST /tasks/{id}/split/dismiss` | S44 (שרת; הממשק אחרי S32) |
 
 - `complete` רץ בטרנזקציה אחת: סטטוס הבלוק, סטטוס המשימה, רשומת XP, רצף ותגים. לא שתי קריאות נפרדות כמו היום. ב-S09: בלוק `planned`, ‏`missed` או `skipped` עובר ל-`done` (ו-`done` נשאר בלי שינוי), והמשימה עוברת ל-`done` כשאין לה בלוק `planned` עתידי והדקות שהושלמו מכסות אותה. XP, רצף ותגים מצטרפים לאותה טרנזקציה ב-S19.
 - **החלטות של מי שבונה, S18 (סקירת בוקר וגרירה):**
@@ -361,6 +362,32 @@ flowchart RL
   - **מערכת שעות:** הדפדפן מעלה ל-`materials/{user_id}/timetables/{id}` (המדיניות של S10 כבר מאפשרת שתי תיקיות), ואז `POST /timetables {id, mime, size_bytes}` → ‏202 ‏`{job_id}`. תמונה עד 3.75 MiB (המגבלה של 5 MB ב-API נמדדת על ה-base64), ‏PDF עד 20 MiB; ‏`id` שכבר נרשם → ‏409 ‏`already_exists`; מכסה `AI_DAILY_TIMETABLE_LIMIT` = 5 ביום, נפרדת מזו של התוכנית ובאותם כללים. ‏`POST /timetables/{job_id}/apply {items, valid_from?, valid_until?}` כותב את מה שאושר (גם ערוך), עם `source_job_id`: עבודה של אחר → 404; לא גמורה → ‏409 ‏`job_not_ready`; נכשלה → ‏409 ‏`invalid_state`; כבר אושרה → ‏409 ‏`already_applied`.
   - **ייצוא:** ‏`commitments` ו-`busy_events`, גם מחוקים.
   - **התחביב ב-`GET`/`PATCH /me`:** שכבת תאימות זמנית (`app/services/hobby.py`) שקוראת ומחליפה את "קבוצת התחביב" בהתחייבויות, עד ש-S34 מחליף את מסך ההגדרות ומוחק אותה ואת העמודות.
+- **החלטות של מי שבונה, S44 (זיהוי דחיינות ופיצול בלחיצה, מסמך הביקורת סעיף 15):** התוכנית: `docs/superpowers/plans/2026-11-21-s44-friction-split.md`.
+  - **הספירה נגזרת, לא נשמרת:** דחיות רצופות של משימה = גרסאות `defer`, ‏`defer_at` ו-`review_moved` שלה (לפי `task_id`) ש-`undone_at` שלהן ריק ושנוצרו אחרי נקודת האיפוס: המאוחרת מבין הביצוע האחרון של בלוק שלה (`xp_events.created_at`), הפיצול האחרון שלא בוטל (גרסה `task_split`) ו-`tasks.split_dismissed_at` ("Not now"). ‏undo של דחייה מוריד אותה מהספירה, ‏uncomplete מבטל את האיפוס, ותכנון מחדש שלא התבקש (replan, אירוע תפוס, עריכה, זמן פנוי) לא נספר. הספירה היא למשימה, גם כשהיא מתפרסת על כמה ימים. כל הזמנים משעון המסד.
+  - **הסף:** 3. **הביס:** בלוק החיכוך הוא הבלוק המתוכנן הבא של המשימה שלא התחיל (L דקות); ביס = `max(30, 5 × floor(L / 15))`: 60 → 2×30, ‏75 → 30+45, ‏90 → 3×30, ‏120 → 3×40. בלוק קצר מ-60 לא מקבל הצעה. הפיצול שומר על כל דקות המשימה (90 → 3×30 ולא 2×30), על המשימה עצמה (אותו id, אותן תלויות) ועל ההערכה.
+  - **המתכנן:** ‏`tasks.bite_minutes` (מיגרציה 0015, ‏30–300 או NULL) הוא שדה של המשימה, ו-`assign_days` נותן למשימה כזו ביס אחד ביום (השארית האחרונה, קצרה מביס + 30, בחתיכה אחת). כל תכנון מחדש אחר כך שומר על הביסים. ‏"יש לי זמן עכשיו" לא מוגבל בביס.
+  - **הפיצול** משחרר את כל הבלוקים המתוכננים של המשימה שלא התחילו (גם נעולים), ומשבץ אותה ב-`place_task` בלי להזיז שום בלוק אחר; תלויות וזמינות נבדקות כרגיל. אם המתכנן לא מצליח (אין מספיק ימים עד המבחן, משימה תלויה שהביסים היו עוברים אותה) אין הצעה. גרסה `task_split` עם `task_before = {"bite_minutes": <הקודם>}`; ‏undo מחזיר את הבלוקים ואת `bite_minutes`, וההצעה חוזרת.
+  - **XP:** לבלוק של משימה מפוצלת, ה-XP = ‏`block_xp(focus, כל הדקות שבוצעו במשימה) − מה שבלוקים אחרים שלה כבר קיבלו` (לא פחות מ-0), כך שהביסים לא מקבלים יותר מבלוק אחד באותו אורך. התגים סופרים בלוקים כמו ב-S19.
+  - **`GET /split-offers`** → ‏`{"offers": [...]}`, לפי זמן בלוק החיכוך:
+    ```json
+    {"offers": [{
+      "task_id": "6f1c…", "exam_id": "a2d4…",
+      "task_title": "תרגול: malloc ו-free", "task_kind": "practice",
+      "deferrals": 3,
+      "block": {"id": "9b0e…", "starts_at": "2026-11-23T16:00:00Z", "ends_at": "2026-11-23T17:30:00Z", "minutes": 90},
+      "bite_minutes": 30,
+      "parts": [
+        {"starts_at": "2026-11-23T16:00:00Z", "ends_at": "2026-11-23T16:30:00Z", "minutes": 30},
+        {"starts_at": "2026-11-24T07:00:00Z", "ends_at": "2026-11-24T07:30:00Z", "minutes": 30},
+        {"starts_at": "2026-11-25T07:00:00Z", "ends_at": "2026-11-25T07:30:00Z", "minutes": 30}
+      ],
+      "basis": "3c9a…(SHA-256)"
+    }]}
+    ```
+    ‏`parts` הם הבלוקים החדשים בדיוק כפי שהפיצול יכתוב אותם (תצוגה מקדימה אמיתית מהמתכנן).
+  - **`POST /tasks/{id}/split`** עם `{"basis": "<מההצעה>"}` → ‏200 ‏`{"task_id", "bite_minutes", "blocks": [BlockOut…], "version_id"}` (‏`blocks` = הבלוקים החיים של המשימה, כמו בתשובת defer). שגיאות: ‏404 ‏`not_found`; ‏409 ‏`stale_plan` (הלוח השתנה: לטעון מחדש את ההצעות); ‏409 ‏`no_split_offer` ("I don't have a split to offer for this task right now.").
+  - **`POST /tasks/{id}/split/dismiss`** (בלי גוף) → ‏204. בלי הצעה פעילה → ‏409 ‏`no_split_offer`. ההצעה חוזרת אחרי 3 דחיות נוספות.
+  - **מה הממשק מציג (S44 חלק ב', אחרי S32):** במסך היום, כשיש הצעה, Archi מוביל עם `archi-thinking` (אמפתיה), ומתחתיו רק הפקדים שעונים לו. ההודעה, מהנתונים: *"I noticed we keep pushing `<task_title>` back. Want me to split this `<block.minutes>`-minute block into `<parts.length>` × `<bite_minutes>`-minute bites instead?"* (שם המשימה ב-`dir="auto"`). מתחת: תצוגת רפאים של `parts` ביומן (סעיף 10), הכפתור הראשי `Split into <N>×<B>m` (למשל `Split into 3×30m`; ב-60 דקות `Split into 2×30m`) שקורא ל-split עם ה-basis, ו-"Not now" שקורא ל-dismiss. אחרי פיצול: toast עם "Undo" (‏`POST /plan/undo` עם `version_id`). ‏`stale_plan` → טוענים מחדש את `GET /split-offers`. כשיש כמה הצעות, מציגים אחת בכל פעם (הראשונה). ‏`TaskOut.bite_minutes` מאפשר לסמן משימה מפוצלת ברשימת המשימות.
 - **החלטות של מי שבונה, S10 (חומרים ועבודות):**
   - **מי קובע את `material_id`:** הדפדפן מייצר UUID v4, מעלה ישירות ל-`materials/{user_id}/{exam_id}/{material_id}`, ואז שולח `POST /exams/{id}/materials` עם `id`, ‏`filename`, ‏`kind`, ‏`mime` (PDF, JPEG או PNG) ו-`size_bytes`. ה-API בונה את `storage_path` בעצמו; הדפדפן לא שולח נתיב. ‏`id` תפוס → 409 ‏`already_exists`.
   - **מה הרישום בודק:** המבחן של המשתמש ולא מחוק (אחרת 404); ‏`size_bytes` עד המגבלה (אחרת 422 ‏`file_too_large` עם `limit_bytes`); מספר החומרים במבחן (אחרת 422 ‏`too_many_materials` עם `limit`). הרישום והעבודה `ingest_material` נכתבים באותה טרנזקציה, והתשובה (201) כוללת את החומר ואת `job_id`.
