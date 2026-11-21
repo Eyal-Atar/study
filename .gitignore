@@ -44,4 +44,6 @@ legacy/planning/printscreens/
 .DS_Store
 .vscode/
 .idea/
-.claude/
+# Claude Code: only the team definitions are tracked
+.claude/*
+!.claude/agents/

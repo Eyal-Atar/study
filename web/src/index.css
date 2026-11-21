@@ -2,7 +2,7 @@
 
 /*
   The design language of the app, as Tailwind theme variables. S25 set it ("paper"); S31 redesigned
-  it around a calendar, after the approved prototype docs/design/prototype/calendar-prototype.html
+  it around a calendar, after the approved prototype docs/archive/design/calendar-prototype.html
   (Rubik, soft corners, a palette of eight exam colours), in the colours of Archie: bark browns, a
   leaf green brand on a linen page, and a dawn sky for the garden and the celebration sheet.
   Every variable here is also a class: --color-surface gives bg-surface, --radius-card gives
@@ -57,7 +57,7 @@
 
 @theme {
   /* ---- Colour ---- */
-  /* Archie's palette (docs/superpowers/specs/2026-11-18-archie-look-and-gamification.md, section 2):
+  /* Archie's palette (docs/spec/2026-11-18-archie-look-and-gamification.md, section 2):
      bark browns for text, a leaf green for the brand, and a dawn sky for the garden and the celebration sheet. */
   /* The page itself: a greenish linen. Only <body> and bars that sit on the page use it. */
   --color-canvas: #eef0e4;

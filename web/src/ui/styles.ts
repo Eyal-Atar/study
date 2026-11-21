@@ -1,5 +1,5 @@
 // What every component in ui/ shares: joining classes, the focus ring, and the look of a button.
-// The look is the one of the calendar prototype (S31, docs/design/prototype/calendar-prototype.html):
+// The look is the one of the calendar prototype (S31, docs/archive/design/calendar-prototype.html):
 // soft corners, quiet lines, medium labels and semibold names.
 
 export function cx(...parts: (string | false | null | undefined)[]): string {

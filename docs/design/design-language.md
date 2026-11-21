@@ -3,8 +3,8 @@
 הכיוון: **יומן, בצבעים של ארצ׳י.** נקבע ב-18.11.2026, ומחליף את כיוון "נייר" של S25–S28.
 
 - המבנה: אב-הטיפוס של היומן, [`prototype/calendar-prototype.html`](prototype/calendar-prototype.html), שאייל אישר. מה שהמסמך לא מפרט נלקח ממנו.
-- הצבעים והדמות: [`prototype/archie-moods.html`](prototype/archie-moods.html), והמסמך `docs/superpowers/specs/2026-11-18-archie-look-and-gamification.md`. האינדיגו של אב-הטיפוס יצא.
-- מסמכי התכנון: `docs/superpowers/specs/2026-11-18-calendar-redesign-design.md` ו-`2026-11-18-archie-look-and-gamification.md`. ההחלטות של S31 בתוכנית `docs/superpowers/plans/2026-11-18-s31-redesign-foundation.md`.
+- הצבעים והדמות: [`prototype/archie-moods.html`](prototype/archie-moods.html), והמסמך `docs/spec/2026-11-18-archie-look-and-gamification.md`. האינדיגו של אב-הטיפוס יצא.
+- מסמכי התכנון: `docs/spec/2026-11-18-calendar-redesign-design.md` ו-`2026-11-18-archie-look-and-gamification.md`. ההחלטות של S31 בתוכנית `docs/archive/plans/2026-11-18-s31-redesign-foundation.md`.
 
 המסמך הזה הוא מקור האמת של S32–S34. הערכים נמצאים ב-`web/src/index.css`, ו-`web/src/theme.test.ts` בודק שכל token קיים ושכל זוג צבעים שמותר כאן עומד בניגודיות. הרכיבים נמצאים ב-`web/src/ui/` ו-`web/src/archie/`, וכולם מוצגים בכל מצב ב-`/dev/components` (רק ב-`npm run dev`). מי שמשנה ערך משנה אותו ב-`index.css`. מי שמוסיף זוג צבעים מוסיף אותו קודם לבדיקה.
 
