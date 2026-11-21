@@ -5,6 +5,7 @@ import { StrictMode } from 'react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { dateIn, addDays } from '../board/time'
 import { AppProviders } from '../app/AppProviders'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { silentApi } from '../test/fakeApi'
@@ -70,7 +71,7 @@ describe('useCalendarUrl', () => {
   })
   it('drops a date more than 1800 days away', () => {
     mockDesktop(true)
-    renderAt('/calendar?date=2032-01-01')
+    renderAt(`/calendar?date=${addDays(dateIn('Asia/Jerusalem'), 1801)}`)
     expect(state().date).toBeNull()
   })
   it('shows the week on a desktop unless ?view=day', () => {

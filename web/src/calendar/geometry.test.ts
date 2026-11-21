@@ -17,7 +17,25 @@ describe('localMinutes', () => {
   })
 })
 
+describe('localMinutes at spring forward', () => {
+  it('is the wall clock after the clocks go forward', () => {
+    expect(localMinutes('2027-03-26T01:00:00Z', '2027-03-26', TZ)).toBe(240)
+  })
+})
+
 describe('gridSpan', () => {
+  it('does not stretch the start for a busy item that is the tail of the night before', () => {
+    const busy = makeBusy({ starts_at: '2026-11-16T22:15:00Z', ends_at: '2026-11-16T22:45:00Z' })
+    const span = gridSpan({ ...none, sleep: '01:00', busy: [busy] })
+    expect(span).toEqual({ startMin: 480, endMin: 1500 })
+    expect(busyColumn(busy, DAYS, span, TZ)).toEqual({ date: '2026-11-16', startMin: 1455, endMin: 1485 })
+  })
+  it('keeps the tail of a night whose column is outside the days in its own column', () => {
+    const busy = makeBusy({ starts_at: '2026-11-14T22:30:00Z', ends_at: '2026-11-15T07:00:00Z' })
+    const span = gridSpan({ ...none, sleep: '01:00', busy: [busy] })
+    expect(span.startMin).toBe(480)
+    expect(busyColumn(busy, DAYS, span, TZ)).toEqual({ date: '2026-11-15', startMin: 480, endMin: 540 })
+  })
   it('rounds wake and sleep to whole hours', () => {
     expect(gridSpan(none)).toEqual({ startMin: 480, endMin: 1380 })
     expect(gridSpan({ ...none, wake: '07:30', sleep: '22:10' })).toEqual({ startMin: 420, endMin: 1380 })

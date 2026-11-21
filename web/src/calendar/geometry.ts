@@ -78,20 +78,48 @@ export function gridSpan(input: {
     starts.push(localMinutes(block.starts_at, block.study_date, tz))
     ends.push(localMinutes(block.ends_at, block.study_date, tz))
   }
-  for (const item of busy) {
-    const date = dateIn(tz, new Date(item.starts_at))
-    if (!days.includes(date)) continue
-    starts.push(localMinutes(item.starts_at, date, tz))
-    ends.push(localMinutes(item.ends_at, date, tz))
-  }
   if (wake === null && sleep === null && starts.length === 0) return { ...DEFAULT_SPAN }
   const wakeMin = wake === null ? DEFAULT_SPAN.startMin : clockMinutes(wake)
   let sleepMin = sleep === null ? DEFAULT_SPAN.endMin : clockMinutes(sleep)
   // A sleep time before the wake time is after midnight.
   if (sleepMin <= wakeMin) sleepMin += 1440
-  const startMin = Math.floor(Math.min(wakeMin, ...starts) / 60) * 60
-  const endMin = Math.min(MAX_END, Math.ceil(Math.max(sleepMin, ...ends) / 60) * 60)
+  const baseStart = Math.floor(Math.min(wakeMin, ...starts) / 60) * 60
+  const base = { startMin: baseStart, endMin: Math.max(Math.min(MAX_END, Math.ceil(Math.max(sleepMin, ...ends) / 60) * 60), baseStart + 60) }
+  // Busy items are placed against the span of wake, sleep and blocks; only then do they stretch it. The
+  // tail of the night before hangs under the column before and never pulls the start up.
+  for (const item of busy) {
+    const placed = placeBusy(item, days, base, tz)
+    if (placed === null) continue
+    if (!placed.tail) starts.push(placed.startMin)
+    if (!placed.tail || placed.date !== placed.ownDate) ends.push(placed.endMin)
+  }
+  const startMin = Math.floor(Math.min(base.startMin, ...starts) / 60) * 60
+  const endMin = Math.min(MAX_END, Math.ceil(Math.max(base.endMin, ...ends) / 60) * 60)
   return { startMin, endMin: Math.max(endMin, startMin + 60) }
+}
+
+interface Placed {
+  date: string
+  ownDate: string
+  startMin: number
+  endMin: number
+  // The item starts before the span, where the span of the column before still reaches.
+  tail: boolean
+}
+
+// Where a busy item goes, not yet clipped: the column of its start, or, early in the morning when the
+// column before hangs below its midnight up to the item and is one of the days, that column.
+function placeBusy(item: BusyItem, days: string[], span: GridSpan, tz: string): Placed | null {
+  const ownDate = dateIn(tz, new Date(item.starts_at))
+  const startMin = localMinutes(item.starts_at, ownDate, tz)
+  const endMin = localMinutes(item.ends_at, ownDate, tz)
+  const tail = startMin < span.startMin && span.endMin > 1440 && startMin + 1440 < span.endMin
+  if (tail) {
+    const before = addDays(ownDate, -1)
+    if (days.includes(before)) return { date: before, ownDate, startMin: startMin + 1440, endMin: endMin + 1440, tail }
+  }
+  if (!days.includes(ownDate)) return null
+  return { date: ownDate, ownDate, startMin, endMin, tail }
 }
 
 // The column a busy item is drawn in, clipped to the span; null when it is outside the days or the span.
@@ -101,20 +129,12 @@ export function busyColumn(
   span: GridSpan,
   tz: string,
 ): { date: string; startMin: number; endMin: number } | null {
-  let date = dateIn(tz, new Date(item.starts_at))
-  let startMin = localMinutes(item.starts_at, date, tz)
-  let endMin = localMinutes(item.ends_at, date, tz)
-  // Early in the morning, when the column before hangs below its midnight up to here, it is that column's.
-  if (startMin < span.startMin && span.endMin > 1440 && startMin + 1440 < span.endMin) {
-    date = addDays(date, -1)
-    startMin += 1440
-    endMin += 1440
-  }
-  if (!days.includes(date)) return null
-  const start = Math.max(startMin, span.startMin)
-  const end = Math.min(endMin, span.endMin)
+  const placed = placeBusy(item, days, span, tz)
+  if (placed === null) return null
+  const start = Math.max(placed.startMin, span.startMin)
+  const end = Math.min(placed.endMin, span.endMin)
   if (end <= start) return null
-  return { date, startMin: start, endMin: end }
+  return { date: placed.date, startMin: start, endMin: end }
 }
 
 export function toPx(min: number, span: GridSpan, hourPx: number): number {
