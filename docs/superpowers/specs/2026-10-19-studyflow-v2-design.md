@@ -150,6 +150,7 @@ flowchart RL
 | `push_subscriptions` | `id`, `user_id`, `endpoint` (unique), `p256dh`, `auth`, `user_agent`, `last_success_at`, `failure_count` | **(החלטות של מי שבונה, S16, מיגרציה 0010):** מנוי אחד לכל דפדפן; ‏`endpoint` ייחודי בכל הטבלה ומתחיל ב-`https://` (עד 2048), ‏`created_at`. ‏RLS כמו שאר הטבלאות; ל-`authenticated` יש SELECT, ‏DELETE, ‏INSERT ל-`user_id`, ‏`endpoint`, ‏`p256dh`, ‏`auth`, ‏`user_agent`, ו-UPDATE ל-`p256dh`, ‏`auth`, ‏`user_agent`, ‏`failure_count`. הפונקציה `app.take_push_endpoint(endpoint)` (‏`SECURITY DEFINER`) מוחקת שורה של משתמש אחר עם אותו endpoint, למכשיר משותף: מי שמציג את ה-endpoint (כתובת סודית של הדפדפן) מחזיק במנוי. ‏`app.delete_account_data()` מוחקת גם אותם. ‏`blocks.notified_at` עם אינדקס חלקי `blocks_due_reminder_idx` וטריגר שמאפס אותו כש-`starts_at` משתנה. ‏`profiles.notify_lead_minutes` הוא 0, ‏5, ‏10 או 15, וברירת המחדל 0 (בתחילת הבלוק; החלטה של בעל המוצר, 16.11) |
 | `xp_events` | `id`, `user_id`, `block_id` (unique), `xp`, `created_at` | יומן XP; הרמה והסכום מחושבים ממנו. ה-unique מונע XP כפול. **(החלטות של מי שבונה, S19, מיגרציה 0011):** גם `study_date` (יום הלימוד שהבלוק נספר בו, נשמר ברגע הסימון); ‏`xp` ‏0–100000; ‏`block_id` יכול להיות NULL, עם FK ‏`(block_id, user_id)` → ‏`blocks (id, user_id)` ו-`ON DELETE SET NULL (block_id)`, כך ש-XP נשאר גם אם בלוק נמחק (לשם כך `blocks` קיבל `UNIQUE (id, user_id)`). ‏`user_id` מפנה ל-`profiles (id)` עם `ON DELETE CASCADE`, ולכן `app.delete_account_data()` מוחקת גם אותה בלי שינוי בפונקציה. ל-`authenticated`: ‏SELECT, ‏DELETE, ו-INSERT רק ל-`user_id`, ‏`block_id`, ‏`xp`, ‏`study_date` |
 | `badges` | `user_id`, `badge_key`, `earned_at` | **(S19):** ‏PK ‏`(user_id, badge_key)`, ‏`badge_key` הוא slug, ‏`user_id` מפנה ל-`profiles` כמו ב-`xp_events`. טבלה נגזרת: אחרי כל `complete` ו-`uncomplete` היא נעשית בדיוק קבוצת התגים שהיומן מקיים (נוספים חדשים, נמחקים כאלה שכבר לא). ל-`authenticated`: ‏SELECT, ‏DELETE, ו-INSERT רק ל-`user_id` ו-`badge_key` |
+| `exams` (S45, 0016) | `sitting`, `closure`, `closed_at`, `closure_notified_at`, `first_exam_date`, `first_grade`, `moed_b_notes`, `moed_b_topic_ids`; ‏`tasks.sitting`; ‏`plan_versions.exam_before` | **(S45):** מצב הסגירה ומועד ב' כעמודות על המבחן (נימוק ופירוט ב-7.13). ‏CHECK-ים: ‏`closure` עם `closed_at`; ‏`moed_b` רק במועד א'; שדות מועד א' רק במועד ב'. סיבות גרסה חדשות: ‏`exam_closed`, ‏`exam_moed_b`, ‏`moed_b_opened` |
 | `ai_usage` | `id`, `user_id`, `job_id`, `model`, `input_tokens`, `output_tokens`, `created_at` | מכסות ומעקב עלויות. **(החלטות של מי שבונה, S12):** גם `exam_id` (בלי FK, כדי שמחיקה קשה של מבחן לא תמחק את הרישום) ו-`cache_creation_input_tokens`, ‏`cache_read_input_tokens`. שורה לכל קריאה ל-Claude, גם כשהניתוח נכשל. ה-worker כותב אותה בתור בעל הסכמה, על החיבור שלו ומחוץ לטרנזקציה של המשתמש, כך ש-rollback של כתיבה שנכשלה לא מוחק כסף שהוצא; ל-`authenticated` יש רק SELECT. בלי עמודת דולרים: המחיר מחושב מהמודל והטוקנים |
 | `commitments` | `id`, `user_id`, `title`, `kind` (work / class / other), `weekday` (0–6, ‏0 = ראשון), `start_time`, `end_time`, `valid_from`, `valid_until`, `source_job_id`, `created_at`, `deleted_at` | **(החלטות של מי שבונה, S35, מיגרציה 0014):** לו"ז קבוע שבועי: זמן שהמתכנן לא משבץ בו לעולם. השעות בדקה שלמה ושונות זו מזו; ‏`end_time < start_time` חוצה חצות; לפחות 15 דקות לפי שעון הקיר. ‏`valid_from`/`valid_until` (כולל, או NULL) חלים על התאריך המקומי שבו המופע **מתחיל**. ‏`source_job_id` הוא עבודת `parse_timetable` שממנה אושרה (FK ‏`(source_job_id, user_id)` → ‏`jobs`, ‏`ON DELETE SET NULL (source_job_id)`). מחיקה רכה. ל-`authenticated`: ‏SELECT, ‏INSERT לעמודות הקלט, ‏UPDATE לעמודות הקלט ול-`deleted_at`, בלי DELETE. עד 100 חיות למשתמש (ב-API). **התחביב של S15 עבר לכאן:** שבע שורות `other` בשם "זמן לעצמי" (אחת לכל יום), והעמודות `profiles.hobby_*` התאפסו ונשארו (11.13) |
 | `busy_events` | `id`, `user_id`, `title` (אופציונלי), `starts_at`, `ends_at`, `created_at`, `deleted_at` | **(S35):** אירוע חד-פעמי מהיומן ("תפוס"). בדקה שלמה, ‏`starts_at < ends_at`, עד 14 ימים. מחיקה רכה; הרשאות כמו ב-`commitments`. ‏`plan_versions.busy_event_id` (FK עם `user_id`, ‏`ON DELETE SET NULL (busy_event_id)`) ו-`busy_event_before` (JSONB של הכותרת והזמנים לפני עריכה) מאפשרים לבטל הוספה או הזזה של אירוע. ‏`app.delete_account_data()` מוחקת גם את שתי הטבלאות |
@@ -316,6 +317,7 @@ flowchart RL
 | תוספות | `GET /progress`, `POST /plan/change-requests` | S19, S20 |
 | זמינות | `GET/POST /commitments`, `PATCH/DELETE /commitments/{id}`, `GET/POST /busy-events`, `PATCH/DELETE /busy-events/{id}`, `POST /plan/free-time`, `POST /timetables`, `POST /timetables/{job_id}/apply`; ‏`busy` ב-`GET /plan` וב-`GET /today`; ‏`POST /blocks/{id}/defer {to}` ו-`GET /blocks/{id}/slots?date=` | S35 |
 | הצעת פיצול (דחיינות) | `GET /split-offers`, `POST /tasks/{id}/split`, `POST /tasks/{id}/split/dismiss` | S44 (שרת; הממשק אחרי S32) |
+| סגירת מבחן ומועד ב' | `GET /closures`, `POST /exams/{id}/close`, `POST /exams/{id}/moed-b`; ‏`archive` ב-`GET /progress` (ראו 7.13) | S45 |
 
 - `complete` רץ בטרנזקציה אחת: סטטוס הבלוק, סטטוס המשימה, רשומת XP, רצף ותגים. לא שתי קריאות נפרדות כמו היום. ב-S09: בלוק `planned`, ‏`missed` או `skipped` עובר ל-`done` (ו-`done` נשאר בלי שינוי), והמשימה עוברת ל-`done` כשאין לה בלוק `planned` עתידי והדקות שהושלמו מכסות אותה. XP, רצף ותגים מצטרפים לאותה טרנזקציה ב-S19.
 - **החלטות של מי שבונה, S18 (סקירת בוקר וגרירה):**
@@ -578,6 +580,65 @@ flowchart RL
   - Playwright על main
 - **ניטור:** Sentry ב-web, ב-API וב-worker; אנליטיקת מוצר לאירועי הליבה (הרשמה, אונבורדינג שהושלם, תוכנית שנוצרה, בלוק שהושלם, יום פעיל).
 - **גיבויים:** הגיבויים של Supabase, ועוד dump שבועי.
+
+### 7.13 סגירת מבחן ומועד ב' (S45, חלק א': שרת)
+
+מבחן שהתאריך שלו הגיע נסגר באחד משני מסלולים (סעיף 16 בביקורת של Archi). התוכנית המלאה עם הנימוקים: `docs/superpowers/plans/2026-11-21-s45-exam-closure.md`. הממשק (גיליון הסגירה, הפריחה בגן) ייבנה אחרי S32 ו-S33, לפי החוזה הזה.
+
+**המודל (מיגרציה 0016).** עמודות ב-`exams`, בלי טבלה חדשה: ‏`sitting` ‏(1 או 2), ‏`closure` ‏(NULL, ‏`done`, ‏`moed_b`), ‏`closed_at`, ‏`closure_notified_at`, ‏`first_exam_date`, ‏`first_grade` ‏(0–100), ‏`moed_b_notes` ‏(עד 1,000 תווים), ‏`moed_b_topic_ids` ‏(עד 50). ‏`tasks.sitting` נקבע בטריגר `tasks_set_sitting` לפי המבחן. ‏`plan_versions.exam_before` שומר את שדות המבחן לפני השינוי, לביטול. המתכנן לוקח רק מבחנים עם `closure IS NULL`, ורק משימות מהמועד הנוכחי.
+
+**המצב (נגזר, לא נשמר):** ‏`done` ו-`waiting_moed_b` לפי `closure`; אחרת `pending` מ-19:00 בשעון המקומי של יום המבחן (`CLOSURE_HOUR`, ‏`app/domain/closure.py`); אחרת `active`. האפשרויות: ‏pending במועד א' → `done`, ‏`moed_b`; ‏pending במועד ב' → `done`; ‏waiting → `done` (או פתיחת מועד ב').
+
+**נקודות קצה:**
+
+| פעולה | Endpoint | תשובה |
+|---|---|---|
+| מה ממתין להחלטה | `GET /closures` | `{"pending": [...], "waiting": [...]}` |
+| סגירה | `POST /exams/{id}/close {"outcome": "done" \| "moed_b"}` | `exam`, ‏`version_id`, ‏`event`, ‏`replan` |
+| פתיחת מועד ב' | `POST /exams/{id}/moed-b {"exam_date", "grade"?, "hard_topic_ids"?, "hard_notes"?}` | `exam`, ‏`version_id`, ‏`tasks_created`, ‏`weak_topics`, ‏`trimmed`, ‏`unscheduled`, ‏`shortfalls` |
+| ביטול | `POST /plan/undo {"version_id"}` | כמו כל ביטול; הסיבות `exam_closed`, ‏`exam_moed_b`, ‏`moed_b_opened` |
+
+שגיאות: 404 ‏`not_found` (מבחן של משתמש אחר או שנמחק), 409 ‏`invalid_state` (מצב שלא מאפשר את ההחלטה, וביטול מועד ב' אחרי שלמדו בו), 422 ‏`exam_in_past` / ‏`validation_error` (תאריך, ציון, נושא שלא שייך למבחן). ‏`GET /exams` מחזיר לכל מבחן גם `sitting`, ‏`state`, ‏`closed_at`, ‏`first_exam_date`, ‏`first_grade`; ‏`PATCH` של תאריך או קושי במבחן `done` או `waiting_moed_b` → 409. ‏`GET /progress` מחזיר `archive`: המבחנים שנסגרו `done`, מהאחרון. ‏`GET /exams/{id}/tasks` מחזיר את משימות המועד הנוכחי.
+
+**דוגמאות:**
+
+```json
+GET /closures
+{"pending": [{"exam_id": "…", "exam_name": "הסתברות", "exam_date": "2026-11-16", "color_index": 2,
+  "sitting": 1, "state": "pending", "options": ["done", "moed_b"], "opens_at": "2026-11-16T17:00:00Z",
+  "studied_minutes": 1260, "tasks_done": 14, "tasks_total": 17, "completion_percent": 86,
+  "topics": [{"id": "…", "name": "התפלגות בינומית"}, {"id": "…", "name": "תוחלת ושונות"}]}],
+ "waiting": []}
+
+POST /exams/{id}/close {"outcome": "done"}
+{"exam": {"id": "…", "name": "הסתברות", "exam_date": "2026-11-16", "difficulty": 4, "color_index": 2,
+          "sitting": 1, "state": "done", "closed_at": "2026-11-16T17:05:00Z"},
+ "version_id": "…",
+ "event": {"kind": "course_bloomed", "exam_id": "…", "exam_name": "הסתברות", "color_index": 2},
+ "replan": {"added": [...], "removed": [...], "unscheduled": [], "shortfalls": []}}
+
+POST /exams/{id}/moed-b {"exam_date": "2027-02-03", "grade": 55, "hard_topic_ids": ["…"], "hard_notes": "the proofs"}
+{"exam": {"id": "…", "name": "הסתברות", "exam_date": "2027-02-03", "first_exam_date": "2026-11-16",
+          "first_grade": 55, "sitting": 2, "state": "active", "color_index": 2},
+ "version_id": "…", "tasks_created": 9, "weak_topics": [{"id": "…", "name": "תוחלת ושונות"}],
+ "trimmed": 0, "unscheduled": [], "shortfalls": []}
+```
+
+`added`, ‏`removed`, ‏`unscheduled` ו-`shortfalls` הם הסכמות של `POST /plan/replan`, ומכסים את כל הלוח (גם מבחנים אחרים שקיבלו את הזמן). ‏`event` הוא `null` ב-`moed_b`. הסגירה לא נותנת XP ולא תגים (S19 סופר רק בלוקים), ולא מוחקת אותם.
+
+**התוכנית של מועד ב' (בלי Claude):** עד שתי סימולציות ממועד א' עם סקירה לכל אחת (או `Full practice exam`, עד 150 דקות ולא יותר משעות היום, ו-`Practice exam review`); אחריהן לכל נושא חלש (שנבחר, או ששמו המלא מופיע ב-`hard_notes`) ‏review בשם הנושא והעתק של התרגול שלו; ואחריהן review לכל נושא אחר, שתלוי בנושא החלש האחרון. מעל התקציב (`exam_budgets`) יורדת חזרה כללית מהסוף (`trimmed`).
+
+**מה הגיליון מציג (טקסטים לממשק, באנגלית, בקול של Archi):** Archi מוביל, ומתחתיו רק הפקדים.
+- גיליון הסגירה (`pending`): ‏`You made it through <exam>. How did it feel?`, ומתחת `You studied <h> hours and finished <completion_percent>% of the plan.` שני כפתורים: ‏`Nailed it` (`done`) ו-`Keep open for Moed B` (`moed_b`, רק כשהוא ב-`options`).
+- אחרי `done`: ‏`<exam> is in full bloom. I've freed up its time for what's next.` עם "Undo", והגן מציג את `event` (S33).
+- אחרי `moed_b`: ‏`I'll keep everything for <exam> safe and quiet. When the Moed B date is out, tell me and I'll plan a focused round.` עם "Undo".
+- כרטיס `waiting`: ‏`<exam> is waiting for Moed B.` עם `Plan Moed B` ו-`I'm done with it` (`done`).
+- טופס מועד ב': ‏`When is Moed B?` (תאריך), ‏`How did Moed A go? (optional)` (ציון), ‏`What felt hard?` (בחירת נושאים מ-`topics`, וטקסט חופשי), וכפתור `Plan my Moed B`. אחרי: ‏`I've put the practice exams first, then <weak topics>, then a general review.`
+- שמות מבחנים ונושאים הם תוכן המשתמש, ומוצגים עם `dir="auto"`.
+
+**התזכורת:** Push אחד ביום המבחן, מ-19:00 מקומי עד חצות, למי שיש מנוי (S16) ורק אם המבחן לא נסגר. כותרת `You made it through <exam>.` (השם עד 80 תווים), גוף `How did it feel? Tell me, and I'll sort out what comes next.`, ‏`url` ‏`/today`, ‏`tag` ‏`exam-closure:<id>`. ‏`closure_notified_at` נקבע לפני השליחה (לכל היותר פעם אחת), ופתיחת מועד ב' מאפסת אותו.
+
+**ייצוא ומחיקה:** הייצוא כולל את כל העמודות החדשות (`EXPORT_VERSION` נשאר 1, כי השינוי רק מוסיף). ‏`app.delete_account_data()` לא השתנה, כי הוא כבר מוחק `exams`, ‏`tasks` ו-`plan_versions`.
 
 ## 8. מה עובר מהקוד הישן
 
