@@ -25,6 +25,9 @@ from tests.fixtures_db import ApiUser, FrozenClock
 
 MakeApiUser = Callable[[], ApiUser]
 
+# The audit's example (section 15): user content stays in the user's language.
+TITLE = "תרגול: malloc ו-free"  # noqa: RUF001
+
 
 @pytest.fixture
 def user(make_api_user: MakeApiUser, db: psycopg.Connection, clock: FrozenClock) -> ApiUser:
@@ -77,7 +80,7 @@ def _undo(api: TestClient, user: ApiUser, version_id: str) -> Any:
 
 def _task_90(api: TestClient, user: ApiUser, db: psycopg.Connection, **kwargs: Any) -> UUID:
     exam = insert_exam(db, user.id, exam_date="2026-11-30")
-    task = insert_task(db, user.id, exam, kind="practice", title="תרגול: malloc ו-free", **kwargs)
+    task = insert_task(db, user.id, exam, kind="practice", title=TITLE, **kwargs)
     replan_apply(api, user)
     return task
 
@@ -95,9 +98,9 @@ def test_two_deferrals_bring_no_offer_and_the_third_does(
     assert _offers(api, user) == []
     _defer(api, user, db, task)
     (offer,) = _offers(api, user)
-    ((block_id, start, end),) = _planned(db, task)
+    ((block_id, _, _),) = _planned(db, task)
     assert offer["task_id"] == str(task)
-    assert offer["task_title"] == "תרגול: malloc ו-free"
+    assert offer["task_title"] == TITLE
     assert offer["task_kind"] == "practice"
     assert offer["deferrals"] == 3
     assert offer["block"]["id"] == str(block_id)
