@@ -1,298 +1,643 @@
 <!doctype html>
-<html lang="he" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ארצ׳י · כל המסכים</title>
+<title>Archi, all screens</title>
+<!--
+  The binding mockup of Archi (S39, 21 November 2026). It follows docs/design/2026-11-21-archi-ux-audit.md,
+  docs/design/archi-voice.md and docs/design/design-language.md (sections 1a and 5.7).
+  The Hebrew version it replaces is kept as all-screens-he-2026-11-18.html.
+  Rules of this file: English and LTR; sample user content stays Hebrew inside dir="auto";
+  no emoji and no character used as an icon (every icon is an inline SVG from web/src/ui/icons);
+  Archi speaks in the first person and stands on the page with no background of his own.
+-->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&family=Amatic+SC:wght@700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#eef0e4;--surface:#f8f7f0;--ink:#3b2a1e;--muted:#6e5948;--line:#d9d6c3;--soft:#e6e7d8;
-  --brand:#4f7a3a;--brand-ink:#3f6430;--sprout:#8db45e;--clay:#9a5f38;--sand:#c9a77c;--gold:#d4a24c;
-  --sky1:#96c6e8;--sky2:#d6ecf8;--now:#c2502e;--now-ink:#a8401f;--busy:#dcd8c6;
+  --bg:#eef0e4;--surface:#f8f7f0;--soft:#e6e7d8;--field:#fff;
+  --ink:#3b2a1e;--muted:#6e5948;--line:#d9d6c3;--line-strong:#8c7b67;
+  --brand:#4f7a3a;--brand-ink:#3f6430;--brand-soft:#e2ead3;--sprout:#8db45e;
+  --clay:#9a5f38;--sand:#c9a77c;--gold:#d4a24c;--gold-soft:#f6e7c6;--gold-ink:#6b4a12;--gold-track:#eadfc4;
+  --sky1:#96c6e8;--sky2:#d6ecf8;
+  --now:#c2502e;--now-ink:#a8401f;
+  --warning:#80520e;--warning-soft:#f5ead0;--danger:#a33a1c;--danger-soft:#f6e2d8;
+  --inverse:#3b2a1e;--on-inverse:#f3ead9;--inverse-action:#cfe3b4;
+  --busy:#7d7062;--busy-soft:#e5e2d6;--busy-line:#c9c3b3;
   --e1:#6b7a2f;--e1b:#eef0d9;--e1l:#c9cf9c;
   --e2:#b0532f;--e2b:#f8e6dc;--e2l:#e8b79d;
   --e3:#4a6b84;--e3b:#e2ebf2;--e3l:#a9c0d2;
   --e4:#7b4a6d;--e4b:#f1e3ec;--e4l:#d2aec6;
+  --e5:#8a6410;--e5b:#f7ecd2;--e5l:#e2c78a;
   --f:'Rubik',system-ui,sans-serif;--disp:'Amatic SC','Rubik',sans-serif;
+  --desk:#e2e3d4;
   font-family:var(--f);
 }
 *{box-sizing:border-box}
-html,body{margin:0;background:#e2e3d4;color:var(--ink)}
-button{font:inherit;color:inherit;border:0;background:none;cursor:default}
-.ltr{direction:ltr;unicode-bidi:isolate;display:inline-block}
-.page{max-width:1400px;margin:0 auto;padding:28px 16px 80px}
-.head{text-align:center;margin-bottom:22px}
-.head h1{font-family:var(--disp);font-size:72px;line-height:1;margin:0}
-.head p{color:var(--muted);margin:6px 0 0}
-.nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:18px 0 30px;position:sticky;top:0;padding:10px;background:#e2e3d4;z-index:50}
-.nav a{padding:8px 16px;border-radius:999px;background:var(--surface);border:1px solid var(--line);text-decoration:none;color:var(--ink);font-size:14px}
-section{margin-bottom:56px}
-section > h2{font-family:var(--disp);font-size:52px;margin:0 0 4px;line-height:1}
-section > p{color:var(--muted);margin:0 0 18px;max-width:70ch}
-.row{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
-.cap{text-align:center;font-size:14px;margin-top:10px;font-weight:600}
-.cap small{display:block;font-weight:400;color:var(--muted);font-size:12.5px;max-width:330px;margin:2px auto 0}
+html,body{margin:0;background:var(--desk);color:var(--ink)}
+body{font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,p{margin:0}
+svg.i{flex:none;display:block}
+.num{font-variant-numeric:tabular-nums}
 
-/* frames */
-.ph{width:340px;height:736px;border-radius:40px;overflow:hidden;position:relative;background:var(--bg);box-shadow:0 0 0 9px #2b2119,0 24px 50px rgba(59,42,30,.25);display:flex;flex-direction:column;font-size:14px}
-.dk{width:1180px;height:720px;border-radius:16px;overflow:hidden;background:var(--bg);box-shadow:0 24px 60px rgba(59,42,30,.22);display:grid;grid-template-columns:290px 1fr;grid-template-rows:60px 1fr;font-size:14px}
-.status{height:40px;flex:none}
-.sc{flex:1;overflow:hidden;position:relative;display:flex;flex-direction:column}
-.pad{padding:0 18px}
+/* ---------- the mockup's own page ---------- */
+.page{max-width:1348px;margin:0 auto;padding:40px 24px 96px}
+.head{display:grid;grid-template-columns:auto 1fr;gap:8px 40px;align-items:end;margin-bottom:20px}
+.head h1{font-family:var(--disp);font-size:104px;line-height:.82;font-weight:700}
+.head .sub{font-size:17px;max-width:62ch;padding-bottom:6px}
+.head .sub span{display:block;color:var(--muted);font-size:14px;margin-top:4px}
+.rules{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid var(--line-strong);border-bottom:1px solid var(--line);margin-bottom:8px}
+.rules div{padding:14px 18px 16px 0;font-size:13.5px;color:var(--muted)}
+.rules div + div{padding-left:18px;border-left:1px solid var(--line)}
+.rules b{display:block;color:var(--ink);font-weight:600;font-size:14px;margin-bottom:2px}
+.nav{display:flex;flex-wrap:wrap;gap:6px;margin:0 -24px 36px;position:sticky;top:0;padding:12px 24px;background:var(--desk);z-index:50}
+.nav a{padding:7px 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);text-decoration:none;color:var(--ink);font-size:14px;font-weight:500}
+.nav a:hover{background:var(--soft)}
+.nav a:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.band{margin-bottom:72px;scroll-margin-top:64px}
+.band > h2{font-family:var(--disp);font-size:56px;line-height:1;font-weight:700}
+.band > p{color:var(--muted);margin:6px 0 26px;max-width:76ch}
+.shots{display:flex;gap:48px 44px;flex-wrap:wrap;align-items:flex-start;padding-left:10px}
+.shot{flex:none}
+.cap{margin-top:22px;font-weight:600;font-size:14.5px;max-width:390px}
+.cap small{display:block;font-weight:400;color:var(--muted);font-size:13px;margin-top:2px;line-height:1.4}
+.shot.wide .cap{max-width:860px}
 
-/* shared bits */
-.av{border-radius:50%;overflow:hidden;background:linear-gradient(var(--sky1),var(--sky2));flex:none}
-.av img{width:100%;height:100%;object-fit:cover;object-position:50% 30%;transform:scale(1.9) translateY(4%)}
-.art{border-radius:18px;overflow:hidden;background:linear-gradient(var(--sky1),var(--sky2));position:relative}
-.art img{width:100%;height:100%;object-fit:cover;display:block}
-.chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:4px 10px;font-size:12.5px;font-weight:600}
-.chip.leaf{background:#e3edd5;color:var(--brand-ink)}
-.chip.gold{background:#f6e7c6;color:#6b4a12}
-.lvl{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:12.5px;background:conic-gradient(var(--gold) 0 62%,#eadfc4 0);position:relative}
+/* ---------- frames ---------- */
+.ph{width:390px;height:844px;border-radius:46px;overflow:hidden;position:relative;background:var(--bg);box-shadow:0 0 0 10px #2b2119,0 28px 54px rgba(59,42,30,.24);display:flex;flex-direction:column;font-size:14px;line-height:1.4}
+.dk{width:1280px;height:832px;border-radius:14px;overflow:hidden;background:var(--bg);box-shadow:0 0 0 1px #c9c8b6,0 28px 60px rgba(59,42,30,.2);display:grid;grid-template-columns:300px 1fr;grid-template-rows:60px 1fr;font-size:14px;line-height:1.4;margin-left:-10px}
+.status{height:44px;flex:none;display:flex;align-items:flex-end;padding:0 30px 6px;font-weight:600;font-size:14px}
+.sc{flex:1;min-height:0;position:relative;display:flex;flex-direction:column}
+.pad{padding-left:18px;padding-right:18px}
+.grow{flex:1;min-height:0}
+
+/* ---------- user content (design language 1a) ---------- */
+/* One line that may truncate: keeps the interface's left edge, takes its own direction for letter
+   order, and the ellipsis lands at the END of the text. */
+.ut{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+/* A paragraph of user content: aligned by its own direction. */
+.up{text-align:start;line-height:1.55}
+
+/* ---------- Archi: a cut-out with no background, standing on the page ---------- */
+.archi{display:block;flex:none;width:auto;user-select:none}
+.lead{display:flex;align-items:flex-end;gap:14px}
+.lead .say{padding-bottom:12px;min-width:0}
+.lead .q{font-family:var(--disp);font-weight:700;font-size:34px;line-height:1.02;letter-spacing:.01em}
+.lead .q.sm{font-family:var(--f);font-size:17px;line-height:1.3;font-weight:600;letter-spacing:0}
+.lead p{color:var(--muted);font-size:13.5px;margin-top:6px}
+.leadp{color:var(--muted);font-size:13.5px;border-top:1px solid var(--line);padding:8px 0 10px}
+/* The answer: the surface Archi stands on, holding only the controls that answer him. */
+.answer{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px}
+.recap{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12.5px;margin:0 0 8px}
+.recap svg{color:var(--brand-ink)}
+
+/* ---------- shared pieces ---------- */
+.h1{font-size:26px;font-weight:700;line-height:1.15}
+.mut{color:var(--muted)}
+.sm{font-size:12.5px}
+.b6{font-weight:600}
+.chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:4px 10px 4px 8px;font-size:13px;font-weight:600;white-space:nowrap}
+.chip.leaf{background:var(--brand-soft);color:var(--brand-ink)}
+.chip.gold{background:var(--gold-soft);color:var(--gold-ink)}
+.chip.plain{background:var(--soft);color:var(--ink);font-weight:500;padding:4px 10px}
+.gam{display:flex;align-items:center;gap:8px}
+.lvl{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;background:conic-gradient(var(--gold) 0 62%,var(--gold-track) 0);position:relative;flex:none}
 .lvl::after{content:"";position:absolute;inset:4px;border-radius:50%;background:var(--surface)}
 .lvl b{position:relative;z-index:1}
-.btn{display:flex;align-items:center;justify-content:center;gap:8px;height:50px;border-radius:14px;font-weight:600;width:100%}
+.me{width:36px;height:36px;border-radius:50%;background:var(--brand-soft);color:var(--brand-ink);display:grid;place-items:center;font-weight:600;flex:none}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;border-radius:14px;font-weight:500;font-size:14.5px;padding:0 16px;border:1px solid transparent;white-space:nowrap}
 .btn.pri{background:var(--brand);color:#fff}
-.btn.sec{background:var(--surface);border:1px solid var(--line)}
-.btn.clay{background:var(--clay);color:#fff}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px}
-.say{display:flex;gap:10px;align-items:flex-end}
-.say .b{background:var(--surface);border:1px solid var(--line);border-radius:16px 16px 16px 4px;padding:9px 12px;line-height:1.45;font-size:13.5px;box-shadow:0 4px 12px rgba(59,42,30,.06)}
-.say .b small{display:block;color:var(--muted);font-size:11px}
-.h1{font-size:23px;font-weight:700;margin:4px 0 4px;line-height:1.25}
-.mut{color:var(--muted)}
-.tabbar{height:70px;flex:none;background:rgba(248,247,240,.97);border-top:1px solid var(--line);display:flex;padding:8px 14px 18px}
-.tabbar span{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;color:var(--muted)}
+.btn.sec{background:var(--surface);border-color:var(--line)}
+.btn.ink{background:var(--ink);color:#fff}
+.btn.quiet{color:var(--brand-ink);padding:0 8px}
+.btn.s{min-height:40px;font-size:13.5px;padding:0 12px;border-radius:12px}
+.btn.full{width:100%}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px}
+.lbl{font-size:13px;font-weight:500;margin-bottom:6px}
+.field{min-height:44px;border-radius:12px;border:1px solid var(--line-strong);background:var(--field);display:flex;align-items:center;gap:8px;padding:0 12px;font-size:16px;margin-bottom:10px}
+.field .ut{flex:1}
+.field svg{color:var(--muted)}
+.seg{display:flex;background:var(--soft);border-radius:10px;padding:3px}
+.seg span{padding:5px 12px;border-radius:8px;color:var(--muted);font-weight:500}
+.seg span.on{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 3px rgba(59,42,30,.1)}
+.tabbar{height:72px;flex:none;background:rgba(248,247,240,.97);border-top:1px solid var(--line);display:flex;padding:8px 14px 20px;position:relative;z-index:8}
+.tabbar span{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;color:var(--muted)}
 .tabbar span.on{color:var(--brand-ink);font-weight:600}
-.tabbar svg{width:21px;height:21px}
-.sheet{position:absolute;inset:auto 0 0 0;background:var(--surface);border-radius:24px 24px 0 0;box-shadow:0 -10px 40px rgba(59,42,30,.25);padding:10px 18px 22px;z-index:20}
-.sheet .grab{width:38px;height:5px;border-radius:5px;background:var(--line);margin:0 auto 12px}
-.scrim{position:absolute;inset:0;background:rgba(43,33,25,.35);z-index:15}
-.opt{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:14px;margin-bottom:8px;background:#fff}
-.opt .ic{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-size:17px;background:var(--soft)}
-.opt b{display:block}
-.opt small{color:var(--muted)}
-.steps{display:flex;gap:5px;flex:1}.steps i{flex:1;height:5px;border-radius:5px;background:var(--soft)}.steps i.on{background:var(--brand)}
-.field{height:46px;border-radius:12px;border:1px solid var(--line);background:#fff;display:flex;align-items:center;padding:0 12px;margin-bottom:10px}
-.lbl{font-size:12px;color:var(--muted);margin-bottom:5px}
+.phh{display:flex;align-items:center;gap:10px;padding:4px 18px 10px}
+.phh > div:first-child{flex:1;min-width:0}
+.sheet{position:absolute;inset:auto 0 0 0;background:var(--surface);border-radius:24px 24px 0 0;box-shadow:0 -10px 40px rgba(59,42,30,.25);padding:10px 18px 26px;z-index:20}
+.sheet .grab{width:38px;height:5px;border-radius:5px;background:var(--line);margin:0 auto 14px}
+.sheet h3{font-size:20px;line-height:1.3;font-weight:600}
+.sheet .on-edge{position:absolute;bottom:100%;left:22px}
+.scrim{position:absolute;inset:-44px 0 0 0;background:rgba(59,42,30,.35);z-index:15}
+.opt{display:flex;gap:12px;align-items:center;padding:11px 12px;border:1px solid var(--line-strong);border-radius:12px;margin-bottom:8px;background:var(--field)}
+.opt .tile{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--soft);flex:none}
+.opt b{display:block;font-weight:600}
+.opt small{color:var(--muted);font-size:12.5px}
+.opt.on{border:2px solid var(--brand);background:var(--brand-soft);padding:10px 11px}
+.steps{display:flex;align-items:center;gap:10px;padding:8px 18px 6px}
+.steps .back{width:40px;height:40px;border-radius:12px;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center}
+.steps .bar{display:flex;gap:5px;flex:1}
+.steps .bar i{flex:1;height:5px;border-radius:5px;background:var(--soft)}
+.steps .bar i.on{background:var(--brand)}
+.foot{margin-top:auto;padding:12px 18px 26px;display:flex;flex-direction:column;gap:8px}
+.note{font-size:12.5px;color:var(--muted);background:var(--soft);border-radius:12px;padding:10px 12px;display:flex;gap:9px;align-items:flex-start}
+.note svg{margin-top:1px}
+.tile{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-weight:700;font-size:17px;flex:none}
+.rows > * + *{border-top:1px solid var(--line)}
+.r{display:flex;align-items:center;gap:12px;padding:11px 0;min-height:52px}
+.r .tx{flex:1;min-width:0}
+.r .tx small{display:block;color:var(--muted);font-size:12.5px}
+.r .end{margin-left:auto;color:var(--muted);display:flex;align-items:center;gap:6px;flex:none}
+.check{width:22px;height:22px;border-radius:7px;border:2px solid var(--line-strong);background:var(--field);display:grid;place-items:center;flex:none;color:#fff}
+.check.on{background:var(--brand);border-color:var(--brand)}
+.toggle{width:44px;height:26px;border-radius:999px;background:var(--brand);position:relative;flex:none}
+.toggle::after{content:"";position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:#fff}
+.toast{position:absolute;left:14px;right:14px;bottom:86px;background:var(--inverse);color:var(--on-inverse);border-radius:18px;padding:12px 16px;display:flex;gap:10px;align-items:center;font-size:14px;z-index:30;box-shadow:0 18px 40px -10px rgba(59,42,30,.45)}
+.toast svg{color:#c5dea0}
+.toast b{color:var(--inverse-action);margin-left:auto;font-weight:600}
+.pbar{height:6px;border-radius:6px;background:var(--soft);overflow:hidden}
+.pbar i{display:block;height:100%;border-radius:6px}
 
-/* calendar */
-.grid{position:relative;display:grid}
+/* ---------- calendar ---------- */
+.cal{display:grid;position:relative}
 .hrs{position:relative}
-.hrs div{position:absolute;width:100%;text-align:center;font-size:10.5px;color:var(--muted);transform:translateY(-7px)}
-.col{position:relative;border-inline-start:1px solid #e3e2d3}
-.hl{position:absolute;inset-inline:0;border-top:1px solid #e3e2d3}
-.blk{position:absolute;inset-inline:3px;border-radius:9px;padding:5px 7px;border:1px solid;border-inline-start-width:4px;overflow:hidden;font-size:11.5px;line-height:1.25}
-.blk .t{font-weight:600;color:var(--ink);display:flex;gap:5px;align-items:flex-start}
-.blk .m{color:var(--muted);font-size:10.5px;margin-top:2px}
-.blk .cb{width:15px;height:15px;border-radius:5px;border:2px solid currentColor;flex:none;margin-top:1px;background:#fff;display:grid;place-items:center}
-.blk.done{opacity:.6}.blk.done .t span{text-decoration:line-through}
+.hrs div{position:absolute;right:8px;font-size:11px;color:var(--muted);transform:translateY(-8px);font-variant-numeric:tabular-nums}
+.hrs .nowt{position:absolute;right:4px;transform:translateY(-50%);color:var(--now-ink);background:var(--surface);font-size:11px;font-weight:700;padding:1px 4px;border-radius:5px;z-index:6;font-variant-numeric:tabular-nums}
+.col{position:relative;border-left:1px solid #e3e2d3}
+.col.today{background:#f1f2e6}
+.hl{position:absolute;left:0;right:0;border-top:1px solid #e3e2d3}
+.blk{position:absolute;left:3px;right:3px;border-radius:10px;padding:4px 6px 4px 7px;border:1px solid;border-left-width:4px;overflow:hidden;font-size:12px;line-height:15px;color:var(--ink)}
+.blk .t{display:flex;gap:5px;align-items:center}
+.blk .t .ut{flex:1;font-weight:600}
+.blk .kd{color:var(--kc)}
+.blk .m{font-size:11px;line-height:14px;margin-top:2px;padding-left:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.blk .cb{width:16px;height:16px;border-radius:6px;border:2px solid var(--kc);flex:none;background:var(--surface);display:grid;place-items:center;color:#fff}
+.blk.done{background:var(--soft);border-color:var(--line);border-left-color:var(--kc)}
+.blk.done .ut{text-decoration:line-through;color:var(--muted);font-weight:400}
+.blk.done .m{color:var(--muted)}
 .blk.done .cb{background:var(--brand);border-color:var(--brand)}
-.blk.done .cb::after{content:"✓";color:#fff;font-size:10px;line-height:1}
-.ex1{color:var(--e1);background:var(--e1b);border-color:var(--e1l)}
-.ex2{color:var(--e2);background:var(--e2b);border-color:var(--e2l)}
-.ex3{color:var(--e3);background:var(--e3b);border-color:var(--e3l)}
-.ex4{color:var(--e4);background:var(--e4b);border-color:var(--e4l)}
-.busy{position:absolute;inset-inline:3px;border-radius:9px;background:repeating-linear-gradient(135deg,#e4e1d0 0 6px,#ecead9 6px 12px);border:1px dashed #c9c4ad;padding:5px 7px;font-size:11px;color:var(--muted)}
-.nowl{position:absolute;inset-inline:0;border-top:2px solid var(--now);z-index:5}
-.nowl::before{content:"";position:absolute;inset-inline-start:-5px;top:-5px;width:8px;height:8px;border-radius:50%;background:var(--now)}
-.nowt{position:absolute;inset-inline-start:2px;transform:translateY(-50%);background:var(--now);color:#fff;font-size:10px;font-weight:600;padding:1px 5px;border-radius:5px;z-index:6}
-.dstrip{display:flex;gap:3px;padding:4px 10px 8px}
-.dstrip div{flex:1;text-align:center;padding:5px 0;border-radius:12px;font-size:10.5px;color:var(--muted)}
-.dstrip div b{display:block;font-size:15px;color:var(--ink);margin-top:1px}
-.dstrip div.on{background:var(--ink);color:#e8dfcf}.dstrip div.on b{color:#fff}
-.dstrip .dots{display:flex;gap:2px;justify-content:center;height:5px;margin-top:2px}.dstrip .dots i{width:4px;height:4px;border-radius:50%}
-.leafmark{font-size:9px}
-.topbar{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:0 18px;background:var(--surface);border-bottom:1px solid var(--line)}
-.logo{display:flex;align-items:center;gap:8px;font-family:var(--disp);font-size:30px;line-height:1}
-.tabs{display:flex;gap:4px;margin-inline-start:18px}
-.tabs span{padding:7px 13px;border-radius:10px;color:var(--muted);font-weight:500}
-.tabs span.on{background:#e3edd5;color:var(--brand-ink)}
-.side{background:var(--surface);border-inline-end:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
-.side h4{margin:0 0 8px;font-size:12px;color:var(--muted);font-weight:500}
-.task{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:11px;background:var(--bg);margin-bottom:5px;font-size:13px}
-.task i{width:4px;align-self:stretch;border-radius:4px}
-.task .cb{width:19px;height:19px;border-radius:6px;border:2px solid currentColor;background:#fff;margin-inline-start:auto;flex:none}
-.task.d{color:var(--muted)}.task.d span{text-decoration:line-through}
-.task.d .cb{background:var(--brand);border-color:var(--brand)}
-.ring{width:56px;height:56px;border-radius:50%;background:conic-gradient(var(--sprout) 0 46%,#e3e2d3 0);display:grid;place-items:center;flex:none}
-.ring b{width:44px;height:44px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-size:13px}
-.examrow{display:grid;grid-template-columns:10px 1fr auto;gap:3px 8px;align-items:center;font-size:13px;margin-bottom:9px}
+.blk.lift{box-shadow:0 12px 28px rgba(59,42,30,.24);outline:2px solid var(--kc);z-index:7}
+.ph .blk{font-size:13.5px;line-height:17px;padding:5px 8px 5px 9px}
+.ph .blk .m{font-size:12px;line-height:15px;padding-left:21px}
+.ph .blk .cb{width:18px;height:18px}
+.ex1{--kc:var(--e1);background:var(--e1b);border-color:var(--e1l);border-left-color:var(--e1)}
+.ex2{--kc:var(--e2);background:var(--e2b);border-color:var(--e2l);border-left-color:var(--e2)}
+.ex3{--kc:var(--e3);background:var(--e3b);border-color:var(--e3l);border-left-color:var(--e3)}
+.ex4{--kc:var(--e4);background:var(--e4b);border-color:var(--e4l);border-left-color:var(--e4)}
+.ex5{--kc:var(--e5);background:var(--e5b);border-color:var(--e5l);border-left-color:var(--e5)}
+.busy{position:absolute;left:3px;right:3px;border-radius:10px;background:repeating-linear-gradient(135deg,var(--busy-soft) 0 7px,#eeebe0 7px 14px);border:1px solid var(--busy-line);border-left:4px solid var(--busy);padding:4px 6px 4px 7px;font-size:12px;line-height:15px;overflow:hidden}
+.busy .t{display:flex;gap:5px;align-items:center;font-weight:500}
+.busy .t svg{color:var(--busy)}
+.busy .m{font-size:11px;color:var(--muted);padding-left:19px;font-variant-numeric:tabular-nums}
+.ph .busy{font-size:13.5px;line-height:17px;padding:5px 8px 5px 9px}
+.ph .busy .m{font-size:12px;padding-left:21px}
+.nowl{position:absolute;left:0;right:0;border-top:2px solid var(--now);z-index:5}
+.nowl::before{content:"";position:absolute;left:-5px;top:-6px;width:10px;height:10px;border-radius:50%;background:var(--now)}
+.free{position:absolute;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--muted);font-size:12px}
+.strip{display:flex;gap:3px;padding:0 12px 10px}
+.strip div{flex:1;text-align:center;padding:6px 0 5px;border-radius:13px;font-size:12px;color:var(--muted)}
+.strip b{display:block;font-size:16px;color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.strip .on{background:var(--ink);color:#e8dfcf}
+.strip .on b{color:#fff}
+.strip .mk{display:flex;gap:3px;justify-content:center;align-items:center;height:12px;margin-top:2px;color:var(--brand-ink)}
+.strip .on .mk{color:#cfe3b4}
+.strip .mk i{width:5px;height:5px;border-radius:50%}
+.peek{position:absolute;left:8px;right:8px;bottom:6px;background:var(--surface);border-radius:20px;box-shadow:0 -6px 24px rgba(59,42,30,.16);padding:8px 16px 13px;z-index:7}
+.peek .grab{width:36px;height:4px;border-radius:4px;background:var(--line);margin:0 auto 8px}
+.peek > div:last-child{display:flex;justify-content:space-between;align-items:baseline;font-weight:600}
+
+/* desktop shell */
+.topbar{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:0 18px;background:var(--surface);border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:flex-end;gap:6px;font-family:var(--disp);font-size:34px;line-height:1;font-weight:700;align-self:stretch;padding-top:8px}
+.logo span{padding-bottom:13px}
+.tabs{display:flex;gap:4px;margin-left:20px;font-size:16px}
+.tabs span{padding:7px 14px;border-radius:12px;color:var(--muted);font-weight:500}
+.tabs span.on{background:var(--brand-soft);color:var(--brand-ink);font-weight:600}
+.tools{margin-left:auto;display:flex;align-items:center;gap:10px}
+.icb{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;color:var(--muted)}
+.side{background:var(--surface);border-right:1px solid var(--line);padding:14px 16px 12px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+.side h4{font-size:13px;color:var(--muted);font-weight:500;margin-bottom:8px}
+.next{border-radius:18px;padding:14px;color:#fff}
+.next .btn{min-height:40px;border-radius:12px}
+.task{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 0;border-radius:12px;background:var(--bg);margin-bottom:6px;min-height:54px;overflow:hidden}
+.task > i{width:4px;align-self:stretch;border-radius:0 4px 4px 0;margin:-8px 0}
+.task .tm{font-weight:600;font-size:13px;width:38px;flex:none;font-variant-numeric:tabular-nums}
+.task .tx{flex:1;min-width:0}
+.task .tx .ut{font-weight:600}
+.task .tx small{display:flex;align-items:center;gap:5px;color:var(--muted);font-size:12px;white-space:nowrap}
+.task.d .tx .ut{font-weight:400;color:var(--muted);text-decoration:line-through}
+.ring{width:56px;height:56px;border-radius:50%;background:conic-gradient(var(--brand-ink) 0 32%,var(--soft) 0);display:grid;place-items:center;flex:none}
+.ring b{width:44px;height:44px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-size:13px;font-weight:600}
+.examrow{display:grid;grid-template-columns:10px 1fr auto;gap:5px 9px;align-items:center;font-size:13.5px;margin-bottom:10px}
 .examrow .sw{width:10px;height:10px;border-radius:3px}
-.examrow .bar{grid-column:2/-1;height:5px;border-radius:5px;background:#e3e2d3;overflow:hidden}.examrow .bar i{display:block;height:100%}
-.banner{margin:0 18px 8px;border-radius:14px;padding:9px 12px;display:flex;gap:10px;align-items:center;font-size:13px}
-.toast{position:absolute;inset-inline:14px;bottom:84px;background:var(--ink);color:#f3ead9;border-radius:14px;padding:11px 14px;display:flex;gap:10px;align-items:center;font-size:13px;z-index:30}
-.toast b{color:#cfe3b4;margin-inline-start:auto}
-.fab{position:absolute;bottom:84px;inset-inline-start:16px;background:var(--brand);color:#fff;border-radius:999px;padding:11px 16px;font-weight:600;font-size:13px;box-shadow:0 8px 20px rgba(79,122,58,.4);z-index:12}
-.badge{border-radius:14px;padding:10px 6px;text-align:center;font-size:11px;background:var(--surface);border:1px solid var(--line)}
-.badge .em{font-size:22px}
+.examrow .pbar{grid-column:2/-1;height:5px}
+.wkh{display:grid;grid-template-columns:52px repeat(7,1fr);border-bottom:1px solid var(--line)}
+.wkh > div{text-align:center;padding:8px 0 4px;font-size:12px;color:var(--muted);position:relative}
+.wkh b{width:32px;height:32px;margin:2px auto 0;border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.wkh .on{color:var(--brand-ink);font-weight:600}
+.wkh .on b{background:var(--brand);color:#fff}
+.wkh .lf{height:14px;display:grid;place-items:center;color:var(--brand-ink)}
+
+/* exam, progress, settings */
+.tl{display:flex;gap:3px;align-items:flex-end;height:66px}
+.tl > div{flex:1;border-radius:3px;display:grid;place-items:end center}
+.tl .dn{background:var(--brand-ink)}
+.tl .pl{background:var(--e1b);border:1.5px solid var(--e1l)}
+.tl .rs{color:var(--muted);height:16px}
+.tl .xd{color:var(--e1);height:20px}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:10px;align-items:center}
+.legend span{display:flex;align-items:center;gap:5px}
+.legend i{width:10px;height:10px;border-radius:3px}
+.pips{display:flex;gap:3px;flex:none}
+.pips i{width:6px;height:6px;border-radius:50%;background:var(--line)}
+.pips i.on{background:var(--e1)}
+.garden{height:176px;border-radius:18px;background:linear-gradient(var(--sky1),var(--sky2) 68%,#e7dcc4 68%);position:relative;overflow:hidden;color:var(--ink)}
+.garden .plants{position:absolute;left:0;right:0;bottom:calc(32% - 5px);display:flex;justify-content:center;align-items:flex-end;gap:22px}
+.garden .ph-note{position:absolute;left:0;right:0;bottom:9px;text-align:center;font-size:12px}
+.days{display:grid;grid-template-columns:repeat(14,1fr);gap:4px}
+.days div{height:28px;border-radius:8px;background:var(--sprout);display:grid;place-items:center;color:var(--muted)}
+.days div.rest{background:var(--surface);border:1px dashed var(--sand)}
+.days span{font-size:11px;color:var(--muted);text-align:center}
+.badges{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.badge{border-radius:14px;padding:10px 4px 9px;text-align:center;font-size:12px;line-height:1.25;background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:6px}
+.badge .em{width:38px;height:38px;border-radius:50%;background:var(--gold-soft);color:var(--gold-ink);display:grid;place-items:center}
 .badge.off{border-style:dashed;color:var(--muted)}
-.garden{height:170px;border-radius:20px;background:linear-gradient(var(--sky1),var(--sky2) 70%,#e7dcc4 70%);position:relative;overflow:hidden}
-.garden .ph-note{position:absolute;inset-inline:0;bottom:8px;text-align:center;font-size:11px;color:var(--muted)}
-.sw8{display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--line);font-size:13.5px}
-.sw8:first-child{border-top:0}
-.toggle{width:40px;height:24px;border-radius:999px;background:var(--brand);position:relative;margin-inline-start:auto}
-.toggle::after{content:"";position:absolute;top:3px;inset-inline-end:3px;width:18px;height:18px;border-radius:50%;background:#fff}
-.lock{background:linear-gradient(160deg,#5b7f9a,#a9c7d9 60%,#e4d6bd);}
+.badge.off .em{background:var(--soft);color:var(--muted)}
+.set h3{font-size:14px;font-weight:600;margin-bottom:2px}
+.set .r{min-height:40px;padding:6px 0}
+.lock{background:linear-gradient(165deg,#56708a,#9dbccd 55%,#e2d5bd)}
+.notif{margin:0 14px;background:rgba(248,247,240,.92);color:var(--ink);border-radius:22px;padding:12px 14px;display:flex;gap:12px;align-items:center}
+.appicon{width:42px;height:42px;border-radius:11px;background:var(--bg);overflow:hidden;flex:none;display:grid;place-items:end center}
+.float{position:absolute;left:14px;right:14px;background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:0 1px 2px rgba(59,42,30,.08),0 18px 40px -10px rgba(59,42,30,.3);z-index:9;padding:0 16px 14px}
+.offline{margin:4px 14px 6px;background:var(--inverse);color:var(--on-inverse);border-radius:14px;padding:10px 14px;display:flex;gap:10px;align-items:flex-start;font-size:13.5px}
+.offline svg{margin-top:1px;color:#f0a98e}
+.report{margin:0 14px 10px;background:var(--warning-soft);border:1px solid #dcc591;border-radius:18px;padding:0 14px 14px}
+.review{margin:0 14px 10px;background:var(--surface);border:1px solid var(--sand);border-radius:18px;padding:0 14px 14px}
+.inner{background:var(--field);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 </style>
 </head>
 <body>
 <div class="page">
-  <div class="head"><h1>ארצ׳י</h1><p>כל המסכים בעיצוב החדש: היומן שאושר, הפלטה של ארצ׳י, והאיורים. נתוני דמה.</p></div>
-  <nav class="nav">
-    <a href="#s1">כניסה ואונבורדינג</a><a href="#s2">יומן</a><a href="#s3">פעולות ביומן</a><a href="#s4">מבחנים</a><a href="#s5">התקדמות והגן</a><a href="#s6">הגדרות</a><a href="#s7">רגעים ומצבים</a>
-  </nav>
-  <div id="root"></div>
+  <header class="head">
+    <h1>Archi</h1>
+    <p class="sub">Every screen of the product, as it should look after the language foundation.
+      <span>The binding mockup, 21 November 2026. Sample data. The calendar, the remaining screens and the progress screen are built from this file.</span></p>
+  </header>
+  <div class="rules">
+    <div><b>English, left to right</b>The interface is English, 24-hour clock, weeks start on Sunday. The copy matches <code>en.ts</code> wherever the product already has the string.</div>
+    <div><b>User content keeps its language</b>Exam, task and file names stay as typed. A one-line title holds the left edge; a paragraph follows its own direction.</div>
+    <div><b>Archi speaks first, in the first person</b>He says I, me and my, and asks before the controls appear. He stands on the page with no sky, circle or frame.</div>
+    <div><b>Icons, never emoji</b>Every icon is from <code>web/src/ui/icons</code>. In the calendar, the icon at the start of a block is the kind of task.</div>
+  </div>
+  <nav class="nav" aria-label="Sections" id="nav"></nav>
+  <main id="root"></main>
 </div>
 <script>
-const IMG=n=>`archie/${n}.jpg`;
-const EX=[null,['הסתברות',1],['אלגוריתמים',2],['שפת C',3],['מבני נתונים',4]];
-const H=40,S=8,E=22;
+/* ============ icons: one set, defined once ============ */
+/* Archi's own icons are transcribed from web/src/ui/icons (24 grid, 1.75 stroke, round caps, a
+   "paper" fill at 14%). The generic glyphs are lucide's, at the same stroke. */
+const P='fill="currentColor" fill-opacity=".14"', PO=P+' stroke="none"', SO='fill="currentColor"';
+const I={
+  // archi.tsx
+  leaf:`<path d="M7 17.5C4 11 9.5 4 20 4c0 10.5-6.5 16-13 13.5Z" ${P}/><path d="M3.5 20.5C7 17 10.5 13.5 14.5 9.5"/>`,
+  xp:`<path d="M10 5c.7 5 3 7.3 8 8-5 .7-7.3 3-8 8-.7-5-3-7.3-8-8 5-.7 7.3-3 8-8Z" ${P}/><path d="M18.5 2.75c.3 1.7 1.05 2.45 2.75 2.75-1.7.3-2.45 1.05-2.75 2.75-.3-1.7-1.05-2.45-2.75-2.75 1.7-.3 2.45-1.05 2.75-2.75Z" stroke-width="1.25" ${SO}/>`,
+  tea:`<path d="M6 9.25h12v3.5a6 6 0 0 1-12 0Z" ${P}/><path d="M8 21.5h8"/><path d="M9.75 6.5c-1.1-1.2 1.1-2.3 0-3.75"/><path d="M14.25 6.5c-1.1-1.2 1.1-2.3 0-3.75"/>`,
+  sprout:`<path d="M12 14c-4.5 0-7.2-2.2-7.5-6.5 4.3 0 7.2 2.2 7.5 6.5Z" ${P}/><path d="M12 10.5c.3-4.3 3-6.5 7.5-6.5 0 4.3-3 6.5-7.5 6.5Z" ${P}/><path d="M12 21V10.5"/><path d="M7.5 21h9"/>`,
+  stone:`<ellipse cx="12" cy="18.25" rx="7.75" ry="3.25" ${P}/><ellipse cx="12.75" cy="12.25" rx="5.25" ry="2.75" ${P}/><ellipse cx="11.5" cy="7" rx="3.25" ry="2.5" ${P}/>`,
+  blossom:`<path d="M9.88 9.09C7.44 1.77 16.56 1.77 14.12 9.09 20.32 4.51 23.14 13.17 15.42 13.11 21.7 17.6 14.33 22.96 12 15.6 9.67 22.96 2.3 17.6 8.58 13.11.86 13.17 3.68 4.51 9.88 9.09Z" ${P}/><circle cx="12" cy="12" r="0.9" ${SO}/>`,
+  // dayparts.tsx
+  morning:`<path d="M7 19a5 5 0 0 1 10 0Z" ${P}/><path d="M2.5 19h19"/><path d="M12 10.5V3.5"/><path d="m9 6.5 3-3 3 3"/><path d="m6.5 13.5-1.25-1.25"/><path d="m17.5 13.5 1.25-1.25"/>`,
+  afternoon:`<circle cx="12" cy="12" r="4.25" ${P}/><path d="M12 2.5V5"/><path d="M12 19v2.5"/><path d="M2.5 12H5"/><path d="M19 12h2.5"/><path d="m5.6 5.6 1.4 1.4"/><path d="m17 17 1.4 1.4"/><path d="m18.4 5.6-1.4 1.4"/><path d="m7 17-1.4 1.4"/>`,
+  evening:`<path d="M7 13a5 5 0 0 1 10 0Z" ${P}/><path d="M2.5 13h19"/><path d="M12 5.25V2.75"/><path d="m6.7 7.7-1.8-1.8"/><path d="m17.3 7.7 1.8-1.8"/><path d="M6.5 17h11"/><path d="M9.5 20.75h5"/>`,
+  night:`<path d="M10.5 6A7.5 7.5 0 1 0 18 13.5 5.5 5.5 0 1 1 10.5 6Z" ${P}/><path d="M17.75 3.25c.3 1.7 1.05 2.45 2.75 2.75-1.7.3-2.45 1.05-2.75 2.75-.3-1.7-1.05-2.45-2.75-2.75 1.7-.3 2.45-1.05 2.75-2.75Z" stroke-width="1.25" ${SO}/>`,
+  // kinds.tsx
+  learn:`<path d="M12 6.75C10 5.25 7 4.75 3 5.25v13c4-.5 7 0 9 1.5 2-1.5 5-2 9-1.5v-13c-4-.5-7 0-9 1.5Z" ${P}/><path d="M12 6.75v13"/>`,
+  practice:`<path d="m15.5 3.5 4 4L8.75 18.25 3.5 19.5l1.25-5.25Z" ${P}/><path d="m12.75 6.25 4 4"/><path d="M13 20.5h8"/>`,
+  review:`<circle cx="12" cy="12" r="8.75" ${PO}/><path d="M4.5 7.5A8.75 8.75 0 1 1 3.25 12"/><path d="M4.5 3.25V7.5h4.25"/><path d="M9 10.5h6"/><path d="M9 14h3.5"/>`,
+  simulation:`<rect x="4.5" y="3" width="12.5" height="18" rx="2" ${PO}/><path d="M11 21H6.5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2H15a2 2 0 0 1 2 2v5"/><path d="M8 7.5h5.5"/><path d="M8 11h3"/><circle cx="17.25" cy="17" r="4.25"/><path d="M17.25 14.75V17l1.5 1"/>`,
+  simreview:`<rect x="5" y="3" width="14" height="18" rx="2" ${P}/><path d="M9 7.5h6"/><path d="m8.750 14.25 2.25 2.25 4.25-4.75"/>`,
+  task:`<rect x="3.5" y="3.5" width="17" height="17" rx="4.5" ${P}/><circle cx="8.5" cy="12" r="0.9" ${SO}/><path d="M12 12h4"/>`,
+  // actions.tsx
+  freetime:`<path d="M7 3v3.5c0 3 5 3.5 5 5.5s-5 2.5-5 5.5V21h10v-3.5c0-3-5-3.5-5-5.5s5-2.5 5-5.5V3Z" ${P}/><path d="M5 3h14"/><path d="M5 21h14"/>`,
+  nextslot:`<path d="M4.5 6.25v11.5a1 1 0 0 0 1.55.83l8.45-5.75a1 1 0 0 0 0-1.66L6.05 5.42a1 1 0 0 0-1.55.83Z" ${P}/><path d="M19 5.5v13"/>`,
+  picktime:`<circle cx="12" cy="12" r="9" ${P}/><path d="M12 7v5l3.25 2"/>`,
+  practiceexam:`<rect x="4.5" y="3" width="12.5" height="18" rx="2" ${PO}/><path d="M10 21H6.5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2H15a2 2 0 0 1 2 2v4"/><path d="M8 7.5h5.5"/><path d="M8 11h3"/><path d="m18.75 11.25 2.5 2.5-6.25 6.25-3.25.750.75-3.25Z"/>`,
+  offline:`<path d="M2.28 9.78a13.75 13.75 0 0 1 19.44 0L12 19.5Z" ${PO}/><path d="M2.28 9.78a13.75 13.75 0 0 1 2.48-1.97"/><path d="M9.44 5.99a13.75 13.75 0 0 1 12.28 3.79"/><path d="M5.46 12.96a9.25 9.25 0 0 1 2.45-1.76"/><path d="M13.37 10.35a9.25 9.25 0 0 1 5.17 2.61"/><path d="M8.64 16.14a4.75 4.75 0 0 1 2.56-1.32"/><circle cx="12" cy="19.5" r="0.9" ${SO}/><path d="m4 3.5 15.5 17"/>`,
+  work:`<rect x="3" y="7.5" width="18" height="12.5" rx="2.5" ${P}/><path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5"/><path d="M3 12.5c3 1.5 6 2.25 9 2.25s6-.750 9-2.25"/>`,
+  cls:`<path d="m12 4.5 9.5 4.75L12 14 2.5 9.25Z" ${P}/><path d="M6.5 11.5v4.25c0 1.5 2.5 2.75 5.5 2.75s5.5-1.25 5.5-2.75V11.5"/><path d="M21.5 9.25v5"/>`,
+  check:`<path d="M4.5 12.75c2 1.5 3.5 3.25 4.75 5.5C11.75 12.5 15 8.5 19.75 5.5"/>`,
+  // generic glyphs (lucide)
+  left:`<path d="m15 18-6-6 6-6"/>`,
+  right:`<path d="m9 18 6-6-6-6"/>`,
+  down:`<path d="m6 9 6 6 6-6"/>`,
+  up:`<path d="m18 15-6-6-6 6"/>`,
+  x:`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`,
+  plus:`<path d="M5 12h14"/><path d="M12 5v14"/>`,
+  minus:`<path d="M5 12h14"/>`,
+  calendar:`<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>`,
+  caldays:`<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>`,
+  file:`<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>`,
+  settings:`<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>`,
+  lock:`<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>`,
+  grip:`<circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/>`,
+  trash:`<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/>`,
+  pencil:`<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>`,
+  camera:`<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>`,
+  flag:`<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>`,
+  download:`<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>`,
+  more:`<circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>`,
+};
+const icon=(n,s=18,style='')=>`<svg class="i" viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"${style?` style="${style}"`:''}>${I[n]}</svg>`;
+
+/* ============ helpers ============ */
+// User content: u() inline (a <bdi dir="auto">), ut() a one-line block that may truncate.
+const u=t=>`<bdi dir="auto">${t}</bdi>`;
+const ut=(t,style='')=>`<span class="ut" dir="auto"${style?` style="${style}"`:''}>${t}</span>`;
+// Archi: a transparent cut-out. No sky, no circle, no frame.
+const archi=(mood,size,style='')=>`<img class="archi" src="archie/cut/${mood}.png" alt="" style="${size};${style}">`;
 const fmt=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
-const ICON={cal:'<rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/>',exam:'<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/>',prog:'<path d="M12 21c-4-2-7-6-7-10a7 7 0 0 1 14 0c0 4-3 8-7 10z"/><path d="M12 21V11"/>'};
-const svg=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">${ICON[k]}</svg>`;
-const tabbar=on=>`<div class="tabbar">${[['cal','יומן'],['exam','מבחנים'],['prog','התקדמות']].map(([k,l],i)=>`<span class="${i===on?'on':''}">${svg(k)}${l}</span>`).join('')}</div>`;
-const ph=(inner,cap,sub='')=>`<div><div class="ph"><div class="status"></div><div class="sc">${inner}</div></div><div class="cap">${cap}<small>${sub}</small></div></div>`;
-const av=(n='joy',s=36)=>`<div class="av" style="width:${s}px;height:${s}px"><img src="${IMG(n+'-dawn')}" alt=""></div>`;
-const phHead=(title,sub,right='')=>`<div class="pad" style="display:flex;align-items:center;gap:10px;padding-top:6px;padding-bottom:6px"><div style="flex:1"><div class="h1" style="margin:0">${title}</div><div class="mut" style="font-size:12.5px">${sub}</div></div>${right}</div>`;
-const gam=`<span class="chip leaf">🌿 12</span><div class="lvl"><b>4</b></div>`;
-const obTop=(n)=>`<div class="pad" style="display:flex;align-items:center;gap:10px;padding-top:8px;padding-bottom:4px"><span style="width:36px;height:36px;border-radius:11px;background:var(--soft);display:grid;place-items:center">→</span><div class="steps">${[1,2,3,4].map(i=>`<i class="${i<=n?'on':''}"></i>`).join('')}</div><span class="mut" style="font-size:11.5px">${n} מתוך 4</span></div>`;
-const obFoot=(cta,sec='')=>`<div class="pad" style="margin-top:auto;padding-bottom:22px">${sec}<div class="btn pri">${cta}</div></div>`;
+const range=(s,l)=>`${fmt(s)}–${fmt(s+l)}`;
+const dur=m=>m<60?`${m} min`:m===60?'1 hour':m===90?'1.5 hours':m===120?'2 hours':m%60===0?`${m/60} hours`:`${Math.floor(m/60)} ${m<120?'hour':'hours'} ${m%60} min`;
 
-const BL=[ // day, start(min), len, exam, title, done
- [0,540,90,1,'למידה: משתנים מקריים',1],[0,660,60,2,'תרגול: עצי חיפוש',1],[0,960,60,3,'חזרה: מצביעים',1],
- [1,540,90,2,'למידה: מיון מהיר',1],[1,840,90,1,'תרגול: נורמלית',1],[1,1140,60,4,'למידה: ערמות',1],
- [2,600,90,1,'חזרה: תוחלת ושונות',1],[2,720,60,2,'למידה: גרפים ו-BFS',0],[2,1050,90,3,'תרגול: malloc ו-free',0],[2,1200,45,4,'חזרה: טבלאות גיבוב',0],
- [3,540,90,3,'למידה: מבנים',0],[3,840,60,1,'סימולציה: מועד א׳',0],[3,1140,60,2,'תרגול: תכנון דינמי',0],
- [4,600,90,2,'תרגול: דייקסטרה',0],[4,780,60,4,'למידה: עצי AVL',0],[4,1020,90,1,'סימולציה: מועד ב׳',0],
- [5,600,60,3,'חזרה: קבצים',0],[5,720,60,1,'חזרה: הסתברות מותנית',0]];
-const BUSY=[[0,840,120,'עבודה'],[2,840,180,'עבודה · משמרת'],[3,600,120,'הרצאה: אלגוריתמים'],[4,1140,120,'חתונה של נועה']];
-const TODAY=2,NOW=11*60+25;
-const blk=(b,compact)=>{const [d,s,l,e,t,dn]=b;const h=l/60*H-3;return `<div class="blk ex${e} ${dn?'done':''}" style="top:${(s/60-S)*H+1}px;height:${h}px"><div class="t"><span class="cb"></span><span>${t}</span></div>${h>30&&!compact?`<div class="m"><span class="ltr">${fmt(s)}–${fmt(s+l)}</span> · ${EX[e][0]}</div>`:''}</div>`};
-const busy=b=>`<div class="busy" style="top:${(b[1]/60-S)*H+1}px;height:${b[2]/60*H-3}px">${b[3]}</div>`;
-const lines=()=>{let s='';for(let h=S;h<E;h++)s+=`<div class="hl" style="top:${(h-S)*H}px"></div>`;return s};
-const hours=(now)=>{let s='';for(let h=S+1;h<E;h++)s+=`<div style="top:${(h-S)*H}px">${String(h).padStart(2,'0')}:00</div>`;if(now)s+=`<span class="nowt" style="top:${(NOW/60-S)*H}px">${fmt(NOW)}</span>`;return `<div class="hrs" style="height:${(E-S)*H}px">${s}</div>`};
-const dayCol=(d,extra='')=>`<div class="col" style="height:${(E-S)*H}px;${d===TODAY?'background:#f2f3e7':''}">${lines()}${BUSY.filter(b=>b[0]===d).map(busy).join('')}${BL.filter(b=>b[0]===d).map(b=>blk(b)).join('')}${d===TODAY?`<div class="nowl" style="top:${(NOW/60-S)*H}px"></div>`:''}${d===6?`<div style="position:absolute;top:${(13-S)*H}px;inset-inline:0;text-align:center;color:var(--muted);font-size:12px">יום מנוחה ☕</div>`:''}${extra}</div>`;
-const DN=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'],DS=['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
-const strip=(on)=>`<div class="dstrip">${DS.map((n,i)=>`<div class="${i===on?'on':''}">${n}<b>${16+i}</b><div class="dots">${i<TODAY?'<span class="leafmark">🌿</span>':[...new Set(BL.filter(b=>b[0]===i).map(b=>b[3]))].map(e=>`<i style="background:var(--e${e})"></i>`).join('')}</div></div>`).join('')}</div>`;
-const dayView=(d,scroll=60)=>`<div style="flex:1;overflow:hidden;position:relative;border-top:1px solid var(--line)"><div class="grid" style="grid-template-columns:40px 1fr;margin-top:-${scroll}px">${hours(d===TODAY)}${dayCol(d)}</div></div>`;
-const taskRow=(b)=>`<div class="task ${b[5]?'d':''}" style="color:var(--e${b[3]})"><i style="background:var(--e${b[3]})"></i><span style="color:var(--ink)">${b[4]}<br><small class="mut ltr">${fmt(b[1])}</small></span><span class="cb"></span></div>`;
+/* ============ sample data (user content stays Hebrew) ============ */
+const EX=[null,'הסתברות','אלגוריתמים','שפת C','Linear Algebra 2','חדו״א 1'];
+const KIND={learn:'Learning',practice:'Practice',review:'Review',simulation:'Simulation'};
+const LONG='תרגול: תכנון דינמי, בעיית התרמיל ותת-מחרוזת משותפת ארוכה ביותר';
+// day (0 = Sunday 22 Nov), start (min), length, exam, kind, title, done
+const BL=[
+ [0,540,90,1,'learn','למידה: משתנים מקריים',1],[0,660,60,2,'practice','תרגול: עצי חיפוש',1],[0,1050,60,3,'review','חזרה: מצביעים',1],
+ [1,540,90,2,'learn','למידה: מיון מהיר',1],[1,840,90,1,'practice','תרגול: נורמלית',0],[1,1140,60,4,'learn','Eigenvalues and eigenvectors',1],
+ [2,600,90,1,'review','חזרה: תוחלת ושונות',1],[2,720,60,2,'learn','למידה: גרפים ו-BFS',0],[2,1050,90,3,'practice','תרגול: malloc ו-free',0],[2,1200,45,4,'review','Review: vector spaces',0],
+ [3,540,60,3,'learn','למידה: מבנים',0],[3,840,90,1,'simulation','סימולציה: מועד א׳ 2025',0],[3,1140,60,2,'practice',LONG,0],
+ [4,600,90,2,'practice','תרגול: דייקסטרה',0],[4,780,60,4,'learn','Diagonalization',0],[4,1110,60,1,'review','חזרה: הסתברות מותנית',0],
+ [5,600,60,3,'review','חזרה: קבצים',0],[5,720,60,5,'learn','למידה: גבולות ורציפות',0]];
+const BUSY=[[0,840,180,'משמרת עבודה','work'],[2,840,180,'משמרת עבודה','work'],[3,600,120,'הרצאה: אלגוריתמים','cls'],[4,960,120,'תרגול: הסתברות','cls']];
+const TODAY=2,NOW=11*60+25,S=8,E=23;
+const WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],WL=['S','M','T','W','T','F','S'];
+const dayName=d=>`${WD[d]}, ${22+d} Nov`;
 
+/* ============ calendar pieces ============ */
+// A block: the kind icon first (what sets the kinds apart at a glance, audit 13), the title on one
+// line, the check inside the block, and the time under the title when there is room.
+const blk=(b,H,o={})=>{const [d,s,l,e,k,t,dn]=b;const h=l/60*H-3;const done=o.done??dn;
+  const meta=o.wide?`${KIND[k]}. ${range(s,l)}${o.lock?', locked':''}`:range(s,l);
+  return `<div class="blk ex${e}${done?' done':''}${o.cls?' '+o.cls:''}" style="top:${(s/60-S)*H+1}px;height:${h}px;${o.style||''}"><div class="t"><span class="kd">${icon(k,o.wide?16:14)}</span>${ut(t)}<span class="cb">${done?icon('check',o.wide?12:11,'stroke-width:3'):''}</span></div>${h>=38?`<div class="m">${meta}</div>`:''}</div>`};
+const busy=(b,H,wide)=>`<div class="busy" style="top:${(b[1]/60-S)*H+1}px;height:${b[2]/60*H-3}px"><div class="t">${icon(b[4],wide?16:14)}${ut(b[3])}</div><div class="m">${range(b[1],b[2])}</div></div>`;
+const lines=H=>{let s='';for(let h=S;h<E;h++)s+=`<div class="hl" style="top:${(h-S)*H}px"></div>`;return s};
+const hours=(H,now)=>{let s='';for(let h=S+1;h<E;h++){if(now&&Math.abs(h*60-NOW)<28)continue;s+=`<div style="top:${(h-S)*H}px">${String(h).padStart(2,'0')}:00</div>`}if(now)s+=`<span class="nowt" style="top:${(NOW/60-S)*H}px">${fmt(NOW)}</span>`;return `<div class="hrs" style="height:${(E-S)*H}px">${s}</div>`};
+const dayCol=(d,H,o={})=>`<div class="col${d===TODAY?' today':''}" style="height:${(E-S)*H}px">${lines(H)}${BUSY.filter(b=>b[0]===d).map(b=>busy(b,H,o.wide)).join('')}${BL.filter(b=>b[0]===d&&!(o.hide||[]).includes(b[5])).map(b=>blk(b,H,{wide:o.wide,...(o.per?o.per(b):{})})).join('')}${d===TODAY?`<div class="nowl" style="top:${(NOW/60-S)*H}px"></div>`:''}${d===6?`<div class="free" style="top:${(12.5-S)*H}px">${icon('tea',20)}Free day</div>`:''}${o.extra||''}</div>`;
+const strip=(on,marks=1)=>`<div class="strip">${WL.map((n,i)=>`<div class="${i===on?'on':''}">${n}<b>${22+i}</b><div class="mk">${!marks?'':i<TODAY?icon('leaf',12):[...new Set(BL.filter(b=>b[0]===i).map(b=>b[3]))].map(e=>`<i style="background:var(--e${e})"></i>`).join('')}</div></div>`).join('')}</div>`;
+const PH=50;
+const dayView=(d,scroll=40,o={})=>`<div class="grow" style="overflow:hidden;position:relative;border-top:1px solid var(--line);background:var(--surface)"><div class="cal" style="grid-template-columns:52px 1fr;margin-top:-${scroll}px">${hours(PH,d===TODAY)}${dayCol(d,PH,{wide:1,...o})}</div>${o.over||''}</div>`;
+
+/* ============ shell pieces ============ */
+const gam=`<div class="gam"><span class="chip leaf num">${icon('leaf',15)}12</span><div class="lvl num"><b>4</b></div></div>`;
+const tabbar=on=>`<div class="tabbar">${[['caldays','Calendar'],['file','Exams'],['sprout','Progress']].map(([k,l],i)=>`<span class="${i===on?'on':''}">${icon(k,22)}${l}</span>`).join('')}</div>`;
+const ph=(inner,cap,sub='',clock='11:25')=>`<div class="shot"><div class="ph"><div class="status num">${clock}</div><div class="sc">${inner}</div></div><div class="cap">${cap}<small>${sub}</small></div></div>`;
+const phHead=(title,sub,right='')=>`<div class="phh"><div><div class="h1">${title}</div>${sub?`<div class="mut">${sub}</div>`:''}</div>${right}</div>`;
+const todayHead=(right=gam)=>phHead('Today','Tue, 24 Nov',right);
+const obTop=n=>`<div class="steps"><span class="back">${icon('left',20)}</span><div class="bar">${[1,2,3,4].map(i=>`<i class="${i<=n?'on':''}"></i>`).join('')}</div><span class="mut sm">Step ${n} of 4</span></div>`;
+const lead=(mood,size,q,sub='',below='')=>`<div class="lead">${archi(mood,size)}<div class="say"><h2 class="q">${q}</h2>${sub?`<p>${sub}</p>`:''}</div></div>${below?`<p class="leadp">${below}</p>`:''}`;
+const recap=t=>`<div class="recap">${icon('check',14,'stroke-width:2.25')}<span>${t}</span></div>`;
+const taskRow=b=>`<div class="task${b[6]?' d':''}"><i style="background:var(--e${b[3]})"></i><span class="tm">${fmt(b[1])}</span><div class="tx">${ut(b[5])}<small>${icon(b[4],14,`color:var(--e${b[3]})`)}<span>${KIND[b[4]]}, ${dur(b[2])}</span></small></div><span class="check${b[6]?' on':''}">${b[6]?icon('check',14,'stroke-width:2.75'):''}</span></div>`;
+const fileRow=(name,sub,end='')=>`<div class="r" style="padding:8px 0;min-height:48px">${icon('file',20,'color:var(--muted)')}<div class="tx">${ut(name,'font-weight:500')}<small>${sub}</small></div>${end?`<span class="end">${end}</span>`:''}</div>`;
+
+/* ============ desktop: the calendar, week ============ */
 function desktop(){
-  const todays=BL.filter(b=>b[0]===TODAY);
-  return `<div><div class="dk">
-  <div class="topbar"><div class="logo">${av('joy',34)}ארצ׳י</div><div class="tabs"><span class="on">יומן</span><span>מבחנים</span><span>התקדמות</span></div>
-    <div style="margin-inline-start:auto;display:flex;align-items:center;gap:8px"><span style="border:1px solid var(--line);border-radius:10px;padding:6px 12px;background:#fff">היום</span><span class="mut">›</span><b style="min-width:150px;text-align:center">16–22 בנובמבר 2026</b><span class="mut">‹</span>
-    <span style="background:var(--soft);border-radius:10px;padding:3px;display:flex"><span style="padding:4px 10px">יום</span><span style="padding:4px 10px;background:#fff;border-radius:8px">שבוע</span></span>${gam}${av('joy',34)}</div></div>
+  const H=46,todays=BL.filter(b=>b[0]===TODAY);
+  return `<div class="shot wide"><div class="dk">
+  <div class="topbar"><div class="logo">${archi('joy','height:46px')}<span>Archi</span></div>
+    <div class="tabs"><span class="on">Calendar</span><span>Exams</span><span>Progress</span></div>
+    <div class="tools"><span class="btn sec s">Today</span><span class="icb">${icon('left',20)}</span><span class="icb" style="margin-left:-12px">${icon('right',20)}</span><b class="num b6" style="font-size:15px;margin-right:6px">22–28 November 2026</b>
+      <span class="seg"><span>Day</span><span class="on">Week</span></span>${gam}<span class="me">N</span></div></div>
   <aside class="side">
-    <div class="say">${av('intentions',44)}<div class="b"><small>ארצ׳י · 11:25</small>שלוש כוונות קטנות להיום. השאר יצמח.</div></div>
-    <div class="card" style="background:linear-gradient(135deg,var(--e2b),#fff);border-color:var(--e2l)"><div class="mut" style="font-size:12px">המשימה הבאה · <span class="ltr">12:00</span> · אלגוריתמים</div><div style="font-weight:700;font-size:16px;margin:4px 0 10px">למידה: גרפים ו-BFS</div><div style="display:flex;gap:8px"><div class="btn pri" style="height:38px">✓ בוצע</div><div class="btn sec" style="height:38px;width:auto;padding:0 14px">דחייה</div></div></div>
-    <div style="display:flex;gap:12px;align-items:center"><div class="ring"><b>46%</b></div><div><b>90 מתוך 195 דקות</b><div class="mut" style="font-size:12px">היום</div></div></div>
-    <div class="btn sec" style="height:40px;border-color:var(--sprout);color:var(--brand-ink)">⏳ יש לי זמן עכשיו</div>
-    <div><h4>המשימות של היום</h4>${todays.map(taskRow).join('')}</div>
-    <div><h4>המבחנים</h4>${[[1,'בעוד 22 ימים',.42],[2,'בעוד 32 ימים',.28],[3,'בעוד 48 ימים',.15],[4,'בעוד 55 ימים',.08]].map(([e,d,p])=>`<div class="examrow"><span class="sw" style="background:var(--e${e})"></span><span>${EX[e][0]}</span><span class="mut" style="font-size:11.5px">${d}</span><div class="bar"><i style="width:${p*100}%;background:var(--e${e})"></i></div></div>`).join('')}</div>
+    <div>
+      <div class="lead" style="gap:10px;padding-left:4px">${archi('intentions','height:92px')}<div class="say" style="padding-bottom:10px"><h2 class="q sm">I've set four blocks for today. One is done, and the next starts at 12:00.</h2></div></div>
+      <div class="next" style="background:var(--e2)"><div class="sm">Up next</div><div style="font-weight:600;font-size:17px;margin:2px 0 2px">${ut('למידה: גרפים ו-BFS')}</div><div class="sm num">12:00–13:00, 1 hour</div><div class="sm" style="display:flex;gap:6px;align-items:center;margin-top:1px">${icon('learn',15)}<span class="ut">${u(EX[2])}, Learning</span></div>
+        <div style="display:flex;gap:8px;margin-top:12px"><span class="btn" style="flex:1;background:var(--surface);color:var(--ink)">${icon('check',17,'stroke-width:2.25')}Done</span><span class="btn" style="border-color:rgba(255,255,255,.6)">Defer</span></div></div>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center"><div class="ring num"><b>32%</b></div><div><b class="b6 num">90 of 285 minutes</b><div class="mut sm">Today's progress</div></div></div>
+    <span class="btn sec" style="min-height:44px">${icon('freetime',18,'color:var(--brand-ink)')}I have free time now</span>
+    <div><h4>Later today</h4>${todays.filter(b=>!b[6]&&b[1]>720).map(taskRow).join('')}</div>
+    <div><h4>Your exams</h4>${[[1,'in 22 days',.42],[2,'in 33 days',.28],[3,'in 48 days',.15],[4,'in 55 days',.08]].map(([e,d,p])=>`<div class="examrow"><span class="sw" style="background:var(--e${e})"></span>${ut(EX[e],'font-weight:500')}<span class="mut sm num">${d}</span><div class="pbar"><i style="width:${p*100}%;background:var(--e${e})"></i></div></div>`).join('')}</div>
   </aside>
   <main style="display:flex;flex-direction:column;min-height:0;background:var(--surface)">
-    <div class="banner" style="margin:10px 12px 4px;background:#f3eedf;border:1px solid var(--sand)">${av('intentions',26)}<span><b>סקירת בוקר:</b> בלוק אחד מאתמול לא סומן</span><span style="margin-inline-start:auto;color:var(--brand-ink);font-weight:600">לסקירה ‹</span></div>
-    <div class="grid" style="grid-template-columns:44px repeat(7,1fr);border-bottom:1px solid var(--line)"><div></div>${DN.map((n,i)=>`<div style="text-align:center;padding:6px 0"><div class="mut" style="font-size:11px;${i===TODAY?'color:var(--brand-ink);font-weight:600':''}">${n}</div><div style="width:32px;height:32px;margin:2px auto 0;border-radius:50%;display:grid;place-items:center;font-weight:600;${i===TODAY?'background:var(--brand);color:#fff':''}">${16+i}</div>${i<TODAY?'<div style="font-size:10px">🌿</div>':''}</div>`).join('')}</div>
-    <div style="flex:1;overflow:hidden"><div class="grid" style="grid-template-columns:44px repeat(7,1fr);margin-top:-30px">${hours(true)}${[0,1,2,3,4,5,6].map(d=>dayCol(d)).join('')}</div></div>
-  </main></div><div class="cap">יומן · מחשב · שבוע<small>סרגל עליון עם רצף ורמה, סרגל צד עם ארצ׳י, המשימה הבאה, "יש לי זמן עכשיו", המשימות והמבחנים. בלוקים בצבעי המבחנים, זמן תפוס מקווקו, קו "עכשיו" בטרקוטה, עלה על כל יום שהרצף נשמר.</small></div></div>`}
+    <div style="display:flex;align-items:flex-end;gap:10px;margin:0 14px;padding:0 6px;border-bottom:1px solid var(--sand)">${archi('intentions','height:50px')}<div style="padding:12px 0;flex:1"><b class="b6">Morning review.</b> 1 block went by without a mark. What happened with it?</div><span class="btn quiet s" style="margin-bottom:6px">Review${icon('right',16)}</span></div>
+    <div class="wkh"><div></div>${WD.map((n,i)=>`<div class="${i===TODAY?'on':''}">${n}<b>${22+i}</b><div class="lf">${i<TODAY?icon('leaf',13):''}</div></div>`).join('')}</div>
+    <div class="grow" style="overflow:hidden"><div class="cal" style="grid-template-columns:52px repeat(7,1fr);margin-top:-22px">${hours(H,true)}${[0,1,2,3,4,5,6].map(d=>dayCol(d,H)).join('')}</div></div>
+  </main></div>
+  <div class="cap">Calendar, desktop (1280), week<small>The top bar carries the date controls, the streak chip and the level ring; the profile button is the user's initial. In the sidebar Archi opens the day in his own words, standing on the card of the next block, which is filled with the exam's colour. Each block starts with the icon of its kind (open book: Learning, pencil: Practice, returning arrow: Review, sheet with a clock: Simulation). Hebrew and English titles share the same left edge, and a long one ends in an ellipsis. Busy time is hatched and carries its own icon. A leaf marks each day that kept the streak. A done block turns quiet and keeps the green check.</small></div></div>`}
 
+/* ============ the sections ============ */
+const diffs=['Very easy','Easy','Medium','Hard','Very hard'];
 const sections=[
-['s1','כניסה ואונבורדינג','המבנה שאישרת, בפלטה של ארצ׳י. ארצ׳י מקבל אותך בכניסה וחוגג בסוף.',[
- ph(`<div class="art" style="height:330px;border-radius:0 0 28px 28px"><img src="${IMG('joy-dawn')}" alt=""></div>
-   <div class="pad" style="padding-top:18px;display:flex;flex-direction:column;flex:1"><div style="font-family:var(--disp);font-size:54px;line-height:.9">ארצ׳י</div>
-   <div style="font-size:21px;font-weight:700;margin:8px 0 6px;line-height:1.3">מעלים את החומרים.<br><span style="color:var(--brand-ink)">ארצ׳י בונה את הדרך.</span></div>
-   <div class="mut" style="line-height:1.55">מבחני עבר וסילבוס הופכים ללוח לימוד שקט ומסודר עד יום המבחן.</div>
-   <div style="margin-top:auto"><div class="btn" style="background:var(--ink);color:#fff">G · המשך עם Google</div><div class="mut" style="font-size:11px;text-align:center;margin:10px 0 18px">בהמשך אתם מסכימים לתנאי השימוש ולמדיניות הפרטיות.</div></div></div>`,'כניסה','האיור של ארצ׳י מקבל אותך במלוא המסך, בשמי שחר.'),
- ph(`${obTop(1)}<div class="pad"><div class="h1">אילו מבחנים יש לכם?</div><div class="mut" style="margin-bottom:12px">כל מבחן מקבל צבע משלו ביומן.</div>
-   ${[[1,'10 בדצמבר · קשה'],[2,'20 בדצמבר · קשה מאוד']].map(([e,d])=>`<div class="card" style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><span style="width:38px;height:38px;border-radius:12px;background:var(--e${e}b);color:var(--e${e});display:grid;place-items:center;font-weight:700">${EX[e][0][0]}</span><div><b>${EX[e][0]}</b><div class="mut" style="font-size:12px">${d}</div></div></div>`).join('')}
-   <div style="border:2px dashed var(--sand);border-radius:16px;padding:12px;background:#fbf9f2"><div class="lbl">שם המבחן</div><div class="field mut">למשל: שפת C</div><div class="lbl">תאריך</div><div class="field">5 בינואר 2027</div><div style="display:flex;gap:4px;margin-bottom:10px">${['קל מאוד','קל','בינוני','קשה','קשה מאוד'].map((l,i)=>`<span style="flex:1;text-align:center;padding:8px 0;border-radius:10px;font-size:11px;border:1px solid ${i===2?'var(--brand)':'var(--line)'};${i===2?'background:#e3edd5;color:var(--brand-ink);font-weight:600':'background:#fff'}">${l}</span>`).join('')}</div><div class="btn" style="background:var(--ink);color:#fff;height:42px">+ הוספת מבחן</div></div></div>${obFoot('המשך')}`,'אונבורדינג 1 · מבחנים'),
- ph(`${obTop(2)}<div class="pad"><div class="h1">יש לכם חומרים מהקורס?</div><div class="mut" style="margin-bottom:12px">לא חובה. הכי עוזרים מבחני עבר עם פתרונות.</div>
-   <div class="card"><b>הסתברות</b>${['מועד א׳ 2025 · מבחן עבר, 12 עמודים','סילבוס · 3 עמודים'].map(t=>`<div style="display:flex;gap:9px;align-items:center;margin-top:9px;font-size:13px"><span style="width:32px;height:32px;border-radius:9px;background:var(--soft);display:grid;place-items:center;font-size:10px;font-weight:700">PDF</span>${t}<span style="margin-inline-start:auto;color:var(--brand-ink)">✓</span></div>`).join('')}<div style="border:2px dashed var(--line);border-radius:12px;padding:10px;text-align:center;margin-top:10px;color:var(--muted);font-size:12.5px">📎 בחירת קבצים או צילום</div></div>
-   <div class="card" style="margin-top:8px"><b>אלגוריתמים</b><div style="border:2px dashed var(--line);border-radius:12px;padding:10px;text-align:center;margin-top:8px;color:var(--muted);font-size:12.5px">📎 בחירת קבצים או צילום</div></div>
-   <div style="font-size:11.5px;color:var(--muted);background:var(--soft);border-radius:12px;padding:9px 11px;margin-top:10px">🔒 הקבצים נשלחים לעיבוד אצל Anthropic, ונמחקים כשאתם מוחקים אותם.</div></div>${obFoot('המשך','<div class="btn sec" style="margin-bottom:8px">המשך בלי חומרים</div>')}`,'אונבורדינג 2 · חומרים'),
- ph(`${obTop(3)}<div class="pad"><div class="h1">עוד שתי שאלות</div><div class="mut" style="margin-bottom:14px">כדי לשבץ את הלימוד בשעות שמתאימות לכם.</div>
-   <b>כמה שעות ביום אפשר ללמוד?</b><div style="display:flex;align-items:center;justify-content:center;gap:18px;margin:12px 0 18px"><span style="width:44px;height:44px;border-radius:50%;background:var(--soft);display:grid;place-items:center;font-size:20px">+</span><div style="text-align:center"><div style="font-size:38px;font-weight:700">4 שעות</div><div class="mut" style="font-size:12px">ביום לימוד</div></div><span style="width:44px;height:44px;border-radius:50%;background:var(--soft);display:grid;place-items:center;font-size:20px">−</span></div>
-   <b>מתי נוח לכם ללמוד?</b><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">${[['🌅','בוקר','06:00–12:00',1],['☀️','צהריים','12:00–17:00',0],['🌇','ערב','17:00–21:00',1],['🌙','לילה','21:00–02:00',0]].map(([e,l,r,on])=>`<div style="border:${on?'2px solid var(--brand)':'1px solid var(--line)'};background:${on?'#e3edd5':'#fff'};border-radius:16px;padding:${on?11:12}px"><div style="font-size:20px">${e}</div><b>${l}</b><div class="mut ltr" style="font-size:11.5px">${r}</div></div>`).join('')}</div></div>${obFoot('המשך')}`,'אונבורדינג 3 · שתי שאלות'),
- ph(`${obTop(4)}<div class="pad"><div class="h1">יש לכם עבודה, הרצאות או שעות קבועות?</div><div class="mut" style="margin-bottom:12px">ארצ׳י ישבץ את הלימוד מסביב.</div>
-   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"><span class="btn sec">לא, אני גמיש</span><span class="btn" style="border:2px solid var(--brand);background:#e3edd5;color:var(--brand-ink)">כן, יש לי</span></div>
-   <div style="display:grid;grid-template-columns:30px repeat(7,1fr);border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff"><div></div>${['א','ב','ג','ד','ה','ו','ש'].map(d=>`<div style="text-align:center;font-size:10.5px;font-weight:600;padding:4px 0;background:var(--soft)">${d}</div>`).join('')}${Array.from({length:9},(_,r)=>{const h=9+r*1.5|0;return `<div style="font-size:9px;color:var(--muted);text-align:center;border-top:1px solid #eee">${9+r}</div>`+[0,1,2,3,4,5,6].map(d=>{const on=(d===0&&(r===1||r===2))||(d===1&&r>=5&&r<=7)||(d===3&&r>=3&&r<=4)||(d===2&&r>=5&&r<=7);return `<div style="height:18px;border-top:1px solid #eee;border-inline-start:1px solid #eee;${on?'background:repeating-linear-gradient(135deg,#d8d3bd 0 4px,#e7e4d3 4px 8px)':''}"></div>`}).join('')}).join('')}</div>
-   <div class="btn" style="margin-top:10px;border:1px solid var(--sand);background:#fbf7ec;color:var(--clay);height:44px">📷 העלאת צילום של מערכת השעות</div>
-   <div style="margin-top:8px;border-radius:14px;background:#eef3e6;padding:9px 11px;font-size:12px"><b>מצאתי 3 שעות קבועות. לאשר?</b><br>☑ הרצאה: אלגוריתמים · רביעי <span class="ltr">10:00–12:00</span></div></div>${obFoot('בניית התוכנית')}`,'אונבורדינג 4 · שעות קבועות','חדש מ-S35: סימון בגרירה, או צילום של מערכת השעות.'),
- ph(`<div class="pad" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center"><div class="art" style="width:230px;height:168px;margin-bottom:18px"><img src="${IMG('wisdom-dawn')}" alt=""></div>
-   <div class="h1">ארצ׳י בונה לכם תוכנית</div><div class="mut" style="margin-bottom:16px">אפשר לסגור את האפליקציה. התוכנית תחכה.</div>
-   <div style="width:100%;height:10px;border-radius:10px;background:var(--soft);overflow:hidden;margin-bottom:16px"><div style="width:64%;height:100%;background:linear-gradient(90deg,var(--sprout),var(--brand))"></div></div>
-   <div style="text-align:start;width:100%;display:flex;flex-direction:column;gap:10px">${[['✓','קוראים את החומרים',1],['✓','מנתחים ובונים משימות',1],['◌','בודקים את המשימות',2],['','משבצים מסביב לשעות הקבועות',0]].map(([i,t,s])=>`<div style="display:flex;gap:10px;align-items:center;${s===0?'color:var(--muted)':''};${s===2?'font-weight:600':''}"><span style="width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:11px;${s===1?'background:var(--brand);color:#fff':'border:2px solid '+(s===2?'var(--brand)':'var(--line)')}">${s===1?'✓':''}</span>${t}</div>`).join('')}</div></div>`,'בונים תוכנית','ארצ׳י בקליגרפיה (מצב "חוכמה") בזמן שהתוכנית נבנית.'),
- ph(`<div class="art" style="height:300px;border-radius:0 0 28px 28px"><img src="${IMG('eureka-dawn')}" alt=""></div><div class="pad" style="text-align:center;padding-top:16px;display:flex;flex-direction:column;flex:1"><div style="font-family:var(--disp);font-size:46px;line-height:1">אאוריקה!</div><div class="mut">התוכנית מוכנה. המבחן הראשון בעוד 22 ימים.</div>
-   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0">${[['2','מבחנים'],['38','משימות'],['46','בלוקים']].map(([n,l])=>`<div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:9px 4px"><b style="font-size:21px">${n}</b><div class="mut" style="font-size:11px">${l}</div></div>`).join('')}</div>
-   <span class="chip gold" style="align-self:center">⭐ <span class="ltr">+50 XP</span> · הזרע הראשון בגן</span><div style="margin-top:auto;padding-bottom:20px"><div class="btn pri">ליומן ←</div></div></div>`,'התוכנית מוכנה','רגע האאוריקה הראשון, והזרע הראשון בגן.'),
+['s1','Sign-in and onboarding','A conversation that Archi leads: first Archi and his question, and under him only the controls that answer it. Earlier answers stay as one quiet line. His big lines are set in Amatic SC, his handwriting; everything you operate is Rubik.',[
+ ph(`<div class="pad" style="flex:1;display:flex;flex-direction:column;padding-top:30px">
+   <div style="display:flex;justify-content:center;border-bottom:1px solid var(--line)">${archi('joy','width:300px')}</div>
+   <div style="font-family:var(--disp);font-size:76px;line-height:.9;font-weight:700;margin-top:22px">Archi</div>
+   <p style="font-size:19px;font-weight:500;line-height:1.35;margin-top:10px;max-width:19em">Tell me your exams and share your materials. I'll build your study plan, day by day.</p>
+   <div style="margin-top:auto;padding-bottom:26px"><div class="btn ink full"><span style="width:22px;height:22px;border-radius:50%;background:#fff;color:var(--ink);display:grid;place-items:center;font-weight:700;font-size:13px">G</span>Continue with Google</div><p class="mut sm" style="text-align:center;margin-top:12px">By continuing you agree to the terms of use and the privacy policy.</p></div></div>`,
+   'Sign-in','Archi himself, on the page: no sky behind him and no frame around him. The line under the name is his, in the first person.','09:41'),
+
+ ph(`${obTop(1)}<div class="pad" style="padding-top:8px">${lead('joy','height:104px',"Hi, I'm Archi. What exams are we preparing for?")}
+   <div class="answer"><p class="mut sm" style="margin-bottom:8px">Add each exam with its date and how hard it feels to you. You can change all of this later.</p>
+   <div class="rows" style="margin-bottom:10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)">${[[1,'16 December 2026. Difficulty: hard'],[2,'27 December 2026. Difficulty: very hard']].map(([e,d])=>`<div class="r" style="padding:7px 0;min-height:50px"><span class="tile" style="background:var(--e${e}b);color:var(--e${e});width:36px;height:36px;font-size:16px;border-radius:11px">${u(EX[e][0])}</span><div class="tx">${ut(EX[e],'font-weight:600')}<small class="num">${d}</small></div><span class="end">${icon('trash',18)}</span></div>`).join('')}</div>
+   <div class="lbl">Exam name</div><div class="field">${ut('שפת C')}</div>
+   <div class="lbl">Exam date</div><div class="field num"><span style="flex:1">11 January 2027</span>${icon('calendar',18)}</div>
+   <div class="lbl">How hard does this exam feel to you?</div><div style="display:flex;gap:4px;margin-bottom:12px">${diffs.map((l,i)=>`<span style="flex:1;text-align:center;padding:9px 0;border-radius:10px;font-size:12px;${i===2?'border:2px solid var(--brand);background:var(--brand-soft);color:var(--brand-ink);font-weight:600':'border:1px solid var(--line-strong);background:var(--field);margin:1px'}">${l}</span>`).join('')}</div>
+   <div class="btn sec full">${icon('plus',18)}Add exam</div></div></div>
+   <div class="foot"><div class="btn pri">Continue</div></div>`,
+   'Onboarding 1, exams','Archi greets and asks; the form sits on the card he stands behind. A Hebrew name typed into the field keeps the left edge.','09:42'),
+
+ ph(`${obTop(2)}<div class="pad" style="padding-top:8px">${lead('wisdom','width:150px','Do you have materials from your courses?','',"They're optional, but with them I can fit the plan to your course. Past exams with solutions help me the most.")}
+   ${recap(`3 exams: ${u(EX[1])}, ${u(EX[2])}, ${u(EX[3])}`)}
+   <div class="answer" style="padding-top:6px;padding-bottom:6px"><div class="rows">
+     <div style="padding:4px 0 2px"><div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:3px;background:var(--e1);flex:none"></span>${ut(EX[1],'font-weight:600;flex:1')}<span class="btn quiet s">${icon('plus',16)}Add files</span></div>
+       ${fileRow('מועד א׳ 2025 כולל פתרון מלא.pdf','Past exam, PDF. Ready, 12 pages',icon('trash',17))}${fileRow('סילבוס הסתברות.pdf','Syllabus, PDF. Ready, 3 pages',icon('trash',17))}${fileRow('Lecture notes, weeks 1-6.pdf','Notes, PDF. Reading the file…',icon('trash',17))}</div>
+     <div style="padding:4px 0"><div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:3px;background:var(--e2);flex:none"></span><div style="flex:1;min-width:0">${ut(EX[2],'font-weight:600')}<div class="mut sm">No files for this exam yet.</div></div><span class="btn quiet s">${icon('plus',16)}Add files</span></div></div>
+     <div style="padding:4px 0"><div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:3px;background:var(--e3);flex:none"></span><div style="flex:1;min-width:0">${ut(EX[3],'font-weight:600')}<div class="mut sm">No files for this exam yet.</div></div><span class="btn quiet s">${icon('plus',16)}Add files</span></div></div>
+   </div></div>
+   <div class="note" style="margin-top:10px">${icon('lock',16)}<span>Your files are sent to Anthropic for processing, so I can build tasks from them.</span></div></div>
+   <div class="foot"><div class="btn pri">Continue</div></div>`,
+   'Onboarding 2, materials','The earlier answer is one quiet line. File names are user content: Hebrew and English names share the left edge, and a long one ends in an ellipsis. With no file at all, the button reads "Continue without materials".','09:44'),
+
+ ph(`${obTop(3)}<div class="pad" style="padding-top:8px">${lead('intentions','height:124px','How many hours a day feels realistic for you?',"I'll use your answers to schedule study at the hours that suit you.")}
+   <div class="answer">
+     <div style="display:flex;align-items:center;justify-content:center;gap:22px;padding:4px 0 2px"><span style="width:46px;height:46px;border-radius:50%;border:1px solid var(--line-strong);background:var(--field);display:grid;place-items:center">${icon('minus',20)}</span><div class="num" style="font-size:36px;font-weight:700;line-height:1;min-width:128px;text-align:center">4 hours</div><span style="width:46px;height:46px;border-radius:50%;border:1px solid var(--line-strong);background:var(--field);display:grid;place-items:center">${icon('plus',20)}</span></div>
+   </div>
+   <h2 class="q sm" style="font-size:17px;font-weight:600;margin:20px 0 2px">When do you like to study?</h2><p class="mut sm" style="margin-bottom:10px">You can pick more than one.</p>
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${[['morning','Morning','06:00–12:00',1],['afternoon','Afternoon','12:00–17:00',0],['evening','Evening','17:00–21:00',1],['night','Night','21:00–02:00',0]].map(([k,l,r,on])=>`<div style="border-radius:12px;${on?'border:2px solid var(--brand);background:var(--brand-soft);padding:11px 12px':'border:1px solid var(--line-strong);background:var(--field);padding:12px 13px'}"><div style="display:flex;justify-content:space-between;align-items:flex-start;color:${on?'var(--brand-ink)':'var(--muted)'}">${icon(k,26)}${on?icon('check',16,'stroke-width:2.5'):''}</div><b class="b6" style="display:block;margin-top:8px">${l}</b><div class="mut sm num">${r}</div></div>`).join('')}</div></div>
+   <div class="foot">${''}<div class="btn pri">Continue</div></div>`,
+   'Onboarding 3, two questions','Both labels are questions Archi asks, not form titles. The four parts of the day use the sun and moon icons of the set.','09:45'),
+
+ ph(`${obTop(4)}<div class="pad" style="padding-top:8px">${lead('flow','width:140px','Do you have work, classes or other fixed hours?','',"Mark your busy hours, and I'll schedule around them.")}
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px"><span class="btn" style="min-height:44px;border-color:var(--line-strong);background:var(--field)">No, I'm flexible</span><span class="btn" style="min-height:44px;border:2px solid var(--brand);background:var(--brand-soft);color:var(--brand-ink);font-weight:600">Yes, I do</span></div>
+   <div style="display:grid;grid-template-columns:34px repeat(7,1fr);border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--field)"><div style="background:var(--soft)"></div>${WL.map(d=>`<div style="text-align:center;font-size:12px;font-weight:600;padding:4px 0;background:var(--soft)">${d}</div>`).join('')}${Array.from({length:7},(_,r)=>`<div class="num" style="font-size:10.5px;color:var(--muted);text-align:center;border-top:1px solid #ecebdf;line-height:14px">${String(10+r).padStart(2,'0')}</div>`+[0,1,2,3,4,5,6].map(d=>{const on=((d===0||d===2)&&r>=4&&r<=6)||(d===3&&r<=1)||(d===4&&r>=6);return `<div style="height:15px;border-top:1px solid #ecebdf;border-left:1px solid #ecebdf;${on?'background:repeating-linear-gradient(135deg,var(--busy-line) 0 4px,var(--busy-soft) 4px 8px)':''}"></div>`}).join('')).join('')}</div>
+   <div class="btn sec full" style="margin-top:8px;min-height:44px">${icon('camera',18)}Upload a photo of my timetable</div>
+   <div class="answer" style="margin-top:8px;padding:10px 14px 0"><b class="b6" style="display:block">I found 3 busy times in your photo. Should I add them?</b>
+     <div class="rows">${[['work','משמרת עבודה','Sun, Tue, 14:00–17:00'],['cls','הרצאה: אלגוריתמים','Wed, 10:00–12:00'],['cls','תרגול: הסתברות','Thu, 16:00–18:00']].map(([k,t,s])=>`<div class="r" style="min-height:38px;padding:4px 0">${icon(k,18,'color:var(--busy)')}<div class="tx">${ut(t,'font-weight:500')}<small class="num">${s}</small></div><span class="check on">${icon('check',14,'stroke-width:2.75')}</span></div>`).join('')}</div></div></div>
+   <div class="foot" style="padding-top:8px;padding-bottom:22px"><div class="btn pri">Build my plan</div></div>`,
+   'Onboarding 4, busy time','From S35: mark hours by dragging on the small week (Sunday first), or share a photo of the timetable. What Archi read from the photo comes back as his question, with work and class icons.','09:46'),
+
+ ph(`<div class="pad" style="flex:1;display:flex;flex-direction:column;justify-content:center;padding-bottom:40px">
+   <div style="border-bottom:1px solid var(--line);display:flex;justify-content:center">${archi('wisdom','width:330px')}</div>
+   <h2 style="font-family:var(--disp);font-size:46px;line-height:1;font-weight:700;margin-top:22px">I'm building your plan</h2>
+   <p class="mut" style="margin:8px 0 18px">This takes a few minutes. You can close the page: I'll keep working, and your plan will be waiting when you're back.</p>
+   <div class="pbar" style="height:8px;margin-bottom:20px"><i style="width:52%;background:var(--brand)"></i></div>
+   <div style="display:flex;flex-direction:column;gap:12px">${[['Reading your materials',1],['Studying the material and building tasks',1],['Checking the tasks',2],['Saving the tasks',0],['Placing the tasks on your calendar',0]].map(([t,s])=>`<div style="display:flex;gap:11px;align-items:center;${s===0?'color:var(--muted)':''}${s===2?'font-weight:600':''}"><span style="width:22px;height:22px;border-radius:50%;display:grid;place-items:center;flex:none;color:#fff;${s===1?'background:var(--brand)':'border:2px solid '+(s===2?'var(--brand)':'var(--line-strong)')}">${s===1?icon('check',13,'stroke-width:2.75'):s===2?'<i style="width:8px;height:8px;border-radius:50%;background:var(--brand)"></i>':''}</span>${t}</div>`).join('')}</div></div>`,
+   'Building the plan','Archi at his scroll while he works, and he says so himself. The five stages are the real ones of the plan builder.','09:47'),
+
+ ph(`<div class="pad" style="flex:1;display:flex;flex-direction:column;padding-top:26px">
+   <div style="display:flex;justify-content:center">${archi('eureka','width:270px')}</div>
+   <div class="answer" style="padding:18px 16px 8px"><h2 style="font-family:var(--disp);font-size:50px;line-height:.95;font-weight:700">Your plan is ready</h2>
+     <p style="margin-top:6px">I placed 46 study blocks on your calendar. Your first exam is in 22 days.</p>
+     <div class="rows" style="margin-top:10px;border-top:1px solid var(--line)">${[[1,'16 tasks'],[2,'14 tasks'],[3,'8 tasks']].map(([e,n])=>`<div class="r" style="min-height:44px;padding:8px 0"><span style="width:10px;height:10px;border-radius:3px;background:var(--e${e});flex:none"></span><div class="tx">${ut(EX[e],'font-weight:500')}</div><span class="end num">${n}</span></div>`).join('')}</div></div>
+   <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><span class="chip gold num">${icon('xp',15)}+50 XP</span><span class="chip leaf">${icon('sprout',15)}The first seed in your garden</span></div>
+   <div style="margin-top:auto;padding-bottom:26px"><div class="btn pri full">Go to my calendar</div></div></div>`,
+   'The plan is ready','The first celebration: Archi sits on the card that holds his news. The XP spark and the seedling come from the icon set.','09:52'),
 ]],
-['s2','יומן','מסך הבית. שבוע במחשב, יום בטלפון, עם קו "עכשיו", זמן תפוס מקווקו, וסימון ✓ בתוך הבלוק.',[desktop(),
- ph(`${phHead('היום','רביעי, 18 בנובמבר',`${gam}`)}${strip(TODAY)}${dayView(TODAY,40)}
-   <div class="sheet" style="bottom:70px;border-radius:20px;inset-inline:8px;padding:8px 14px 12px;z-index:10"><div class="grab" style="margin-bottom:6px"></div><div style="display:flex;justify-content:space-between;font-weight:600">המשימות של היום<span class="mut" style="font-weight:400;font-size:12px">3 נשארו · 195 דק׳</span></div></div>
-   ${tabbar(0)}`,'יומן · טלפון · יום','פס ימים עם נקודות צבע ועלה לימים שהרצף נשמר בהם; משמרת עבודה מקווקוות; גיליון המשימות למטה.'),
- ph(`${phHead('היום','רביעי, 18 בנובמבר',gam)}<div class="banner" style="background:#f3eedf;border:1px solid var(--sand);flex-direction:column;align-items:stretch;gap:8px"><div style="display:flex;gap:9px;align-items:center">${av('intentions',30)}<b style="flex:1">סקירת בוקר</b><span class="mut" style="font-size:12px">1 מאתמול</span></div>
-   <div style="background:#fff;border-radius:12px;padding:9px;border:1px solid var(--line)"><div style="font-weight:600;font-size:13px">תרגול: נורמלית</div><div class="mut" style="font-size:11.5px">שלישי <span class="ltr">14:00–15:30</span> · הסתברות</div><div style="display:flex;gap:6px;margin-top:8px"><span class="btn pri" style="height:34px;font-size:12.5px">✓ בוצע</span><span class="btn sec" style="height:34px;font-size:12.5px">להיום</span><span class="btn sec" style="height:34px;font-size:12.5px;color:var(--clay)">דילוג</span></div></div></div>
-   ${strip(TODAY)}${dayView(TODAY,40)}${tabbar(0)}`,'יומן עם סקירת בוקר','ארצ׳י בזריעת כוונות פותח את היום: מה שלא סומן אתמול, בשלוש פעולות.'),
+
+['s2','Calendar','The home screen: a week on desktop, a day on the phone. The "now" line, hatched busy time, the check inside the block, and the kind of each task as an icon at the start of its block.',[desktop(),
+ ph(`${todayHead()}${strip(TODAY)}${dayView(TODAY,44,{over:`<div class="peek"><div class="grab"></div><div><span>Today's blocks</span><span class="mut sm num" style="font-weight:400">3 left, 3 hours 15 min</span></div></div>`})}${tabbar(0)}`,
+   'Calendar, phone (390), day','The header holds the streak chip and the level ring. The day strip starts on Sunday; a leaf marks a day that kept the streak, dots carry the colours of that day\'s exams. Each block reads: kind icon, title, check, and under it the kind and the time.'),
+ ph(`${todayHead()}<div class="review" style="margin-top:16px"><div class="lead" style="gap:10px">${archi('intentions','height:92px','margin-top:-20px')}<div class="say" style="padding-bottom:10px"><h2 class="q sm">1 block went by without a mark. What happened with it?</h2></div></div>
+     <div class="inner"><div style="display:flex;gap:7px;align-items:center">${icon('practice',16,'color:var(--e1)')}${ut('תרגול: נורמלית','font-weight:600;flex:1')}</div><div class="mut sm num" style="margin-top:2px">Yesterday, 14:00–15:30. ${u(EX[1])}</div>
+     <div style="display:grid;grid-template-columns:1fr 1.25fr 1fr;gap:6px;margin-top:10px"><span class="btn pri s">${icon('check',16,'stroke-width:2.25')}Done</span><span class="btn sec s">Move to today</span><span class="btn sec s">Skip</span></div></div></div>
+   ${strip(TODAY)}${dayView(TODAY,44)}${tabbar(0)}`,
+   'Calendar with the morning review','Archi opens the day: first his question about yesterday, and under it the block with its three answers. A block that was not done is a fact, not a failure.'),
 ]],
-['s3','פעולות ביומן','כל פעולה יומית: גרירה, החלקה, דחייה עם בחירה, "יש לי זמן עכשיו", סימון זמן תפוס, ו-"+XP" אחרי בוצע.',[
- ph(`${phHead('היום','רביעי, 18 בנובמבר',gam)}${strip(TODAY)}<div style="flex:1;overflow:hidden;position:relative;border-top:1px solid var(--line)"><div class="grid" style="grid-template-columns:40px 1fr;margin-top:-80px">${hours(true)}<div class="col" style="height:${(E-S)*H}px">${lines()}${BUSY.filter(b=>b[0]===TODAY).map(busy).join('')}
-   <div class="blk ex2" style="top:${(12-S)*H+1}px;height:${H-3}px;transform:translateX(-128px);transition:none"><div class="t"><span class="cb"></span><span>למידה: גרפים ו-BFS</span></div></div>
-   <div style="position:absolute;top:${(12-S)*H+1}px;height:${H-3}px;inset-inline-end:3px;width:124px;display:flex;border-radius:9px;overflow:hidden"><span style="flex:1;background:var(--gold);color:var(--ink);display:grid;place-items:center;font-size:11.5px;font-weight:600">דחייה</span><span style="flex:1;background:var(--clay);color:#fff;display:grid;place-items:center;font-size:11.5px;font-weight:600">דילוג</span></div>
-   <div class="blk ex3" style="top:${(17.5-S)*H+1}px;height:${1.5*H-3}px;box-shadow:0 10px 24px rgba(59,42,30,.25);outline:2px solid var(--e3)"><div class="t"><span class="cb"></span><span>תרגול: malloc ו-free</span></div><div class="m"><span class="ltr">17:30–19:00</span> · 🔒</div></div>
-   <span style="position:absolute;top:${(17.5-S)*H-18}px;inset-inline-end:6px;background:var(--ink);color:#fff;font-size:10.5px;padding:1px 6px;border-radius:5px" class="ltr">17:30–19:00</span>
-   <div class="nowl" style="top:${(NOW/60-S)*H}px"></div></div></div></div>
-   <div class="toast">הוזז ל-<span class="ltr">17:30</span> ונעול<b>בטל</b></div>${tabbar(0)}`,'גרירה והחלקה','גרירה בקפיצות של 15 דקות עם תווית שעה; החלקה מגלה "דחייה" ו"דילוג".'),
- ph(`${phHead('היום','רביעי, 18 בנובמבר',gam)}${strip(TODAY)}${dayView(TODAY,40)}<div class="scrim"></div><div class="sheet"><div class="grab"></div><b style="font-size:16px">לדחות את "גרפים ו-BFS"?</b><div class="mut" style="font-size:12.5px;margin:2px 0 12px">60 דקות · אלגוריתמים</div>
-   ${[['⏭','למקום הפנוי הבא','היום ב-19:15'],['🌅','מחר','ארצ׳י ימצא מקום מחר בבוקר'],['🕐','בחירת שעה','מתוך השעות הפנויות']].map(([i,b,s])=>`<div class="opt"><span class="ic">${i}</span><div><b>${b}</b><small>${s}</small></div></div>`).join('')}
-   <div style="text-align:center;color:var(--clay);font-weight:600;padding:8px 0 0;font-size:13.5px">דילוג: המשימה יוצאת מהתוכנית</div></div>`,'דחייה עם בחירה','שלוש אפשרויות, ודילוג שאומר במפורש מה יקרה.'),
- ph(`${phHead('היום','רביעי, 18 בנובמבר',gam)}${strip(TODAY)}${dayView(TODAY,40)}<div class="scrim"></div><div class="sheet"><div class="grab"></div><div class="say" style="margin-bottom:12px">${av('joy',40)}<div class="b">יופי, זמן פנוי! כמה יש לך?</div></div>
-   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px">${['30 דק׳','שעה','שעה וחצי','אחר'].map((l,i)=>`<span style="text-align:center;padding:11px 0;border-radius:12px;font-size:12.5px;${i===1?'border:2px solid var(--brand);background:#e3edd5;color:var(--brand-ink);font-weight:600':'border:1px solid var(--line);background:#fff'}">${l}</span>`).join('')}</div>
-   <div class="card" style="padding:10px;margin-bottom:12px"><div class="mut" style="font-size:11.5px">יוקדם לעכשיו</div><b>למידה: גרפים ו-BFS</b><div class="mut" style="font-size:12px"><span class="ltr">11:25–12:25</span> · במקום <span class="ltr">12:00</span></div></div><div class="btn pri">להתחיל עכשיו</div></div>`,'יש לי זמן עכשיו','המשימה הבאה בתור מוקדמת לעכשיו, עם "בטל".'),
- ph(`${phHead('יום חמישי','19 בנובמבר',gam)}${strip(3)}${dayView(3,100)}<div class="scrim"></div><div class="sheet"><div class="grab"></div><b style="font-size:16px">סימון זמן תפוס</b><div class="mut" style="font-size:12.5px;margin:2px 0 12px">חמישי, 19 בנובמבר</div>
-   <div class="lbl">מה זה? (לא חובה)</div><div class="field">חתונה של נועה</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><div class="lbl">מ-</div><div class="field ltr" style="justify-content:center">19:00</div></div><div><div class="lbl">עד</div><div class="field ltr" style="justify-content:center">23:00</div></div></div>
-   <div style="font-size:12px;background:#f3eedf;border-radius:12px;padding:9px 11px;margin-bottom:12px">בלוק אחד יזוז: <b>תרגול: תכנון דינמי</b> → שישי <span class="ltr">10:00</span></div><div class="btn pri">סימון כתפוס</div></div>`,'סימון זמן תפוס','לוחצים על שטח ריק ביומן; מה שנפגע עובר לבד, ומראים לאן.'),
- ph(`${phHead('היום','רביעי, 18 בנובמבר','<span class="chip leaf">🌿 12</span><div class="lvl" style="box-shadow:0 0 0 4px #f6e7c6"><b>4</b></div>')}${strip(TODAY)}<div style="flex:1;overflow:hidden;position:relative;border-top:1px solid var(--line)"><div class="grid" style="grid-template-columns:40px 1fr;margin-top:-40px">${hours(true)}${dayCol(TODAY,`<span style="position:absolute;top:${(10-S)*H}px;inset-inline-start:40%;font-weight:700;color:#8a6414;background:#f6e7c6;border-radius:999px;padding:3px 9px;font-size:12px;box-shadow:0 6px 14px rgba(212,162,76,.4)">⭐ <span class="ltr">+20 XP</span></span>`)}</div></div>
-   <div class="toast">${av('joy',28)}<span>יפה. עוד אבן במקום.</span><b>בטל</b></div>${tabbar(0)}`,'אחרי "בוצע"','התיבה מתמלאת בירוק, "+XP" עף לטבעת הרמה, וארצ׳י אומר מילה.'),
+
+['s3','Calendar actions','Everything done to a block: drag and swipe, defer with a choice, "I have free time now", busy time, move, and what happens after Done. In every sheet Archi asks or explains first, in the first person.',[
+ ph(`${todayHead()}${strip(TODAY)}${dayView(TODAY,150,{hide:['למידה: גרפים ו-BFS','תרגול: malloc ו-free'],extra:
+   `<div style="position:absolute;top:${(12-S)*PH+1}px;height:${PH-3}px;right:3px;width:132px;display:flex;border-radius:10px;overflow:hidden;font-weight:600;font-size:13px"><span style="flex:1;background:var(--gold);color:var(--ink);display:grid;place-items:center;padding-left:14px">Defer</span><span style="flex:1;background:var(--clay);color:#fff;display:grid;place-items:center">Skip</span></div>
+    ${blk(BL[7],PH,{wide:1,style:'transform:translateX(-118px)'})}
+    ${blk([2,1065,90,3,'practice','תרגול: malloc ו-free',0],PH,{wide:1,cls:'lift',lock:1})}
+    <span class="num" style="position:absolute;top:${(17.75-S)*PH-22}px;left:6px;background:var(--ink);color:#fff;font-size:12px;font-weight:600;padding:2px 7px;border-radius:6px;z-index:8">17:45–19:15</span>`})}
+   <div class="toast">${icon('lock',18)}<span class="num">Moved to 17:45 and locked</span><b>Undo</b></div>${tabbar(0)}`,
+   'Drag and swipe','A drag moves in steps of 15 minutes with a time label, lifts the block and locks it at the new time. A swipe to the left uncovers Defer and Skip.'),
+
+ ph(`${todayHead()}${strip(TODAY)}${dayView(TODAY,44)}<div class="scrim"></div><div class="sheet"><div class="grab"></div>
+   <h3>Where should I move this block?</h3>
+   <div style="display:flex;gap:7px;align-items:center;margin:8px 0 2px">${icon('learn',16,'color:var(--e2)')}${ut('למידה: גרפים ו-BFS','font-weight:600;flex:1')}</div><div class="mut sm num" style="margin-bottom:14px">12:00–13:00, 1 hour. ${u(EX[2])}, Learning</div>
+   ${[['nextslot','Next free spot','Today at 19:30'],['morning','Tomorrow',"I'll find a spot for this tomorrow morning."],['picktime','Pick a time','From your free hours']].map(([i,b,s])=>`<div class="opt"><span class="tile">${icon(i,20)}</span><div><b>${b}</b><small class="num">${s}</small></div>${icon('right',18,'margin-left:auto;color:var(--muted)')}</div>`).join('')}
+   <div class="btn sec full" style="margin-top:4px;color:var(--danger);flex-direction:column;gap:0;padding:8px 16px"><span>Skip</span><small class="mut" style="font-weight:400;font-size:12.5px">The task leaves your plan.</small></div></div>`,
+   'Defer, with a choice','Archi asks, three options answer, and Skip says plainly what it does.'),
+
+ ph(`${todayHead()}${strip(TODAY)}${dayView(TODAY,44)}<div class="scrim"></div><div class="sheet"><div class="on-edge">${archi('joy','height:104px')}</div><div class="grab"></div>
+   <h3>Good, some free time. How much do you have?</h3>
+   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:14px 0">${['30 min','1 hour','1.5 hours','Other'].map((l,i)=>`<span class="num" style="text-align:center;padding:12px 0;border-radius:12px;font-size:13.5px;${i===1?'border:2px solid var(--brand);background:var(--brand-soft);color:var(--brand-ink);font-weight:600':'border:1px solid var(--line-strong);background:var(--field);margin:1px'}">${l}</span>`).join('')}</div>
+   <div class="inner" style="margin-bottom:14px"><div class="mut sm">I'll bring this one forward to now</div><div style="display:flex;gap:7px;align-items:center;margin-top:3px">${icon('learn',16,'color:var(--e2)')}${ut('למידה: גרפים ו-BFS','font-weight:600;flex:1')}</div><div class="mut sm num">11:25–12:25, instead of 12:00</div></div><div class="btn pri full">Start now</div></div>`,
+   'I have free time now','Archi leans over the edge of the sheet and asks. The next block in line comes forward to now, and the change can be undone.'),
+
+ ph(`${phHead('Thursday','Thu, 26 Nov',gam)}${strip(4)}${dayView(4,120)}<div class="scrim"></div><div class="sheet"><div class="grab"></div>
+   <h3>What should I keep free?</h3><div class="mut num" style="margin:2px 0 14px">Thu, 26 Nov</div>
+   <div class="lbl">What is it? (optional)</div><div class="field">${ut('חתונה של נועה')}</div>
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><div class="lbl">From</div><div class="field num">19:00</div></div><div><div class="lbl">To</div><div class="field num">23:00</div></div></div>
+   <div class="note" style="margin-bottom:14px;color:var(--ink)">${icon('review',16,'color:var(--e1)')}<span style="min-width:0">I'll move 1 block to make room: ${u('חזרה: הסתברות מותנית')}, to Fri at 11:00.</span></div><div class="btn pri full">Mark as busy</div></div>`,
+   'Busy time','Opened by tapping an empty stretch of the calendar. Archi says which block he will move and where, before anything changes.'),
+
+ ph(`${todayHead()}${strip(TODAY)}${dayView(TODAY,44)}<div class="scrim"></div><div class="sheet"><div class="grab"></div>
+   <h3 style="display:flex;gap:6px;min-width:0"><span style="flex:none">Move</span>${ut('תרגול: malloc ו-free','flex:1')}</h3>
+   <p class="mut" style="margin:4px 0 12px">Pick a free time on the same day. I'll lock the block at its new time.</p>
+   <div class="sm" style="margin-bottom:10px">Current time: <b class="b6 num">17:30–19:00</b></div>
+   <div class="lbl">Free times</div>
+   <div class="num" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px">${['13:00','17:00','17:15','17:45','18:00','18:15','18:30','21:00'].map((l,i)=>`<span style="text-align:center;padding:11px 0;border-radius:12px;font-size:14px;${i===3?'border:2px solid var(--brand);background:var(--brand-soft);color:var(--brand-ink);font-weight:600':'border:1px solid var(--line-strong);background:var(--field);margin:1px'}">${l}</span>`).join('')}</div>
+   <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:8px"><span class="btn sec">Cancel</span><span class="btn pri">Move</span></div></div>`,
+   'Move','The same move without dragging: the free times of that day on the 15-minute grid. The title in the heading is user content and truncates at its end.'),
+
+ ph(`${todayHead(`<div class="gam"><span class="chip leaf num">${icon('leaf',15)}12</span><div class="lvl num" style="box-shadow:0 0 0 4px var(--gold-soft)"><b>4</b></div></div>`)}${strip(TODAY)}${dayView(TODAY,44,{per:b=>b[5]==='למידה: גרפים ו-BFS'?{done:1}:{},extra:`<span class="chip gold num" style="position:absolute;top:${(11.1-S)*PH}px;right:26px;box-shadow:0 8px 18px rgba(212,162,76,.45);z-index:8">${icon('xp',15)}+20 XP</span>`})}
+   <div class="toast">${icon('check',18,'stroke-width:2.25')}<span class="num">Marked as done. +20 XP</span><b>Undo</b></div>${tabbar(0)}`,
+   'After Done','The box fills with leaf green, the block turns quiet, and the XP spark rises to the level ring. The toast states what happened and offers Undo.'),
 ]],
-['s4','מבחנים','רשימה קצרה, ומסך מבחן מסודר בהיררכיה: ציר עד המבחן, נושאים ומשימות, וחומרים מקופלים.',[
- ph(`${phHead('המבחנים','4 מבחנים','<span class="btn pri" style="width:auto;height:36px;padding:0 12px;font-size:13px">+ מבחן</span>')}<div class="pad" style="display:flex;flex-direction:column;gap:8px;margin-top:6px">${[[1,'10 בדצמבר','22',.42],[2,'20 בדצמבר','32',.28],[3,'5 בינואר','48',.15],[4,'12 בינואר','55',.08]].map(([e,d,n,p])=>`<div class="card" style="display:flex;gap:12px;align-items:center"><span style="width:42px;height:42px;border-radius:13px;background:var(--e${e}b);color:var(--e${e});display:grid;place-items:center;font-weight:700;font-size:17px">${EX[e][0][0]}</span><div style="flex:1"><b>${EX[e][0]}</b><div class="mut" style="font-size:12px">${d} · ${Math.round(p*100)}% מהתוכנית</div><div style="height:5px;border-radius:5px;background:#e3e2d3;margin-top:6px;overflow:hidden"><div style="width:${p*100}%;height:100%;background:var(--e${e})"></div></div></div><span class="chip" style="background:var(--e${e}b);color:var(--e${e})">${n} ימים</span></div>`).join('')}</div><div style="flex:1"></div>${tabbar(1)}`,'רשימת מבחנים'),
- ph(`<div class="pad" style="padding-top:6px"><span class="mut" style="font-size:12.5px">→ המבחנים</span><div style="display:flex;gap:10px;align-items:center;margin:6px 0"><span style="width:44px;height:44px;border-radius:13px;background:var(--e1b);color:var(--e1);display:grid;place-items:center;font-weight:700;font-size:18px">ה</span><div><div class="h1" style="margin:0">הסתברות</div><div class="mut" style="font-size:12.5px">10 בדצמבר · קשה · בעוד 22 ימים ✎</div></div></div>
-   <div class="card" style="padding:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><b>עד המבחן</b><span class="mut">42% בוצע</span></div><div style="display:flex;gap:3px;align-items:flex-end;height:60px">${[3,5,4,6,2,0,5,4,6,5,3,0,4,6,5,4,2,0,3,4,1].map((v,i)=>`<div style="flex:1;height:${v?v*9:6}px;border-radius:3px;${i<8?'background:var(--brand)':v?'border:1.5px solid var(--e1l);background:var(--e1b)':'background:transparent;border:1px dashed var(--line)'}"></div>`).join('')}<div style="flex:1;text-align:center;font-size:13px">🎯</div></div></div>
-   <div style="margin:10px 0 4px;font-weight:600">נושאים ומשימות</div>
-   ${[['משתנים מקריים רציפים','●●●',2,4],['התפלגות נורמלית','●●○',1,3],['תוחלת ושונות','●●●',3,3]].map(([t,w,d,a])=>`<div class="card" style="padding:10px;margin-bottom:6px"><div style="display:flex;justify-content:space-between"><b style="font-size:13.5px">${t}</b><span style="color:var(--e1);font-size:10px;letter-spacing:1px">${w}</span></div><div class="mut" style="font-size:12px">${d} מתוך ${a} משימות</div></div>`).join('')}
-   <div class="card" style="padding:10px;display:flex;justify-content:space-between"><b>חומרים · 2 קבצים</b><span class="mut">⌄</span></div>
-   <div style="margin-top:8px" class="btn sec">📝 יצירת מבחן תרגול</div></div><div style="flex:1"></div>${tabbar(1)}`,'מסך מבחן','ציר עמודות (מתוכנן בגבול, בוצע בירוק), נושאים לפי משקל, חומרים מקופלים, ומבחן תרגול (S30).'),
+
+['s4','Exams','A short list, and an exam screen in a clear order: the days until the exam, topics and their tasks, then the materials.',[
+ ph(`${phHead('Exams','5 exams',`<span class="btn pri s">${icon('plus',17)}New exam</span>`)}<div class="pad"><div class="card" style="padding:4px 16px"><div class="rows">${[[1,'16 December 2026','in 22 days',.42],[2,'27 December 2026','in 33 days',.28],[3,'11 January 2027','in 48 days',.15],[4,'18 January 2027','in 55 days',.08],[5,'1 February 2027','in 69 days',0]].map(([e,d,n,p])=>`<div class="r" style="padding:13px 0;align-items:flex-start"><span class="tile" style="background:var(--e${e}b);color:var(--e${e})">${u(EX[e][0])}</span><div class="tx"><div style="display:flex;gap:8px;align-items:center">${ut(EX[e],'font-weight:600;font-size:16px;flex:1')}<span class="chip num" style="background:var(--e${e}b);color:var(--ink);padding:3px 9px;font-size:12.5px;font-weight:500">${n}</span></div><small class="num">${d}. ${p?Math.round(p*100)+'% of the plan done':'No tasks yet'}</small><div class="pbar" style="margin-top:8px;height:5px"><i style="width:${p*100}%;background:var(--e${e})"></i></div></div></div>`).join('')}</div></div></div><div class="grow"></div>${tabbar(1)}`,
+   'Exams list','One list on one surface. Each exam keeps its colour everywhere. Hebrew and English names start at the same left edge.'),
+
+ ph(`<div class="pad" style="padding-top:4px"><span class="btn quiet s" style="display:inline-flex;margin-left:-10px">${icon('left',17)}All exams</span>
+   <div style="display:flex;gap:12px;align-items:center;margin:2px 0 14px"><span class="tile" style="background:var(--e1b);color:var(--e1);width:46px;height:46px;font-size:19px">${u('ה')}</span><div style="flex:1;min-width:0"><h2 class="h1">${ut(EX[1])}</h2><div class="mut num" style="font-size:13px">16 December 2026, <b class="b6" style="color:var(--ink)">in 22 days</b>. Hard</div></div><span class="btn sec s" style="padding:0;width:40px" title="Edit exam details">${icon('pencil',17)}</span></div>
+   <div class="card" style="padding:14px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px"><b class="b6">Until the exam</b><span class="mut sm num">42% done</span></div>
+     <div class="tl">${[3,5,4,6,2,0,5,4,6,5,3,0,4,6,5,4,2,0,3,4,0].map((v,i)=>v?`<div class="${i<8?'dn':'pl'}" style="height:${v*10}px"></div>`:`<div class="rs">${icon('tea',12)}</div>`).join('')}<div class="xd">${icon('flag',15)}</div></div>
+     <div class="legend"><span><i style="background:var(--brand-ink)"></i>Done</span><span><i style="background:var(--e1b);border:1.5px solid var(--e1l)"></i>Planned</span><span>${icon('tea',13)}Rest</span><span>${icon('flag',13,'color:var(--e1)')}Exam</span></div></div>
+   <h3 class="mut" style="font-size:14px;font-weight:500;margin:18px 0 8px">Topics and tasks</h3>
+   <div class="card" style="padding:12px 14px 2px"><div style="display:flex;align-items:center;gap:10px">${ut('משתנים מקריים רציפים','font-weight:600;font-size:15px;flex:1')}<span class="pips" title="Importance 5 of 5">${'<i class="on"></i>'.repeat(5)}</span>${icon('up',18,'color:var(--muted)')}</div><div class="mut sm num">1 of 3 tasks done</div>
+     <div class="rows" style="margin-top:6px;border-top:1px solid var(--line)">${[['learn','למידה: משתנים מקריים רציפים','Learning, 90 min. Focus 7/10',1],['practice','תרגול: פונקציית צפיפות, התפלגות מצטברת ושאלות ממבחני עבר','Practice, 60 min. Thu, 26 Nov, 10:00',0],['review','חזרה: משתנים מקריים','Review, 45 min. Not on the calendar yet',0]].map(([k,t,s,d])=>`<div class="r" style="min-height:50px;padding:9px 0">${icon(k,18,'color:var(--e1)')}<div class="tx">${ut(t,d?'color:var(--muted);text-decoration:line-through':'font-weight:500')}<small class="num">${s}</small></div><span class="check${d?' on':''}">${d?icon('check',14,'stroke-width:2.75'):''}</span></div>`).join('')}</div></div>
+   ${[['התפלגות נורמלית',4,'1 of 3 tasks done'],['תוחלת ושונות',5,'3 of 3 tasks done']].map(([t,w,s])=>`<div class="card" style="padding:12px 14px;margin-top:8px"><div style="display:flex;align-items:center;gap:10px">${ut(t,'font-weight:600;font-size:15px;flex:1')}<span class="pips" title="Importance ${w} of 5">${'<i class="on"></i>'.repeat(w)}${'<i></i>'.repeat(5-w)}</span>${icon('down',18,'color:var(--muted)')}</div><div class="mut sm num">${s}</div></div>`).join('')}
+   </div><div class="grow"></div>${tabbar(1)}`,
+   'Exam screen','The timeline until the exam: done days in green, planned days in the exam\'s colour, a tea cup for a rest day and a flag for the exam. Topics show their importance as five pips; each task carries the icon of its kind. A long Hebrew task name keeps its beginning and ends in an ellipsis.'),
+
+ ph(`<div class="pad" style="padding-top:10px">
+   <div class="card" style="padding:12px 14px"><div style="display:flex;gap:9px;align-items:center">${icon('practice',18,'color:var(--e1)')}<div style="flex:1;min-width:0">${ut('תרגול: התפלגות נורמלית ותקנון','font-weight:600')}<div class="mut sm num">Practice, 60 min. Focus 6/10</div></div><span class="check"></span></div>
+     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)"><div class="sm b6" style="margin-bottom:4px">Why this task?</div>
+       <p class="up" dir="auto">הנושא הופיע בשלושה מתוך ארבעת מבחני העבר שהעלית, תמיד כשאלה של 20 נקודות. כדאי לתרגל אותו לפני הסימולציה הראשונה.</p>
+       <span class="btn quiet s" style="display:inline-flex;margin:2px 0 -8px -8px;min-height:36px">Hide the reason</span></div></div>
+   <div class="card" style="padding:12px 14px 4px;margin-top:10px"><div style="display:flex;align-items:center;gap:10px"><b class="b6" style="flex:1">Materials</b><span class="mut sm">3 files</span>${icon('up',18,'color:var(--muted)')}</div>
+     <div class="rows" style="margin-top:6px;border-top:1px solid var(--line)">
+       ${fileRow('מועד א׳ 2025 כולל פתרון מלא.pdf','Ready, 12 pages',`<span class="chip plain">Past exam${icon('down',14)}</span>`)}
+       ${fileRow('סילבוס הסתברות.pdf','Ready, 3 pages',`<span class="chip plain">Syllabus${icon('down',14)}</span>`)}
+       ${fileRow('Lecture notes, weeks 1-6.pdf','Ready, 48 pages',`<span class="chip plain">Notes${icon('down',14)}</span>`)}
+       <div class="r" style="min-height:44px;padding:4px 0"><span class="btn quiet s" style="margin-left:-8px">${icon('plus',16)}Add files</span></div></div></div>
+   <div class="card" style="margin-top:10px;padding:14px"><b class="b6">Materials analysis</b><p class="mut sm" style="margin:4px 0 12px">Your materials changed. If you analyse again, I'll use them to build the tasks. You'll see what changes before you confirm.</p><div class="btn sec full">Analyse again</div></div>
+   <div class="btn sec full" style="margin-top:10px">${icon('practiceexam',18,'color:var(--brand-ink)')}Create a practice exam</div>
+   </div><div class="grow"></div>${tabbar(1)}`,
+   'Exam screen, further down','A paragraph of user content (the reason for a task, written from the materials) follows its own direction, so the Hebrew reads from the right. The materials are open with the type of each file; the practice exam belongs to S30.'),
 ]],
-['s5','התקדמות והגן','רמה וזהב, רצף בעלים, והגן שצומח. איורי הגן והתגים יגיעו ממך; כאן מקומם.',[
- ph(`${phHead('התקדמות','הגן של ארצ׳י')}<div class="pad"><div class="garden"><div style="position:absolute;inset-inline:0;bottom:26%;display:flex;justify-content:center;gap:16px;font-size:34px">🪨 🌳 🌸</div><div class="ph-note">מקום לאיור הגן (שלב 4 מתוך 6: שתיל שהופך לבונסאי)</div></div>
-   <div style="display:flex;gap:10px;margin:12px 0"><div class="card" style="flex:1;text-align:center"><div style="width:58px;height:58px;margin:0 auto;border-radius:50%;background:conic-gradient(var(--gold) 0 62%,#eadfc4 0);display:grid;place-items:center"><b style="width:46px;height:46px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-size:18px">4</b></div><div class="mut" style="font-size:11.5px;margin-top:4px">רמה · <span class="ltr">620/1000 XP</span></div></div><div class="card" style="flex:1;text-align:center"><div style="font-size:30px">🌿</div><b style="font-size:20px">12 ימים</b><div class="mut" style="font-size:11.5px">ברצף · השיא 15</div></div></div>
-   <b>14 הימים האחרונים</b><div style="display:flex;gap:4px;margin:8px 0 14px">${Array.from({length:14},(_,i)=>`<div style="flex:1;height:26px;border-radius:7px;${[3,9].includes(i)?'background:#efe6d2;border:1px dashed var(--sand)':'background:var(--sprout)'};display:grid;place-items:center;font-size:9px">${[3,9].includes(i)?'☕':''}</div>`).join('')}</div>
-   <b>תגים</b><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px">${[['🌱','זרע ראשון'],['🪨','שבוע שלם'],['🌸','10 ימי רצף'],['📜','10 שעות'],['🎋','חצי דרך',0],['🏯','מבחן ראשון',0],['🌕','לילה שקט',0],['🍵','30 הפסקות',0]].map(([e,l,on=1])=>`<div class="badge ${on?'':'off'}"><div class="em" style="${on?'':'filter:grayscale(1);opacity:.4'}">${e}</div>${l}</div>`).join('')}</div></div><div style="flex:1"></div>${tabbar(2)}`,'התקדמות','הגן בראש המסך, רמה בזהב, רצף כעלים, ימי מנוחה כספלי תה.'),
+
+['s5','Progress and the garden','The level in gold, the streak in leaves, the last 14 days and the badges. The garden illustration and the eight illustrated badges arrive in S33; the icons here hold their places.',[
+ ph(`${phHead('Progress','')}<div class="pad"><div class="garden"><div class="plants">${icon('stone',40)}${icon('sprout',62)}${icon('blossom',44)}</div><div class="ph-note">Place for the garden illustration (stage 4 of 6), S33</div></div>
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 18px">
+     <div class="card" style="padding:14px;display:flex;gap:12px;align-items:center"><div class="num" style="width:58px;height:58px;border-radius:50%;background:conic-gradient(var(--gold) 0 62%,var(--gold-track) 0);display:grid;place-items:center;flex:none"><b style="width:46px;height:46px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-size:20px;font-weight:700">4</b></div><div><b class="b6">Level 4</b><div class="mut sm num">620 of 1,000 XP</div></div></div>
+     <div class="card" style="padding:14px;display:flex;gap:12px;align-items:center"><span style="width:58px;height:58px;border-radius:50%;background:var(--brand-soft);color:var(--brand-ink);display:grid;place-items:center;flex:none">${icon('leaf',30)}</span><div><b class="b6 num">12 days</b><div class="mut sm num">Longest: 15 days</div></div></div></div>
+   <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><b class="b6">Last 14 days</b><span class="mut sm">12 study days</span></div>
+   <div class="days">${Array.from({length:14},(_,i)=>`<div class="${[3,10].includes(i)?'rest':''}">${[3,10].includes(i)?icon('tea',14):''}</div>`).join('')}${['W','T','F','S','S','M','T','W','T','F','S','S','M','T'].map(l=>`<span>${l}</span>`).join('')}</div>
+   <div style="display:flex;justify-content:space-between;align-items:baseline;margin:18px 0 8px"><b class="b6">Badges</b><span class="mut sm">4 of 8 earned</span></div>
+   <div class="badges">${[['sprout','First step'],['stone','10 blocks'],['leaf','A week straight'],['blossom','10 days straight'],['stone','20 blocks',0],['leaf','Two weeks straight',0],['xp','Level 5',0],['xp','1,000 XP',0]].map(([k,l,on=1])=>`<div class="badge ${on?'':'off'}"><span class="em">${icon(k,22)}</span>${l}</div>`).join('')}</div></div><div class="grow"></div>${tabbar(2)}`,
+   'Progress','The garden keeps its sky, as in the earlier mockup: it is a scene, not Archi\'s backdrop. Rest days are tea cups, not gaps. Badges not earned yet are dashed and quiet, never red.'),
 ]],
-['s6','הגדרות','טופס אחד בקבוצות, הלו"ז הקבוע החדש, תזכורות, ואזור מסוכן בסוף.',[
- ph(`${phHead('הגדרות','',av('joy',36))}<div class="pad" style="display:flex;flex-direction:column;gap:10px;overflow:hidden">
-   <div class="card"><b>לימוד</b><div class="sw8">שעות ביום<span class="mut" style="margin-inline-start:auto">4 שעות</span></div><div class="sw8">זמני לימוד<span class="mut" style="margin-inline-start:auto">בוקר, ערב</span></div><div class="sw8">ימי מנוחה לפני מבחן<span class="mut" style="margin-inline-start:auto">יום אחד</span></div></div>
-   <div class="card"><div style="display:flex;justify-content:space-between"><b>לו"ז קבוע</b><span style="color:var(--brand-ink);font-weight:600;font-size:13px">+ הוספה</span></div>${[['💼','עבודה','שני, רביעי · 14:00–17:00'],['🎓','הרצאה: אלגוריתמים','רביעי · 10:00–12:00'],['🎓','תרגול: הסתברות','חמישי · 16:00–18:00']].map(([i,t,s])=>`<div class="sw8"><span>${i}</span><div><div>${t}</div><div class="mut" style="font-size:11.5px">${s.replace(/(\d\d:\d\d–\d\d:\d\d)/,'<span class="ltr">$1</span>')}</div></div><span class="mut" style="margin-inline-start:auto">›</span></div>`).join('')}<div class="sw8" style="color:var(--clay);font-size:12.5px">📷 עדכון מצילום של מערכת השעות</div></div>
-   <div class="card"><b>תזכורות</b><div class="sw8">תזכורת לפני בלוק<span class="toggle"></span></div><div class="sw8">מתי<span class="mut" style="margin-inline-start:auto">10 דקות לפני</span></div></div>
-   <div class="btn pri" style="height:44px">שמירה</div>
-   <div class="card" style="border-color:#e3b9a7;background:#fbf1ec"><b style="color:var(--now-ink)">אזור מסוכן</b><div class="sw8">ייצוא הנתונים<span class="mut" style="margin-inline-start:auto">›</span></div><div class="sw8" style="color:var(--now-ink)">מחיקת החשבון<span style="margin-inline-start:auto">›</span></div></div></div>`,'הגדרות','נפתח מתפריט הפרופיל (התמונה של ארצ׳י).'),
+
+['s6','Settings','One form in groups, busy time, reminders, and the account at the end. Opened from the profile menu.',[
+ ph(`${phHead('Settings','',`<span class="me">N</span>`)}<div class="pad set" style="display:flex;flex-direction:column;gap:8px">
+   <div class="card" style="padding:12px 16px 2px"><h3>Study preferences</h3><div class="rows">${[['Hours a day','4 hours'],['When you study','Morning, Evening'],['Me time every day','20:00, 1 hour'],['Rest days before an exam','1 day']].map(([a,b])=>`<div class="r"><span class="tx">${a}</span><span class="end num">${b}${icon('right',16)}</span></div>`).join('')}</div></div>
+   <div class="card" style="padding:12px 16px 2px"><div style="display:flex;justify-content:space-between;align-items:center"><h3>Busy time</h3><span class="btn quiet s" style="margin:-8px 0;min-height:36px;padding-right:0">${icon('plus',16)}Add</span></div><div class="rows">${[['work','משמרת עבודה','Sun, Tue, 14:00–17:00'],['cls','הרצאה: אלגוריתמים','Wed, 10:00–12:00'],['cls','תרגול: הסתברות','Thu, 16:00–18:00']].map(([i,t,s])=>`<div class="r">${icon(i,19,'color:var(--busy)')}<div class="tx">${ut(t)}<small class="num">${s}</small></div><span class="end">${icon('right',16)}</span></div>`).join('')}<div class="r" style="color:var(--brand-ink);font-weight:500">${icon('camera',18)}Update from a photo of my timetable</div></div></div>
+   <div class="card" style="padding:12px 16px 2px"><h3>Reminders</h3><div class="rows"><div class="r"><span class="tx">Reminders on this device</span><span class="toggle"></span></div><div class="r"><span class="tx">When to remind you</span><span class="end">10 minutes before${icon('right',16)}</span></div></div></div>
+   <div class="btn pri">Save</div>
+   <div class="card" style="padding:4px 16px"><div class="rows"><div class="r">${icon('download',18,'color:var(--muted)')}<span class="tx">Export your data</span><span class="end">${icon('right',16)}</span></div><div class="r" style="color:var(--danger)">${icon('trash',18)}<span class="tx">Delete my account</span>${icon('right',16)}</div></div></div></div>`,
+   'Settings','The profile button is the user\'s initial. Busy times keep their Hebrew titles and their work and class icons; days and hours follow the en-IL format.'),
 ]],
-['s7','רגעים ומצבים','מה שמופיע מעבר למסכים: חגיגה, תזכורת על מסך הנעילה, הפסקה, תקיעות, בלי אינטרנט, ומסך ריק.',[
- ph(`${phHead('היום','רביעי, 18 בנובמבר',gam)}${strip(TODAY)}${dayView(TODAY,200)}<div class="scrim"></div><div class="sheet" style="padding:0 0 22px;overflow:hidden"><div class="art" style="height:200px;border-radius:0"><img src="${IMG('eureka-dawn')}" alt=""></div><div class="pad" style="text-align:center;padding-top:12px"><div style="font-family:var(--disp);font-size:44px;line-height:1">אאוריקה!</div><div>כל הבלוקים של היום בוצעו.</div><div style="display:flex;gap:6px;justify-content:center;margin:10px 0 14px"><span class="chip gold">⭐ <span class="ltr">+60 XP</span></span><span class="chip leaf">🌿 13 ימים</span></div><div class="btn pri">איזה יופי</div></div></div>`,'היום הושלם','גיליון חגיגה עם רגע האאוריקה של ארצ׳י.'),
- ph(`<div class="lock" style="flex:1;display:flex;flex-direction:column;align-items:center;padding-top:40px;color:#fff"><div style="font-size:64px;font-weight:300;line-height:1" class="ltr">08:50</div><div style="opacity:.9;margin-bottom:26px">רביעי, 18 בנובמבר</div>
-   <div style="width:310px;background:rgba(248,247,240,.88);color:var(--ink);border-radius:20px;padding:11px 12px;display:flex;gap:10px;backdrop-filter:blur(10px)">${av('joy',38)}<div><div style="font-size:11.5px;color:var(--muted)">ארצ׳י · עכשיו</div><b>חזרה: תוחלת ושונות</b><div style="font-size:12.5px">בעוד 10 דקות · <span class="ltr">09:00–10:30</span>. נשימה, ומתחילים.</div></div></div></div>`,'תזכורת','בקול של ארצ׳י, עם התמונה שלו.'),
- ph(`${phHead('היום','רביעי, 18 בנובמבר',gam)}${strip(TODAY)}${dayView(TODAY,40)}<div class="toast" style="bottom:auto;top:200px;background:var(--surface);color:var(--ink);border:1px solid var(--line);flex-direction:column;align-items:stretch;padding:0;overflow:hidden;box-shadow:0 18px 40px rgba(59,42,30,.25)"><div class="art" style="height:150px;border-radius:0"><img src="${IMG('rest-dawn')}" alt=""></div><div style="padding:10px 12px"><b>90 דקות ברצף. הספל חם.</b><div class="mut" style="font-size:12.5px">חמש דקות בלי מסך, ואז "גרפים ו-BFS".</div></div></div>${tabbar(0)}`,'הפסקה','טקס התה של ארצ׳י אחרי 90 דקות.'),
- ph(`${phHead('היום','רביעי, 18 בנובמבר',gam)}<div class="banner" style="background:#eef0e4;border:1px solid var(--line)"><div class="art" style="width:74px;height:54px;border-radius:10px;flex:none"><img src="${IMG('flow-dawn')}" onerror="this.src='archie/flow.jpg'" alt=""></div><div><b>משהו לא נכנס</b><div class="mut" style="font-size:12px">"סימולציה: מועד ב׳" לא נכנסה לפני המבחן. כשתקועים, מסדרים את החול.</div><div style="color:var(--brand-ink);font-weight:600;font-size:12.5px;margin-top:4px">להעלות ל-5 שעות ביום ‹</div></div></div>${strip(TODAY)}${dayView(TODAY,40)}${tabbar(0)}`,'דוח "לא נכנס"','ארצ׳י בזרימה, עם הצעה אחת ברורה.'),
- ph(`<div class="banner" style="margin:6px 18px 4px;background:#3b2a1e;color:#f3ead9">📡 אין חיבור. מוצג היומן מ-<span class="ltr">11:20</span>. פעולות יחזרו כשהחיבור יחזור.</div>${phHead('היום','רביעי, 18 בנובמבר',gam)}${strip(TODAY)}<div style="opacity:.75;flex:1;display:flex;flex-direction:column;overflow:hidden">${dayView(TODAY,40)}</div>${tabbar(0)}`,'בלי אינטרנט','ראייה בלבד (S38).'),
- ph(`${phHead('המבחנים','')}<div class="pad" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center"><div class="art" style="width:240px;height:175px;margin-bottom:16px"><img src="${IMG('intentions-dawn')}" alt=""></div><div class="h1">כאן ייזרעו המבחנים שלך</div><div class="mut" style="margin-bottom:16px">מוסיפים מבחן, וארצ׳י בונה לו דרך.</div><div class="btn pri" style="width:200px">+ הוספת מבחן</div></div>${tabbar(1)}`,'מסך ריק','זריעת כוונות.'),
+
+['s7','Moments and states','What appears around the screens: the day complete, a reminder on the lock screen, a break, a task that did not fit, no connection, and the empty screens. Archi leads each one and never fills more than one place at a time.',[
+ ph(`${todayHead()}${strip(TODAY)}${dayView(TODAY,300,{per:()=>({done:1})})}<div class="scrim"></div><div class="sheet" style="padding-bottom:26px"><div class="on-edge" style="left:0;right:0;display:flex;justify-content:center;margin-bottom:-34px">${archi('eureka','width:230px')}</div>
+   <div style="text-align:center;padding-top:42px"><h3 style="font-family:var(--disp);font-size:50px;line-height:1;font-weight:700">That's every block for today</h3><p style="margin-top:6px">Four blocks, 4 hours 45 min. I'll have tomorrow ready for you.</p><div style="display:flex;gap:8px;justify-content:center;margin:14px 0 18px"><span class="chip gold num">${icon('xp',15)}+60 XP</span><span class="chip leaf num">${icon('leaf',15)}13 days</span></div><div class="btn pri full">Close</div></div></div>`,
+   'The day is complete','A sheet that closes with one tap. Archi sits on its edge, in his eureka pose, with nothing behind him.','21:05'),
+
+ ph(`<div class="lock" style="flex:1;display:flex;flex-direction:column;padding-top:34px;color:#fff;margin-top:-44px"><div style="text-align:center;padding-top:44px;opacity:.95">Tue, 24 Nov</div><div class="num" style="font-size:86px;font-weight:300;line-height:1;text-align:center;margin-bottom:34px">09:50</div>
+   <div class="notif"><div class="appicon">${archi('joy','height:40px')}</div><div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted)"><span>Archi</span><span>now</span></div>${ut('חזרה: תוחלת ושונות','font-weight:600')}<div class="ut num" style="font-size:13.5px">In 10 min. 10:00–11:30, ${u(EX[1])}</div></div></div></div>`,
+   'Reminder','A push reminder as the phone shows it: the task title as the user knows it, then the lead time, the hours and the exam. The app icon is the only place where Archi sits in a tile, because the system draws it.','09:50'),
+
+ ph(`${todayHead()}${strip(TODAY)}${dayView(TODAY,44,{over:`<div class="float" style="top:150px"><div class="lead" style="gap:12px">${archi('rest','width:170px','margin-top:-30px')}<div class="say" style="padding-bottom:12px"><h2 class="q sm">That was 90 minutes in a row. I've poured the tea.</h2></div></div><div style="border-top:1px solid var(--line);padding-top:10px"><p class="mut">Take five minutes away from the screen. Your next block is at 12:00.</p><div style="display:flex;gap:7px;align-items:center;margin-top:6px">${icon('learn',16,'color:var(--e2)')}${ut('למידה: גרפים ו-BFS','font-weight:600;flex:1')}</div></div></div>`})}${tabbar(0)}`,
+   'A break','After 90 minutes in a row. Archi at his tea rises above the card; the message closes by itself and blocks nothing.','11:30'),
+
+ ph(`${todayHead()}<div class="report" style="margin-top:18px"><div class="lead" style="gap:10px">${archi('flow','width:150px','margin-top:-22px')}<div class="say" style="padding-bottom:10px"><h2 class="q sm">One task didn't fit before the exam.</h2></div></div>
+     <div class="inner"><div style="display:flex;gap:7px;align-items:center">${icon('simulation',16,'color:var(--e1)')}${ut('סימולציה: מועד ב׳ 2025','font-weight:600;flex:1')}<span class="sm num" style="flex:none">1.5 hours</span></div><p class="sm" style="margin-top:4px">I'm 1.5 hours short for ${u(EX[1])}. You can raise your daily study time to 5 hours, or drop tasks.</p></div>
+     <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:8px;margin-top:10px"><span class="btn pri s">Raise to 5 hours a day</span><span class="btn sec s">Not now</span></div></div>
+   ${strip(TODAY)}${dayView(TODAY,44)}${tabbar(0)}`,
+   'A task did not fit','The overload state, led by Archi raking his sand: what did not fit, by how much, and one clear way out. Warning tones, never red.'),
+
+ ph(`<div class="offline">${icon('offline',18)}<span>You're offline. I'm showing your calendar as of <span class="num">11:20</span>. You can act again once the connection is back.</span></div>${todayHead()}${strip(TODAY)}${dayView(TODAY,44)}${tabbar(0)}`,
+   'Offline','Read only (S38). The banner says what is shown and when actions come back.'),
+
+ ph(`${phHead('Exams','')}<div class="pad" style="flex:1;display:flex;flex-direction:column;justify-content:center;padding-bottom:60px"><div style="border-bottom:1px solid var(--line);padding-left:8px">${archi('intentions','height:230px')}</div><h2 class="h1" style="font-size:22px;margin-top:18px">No exams yet</h2><p class="mut" style="margin:4px 0 18px">Add your nearest exam, and I'll build a plan for it.</p><div class="btn pri" style="align-self:flex-start">${icon('plus',18)}New exam</div></div>${tabbar(1)}`,
+   'Empty: exams','A title, one line from Archi, one action. He waters the first pot.'),
+
+ ph(`${todayHead('')}${strip(TODAY,0)}<div class="pad" style="flex:1;display:flex;flex-direction:column;justify-content:center;padding-bottom:60px;border-top:1px solid var(--line);background:var(--surface)"><div style="border-bottom:1px solid var(--line);display:flex;justify-content:flex-start;padding-left:8px">${archi('rest','width:270px')}</div><h2 class="h1" style="font-size:22px;margin-top:18px">Your calendar is empty</h2><p class="mut" style="margin:4px 0 18px">I build it from your exams and their materials.</p><div class="btn sec" style="align-self:flex-start">Go to exams${icon('right',17)}</div></div>${tabbar(0)}`,
+   'Empty: calendar','The same pattern on the home screen, before any plan exists.'),
 ]],
 ];
-document.getElementById('root').innerHTML=sections.map(([id,t,p,items])=>`<section id="${id}"><h2>${t}</h2><p>${p}</p><div class="row">${items.join('')}</div></section>`).join('');
+document.getElementById('nav').innerHTML=sections.map(([id,t])=>`<a href="#${id}">${t}</a>`).join('');
+document.getElementById('root').innerHTML=sections.map(([id,t,p,items])=>`<section class="band" id="${id}"><h2>${t}</h2><p>${p}</p><div class="shots">${items.join('')}</div></section>`).join('');
 </script>
 </body>
 </html>
