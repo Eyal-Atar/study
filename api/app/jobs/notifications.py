@@ -18,6 +18,10 @@ and app.ai_usage as the owner), and it is kept narrow: it writes only `blocks.no
 `push_subscriptions.last_success_at` and `failure_count`, and deletes a subscription the push
 service called gone. Every subscription write names both its id and its user_id.
 
+The ticker also sends the exam closure reminders (`app.jobs.closure_notifications`) in the
+same round, and writes `exams.closure_notified_at` as the owner, with the same claim-first
+design.
+
 Logging: counts, statuses and exception class names only. The endpoint is a bearer secret,
 and titles, keys and psycopg messages (which can quote row data) never reach the log.
 """
@@ -319,7 +323,12 @@ class NotificationTicker:
                         conn = psycopg.connect(
                             self._conninfo, row_factory=dict_row, autocommit=True
                         )
-                    send_due_notifications(conn, self._sender, now=self._clock(), grace=self._grace)
+                    # Imported here: closure_notifications reuses this module's helpers.
+                    from app.jobs.closure_notifications import send_closure_notifications
+
+                    now = self._clock()
+                    send_due_notifications(conn, self._sender, now=now, grace=self._grace)
+                    send_closure_notifications(conn, self._sender, now=now)
                 except psycopg.OperationalError as exc:
                     logger.warning("reminder ticker lost the database: %s", type(exc).__name__)
                     if conn is not None:
