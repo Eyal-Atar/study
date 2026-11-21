@@ -19,11 +19,10 @@ htmlcov/
 api/build/
 api/dist/
 
-# Local data: legacy SQLite and uploaded study materials
+# Local data
 *.db
 *.db-wal
 *.db-shm
-legacy/backend/uploads/
 # Real files for local evals (api/eval/materials/README.md stays tracked)
 api/eval/materials/*
 !api/eval/materials/README.md
@@ -35,7 +34,6 @@ api/eval/results/
 
 # Screenshots dropped in the repo root
 /Screenshot*
-legacy/planning/printscreens/
 
 # Agent workspaces
 .superpowers/

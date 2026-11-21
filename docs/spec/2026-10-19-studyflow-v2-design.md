@@ -89,7 +89,7 @@ studyflow/
 │   ├── tests/
 │   └── eval/                 golden cases לבדיקת הפרומפטים
 ├── docs/                 מסמכי תכנון, עיצוב ותוכניות עבודה (המפה ב-docs/README.md)
-└── legacy/               הקוד הישן, לעיון בלבד; נמחק אחרי ההעברה
+└── (legacy/ נמחק ב-21.11.2026; סיכום ב-docs/archive/legacy-summary.md)
 ```
 
 אין תיקיית `supabase/`. ה-CLI של Supabase צריך Docker כדי להריץ סביבה מקומית, ואין Docker במק. הבדיקות רצות מול Postgres מ-Homebrew (סעיף 7.12).
@@ -651,7 +651,7 @@ POST /exams/{id}/moed-b {"exam_date": "2027-02-03", "grade": 55, "hard_topic_ids
 | `backend/eval/golden_cases.json`, `judge_logic.py` | `api/eval/` | 2 תרחישים בלבד היום; צריך להרחיב (סעיף 10) |
 | `backend/uploads/` (מקומי, לא ב-git) | fixtures מקומיים לבדיקות | מבחנים אמיתיים לבדיקת קריאת PDF |
 
-כל השאר — ממשק ה-JS, `database.py`, `auth/` וה-routes — נכתב מחדש ולא מועבר. `legacy/` נמחק בסוף שלב 4.
+כל השאר — ממשק ה-JS, `database.py`, `auth/` וה-routes — נכתב מחדש ולא מועבר. `legacy/` נמחק מהריפו ב-21.11.2026, אחרי שכל ההעברות שבטבלה הושלמו; הסיכום שלו ב-`docs/archive/legacy-summary.md`.
 
 ## 9. סדר הבנייה
 
