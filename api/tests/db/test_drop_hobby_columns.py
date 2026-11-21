@@ -6,11 +6,13 @@ downgrade is what refills them from the commitments.
 """
 
 import os
+from datetime import time
 from uuid import uuid4
 
 import psycopg
 import pytest
 from alembic import command
+from alembic.script import ScriptDirectory
 
 from tests.db.support import admin_database_url, alembic_config, create_database, drop_database
 
@@ -36,6 +38,12 @@ def _hobby_checks(conn: psycopg.Connection) -> list[str]:
         "AND conname LIKE 'profiles_hobby%' ORDER BY conname"
     ).fetchall()
     return [row[0] for row in rows]
+
+
+def test_one_head() -> None:
+    # 0016 follows 0015 and 0017 follows 0016: one line of migrations, no branch.
+    config = alembic_config(admin_database_url())
+    assert ScriptDirectory.from_config(config).get_heads() == ["0017"]
 
 
 def test_head_has_no_hobby_columns(db: psycopg.Connection) -> None:
@@ -92,5 +100,37 @@ def test_downgrade_brings_the_columns_back_empty_with_their_checks() -> None:
             assert conn.execute("SELECT version_num FROM app.alembic_version").fetchall() == [
                 ("0017",)
             ]
+    finally:
+        drop_database(admin_url, name)
+
+
+def test_the_downgrade_of_0014_through_0017_still_refills_the_hobby() -> None:
+    admin_url = admin_database_url()
+    name = f"{os.environ.get('STUDYFLOW_TEST_DB', 'studyflow_test')}_0017_0014"
+    url = create_database(admin_url, name)
+    try:
+        config = alembic_config(url)
+        command.upgrade(config, "0012")
+        user_id = uuid4()
+        with psycopg.connect(url, autocommit=True) as conn:
+            conn.execute("INSERT INTO auth.users (id) VALUES (%s)", (user_id,))
+            conn.execute(
+                "INSERT INTO app.profiles (id, hobby_start, hobby_minutes) "
+                "VALUES (%s, '18:00', 90)",
+                (user_id,),
+            )
+
+        command.upgrade(config, "head")
+        with psycopg.connect(url, autocommit=True) as conn:
+            assert _hobby_columns(conn) == []
+            assert conn.execute(
+                "SELECT count(*) FROM app.commitments WHERE user_id = %s", (user_id,)
+            ).fetchone() == (7,)
+
+        command.downgrade(config, "0012")
+        with psycopg.connect(url, autocommit=True) as conn:
+            assert conn.execute(
+                "SELECT hobby_start, hobby_minutes FROM app.profiles WHERE id = %s", (user_id,)
+            ).fetchone() == (time(18), 90)
     finally:
         drop_database(admin_url, name)

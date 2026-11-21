@@ -4,8 +4,8 @@ Explicit SQL, written by hand.
 
 0014 (S35) moved every hobby into seven rows of `app.commitments` and set
 `profiles.hobby_start` and `hobby_minutes` to NULL; since then the API read and wrote the
-hobby only through the commitments (a compatibility layer on GET/PATCH /me). S34's settings
-screen edits the commitments directly, so the layer is gone and the columns hold nothing:
+hobby only through the commitments (a compatibility layer on GET/PATCH /me). `app.services.hobby`
+reads and writes the commitments, never the columns, so the columns are empty and unneeded:
 this migration drops them with the three CHECKs 0009 put on them.
 
 The downgrade adds the columns back empty (nullable) with the same three CHECKs, so 0014's

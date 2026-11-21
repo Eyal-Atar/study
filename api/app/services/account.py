@@ -24,6 +24,7 @@ from psycopg import sql
 from app.domain.materials import JOB_DELETE_ACCOUNT
 from app.domain.time import local_date, parse_timezone
 from app.jobs.queue import enqueue
+from app.services.hobby import read_hobby
 from app.services.profiles import Conn, ProfileRow, ensure_profile, lock_user
 
 EXPORT_FORMAT: Final = "studyflow-export"
@@ -184,15 +185,20 @@ def _rows(conn: Conn, table: str, user_id: UUID) -> list[dict[str, Any]]:
     return [dict(row) for row in conn.execute(query, (user_id,)).fetchall()]
 
 
-def export_account(conn: Conn, user_id: UUID) -> tuple[ProfileRow, dict[str, list[dict[str, Any]]]]:
-    """The profile (created if missing) and the user's rows of every exported table.
+def export_account(
+    conn: Conn, user_id: UUID
+) -> tuple[ProfileRow, tuple[dt.time, int] | None, dict[str, list[dict[str, Any]]]]:
+    """The profile (created if missing), its hobby, and the user's rows of every exported table.
+
+    The hobby is read from the commitments (app.services.hobby), as GET /me reads it.
 
     One transaction, READ COMMITTED: each SELECT sees the commits made before it started.
     A board write committing between two of them could make the file slightly uneven;
     the export is a copy for the user, not a backup that is restored.
     """
     profile = ensure_profile(conn, user_id)
-    return profile, {table: _rows(conn, table, user_id) for table in _EXPORTED}
+    hobby = read_hobby(conn, user_id)
+    return profile, hobby, {table: _rows(conn, table, user_id) for table in _EXPORTED}
 
 
 def export_filename(profile: ProfileRow, now: dt.datetime) -> str:

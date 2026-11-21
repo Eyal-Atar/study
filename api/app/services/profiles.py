@@ -64,7 +64,8 @@ class ProfileRow:
     notify_lead_minutes: int
     onboarding_completed_at: dt.datetime | None
     created_at: dt.datetime
-    # Migration 0009 (S15); the default is the column default.
+    # Migration 0009 (S15); the default is the column default. The hobby columns of 0009 were
+    # dropped by 0017 (S34); Me time lives in app.commitments, see app.services.hobby.
     study_start_delay_minutes: int = 60
 
 

@@ -22,6 +22,8 @@ DEFAULTS = {
     "display_name": None,
     "onboarding_completed_at": None,
     "study_start_delay_minutes": 60,
+    "hobby_start": None,
+    "hobby_minutes": None,
 }
 
 
