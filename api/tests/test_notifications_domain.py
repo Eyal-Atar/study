@@ -18,6 +18,14 @@ from app.domain.notifications import (
     reminder_text,
 )
 
+
+def isolated(name: str) -> str:
+    """The name between First Strong Isolate and Pop Directional Isolate, as the body has it."""
+    return f"\u2068{name}\u2069"
+
+
+EXAM = isolated("הסתברות")
+
 TZ = "Asia/Jerusalem"
 # 09:00 in Israel in November (UTC+2).
 START = datetime(2026, 11, 16, 7, 0, tzinfo=UTC)
@@ -58,20 +66,20 @@ def text_at(now: datetime, **overrides: object) -> ReminderText:
 )
 def test_the_lead_counts_the_real_time_left(before: timedelta, lead: str) -> None:
     text = text_at(START - before)
-    assert text.body == f"{lead}. 09:00–10:30, הסתברות"
+    assert text.body == f"{lead}. 09:00–10:30, {EXAM}"
     assert text.title == "חזרה על פרק 3"
 
 
 def test_summer_time_is_utc_plus_three() -> None:
     start = datetime(2026, 7, 1, 6, 0, tzinfo=UTC)
     text = text_at(start, starts_at=start, ends_at=start + timedelta(hours=1))
-    assert text.body == "Starting now. 09:00–10:00, הסתברות"
+    assert text.body == f"Starting now. 09:00–10:00, {EXAM}"
 
 
 def test_winter_time_is_utc_plus_two() -> None:
     start = datetime(2026, 12, 1, 6, 0, tzinfo=UTC)
     text = text_at(start, starts_at=start, ends_at=start + timedelta(hours=1))
-    assert text.body == "Starting now. 08:00–09:00, הסתברות"
+    assert text.body == f"Starting now. 08:00–09:00, {EXAM}"
 
 
 @pytest.mark.parametrize(
@@ -90,14 +98,14 @@ def test_both_repeated_times_on_the_fall_back_night_read_0130(
     text = text_at(
         start - timedelta(minutes=15), starts_at=start, ends_at=start + timedelta(minutes=30)
     )
-    assert text.body == f"In 15 min. 01:30–{end_wall}, הסתברות"
+    assert text.body == f"In 15 min. 01:30–{end_wall}, {EXAM}"
 
 
 def test_a_block_across_the_fall_back_shows_each_end_in_its_own_offset() -> None:
     start = datetime(2026, 10, 24, 22, 30, tzinfo=UTC)  # 01:30 IDT
     end = start + timedelta(hours=1)  # 01:30 IST: an hour later, same wall clock
     assert text_at(start, starts_at=start, ends_at=end).body == (
-        "Starting now. 01:30–01:30, הסתברות"
+        f"Starting now. 01:30–01:30, {EXAM}"
     )
 
 
@@ -108,7 +116,7 @@ def test_any_aware_input_offset_gives_the_same_text() -> None:
         starts_at=START.astimezone(plus5),
         ends_at=END.astimezone(plus5),
     )
-    assert text.body == "In 5 min. 09:00–10:30, הסתברות"
+    assert text.body == f"In 5 min. 09:00–10:30, {EXAM}"
 
 
 def test_naive_datetimes_are_rejected() -> None:
@@ -132,7 +140,7 @@ def test_a_long_title_is_cut_to_80_characters_with_an_ellipsis() -> None:
 def test_markup_stays_plain_text() -> None:
     text = text_at(START, task_title="<b>bold</b>", exam_name="<i>x</i>")
     assert text.title == "<b>bold</b>"
-    assert text.body.endswith(", <i>x</i>")
+    assert text.body.endswith(", " + isolated("<i>x</i>"))
     payload = json.loads(reminder_payload(UUID(int=1), text))
     assert payload["title"] == "<b>bold</b>"
 

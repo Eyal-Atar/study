@@ -19,6 +19,14 @@ from app.jobs.notifications import NotificationTicker, NotifyStats, send_due_not
 from app.jobs.webpush import PushTarget, SendKind, SendOutcome
 from tests.api.factories import insert_block, insert_exam, insert_task, set_profile
 
+
+def isolated(name: str) -> str:
+    """The name between First Strong Isolate and Pop Directional Isolate, as the body has it."""
+    return f"\u2068{name}\u2069"
+
+
+EXAM = isolated("הסתברות")
+
 type Conn = psycopg.Connection[DictRow]
 MakeUser = Callable[[], CurrentUser]
 
@@ -195,7 +203,7 @@ def test_the_payload_is_the_reminder_text_and_ttl_runs_to_the_end(
     # 09:00Z is 11:00 in Israel in November (UTC+2).
     assert call.payload == {
         "title": "פרק 3",
-        "body": f"In 10 min. 11:00{DASH}12:30, הסתברות",
+        "body": f"In 10 min. 11:00{DASH}12:30, {EXAM}",
         "url": "/today",
         "tag": f"block:{block_id}",
     }

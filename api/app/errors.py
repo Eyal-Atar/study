@@ -41,14 +41,14 @@ PROBLEMS: Mapping[str, Problem] = MappingProxyType(
         ),
         "plan_conflict": Problem(
             409,
-            "That change overlaps another block in your calendar. Refresh and try again.",
+            "That change overlaps another block on your calendar. Refresh and try again.",
         ),
         "stale_plan": Problem(409, "Your plan changed in the meantime. Refresh and try again."),
         "placement_failed": Problem(
             409,
             "I couldn't find a free spot for that task. You can ask me to replan your calendar.",
         ),
-        "invalid_state": Problem(409, "That action isn't possible in the current state."),
+        "invalid_state": Problem(409, "That can't be done right now."),
         "nothing_to_undo": Problem(409, "There's no change to undo."),
         "dependency_cycle": Problem(422, "That dependency would create a loop between tasks."),
         "exam_in_past": Problem(422, "The exam date has already passed, or it's today."),
@@ -72,7 +72,7 @@ PROBLEMS: Mapping[str, Problem] = MappingProxyType(
             "A block can only move to your waking hours "
             "on the same day, and not to earlier than now.",
         ),
-        "slot_busy": Problem(409, "That time is taken by Busy time. Pick a different one."),
+        "slot_busy": Problem(409, "That time is inside your busy time. Pick a different one."),
         "nothing_to_place": Problem(409, "I don't have a task I can move to that time right now."),
         "no_free_time": Problem(
             409,

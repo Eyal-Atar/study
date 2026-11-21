@@ -94,7 +94,9 @@ def reminder_text(
     exam = _truncate(exam_name, EXAM_NAME_MAX_CHARS)
     return ReminderText(
         title=_truncate(task_title, TITLE_MAX_CHARS),
-        body=f"{_lead(seconds_left)}. {hours}, {exam}",
+        # The exam name is user content, often Hebrew: First Strong Isolate and Pop Directional
+        # Isolate keep its brackets and digits in order inside the English line.
+        body=f"{_lead(seconds_left)}. {hours}, \u2068{exam}\u2069",
     )
 
 

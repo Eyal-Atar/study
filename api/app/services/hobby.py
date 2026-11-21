@@ -3,9 +3,8 @@
 Migration 0014 moved `profiles.hobby_start`/`hobby_minutes` into seven commitments, one per
 weekday, so the planner has one mechanism for taken time. The settings screen of S15 still
 reads and writes the hobby through GET/PATCH /me, so the API keeps those two fields: they read
-and replace the "hobby set", exactly the set the migration writes and its downgrade
-recognises: seven live commitments of kind 'other' titled HOBBY_TITLE or a legacy title,
-with no valid_until,
+and replace the "hobby set", the set the migration writes: seven live commitments of kind
+'other' titled HOBBY_TITLE or a legacy title, with no valid_until,
 the same start and end, covering every weekday, 15 to 240 minutes long (a duplicate row
 on a weekday does not hide it). When several such sets exist, the one created first is the
 hobby. Writing it replaces every live hobby-titled row at the old time and at the new time,
@@ -22,6 +21,8 @@ from app.services.profiles import Conn
 
 HOBBY_TITLE: Final = "Me time"
 # Rows written before 2026-11-21 keep the Hebrew title; there is no migration.
+# The downgrade of migration 0014 knows only the legacy title, so rows written as HOBBY_TITLE
+# are not restored by a downgrade (dev only).
 LEGACY_HOBBY_TITLES: Final = ("\u05d6\u05de\u05df \u05dc\u05e2\u05e6\u05de\u05d9",)
 _TITLES: Final = (HOBBY_TITLE, *LEGACY_HOBBY_TITLES)
 _WEEKDAYS: Final = 7
