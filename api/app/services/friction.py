@@ -166,7 +166,12 @@ def _plan(board: Board, task_id: UUID) -> _Plan | None:
     result = place_task(
         board.profile, board.exams, tasks, board.existing, task_id, board.now, release=release
     )
-    if result.unscheduled or not any(b.block_id is None for b in result.blocks):
+    new = [b for b in result.blocks if b.block_id is None]
+    if result.unscheduled or not new:
+        return None
+    # The planner falls back to the task without its bite rather than lose it (plan.py);
+    # such a placement is no split, so there is no offer.
+    if any(b.interval.minutes >= block.interval.minutes for b in new):
         return None
     return _Plan(bite, result, block)
 

@@ -36,6 +36,7 @@ from app.domain.planner import (
     Task,
     TaskKind,
     TaskStatus,
+    assign_days,
     block_role,
     day_fits,
     fixed_state,
@@ -48,6 +49,7 @@ from app.domain.planner import (
     study_date,
     study_days,
 )
+from app.domain.planner.plan import _held
 from app.domain.planner.split import bite_for
 from tests.planner.strategies import PROPERTY_SETTINGS, ReplanScenario, replan_scenarios
 from tests.planner.test_replan_properties import (
@@ -161,8 +163,41 @@ def _stays(scenario: ReplanScenario, result: PlanResult) -> list[ExistingBlock]:
 
 
 def _last_day_of(scenario: ReplanScenario, result: PlanResult) -> LastDay:
+    """The task's last usable day, or any day of a split task the bites cannot hold."""
     profile, exams, tasks, _, now = scenario
-    return _last_day(profile, exams, tasks, _stays(scenario, result), now)
+    stays = _stays(scenario, result)
+    last = _last_day(profile, exams, tasks, stays, now)
+    stuck = _stuck(profile, exams, tasks, stays, now)
+    return lambda task_id, day: task_id in stuck or last(task_id, day)
+
+
+def _stuck(
+    profile: Profile,
+    exams: Sequence[Exam],
+    tasks: Sequence[Task],
+    stays: Sequence[ExistingBlock],
+    now: dt.datetime,
+) -> frozenset[UUID]:
+    """The split tasks an assignment that keeps their bites leaves unscheduled, with
+    the held days or without them: the planner then places them without the bite
+    rather than lose them (plan._assign), so their days are not held to it."""
+    start = start_minute(now)
+    state = fixed_state(profile, tasks, stays, start)
+    stuck: set[UUID] = set()
+    for held in (_held(profile, tasks, stays), None):
+        assignment = assign_days(
+            profile,
+            exams,
+            state.tasks,
+            now,
+            state.busy,
+            used=state.used,
+            simulation_days=state.simulation_days,
+            after=state.after,
+            held=held,
+        )
+        stuck.update(item.task_id for item in assignment.unscheduled)
+    return frozenset(stuck)
 
 
 def _moved(scenario: ReplanScenario, result: PlanResult) -> list[tuple[UUID, Interval]]:
@@ -329,7 +364,18 @@ def _check_placement(
     assert minutes >= task.estimated_minutes
     if not new:
         return result
-    is_last = _last_day(profile, exams, tasks, staying, now, long_breaks=True)
+    last = _last_day(profile, exams, tasks, staying, now, long_breaks=True)
+    # When the bites cannot hold the task, place_task places it without its bite rather
+    # than fail (review of S44): then the result is exactly that placement.
+    plain = [replace(t, bite_minutes=None) if t.id == task.id else t for t in tasks]
+    whole = place_task(
+        profile, exams, plain, existing, task.id, now, release=[block.id for block in release]
+    )
+    fell_back = not whole.unscheduled and whole.blocks == result.blocks
+
+    def is_last(task_id: UUID, day: dt.date) -> bool:
+        return (fell_back and task_id == task.id) or last(task_id, day)
+
     _check_bite_rules(profile, bites, [(block.task_id, block.interval) for block in new], is_last)
 
     # In one window of what the staying blocks leave, a break from each, free of busy

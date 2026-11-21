@@ -14,6 +14,7 @@ on a day that has one is better than no bite at all.
 
 import datetime as dt
 from collections.abc import Collection, Sequence
+from dataclasses import replace
 from typing import Final
 from uuid import UUID
 
@@ -122,13 +123,22 @@ def place_task(
     if left:
         earliest = start if not_before is None else max(start, start_minute(not_before))
         held = {task_id: {study_date(profile, block.interval.start) for block in own}}
-        # With the held days first; the last try, without them, gives the failure.
-        tries = (held, None) if task.bite_minutes is not None and own else (None,)
-        for held_days in tries:
+        # A split task tries with its held days, then without them, then without its bite:
+        # the split shapes where its minutes go, but never costs the task its place
+        # (review of S44). The last try gives the failure.
+        tries: list[tuple[dict[UUID, set[dt.date]] | None, Sequence[Task]]] = [(None, left)]
+        if task.bite_minutes is not None:
+            whole = [replace(t, bite_minutes=None) for t in left]
+            tries = (
+                [(held, left), (None, left), (None, whole)]
+                if own
+                else [(None, left), (None, whole)]
+            )
+        for held_days, attempt in tries:
             assignment = assign_days(
                 profile,
                 exams,
-                left,
+                attempt,
                 earliest,
                 busy,
                 used=board.used,
@@ -141,7 +151,7 @@ def place_task(
                 item = assignment.unscheduled[0]
                 failure = item.reason, item.blocked_by
             else:
-                placed = pack_assignment(left, assignment)
+                placed = pack_assignment(attempt, assignment)
                 dependent = _dependent_too_early(profile, task, tasks, live, own, placed)
                 if dependent is not None:
                     failure = UnscheduledReason.DEPENDENT_TOO_EARLY, dependent

@@ -120,17 +120,23 @@ def _assign(
 ) -> DayAssignment:
     """Assign what the fixed blocks leave, around them.
 
-    The split tasks skip their held days. When that leaves one of them
-    unscheduled, the whole assignment runs again without held, and the run with
-    fewer unscheduled minutes wins (the held one on a tie): the rule may cost a
-    bite its own day, never its place.
+    The split tasks skip their held days. When that leaves anything unscheduled
+    (the held days may have pushed another task out), the whole assignment runs
+    again without held. When a split task is still unscheduled, it runs once more
+    with those tasks' bites ignored. Each rerun wins only with fewer unscheduled
+    minutes (the earlier run on a tie): a split may cost a bite its own day or its
+    size, never a task its place (review of S44). A board without a split task
+    runs once, as before.
     """
 
-    def run(held_days: Mapping[UUID, frozenset[dt.date]] | None) -> DayAssignment:
+    def run(
+        held_days: Mapping[UUID, frozenset[dt.date]] | None,
+        tasks: Sequence[Task] = state.tasks,
+    ) -> DayAssignment:
         return assign_days(
             profile,
             exams,
-            state.tasks,
+            tasks,
             now,
             state.busy,
             used=state.used,
@@ -139,13 +145,21 @@ def _assign(
             held=held_days,
         )
 
-    first = run(held)
-    if not any(item.task_id in held for item in first.unscheduled):
-        return first
-    free = run(None)
-    if _minutes(free) < _minutes(first):
-        return free
-    return first
+    best = run(held)
+    if held and best.unscheduled:
+        free = run(None)
+        if _minutes(free) < _minutes(best):
+            best = free
+    bitten = {task.id for task in state.tasks if task.bite_minutes is not None}
+    stuck = {item.task_id for item in best.unscheduled if item.task_id in bitten}
+    if stuck:
+        whole = run(
+            None,
+            tuple(replace(t, bite_minutes=None) if t.id in stuck else t for t in state.tasks),
+        )
+        if _minutes(whole) < _minutes(best):
+            best = whole
+    return best
 
 
 def _minutes(assignment: DayAssignment) -> int:

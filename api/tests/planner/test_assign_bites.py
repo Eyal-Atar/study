@@ -185,3 +185,30 @@ def test_placing_a_split_task_moves_no_other_block() -> None:
             assert block.interval.end <= other.interval.start or (
                 other.interval.end <= block.interval.start
             )
+
+
+# Review of S44 (second pass): a split never costs a task its place.
+def test_held_days_do_not_push_another_task_out() -> None:
+    exam = make_exam(nov(4))  # study days Nov 1-2
+    split = make_task(exam, 60, bite_minutes=30)
+    big = make_task(exam, 240)
+    other = make_task(exam, 180)
+    pinned = make_block(split, Z(2026, 11, 1, 7), Z(2026, 11, 1, 7, 30), pinned=True)
+    result = plan(make_profile(), [exam], [split, big, other], [pinned], NOW)
+    assert result.unscheduled == ()
+
+
+def test_a_split_task_with_too_few_days_for_its_bites_is_placed_without_them() -> None:
+    exam = make_exam(nov(5))  # study days Nov 1-3
+    task = make_task(exam, 240, bite_minutes=30)
+    result = plan(make_profile(daily_study_minutes=120), [exam], [task], [], NOW)
+    assert result.unscheduled == ()
+    assert sum(block.interval.minutes for block in result.blocks) == 240
+
+
+def test_place_task_falls_back_to_the_task_without_its_bite() -> None:
+    exam = make_exam(nov(5))
+    task = make_task(exam, 240, bite_minutes=30)
+    result = place_task(make_profile(daily_study_minutes=120), [exam], [task], [], task.id, NOW)
+    assert result.unscheduled == ()
+    assert sum(block.interval.minutes for block in result.blocks) == 240
