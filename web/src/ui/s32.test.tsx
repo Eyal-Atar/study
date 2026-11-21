@@ -120,5 +120,6 @@ describe('ActionCard', () => {
     expect(onPress).not.toHaveBeenCalled()
     expect(button).toHaveAttribute('aria-disabled', 'true')
     expect(screen.getByText(en.common.loading)).toHaveClass('sr-only')
+    expect(button).toHaveAccessibleName(`Find a time ${en.common.loading}`)
   })
 })
