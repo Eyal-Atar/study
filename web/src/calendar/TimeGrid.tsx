@@ -138,9 +138,15 @@ export function TimeGrid({
   const columns = { gridTemplateColumns: `${String(HOURS_PX)}px repeat(${String(days.length)}, minmax(0, 1fr))` }
 
   // A place on the grid: 1px under the hour's line and 2px short of the next, as in the prototype.
-  function place(startMin: number, endMin: number): { top: number; height: number } {
+  function slot(startMin: number, endMin: number): { top: number; height: number } {
     const top = toPx(startMin, span, hourPx)
-    return { top: top + 1, height: Math.max(MIN_BLOCK_PX, toPx(endMin, span, hourPx) - top - 3) }
+    return { top: top + 1, height: toPx(endMin, span, hourPx) - top - 3 }
+  }
+
+  // The place of a ghost: never lower than the minimum.
+  function place(startMin: number, endMin: number): { top: number; height: number } {
+    const at = slot(startMin, endMin)
+    return { top: at.top, height: Math.max(MIN_BLOCK_PX, at.height) }
   }
 
   const nowIso = new Date(now).toISOString()
@@ -183,13 +189,44 @@ export function TimeGrid({
     return first === null || y < first ? y : first
   }, null)
 
-  const busyByDay = new Map<string, Placed<BusyItem>[]>()
+  // Where each block and each busy item of a column truly lies, before a short one is raised.
+  const blockSlots = new Map<string, { top: number; height: number }>()
+  const topsByDay = new Map<string, number[]>()
+  function note(date: string, top: number) {
+    const tops = topsByDay.get(date) ?? []
+    tops.push(top)
+    topsByDay.set(date, tops)
+  }
+  for (const block of visible) {
+    const at = slot(localMinutes(block.starts_at, block.study_date, tz), localMinutes(block.ends_at, block.study_date, tz))
+    blockSlots.set(block.id, at)
+    note(block.study_date, at.top)
+  }
+  const busySlots: { item: BusyItem; date: string; top: number; height: number }[] = []
   for (const item of busy) {
     const at = busyColumn(item, days, span, tz)
     if (at === null) continue
-    const list = busyByDay.get(at.date) ?? []
-    list.push({ item, ...place(at.startMin, at.endMin) })
-    busyByDay.set(at.date, list)
+    const placed = slot(at.startMin, at.endMin)
+    busySlots.push({ item, date: at.date, ...placed })
+    note(at.date, placed.top)
+  }
+
+  // A short item is raised to the minimum height, but only as far as the next item of its column
+  // (a block or busy time), so it neither covers it nor is covered by it; and never below its own height.
+  function raised(date: string, at: { top: number; height: number }): number {
+    let next: number | null = null
+    for (const top of topsByDay.get(date) ?? []) {
+      if (top > at.top && (next === null || top < next)) next = top
+    }
+    const room = next === null ? MIN_BLOCK_PX : next - at.top - 3
+    return Math.max(at.height, Math.min(MIN_BLOCK_PX, room))
+  }
+
+  const busyByDay = new Map<string, Placed<BusyItem>[]>()
+  for (const { item, date, top, height: own } of busySlots) {
+    const list = busyByDay.get(date) ?? []
+    list.push({ item, top, height: raised(date, { top, height: own }) })
+    busyByDay.set(date, list)
   }
 
   return (
@@ -292,7 +329,8 @@ export function TimeGrid({
             {visible
               .filter((block) => block.study_date === date)
               .map((block) => {
-                const at = place(localMinutes(block.starts_at, date, tz), localMinutes(block.ends_at, date, tz))
+                const own = blockSlots.get(block.id) ?? slot(localMinutes(block.starts_at, date, tz), localMinutes(block.ends_at, date, tz))
+                const at = { top: own.top, height: raised(date, own) }
                 const moves = drag.handlers(block)
                 const swipes = swipe.handlers(block)
                 const name = blockName(block)

@@ -94,6 +94,9 @@ describe('toPx and titleLines', () => {
     expect(titleLines(30, 'week')).toEqual({ lines: 1, meta: false })
     expect(titleLines(38, 'week')).toEqual({ lines: 2, meta: false })
     expect(titleLines(58, 'week')).toEqual({ lines: 2, meta: true })
+    // 75 minutes at 48px an hour, less the 3px between blocks: the meta line starts here.
+    expect(titleLines(57, 'week')).toEqual({ lines: 2, meta: true })
+    expect(titleLines(56, 'week')).toEqual({ lines: 2, meta: false })
     expect(titleLines(45, 'day')).toEqual({ lines: 1, meta: true })
     expect(titleLines(30, 'day')).toEqual({ lines: 1, meta: false })
   })

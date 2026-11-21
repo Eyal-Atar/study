@@ -146,6 +146,7 @@ export function toPx(min: number, span: GridSpan, hourPx: number): number {
 export function titleLines(heightPx: number, view: CalendarView): { lines: 1 | 2; meta: boolean } {
   if (view === 'day') return { lines: 1, meta: heightPx >= 38 }
   if (heightPx < 38) return { lines: 1, meta: false }
-  if (heightPx < 58) return { lines: 2, meta: false }
+  // 57 and not 58: a block of 75 minutes at 48px an hour is 60px less the 3px between blocks.
+  if (heightPx < 57) return { lines: 2, meta: false }
   return { lines: 2, meta: true }
 }

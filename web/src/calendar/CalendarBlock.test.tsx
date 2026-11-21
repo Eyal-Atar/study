@@ -174,6 +174,23 @@ describe('CalendarBlock', () => {
     expect(within(el).getByText(en.calendar.grid.meta(en.board.kinds.learn, '14:00–15:00'))).toBeInTheDocument()
   })
 
+  it('week, 57px (75 minutes): a block in progress says Now', () => {
+    const { el } = setup(makeBlock({ state: 'in_progress' }), { height: 57 })
+    expect(titleOf(el)).toHaveClass('calendar-title-2')
+    expect(within(el).getByText('Now')).toBeInTheDocument()
+  })
+
+  it('week, 56px: no meta line yet', () => {
+    const { el } = setup(makeBlock({ state: 'in_progress' }), { height: 56 })
+    expect(within(el).queryByText('Now')).not.toBeInTheDocument()
+  })
+
+  it('the focus ring of the check is drawn inside it, where the block does not clip it', () => {
+    const { el } = setup(makeBlock())
+    expect(el).toHaveClass('overflow-hidden')
+    expect(el.querySelector('[data-check]')).toHaveClass('data-[focus-visible]:ring-inset', 'data-[focus-visible]:ring-offset-0')
+  })
+
   it('a click on the check completes the block and does not open it', async () => {
     const user = userEvent.setup()
     const block = makeBlock()

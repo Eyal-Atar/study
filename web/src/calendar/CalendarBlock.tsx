@@ -182,7 +182,14 @@ export function CalendarBlock({ block, tz, view, top, height, onOpen, lifted = f
           aria-label={done ? en.board.uncompleteLabel(name) : en.board.completeLabel(name)}
           isDisabled={actions.pending(block.id)}
           dataId={block.id}
-          className={cx('absolute inset-y-0 end-0 [&>span]:ms-auto', look.square, !compact && '[&>span]:self-start', !compact && look.squareTop)}
+          className={cx(
+            'absolute inset-y-0 end-0 [&>span]:ms-auto',
+            // The block clips what is drawn outside the check, so its focus ring is drawn inside it.
+            'data-[focus-visible]:ring-inset data-[focus-visible]:ring-offset-0',
+            look.square,
+            !compact && '[&>span]:self-start',
+            !compact && look.squareTop,
+          )}
         />
       </div>
       {showMeta ? (

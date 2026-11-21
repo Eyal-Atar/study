@@ -128,6 +128,43 @@ describe('TimeGrid', () => {
     expect(parseFloat(el?.style.height ?? '0')).toBeGreaterThanOrEqual(18)
   })
 
+  it('a short block raised to the minimum height stops at the next block', () => {
+    // 12:00–12:15 and 12:15–13:15 in Jerusalem: 15 minutes are 9px, under the minimum of 18.
+    const short = makeBlock({ id: 'short', starts_at: '2026-11-24T10:00:00Z', ends_at: '2026-11-24T10:15:00Z', study_date: '2026-11-24' })
+    const next = makeBlock({ id: 'next', starts_at: '2026-11-24T10:15:00Z', ends_at: '2026-11-24T11:15:00Z', study_date: '2026-11-24' })
+    setup({ blocks: [next, short] })
+    const a = document.querySelector<HTMLElement>('[data-block-id="short"]')
+    const b = document.querySelector<HTMLElement>('[data-block-id="next"]')
+    const bottom = parseFloat(a?.style.top ?? '') + parseFloat(a?.style.height ?? '')
+    expect(bottom).toBeLessThan(parseFloat(b?.style.top ?? ''))
+    // Never below its true height.
+    expect(a?.style.height).toBe(`${String(0.25 * HOUR - 3)}px`)
+  })
+
+  it('a short block stops at busy time that follows it, and short busy time at a block', () => {
+    const short = makeBlock({ id: 'short', starts_at: '2026-11-24T10:00:00Z', ends_at: '2026-11-24T10:15:00Z', study_date: '2026-11-24' })
+    const after = makeBusy({ id: 'after', starts_at: '2026-11-24T10:20:00Z', ends_at: '2026-11-24T11:00:00Z' })
+    const quick = makeBusy({ id: 'quick', starts_at: '2026-11-25T10:00:00Z', ends_at: '2026-11-25T10:15:00Z' })
+    const then = makeBlock({ id: 'then', starts_at: '2026-11-25T10:15:00Z', ends_at: '2026-11-25T11:15:00Z', study_date: '2026-11-25' })
+    setup({ blocks: [short, then], busy: [after, quick] })
+    const box = (selector: string) => {
+      const el = document.querySelector<HTMLElement>(selector)
+      return { top: parseFloat(el?.style.top ?? ''), height: parseFloat(el?.style.height ?? '') }
+    }
+    const a = box('[data-block-id="short"]')
+    expect(a.top + a.height).toBeLessThan(box('[data-busy-id="after"]').top)
+    // 20 minutes to the next item: more than its 9px, less than the minimum.
+    expect(a.height).toBe(20 * (HOUR / 60) - 3)
+    const q = box('[data-busy-id="quick"]')
+    expect(q.top + q.height).toBeLessThan(box('[data-block-id="then"]').top)
+  })
+
+  it('a short block with nothing after it has the minimum height', () => {
+    const short = makeBlock({ id: 'short', starts_at: '2026-11-24T10:00:00Z', ends_at: '2026-11-24T10:15:00Z', study_date: '2026-11-24' })
+    setup({ blocks: [short] })
+    expect(document.querySelector<HTMLElement>('[data-block-id="short"]')?.style.height).toBe('18px')
+  })
+
   it('opens a block', async () => {
     const user = userEvent.setup()
     const block = makeBlock({ starts_at: '2026-11-24T10:00:00Z', ends_at: '2026-11-24T11:30:00Z', study_date: '2026-11-24' })
