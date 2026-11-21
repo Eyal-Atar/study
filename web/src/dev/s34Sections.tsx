@@ -1,10 +1,15 @@
 import { useState } from 'react'
+import type { ArchieMood } from '../archie/moods'
 import { isolate } from '../i18n/bidi'
+import { FeasibilityNote, type FeasibilityEstimate } from '../onboarding/FeasibilityNote'
+import { ArchiLead } from '../ui/ArchiLead'
+import { Card } from '../ui/Card'
 import { ExamChip, ExamInitial, ExamProgressBar } from '../ui/ExamMark'
 import { EXAM_COLOR_COUNT } from '../ui/examColor'
 import { IconButton } from '../ui/IconButton'
 import { IconChoiceCards } from '../ui/IconChoiceCards'
 import { InkButton } from '../ui/InkButton'
+import { RecapLine } from '../ui/RecapLine'
 import { Stepper } from '../ui/Stepper'
 import { ClassIcon, Ellipsis, EveningIcon, MorningIcon, NightIcon, NoonIcon, WorkIcon } from '../ui/icons'
 import { ICON_STROKE } from '../ui/styles'
@@ -239,6 +244,92 @@ export function InkButtonSection() {
   )
 }
 
+// A phone-wide column, as the lead stands in the onboarding.
+const PHONE = 'max-w-sm'
+
+// The six moods in the order the conversation meets them: the four steps, the ready plan, rest.
+const LEAD_MOODS: ArchieMood[] = ['joy', 'wisdom', 'intentions', 'flow', 'eureka', 'rest']
+
+// The three levels of the live feedback, for the exams of the sample.
+const ESTIMATES: FeasibilityEstimate[] = [
+  { level: 'roomy', firstExamName: sample.exams[0], firstExamMinutes: 88 * 60 },
+  { level: 'tight', firstExamName: sample.exams[0], firstExamMinutes: 14 * 60, tightExamName: sample.exams[2], tightExamMinutes: 6 * 60 },
+  { level: 'none', firstExamName: sample.exams[0], firstExamMinutes: 0 },
+]
+
+export function ArchiLeadSection() {
+  const lead = t.archiLead
+  return (
+    <Section id="archi-lead">
+      <p className="text-small text-ink-muted">{lead.caption}</p>
+      <div className={FIELD_GRID}>
+        {LEAD_MOODS.map((mood) => {
+          const example: { caption: string; question: string; context?: string; below?: string } = lead.moods[mood]
+          return (
+            <Example key={mood} caption={example.caption} className={PHONE}>
+              {/* level 3: on this page every h2 is the heading of a catalogue section. */}
+              <ArchiLead mood={mood} question={example.question} context={example.context} below={example.below} headingLevel={3} />
+              {/* With no paragraph below, the answer card is what he stands on. */}
+              <Card className={example.below === undefined ? undefined : 'mt-1'}>
+                <p className="text-small text-ink-muted">{lead.answer}</p>
+              </Card>
+            </Example>
+          )
+        })}
+        <Example caption={lead.long} className={PHONE}>
+          <ArchiLead mood="wisdom" question={lead.longQuestion} headingLevel={3} />
+        </Example>
+      </div>
+      <Example caption={lead.feasibility} className={PHONE}>
+        <div className="flex flex-col gap-2">
+          {ESTIMATES.map((estimate) => (
+            <FeasibilityNote key={estimate.level} estimate={estimate} />
+          ))}
+        </div>
+      </Example>
+      <Example caption={lead.feasibilityEmpty} className={PHONE}>
+        <FeasibilityNote estimate={null} />
+      </Example>
+    </Section>
+  )
+}
+
+export function RecapLineSection() {
+  const recap = t.recapLine
+  const names = [sample.exams[0], sample.exams[1], sample.exams[2]]
+  return (
+    <Section id="recap-line">
+      <div className={FIELD_GRID}>
+        <Example caption={recap.caption} className={PHONE}>
+          <RecapLine>
+            {recap.count(names.length)}
+            {names.map((name, index) => (
+              <span key={name}>
+                {index === 0 ? null : recap.separator}
+                <UserText>{name}</UserText>
+              </span>
+            ))}
+          </RecapLine>
+        </Example>
+        <Example caption={recap.plain} className={PHONE}>
+          <RecapLine>{recap.plainText}</RecapLine>
+        </Example>
+        <Example caption={recap.long} className={PHONE}>
+          <RecapLine>
+            {recap.count(sample.exams.length)}
+            {sample.exams.map((name, index) => (
+              <span key={name}>
+                {index === 0 ? null : recap.separator}
+                <UserText>{name}</UserText>
+              </span>
+            ))}
+          </RecapLine>
+        </Example>
+      </div>
+    </Section>
+  )
+}
+
 // All the S34 sections in their order, so the page adds them in one line.
 export function S34Sections() {
   return (
@@ -248,6 +339,8 @@ export function S34Sections() {
       <IconChoiceCardsSection />
       <ExamMarkSection />
       <InkButtonSection />
+      <ArchiLeadSection />
+      <RecapLineSection />
     </>
   )
 }

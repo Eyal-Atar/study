@@ -56,6 +56,8 @@ export const SECTIONS = [
   { id: 'icon-choice-cards', title: 'Icon choice cards' },
   { id: 'exam-mark', title: 'Exam mark' },
   { id: 'ink-button', title: 'Ink button' },
+  { id: 'archi-lead', title: 'Archi lead' },
+  { id: 'recap-line', title: 'Recap line' },
 ] as const
 
 export type SectionId = (typeof SECTIONS)[number]['id']
@@ -425,7 +427,7 @@ export const devText = {
     warningActionText: 'Your study hours changed after I built your calendar.',
     rebuild: 'Rebuild',
   },
-  // S34: the five components it added to ui/. The exam names and commitment titles are user
+  // S34: the components it added to ui/. The exam names and commitment titles are user
   // content, so they come from sampleContent.ts; what is here is the page's own English.
   s34: {
     tileList: {
@@ -493,6 +495,50 @@ export const devText = {
       // Not the login button's own text: the page test checks that the login screen is not here.
       google: 'Continue with your account',
       addExam: 'Add an exam',
+    },
+    // The conversation (Task 3): Archi and his question, the earlier answer, the live feedback.
+    archiLead: {
+      caption:
+        'Archi leads: first Archi and his question, and under him only the controls that answer it. He stands straight on the surface, and what comes next is the ground under his feet. The question is there at once; only he fades in, and not at all with reduced motion.',
+      answer: 'The controls that answer him go here.',
+      // One example for each mood, with the lines of the binding prototype where it has them.
+      moods: {
+        joy: { caption: 'joy: the question alone (step 1)', question: 'Hi, I’m Archi. What exams are we preparing for?' },
+        wisdom: {
+          caption: 'wisdom: with a paragraph below, on the line he stands on (step 2)',
+          question: 'Do you have materials from your courses?',
+          below: 'They’re optional, but with them I can fit the plan to your course. Past exams with solutions help me the most.',
+        },
+        intentions: {
+          caption: 'intentions: with one sentence of context beside him (step 3)',
+          question: 'How many hours a day feels realistic for you?',
+          context: 'I’ll use your answers to schedule study at the hours that suit you.',
+        },
+        flow: {
+          caption: 'flow: with a paragraph below (step 4)',
+          question: 'Do you have work, classes or other fixed hours?',
+          below: 'Mark your busy hours, and I’ll schedule around them.',
+        },
+        eureka: { caption: 'eureka: a short line (the plan is ready)', question: 'Your plan is ready' },
+        rest: {
+          caption: 'rest: context and a paragraph below together',
+          question: 'That’s enough for today',
+          context: 'Tomorrow starts at 09:00.',
+          below: 'I’ve kept everything where you left it. You can pick it up from the calendar whenever you like.',
+        },
+      },
+      long: 'A long question wraps beside him and never widens the page',
+      longQuestion: 'Before I build anything, how many hours a day feels realistic for you on a week with two exams and a shift at work?',
+      feasibility: 'The live feedback under his question (FeasibilityNote): roomy, tight, and no time at all',
+      feasibilityEmpty: 'Without an estimate the live region is on the page and empty',
+    },
+    recapLine: {
+      caption: 'An earlier answer of the conversation, as one quiet line',
+      count: (n: number) => (n === 1 ? '1 exam: ' : `${String(n)} exams: `),
+      separator: ', ',
+      plain: 'A plain answer',
+      plainText: '4 hours a day, in the morning and the evening',
+      long: 'A long list is cut at its end: the first names stay',
     },
   },
   optionGrid: {

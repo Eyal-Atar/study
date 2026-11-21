@@ -3,6 +3,7 @@ import { isolate } from './bidi'
 import { enControls } from './enControls'
 import { enCrash } from './enCrash'
 import { enEntry } from './enEntry'
+import { enOnboardingFlow } from './enOnboardingFlow'
 import { enPwa } from './enPwa'
 
 // Every text the user reads or hears, in Archi's voice (docs/design/archi-voice.md): Archi speaks
@@ -42,6 +43,7 @@ export const en = {
   crash: enCrash,
   controls: enControls,
   entry: enEntry,
+  onboardingFlow: enOnboardingFlow,
   shell: {
     signOut: 'Sign out',
     mainNav: 'Main navigation',
