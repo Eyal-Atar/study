@@ -2,7 +2,7 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { loadEnv, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import { configDefaults, defineConfig } from 'vitest/config'
+import { defineConfig } from 'vitest/config'
 import { findSecretKeys } from './src/config/env.ts'
 import { manifest } from './src/pwa/manifest.ts'
 import { fillBootTexts } from './src/pwa/bootTexts.ts'
@@ -85,8 +85,6 @@ export default defineConfig(({ mode }) => {
       environment: 'jsdom',
       setupFiles: ['./src/test/setup.ts'],
       restoreMocks: true,
-      // pending-s34 holds two test files parked until Tasks 4 and 7 bring their modules back.
-      exclude: [...configDefaults.exclude, 'pending-s34/**'],
     },
   }
 })

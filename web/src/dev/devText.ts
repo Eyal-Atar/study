@@ -61,6 +61,7 @@ export const SECTIONS = [
   { id: 'week-painter', title: 'Week painter' },
   { id: 'weekday-picker', title: 'Weekday picker' },
   { id: 'commitment-dialog', title: 'Commitment dialog' },
+  { id: 'timetable-import', title: 'Timetable import' },
 ] as const
 
 export type SectionId = (typeof SECTIONS)[number]['id']
@@ -559,6 +560,15 @@ export const devText = {
       nothing: 'no day yet',
       label: 'Which days?',
       errorText: 'Pick at least one day.',
+    },
+    // The photo of the timetable (Task 7), each step on its own: the page never uploads or saves.
+    timetableImport: {
+      button: 'The button in the onboarding, and the row in the settings. A chosen file is only named here.',
+      chosen: 'Chosen file:',
+      nothing: 'none yet',
+      progress: 'Preparing the photo in the browser, then reading it on the server',
+      proposals: 'What Archi read: approve or edit each busy time. Add them and Not now do nothing here.',
+      failure: 'A photo that gave nothing to add',
     },
     // The dialog that adds or edits a group of busy times (Task 6). Both buttons use the draft mode,
     // which sends nothing, so the page never writes.

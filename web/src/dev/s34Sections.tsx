@@ -2,6 +2,13 @@ import { useState } from 'react'
 import type { ArchieMood } from '../archie/moods'
 import { CommitmentDialog, type CommitmentDraft } from '../commitments/CommitmentDialog'
 import { paintedRanges, type CommitmentGroup } from '../commitments/model'
+import {
+  TimetableFailure,
+  TimetableProgress,
+  TimetableProposals,
+  TimetableUploadTrigger,
+  type ProposalRow,
+} from '../commitments/TimetableImport'
 import { WeekPainter } from '../commitments/WeekPainter'
 import { en } from '../i18n/en'
 import { isolate } from '../i18n/bidi'
@@ -437,6 +444,69 @@ export function CommitmentDialogSection() {
   )
 }
 
+const SAMPLE_PROPOSALS: ProposalRow[] = [
+  { key: 'work', title: WORK, kind: 'work', weekdays: [0, 2], start_time: '14:00', end_time: '17:00', valid_until: null, approved: true },
+  { key: 'lecture', title: LECTURE, kind: 'class', weekdays: [3], start_time: '10:00', end_time: '12:00', valid_until: null, approved: true },
+]
+
+// Each step of the photo flow on its own, with the parts TimetableImport is made of: nothing is
+// uploaded, read or saved here.
+export function TimetableImportSection() {
+  const [chosen, setChosen] = useState<string | null>(null)
+  const [rows, setRows] = useState<ProposalRow[]>(SAMPLE_PROPOSALS)
+  const [until, setUntil] = useState('')
+  const text = t.timetableImport
+  const timetable = en.commitments.timetable
+  return (
+    <Section id="timetable-import">
+      <div className={FIELD_GRID}>
+        <Example caption={text.button} className={PHONE}>
+          <div className="flex flex-col gap-3">
+            <TimetableUploadTrigger
+              variant="onboarding"
+              onSelect={(file) => {
+                setChosen(file.name)
+              }}
+            />
+            <TimetableUploadTrigger
+              variant="row"
+              onSelect={(file) => {
+                setChosen(file.name)
+              }}
+            />
+            <p className="text-small text-ink-muted">
+              {text.chosen} {chosen === null ? text.nothing : <UserText>{chosen}</UserText>}
+            </p>
+          </div>
+        </Example>
+        <Example caption={text.progress} className={PHONE}>
+          <div className="flex flex-col gap-2">
+            <TimetableProgress text={timetable.preparing} />
+            <TimetableProgress text={timetable.reading} />
+          </div>
+        </Example>
+        <Example caption={text.proposals} className={PHONE}>
+          <TimetableProposals
+            rows={rows}
+            onRowsChange={setRows}
+            validUntil={until}
+            onValidUntilChange={setUntil}
+            onApply={() => undefined}
+            onCancel={() => {
+              setRows(SAMPLE_PROPOSALS)
+              setUntil('')
+            }}
+            note={null}
+          />
+        </Example>
+        <Example caption={text.failure} className={PHONE}>
+          <TimetableFailure text={en.codes.unsupported_file} />
+        </Example>
+      </div>
+    </Section>
+  )
+}
+
 // All the S34 sections in their order, so the page adds them in one line.
 export function S34Sections() {
   return (
@@ -451,6 +521,7 @@ export function S34Sections() {
       <WeekPainterSection />
       <WeekdayPickerSection />
       <CommitmentDialogSection />
+      <TimetableImportSection />
     </>
   )
 }

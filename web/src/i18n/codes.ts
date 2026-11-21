@@ -20,7 +20,8 @@ function numberParam(params: CodeParams, key: string): number | null {
 }
 
 // "HH:MM" in Jerusalem (24-hour, h23: never 24:30), with the date ("00:00 (17 Nov)") when it is not today there.
-function resetTime(params: CodeParams, now: Date): string | null {
+// Exported for a quota with a text of its own (the timetable photos of TimetableImport).
+export function resetTime(params: CodeParams, now: Date): string | null {
   const raw = params.resets_at
   if (typeof raw !== 'string') return null
   const at = new Date(raw)
