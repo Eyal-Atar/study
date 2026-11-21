@@ -64,8 +64,7 @@ class ProfileRow:
     notify_lead_minutes: int
     onboarding_completed_at: dt.datetime | None
     created_at: dt.datetime
-    # Migration 0009 (S15); the default is the column default. The hobby columns of 0009 are
-    # no longer read: 0014 moved the hobby into app.commitments (S35).
+    # Migration 0009 (S15); the default is the column default.
     study_start_delay_minutes: int = 60
 
 
@@ -146,7 +145,6 @@ def to_planner_profile(
 
     Free time (the board, moves, slots, free time now) must come from
     app.services.availability.planner_profile, which loads the commitments and busy events.
-    The hobby columns are not read: migration 0014 moved the hobby into commitments (S35).
     """
     return Profile(
         timezone=parse_timezone(row.timezone),

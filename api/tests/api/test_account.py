@@ -423,20 +423,35 @@ def test_export_has_the_documented_shape(
     assert events[str(filled.deleted_event_id)]["deleted_at"] is not None
 
 
-def test_export_profile_carries_the_hobby_from_the_commitments(
-    api: TestClient, user: ApiUser
-) -> None:
-    response = api.patch(
-        "/me", json={"hobby_start": "18:30", "hobby_minutes": 90}, headers=user.headers
-    )
-    assert response.status_code == 200, response.text
+def test_export_has_commitments_and_no_hobby(api: TestClient, user: ApiUser) -> None:
+    # The S15 hobby left the profile (S34): a daily block is seven commitments, and the
+    # export carries them with the rest of the commitments.
+    for weekday in range(7):
+        created = api.post(
+            "/commitments",
+            json={
+                "title": "זמן לעצמי",
+                "kind": "other",
+                "weekday": weekday,
+                "start_time": "18:30",
+                "end_time": "20:00",
+            },
+            headers=user.headers,
+        )
+        assert created.status_code == 201, created.text
 
     body = _export(api, user)
 
-    assert (body["profile"]["hobby_start"], body["profile"]["hobby_minutes"]) == ("18:30", 90)
+    assert "hobby" not in body
+    assert "hobby_start" not in body["profile"]
+    assert "hobby_minutes" not in body["profile"]
     me = api.get("/me", headers=user.headers).json()
     assert body["profile"] == {**me, "created_at": body["profile"]["created_at"]}
-    assert len(body["commitments"]) == 7
+    assert sorted(item["weekday"] for item in body["commitments"]) == list(range(7))
+    assert {(item["start_time"], item["end_time"]) for item in body["commitments"]} == {
+        ("18:30:00", "20:00:00")
+    }
+    assert body["busy_events"] == []
 
 
 def test_export_never_carries_extracted_text_or_storage_paths(

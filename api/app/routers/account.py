@@ -25,14 +25,14 @@ _EXPORT_JSON: Final = TypeAdapter(dict[str, Any])
 )
 def get_export(user: AuthenticatedUser, database: DatabaseDep, now: Now) -> Response:
     with database.transaction(user) as conn:
-        profile, hobby, tables = account_service.export_account(conn, user.id)
+        profile, tables = account_service.export_account(conn, user.id)
     body = {
         "format": account_service.EXPORT_FORMAT,
         "version": account_service.EXPORT_VERSION,
         "exported_at": now,
         # The fields of GET /me (the email from the token), and when the profile was made.
         "profile": {
-            **MeResponse.from_row(profile, user.email, hobby).model_dump(),
+            **MeResponse.from_row(profile, user.email).model_dump(),
             "created_at": profile.created_at,
         },
         **tables,

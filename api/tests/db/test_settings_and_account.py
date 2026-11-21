@@ -202,11 +202,9 @@ def test_profile_preferences_defaults(db: psycopg.Connection, make_user: MakeUse
     user = make_user()
     db.execute("INSERT INTO app.profiles (id) VALUES (%s)", (user.id,))
     row = db.execute(
-        "SELECT study_start_delay_minutes, hobby_start, hobby_minutes FROM app.profiles "
-        "WHERE id = %s",
-        (user.id,),
+        "SELECT study_start_delay_minutes FROM app.profiles WHERE id = %s", (user.id,)
     ).fetchone()
-    assert row == (60, None, None)
+    assert row == (60,)
 
 
 @pytest.mark.parametrize(
@@ -214,11 +212,6 @@ def test_profile_preferences_defaults(db: psycopg.Connection, make_user: MakeUse
     [
         "study_start_delay_minutes = -1",
         "study_start_delay_minutes = 361",
-        "hobby_start = '18:00'",
-        "hobby_minutes = 60",
-        "hobby_start = '18:00', hobby_minutes = 10",
-        "hobby_start = '18:00', hobby_minutes = 241",
-        "hobby_start = '18:00:30', hobby_minutes = 60",
     ],
 )
 def test_profile_preferences_constraints(
@@ -233,11 +226,11 @@ def test_profile_preferences_constraints(
         )
 
 
-def test_profile_preferences_accept_a_hobby(db: psycopg.Connection, make_user: MakeUser) -> None:
+def test_profile_preferences_accept_the_bounds(db: psycopg.Connection, make_user: MakeUser) -> None:
     user = make_user()
     db.execute("INSERT INTO app.profiles (id) VALUES (%s)", (user.id,))
-    db.execute(
-        "UPDATE app.profiles SET hobby_start = '18:00', hobby_minutes = 90, "
-        "study_start_delay_minutes = 0 WHERE id = %s",
-        (user.id,),
-    )
+    for minutes in (0, 360):
+        db.execute(
+            "UPDATE app.profiles SET study_start_delay_minutes = %s WHERE id = %s",
+            (minutes, user.id),
+        )
