@@ -1,6 +1,7 @@
 """GET /progress and the progress field of complete/uncomplete (S19)."""
 
 import datetime as dt
+from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -50,6 +51,20 @@ class BadgeOut(BaseModel):
     earned_at: dt.datetime | None
 
 
+class ArchivedExamOut(BaseModel):
+    exam_id: UUID
+    name: str
+    color_index: int
+    exam_date: dt.date
+    first_exam_date: dt.date | None
+    sitting: int
+    closed_at: dt.datetime | None
+    studied_minutes: int
+    tasks_done: int
+    tasks_total: int
+    completion_percent: int
+
+
 class ProgressResponse(BaseModel):
     total_xp: int
     level: int
@@ -60,6 +75,7 @@ class ProgressResponse(BaseModel):
     streak: StreakOut
     days: list[DayXpOut]
     badges: list[BadgeOut]
+    archive: list[ArchivedExamOut]
 
     @classmethod
     def from_view(cls, view: ProgressView) -> ProgressResponse:
@@ -87,4 +103,5 @@ class ProgressResponse(BaseModel):
                 )
                 for state in view.badges
             ],
+            archive=[ArchivedExamOut.model_validate(vars(item)) for item in view.archive],
         )

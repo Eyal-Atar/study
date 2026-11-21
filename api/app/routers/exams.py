@@ -19,9 +19,9 @@ router = APIRouter()
 
 
 @router.get("/exams")
-def get_exams(user: AuthenticatedUser, database: DatabaseDep) -> list[ExamOut]:
+def get_exams(user: AuthenticatedUser, database: DatabaseDep, now: Now) -> list[ExamOut]:
     with database.transaction(user) as conn:
-        rows = exam_service.list_exams(conn, user.id)
+        rows = exam_service.list_exams(conn, user.id, now)
     return [ExamOut.model_validate(row) for row in rows]
 
 

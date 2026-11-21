@@ -275,6 +275,14 @@ def test_export_has_the_documented_shape(
         "color_index",
         "deleted_at",
         "created_at",
+        "sitting",
+        "closure",
+        "closed_at",
+        "closure_notified_at",
+        "first_exam_date",
+        "first_grade",
+        "moed_b_notes",
+        "moed_b_topic_ids",
     }
     assert exams[str(filled.exam_id)]["deleted_at"] is None
     assert exams[str(filled.deleted_exam_id)]["deleted_at"] is not None
@@ -301,6 +309,7 @@ def test_export_has_the_documented_shape(
         "split_dismissed_at",
         "deleted_at",
         "created_at",
+        "sitting",
     }
 
     (block,) = body["blocks"]

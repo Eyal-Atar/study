@@ -1,5 +1,5 @@
 import datetime as dt
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
@@ -22,6 +22,11 @@ class ExamOut(BaseModel):
     difficulty: int
     color_index: int
     created_at: dt.datetime
+    sitting: int
+    state: Literal["active", "pending", "waiting_moed_b", "done"]
+    closed_at: dt.datetime | None
+    first_exam_date: dt.date | None
+    first_grade: int | None
 
 
 class ExamCreate(BaseModel):

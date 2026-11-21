@@ -126,17 +126,19 @@ def _active_reanalysis(conn: Conn, user_id: UUID, exam_id: UUID) -> UUID | None:
 
 
 def _exams_to_analyze(conn: Conn, user_id: UUID, today: dt.date) -> list[UUID]:
-    """Live exams whose date has not passed and that have no live AI task, by date."""
+    """Live, open exams whose date has not passed and that have no live AI task of the sitting."""
     rows = conn.execute(
         """
         SELECT e.id FROM app.exams AS e
         WHERE e.user_id = %(user_id)s
           AND e.deleted_at IS NULL
           AND e.exam_date >= %(today)s
+          AND e.closure IS NULL
           AND NOT EXISTS (
               SELECT 1 FROM app.tasks AS t
               WHERE t.user_id = %(user_id)s
                 AND t.exam_id = e.id
+                AND t.sitting = e.sitting
                 AND t.source = 'ai'
                 AND t.deleted_at IS NULL
           )
@@ -169,12 +171,13 @@ def request_reanalysis(
     """Queue a reanalyze_exam job for one live, upcoming exam, or return its active one."""
     profile = to_planner_profile(lock_user(conn, user_id))
     exam = conn.execute(
-        "SELECT exam_date FROM app.exams WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
+        "SELECT exam_date, closure FROM app.exams "
+        "WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
         (user_id, exam_id),
     ).fetchone()
     if exam is None:
         raise ApiError("not_found")
-    if exam["exam_date"] < local_date(now, profile.timezone):
+    if exam["closure"] is not None or exam["exam_date"] < local_date(now, profile.timezone):
         raise ApiError("exam_in_past")
     active = _active_reanalysis(conn, user_id, exam_id)
     if active is not None:

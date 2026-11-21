@@ -83,13 +83,16 @@ def _draft(conn: Conn, user_id: UUID, analysis_id: UUID) -> dict[str, Any]:
     return row
 
 
-def _replaced_tasks(conn: Conn, user_id: UUID, exam_id: UUID) -> tuple[ReplacedTask, ...]:
-    """The exam's live AI todo tasks without a done block: what the draft replaces."""
+def _replaced_tasks(
+    conn: Conn, user_id: UUID, exam_id: UUID, sitting: int
+) -> tuple[ReplacedTask, ...]:
+    """The current sitting's live AI todo tasks without a done block: what the draft replaces."""
     rows = conn.execute(
         """
         SELECT t.id, t.title FROM app.tasks AS t
         WHERE t.user_id = %(user_id)s
           AND t.exam_id = %(exam_id)s
+          AND t.sitting = %(sitting)s
           AND t.source = 'ai'
           AND t.status = 'todo'
           AND t.deleted_at IS NULL
@@ -99,16 +102,16 @@ def _replaced_tasks(conn: Conn, user_id: UUID, exam_id: UUID) -> tuple[ReplacedT
           )
         ORDER BY t.position NULLS LAST, t.created_at, t.id
         """,
-        {"user_id": user_id, "exam_id": exam_id},
+        {"user_id": user_id, "exam_id": exam_id, "sitting": sitting},
     ).fetchall()
     return tuple(ReplacedTask(id=row["id"], title=row["title"]) for row in rows)
 
 
-def _live_task_count(conn: Conn, user_id: UUID, exam_id: UUID) -> int:
+def _live_task_count(conn: Conn, user_id: UUID, exam_id: UUID, sitting: int) -> int:
     row = conn.execute(
         "SELECT count(*) AS n FROM app.tasks "
-        "WHERE user_id = %s AND exam_id = %s AND deleted_at IS NULL",
-        (user_id, exam_id),
+        "WHERE user_id = %s AND exam_id = %s AND sitting = %s AND deleted_at IS NULL",
+        (user_id, exam_id, sitting),
     ).fetchone()
     if row is None:
         raise RuntimeError("SELECT count(*) returned no row")
@@ -135,17 +138,18 @@ def apply_analysis(
         raise ApiError("stale_plan")
     exam_id: UUID = draft["exam_id"]
     exam = conn.execute(
-        "SELECT exam_date FROM app.exams WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
+        "SELECT exam_date, closure, sitting FROM app.exams "
+        "WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
         (user_id, exam_id),
     ).fetchone()
     if exam is None:
         raise ApiError("not_found")
-    if exam["exam_date"] < local_date(now, board.profile.timezone):
+    if exam["closure"] is not None or exam["exam_date"] < local_date(now, board.profile.timezone):
         raise ApiError("exam_in_past")
 
-    replaced = _replaced_tasks(conn, user_id, exam_id)
+    replaced = _replaced_tasks(conn, user_id, exam_id, exam["sitting"])
     replaced_ids = [task.id for task in replaced]
-    kept = _live_task_count(conn, user_id, exam_id) - len(replaced)
+    kept = _live_task_count(conn, user_id, exam_id, exam["sitting"]) - len(replaced)
 
     version_id = create_version(
         conn,

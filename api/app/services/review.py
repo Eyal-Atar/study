@@ -72,7 +72,8 @@ def review_blocks(conn: Conn, user_id: UUID, now: dt.datetime) -> tuple[BlockVie
         "JOIN app.exams e ON e.id = t.exam_id AND e.user_id = t.user_id "
         "WHERE b.user_id = %s AND b.status = 'planned' AND b.ends_at <= %s "
         "AND b.starts_at >= %s AND t.status = 'todo' AND t.deleted_at IS NULL "
-        "AND e.deleted_at IS NULL AND e.exam_date >= %s",
+        "AND e.deleted_at IS NULL AND e.exam_date >= %s AND e.closure IS NULL "
+        "AND t.sitting = e.sitting",
         (user_id, start_minute(now), since, local_date(now, profile.timezone)),
     ).fetchall()
     views = blocks_by_id(conn, user_id, [row["id"] for row in rows], profile, now)

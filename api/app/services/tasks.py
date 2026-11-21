@@ -48,7 +48,7 @@ _TASK_COLUMNS_OF_T: Final = ", ".join(f"t.{column.strip()}" for column in TASK_C
 def list_tasks(conn: Conn, user_id: UUID, exam_id: UUID) -> Sequence[Row]:
     """The exam's live tasks, each with its analysis's reason (output.tasks[position - 1])."""
     exam = conn.execute(
-        "SELECT 1 FROM app.exams WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
+        "SELECT sitting FROM app.exams WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
         (user_id, exam_id),
     ).fetchone()
     if exam is None:
@@ -59,9 +59,9 @@ def list_tasks(conn: Conn, user_id: UUID, exam_id: UUID) -> Sequence[Row]:
         "FROM app.tasks t "
         "LEFT JOIN app.analyses a ON a.id = t.analysis_id AND a.user_id = t.user_id "
         "AND t.source = 'ai' "
-        "WHERE t.user_id = %s AND t.exam_id = %s AND t.deleted_at IS NULL "
+        "WHERE t.user_id = %s AND t.exam_id = %s AND t.deleted_at IS NULL AND t.sitting = %s "
         "ORDER BY t.position NULLS LAST, t.created_at, t.id",
-        (user_id, exam_id),
+        (user_id, exam_id, exam["sitting"]),
     ).fetchall()
 
 
@@ -150,12 +150,13 @@ def create_task(
 ) -> tuple[Row, PlacementOutcome, UUID | None]:
     board = load_board(conn, user_id, now, lock=True)
     exam = conn.execute(
-        "SELECT exam_date FROM app.exams WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
+        "SELECT exam_date, closure FROM app.exams "
+        "WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
         (user_id, values["exam_id"]),
     ).fetchone()
     if exam is None:
         raise ApiError("not_found")
-    if exam["exam_date"] < local_date(now, board.profile.timezone):
+    if exam["closure"] is not None or exam["exam_date"] < local_date(now, board.profile.timezone):
         raise ApiError("exam_in_past")
     if values["depends_on_task_id"] is not None:
         _live_task(conn, user_id, values["depends_on_task_id"])

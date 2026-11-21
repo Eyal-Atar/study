@@ -31,6 +31,7 @@ from app.domain.gamification import (
 )
 from app.domain.planner import Profile, study_date
 from app.services.board import BlockRow
+from app.services.exam_stats import EMPTY, exam_stats
 from app.services.profiles import Conn
 
 # The progress board shows this many study days, today included.
@@ -64,6 +65,23 @@ class DayXp:
 
 
 @dataclass(frozen=True)
+class ArchivedExam:
+    """An exam the student closed as done, with how far its current sitting got (S45)."""
+
+    exam_id: UUID
+    name: str
+    color_index: int
+    exam_date: dt.date
+    first_exam_date: dt.date | None
+    sitting: int
+    closed_at: dt.datetime | None
+    studied_minutes: int
+    tasks_done: int
+    tasks_total: int
+    completion_percent: int
+
+
+@dataclass(frozen=True)
 class ProgressView:
     """GET /progress: everything is computed from the ledger and the badges table."""
 
@@ -76,6 +94,7 @@ class ProgressView:
     today: dt.date
     days: tuple[DayXp, ...]
     badges: tuple[BadgeState, ...]
+    archive: tuple[ArchivedExam, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -227,6 +246,33 @@ def unchanged(conn: Conn, user_id: UUID) -> ProgressChange:
     return _change(conn, user_id, _totals(conn, user_id), 0, sync=False)
 
 
+def _archive(conn: Conn, user_id: UUID) -> tuple[ArchivedExam, ...]:
+    """The live exams closed as done, the latest closed first (plan S45, decision 10)."""
+    exams = conn.execute(
+        "SELECT id, name, color_index, exam_date, first_exam_date, sitting, closed_at "
+        "FROM app.exams WHERE user_id = %s AND closure = 'done' AND deleted_at IS NULL "
+        "ORDER BY closed_at DESC NULLS LAST, id",
+        (user_id,),
+    ).fetchall()
+    stats = exam_stats(conn, user_id, [row["id"] for row in exams])
+    return tuple(
+        ArchivedExam(
+            exam_id=row["id"],
+            name=row["name"],
+            color_index=row["color_index"],
+            exam_date=row["exam_date"],
+            first_exam_date=row["first_exam_date"],
+            sitting=row["sitting"],
+            closed_at=row["closed_at"],
+            studied_minutes=(stat := stats.get(row["id"], EMPTY)).studied_minutes,
+            tasks_done=stat.tasks_done,
+            tasks_total=stat.tasks_total,
+            completion_percent=stat.completion_percent,
+        )
+        for row in exams
+    )
+
+
 def progress(conn: Conn, user_id: UUID, profile: Profile, now: dt.datetime) -> ProgressView:
     totals = _totals(conn, user_id)
     level = level_for(totals.total_xp)
@@ -262,4 +308,5 @@ def progress(conn: Conn, user_id: UUID, profile: Profile, now: dt.datetime) -> P
         today=today,
         days=days,
         badges=tuple(BadgeState(badge, earned_at.get(badge.key)) for badge in BADGES),
+        archive=_archive(conn, user_id),
     )
