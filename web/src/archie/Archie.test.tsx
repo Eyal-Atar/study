@@ -2,9 +2,28 @@ import { act, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { en } from '../i18n/en'
 import { Archie, type ArchieMood, type ArchieSize } from './Archie'
+import { MOOD_ART } from './moods'
 
 const MOODS: ArchieMood[] = ['intentions', 'eureka', 'wisdom', 'flow', 'rest', 'joy']
 const SIZES: ArchieSize[] = ['avatar', 'card', 'scene']
+
+// The pixel size of the large file of each mood (src/assets/archie/{mood}-900.webp), read from
+// the files themselves: the cut-outs are transparent, and each has its own proportions.
+const LARGE: Record<ArchieMood, readonly [number, number]> = {
+  intentions: [653, 645],
+  eureka: [582, 543],
+  wisdom: [892, 630],
+  flow: [634, 506],
+  rest: [900, 599],
+  joy: [702, 654],
+}
+
+// Anything that would put Archie back in a box: a fill, a gradient, a rounded corner, a shadow.
+const BOXED = /^(bg-|from-|to-|via-|rounded|shadow|ring|border|outline)/
+
+function classesOf(el: Element) {
+  return [...el.classList]
+}
 
 // A stand-in for IntersectionObserver: jsdom has none. Each instance keeps its callback and the
 // elements it watches, so a test can say when an element enters or leaves the screen.
@@ -83,6 +102,85 @@ describe('Archie', () => {
     })
   })
 
+  // S39: Archie has no sky, no frame and no circle. He sits on whatever surface is behind him.
+  describe.each(SIZES)('size %s has no background and no frame', (size) => {
+    it.each(MOODS)('%s: no fill, gradient, rounded corner or shadow on any element', (mood) => {
+      const { container } = render(<Archie mood={mood} size={size} />)
+      const root = container.firstElementChild
+      if (!root) throw new Error('nothing rendered')
+
+      for (const el of [root, ...root.querySelectorAll('*')]) {
+        expect(classesOf(el).filter((name) => BOXED.test(name))).toEqual([])
+        expect(el.getAttribute('style') ?? '').not.toMatch(/background|box-shadow|border/)
+      }
+    })
+
+    it.each(MOODS)('%s: the image has the size of its own cut-out, in its two real widths', (mood) => {
+      render(<Archie mood={mood} size={size} />)
+      const [width, height] = LARGE[mood]
+
+      const img = screen.getByRole('img', { name: en.archie.alt[mood] })
+      expect(img).toHaveAttribute('width', String(width))
+      expect(img).toHaveAttribute('height', String(height))
+      const widths = (img.getAttribute('srcset') ?? '').split(',').map((part) => part.trim().split(/\s+/)[1])
+      expect(widths).toEqual(['450w', `${String(width)}w`])
+    })
+  })
+
+  it.each(['card', 'scene'] as const)('a %s clips nothing: neither the frame nor the motion layer hides overflow', (size) => {
+    for (const mood of MOODS) {
+      const { container, unmount } = render(<Archie mood={mood} size={size} />)
+      const root = container.firstElementChild
+      if (!root) throw new Error('nothing rendered')
+
+      for (const el of [root, ...root.querySelectorAll('*')]) {
+        expect(classesOf(el).filter((name) => name.startsWith('overflow-'))).toEqual([])
+      }
+      unmount()
+    }
+  })
+
+  it('a scene is never wider than its art, and a card has no cap of its own', () => {
+    for (const mood of MOODS) {
+      const { container, unmount } = render(
+        <>
+          <Archie mood={mood} size="scene" />
+          <Archie mood={mood} size="card" />
+        </>,
+      )
+      const scene = container.querySelector<HTMLElement>('[data-size="scene"]')
+      const card = container.querySelector<HTMLElement>('[data-size="card"]')
+
+      expect(scene?.style.maxWidth).toBe(`${String(LARGE[mood][0])}px`)
+      expect(card?.style.maxWidth).toBe('')
+      unmount()
+    }
+  })
+
+  // The avatar is a bust: the head and the shoulders, cut out of the same image. The crop lies
+  // inside the image, so the box never shows an empty band beside or above him.
+  it.each(MOODS)('the avatar of %s is a crop inside the image', (mood) => {
+    const { bust, width, height } = MOOD_ART[mood]
+
+    expect(bust.x).toBeGreaterThanOrEqual(0)
+    expect(bust.y).toBeGreaterThanOrEqual(0)
+    expect(bust.x + bust.size).toBeLessThanOrEqual(1)
+    // The crop is a square: its height is the same number of pixels as its width.
+    expect(bust.y + (bust.size * width) / height).toBeLessThanOrEqual(1)
+    // The head fills the avatar: the crop is under half the width of the cut-out.
+    expect(bust.size).toBeLessThan(0.5)
+  })
+
+  it('the avatar places the image by percent of its box, so it follows any size', () => {
+    render(<Archie mood="joy" size="avatar" />)
+    const { bust, width, height } = MOOD_ART.joy
+
+    const img = screen.getByRole('img', { name: en.archie.alt.joy })
+    expect(parseFloat(img.style.width)).toBeCloseTo(100 / bust.size, 1)
+    expect(parseFloat(img.style.left)).toBeCloseTo((-bust.x / bust.size) * 100, 1)
+    expect(parseFloat(img.style.top)).toBeCloseTo((-bust.y / bust.size) * (height / width) * 100, 1)
+  })
+
   it('a decorative Archie has an empty alt, so a screen reader skips it', () => {
     const { container } = render(<Archie mood="joy" decorative />)
 
@@ -99,7 +197,7 @@ describe('Archie', () => {
   it('the avatar asks for a width close to what it shows, so a phone takes the small file', () => {
     render(<Archie mood="joy" size="avatar" />)
 
-    expect(screen.getByRole('img', { name: en.archie.alt.joy })).toHaveAttribute('sizes', '104px')
+    expect(screen.getByRole('img', { name: en.archie.alt.joy })).toHaveAttribute('sizes', '128px')
   })
 
   it('loads lazily and asynchronously, from webp in two widths', () => {
@@ -110,7 +208,7 @@ describe('Archie', () => {
     expect(img).toHaveAttribute('decoding', 'async')
     const widths = (img.getAttribute('srcset') ?? '').split(',').map((part) => part.trim().split(/\s+/))
     expect(widths).toHaveLength(2)
-    expect(widths.map(([, w]) => w)).toEqual(['450w', expect.stringMatching(/^\d{3}w$/)])
+    expect(widths.map(([, w]) => w)).toEqual(['450w', '900w'])
     for (const [url] of widths) expect(url).toMatch(/\.webp$/)
     expect(img).toHaveAttribute('sizes')
   })
@@ -172,6 +270,25 @@ describe('Archie', () => {
 
     expect(layer).not.toHaveAttribute('data-playing')
     expect(layer.querySelector('[data-part="particles"]')?.childElementCount ?? 0).toBe(0)
+  })
+
+  it('under prefers-reduced-motion nothing breathes either: the illustration stands still', () => {
+    mockReducedMotion(true)
+    const { container } = render(<Archie mood="joy" />)
+    const frame = container.firstElementChild
+    if (!frame) throw new Error('nothing rendered')
+
+    setInView(frame, true)
+
+    expect(container.querySelector('img')).not.toHaveClass('archie-breathe')
+  })
+
+  it('the motion layer measures in the scale of the art, whatever the width of the cut-out', () => {
+    const { container } = render(<Archie mood="eureka" />)
+    const frame = container.firstElementChild as HTMLElement
+
+    // One unit is 9 pixels of the art: 900 / 582 of a percent of the frame's width.
+    expect(frame.style.getPropertyValue('--archie-u')).toBe('1.5464cqw')
   })
 
   it('the layer does not take clicks', () => {

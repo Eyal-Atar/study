@@ -9,12 +9,15 @@ import { MotionLayer } from './motionLayer'
 export type { ArchieMood } from './moods'
 export type ArchieSize = 'avatar' | 'card' | 'scene'
 
-// Archie, the cut-paper zen character (S31, decision 23; docs/superpowers/specs/
-// 2026-11-18-archie-look-and-gamification.md, section 3). One component for the six moods and the
-// three sizes:
-// - avatar: a circle cut around the face, no motion. 40px unless className sizes it.
-// - card: the illustration framed on the dawn sky, with the motion layer of its mood.
-// - scene: the same at the full width of its place, without the frame.
+// Archie, the cut-paper zen character (S31, decision 23; S39: no sky, no frame, no circle). This
+// file is the one place that knows the character's assets: a later change of the art (final
+// PNGs, Lottie, Rive) happens here and in moods.ts, and no screen notices.
+//
+// One component for the six moods and the three sizes. In all of them the cut-out is transparent
+// and sits on whatever surface is behind it; nothing here paints a background or clips a shape.
+// - avatar: the head and shoulders, fading out below, no motion. 40px unless className sizes it.
+// - card: the whole cut-out at the width of its place, with the motion layer of its mood.
+// - scene: the same, centred, and never wider than the pixels of the art.
 // The illustration is never redrawn: everything that moves is a layer over it (motionLayer.tsx),
 // it plays only while on screen, and never for someone who asked the system for less motion.
 
@@ -90,7 +93,7 @@ function useParticles(mood: ArchieMood, playing: boolean) {
     }
   }, [mood, playing])
 
-  // A new mood starts with an empty sky.
+  // A new mood starts with nothing in the air.
   const [shownMood, setShownMood] = useState(mood)
   if (shownMood !== mood) {
     setShownMood(mood)
@@ -106,11 +109,11 @@ function useParticles(mood: ArchieMood, playing: boolean) {
 
 // The width the illustration takes on screen, for the browser's choice between the two files.
 const SIZES: Record<ArchieSize, string> = {
-  // The face is zoomed in the circle (about 2.6 times a 40px avatar), so 104px: a 3x phone takes
-  // the 450w file.
-  avatar: '104px',
+  // The image is wider than the avatar's box by 1 / bust.size, about 2.5 to 4.7 times: 128px is
+  // near what a 40px avatar draws, so a 3x phone still takes the 450w file.
+  avatar: '128px',
   card: '(min-width: 768px) 420px, 100vw',
-  scene: '100vw',
+  scene: '(min-width: 900px) 900px, 100vw',
 }
 
 function Illustration({ mood, size, decorative, eager = false, style, className }: { mood: ArchieMood; size: ArchieSize; decorative: boolean; eager?: boolean; style?: CSSProperties; className?: string }) {
@@ -132,23 +135,41 @@ function Illustration({ mood, size, decorative, eager = false, style, className 
   )
 }
 
-// The avatar's image: wider than the circle by the mood's zoom, and moved so the face is in the
-// middle. Percent of the circle (a square), so it follows any size the className gives.
+// The avatar's image: scaled so the bust square of the mood is as wide as the box, and moved so
+// that square is the box. Percent of the box (a square), so it follows any size the className
+// gives.
 function avatarStyle(mood: ArchieMood): CSSProperties {
-  const { face, width, height } = MOOD_ART[mood]
-  const imageWidth = face.zoom * 100
+  const { bust, width, height } = MOOD_ART[mood]
+  const imageWidth = 100 / bust.size
   const imageHeight = imageWidth * (height / width)
   return {
     position: 'absolute',
     maxWidth: 'none',
     width: `${imageWidth.toFixed(2)}%`,
     height: 'auto',
-    left: `${(50 - face.x * imageWidth).toFixed(2)}%`,
-    top: `${(50 - face.y * imageHeight).toFixed(2)}%`,
+    left: `${(-bust.x * imageWidth).toFixed(2)}%`,
+    top: `${(-bust.y * imageHeight).toFixed(2)}%`,
   }
 }
 
-function Frame({ mood, size, decorative, className }: { mood: ArchieMood; size: 'card' | 'scene'; decorative: boolean; className?: string }) {
+// The motion layer was drawn for a 900px wide illustration, and the cut-outs keep that scale but
+// not that width. So its sizes and paths are in units of the art, not of the frame: one unit
+// (--archie-u) is 9 pixels of the art, which is 1% of the frame's width only when the cut-out is
+// 900px wide. --archie-fall is how far a falling leaf goes: four fifths of the frame's height, so
+// it has faded out before it reaches the lower edge.
+type FrameStyle = CSSProperties & Record<`--${string}`, string>
+
+function frameStyle(mood: ArchieMood, size: 'card' | 'scene'): FrameStyle {
+  const { width, height } = MOOD_ART[mood]
+  return {
+    '--archie-u': `${(900 / width).toFixed(4)}cqw`,
+    '--archie-fall': `${((height / width) * 80).toFixed(2)}cqw`,
+    // The art is as wide as its file: wider would blur it.
+    ...(size === 'scene' ? { maxWidth: `${String(width)}px` } : {}),
+  }
+}
+
+function Frame({ mood, size, decorative, eager, className }: { mood: ArchieMood; size: 'card' | 'scene'; decorative: boolean; eager: boolean; className?: string }) {
   const ref = useRef<HTMLDivElement>(null)
   const reduced = useReducedMotion()
   const playing = useInView(ref, !reduced)
@@ -158,19 +179,16 @@ function Frame({ mood, size, decorative, className }: { mood: ArchieMood; size: 
       ref={ref}
       data-mood={mood}
       data-size={size}
-      className={cx(
-        'archie-frame relative aspect-[900/655] w-full overflow-hidden bg-sky bg-linear-to-b from-sky-from to-sky-to',
-        size === 'card' && 'rounded-card shadow-raised',
-        // The art is 900px wide until the full-size scenes arrive: wider would blur it.
-        size === 'scene' && 'mx-auto max-w-[900px]',
-        className,
-      )}
+      style={frameStyle(mood, size)}
+      className={cx('archie-frame relative w-full', size === 'scene' && 'mx-auto', className)}
     >
+      {/* In the flow, at the proportions of its own file: the frame is exactly as tall as he is. */}
       <Illustration
         mood={mood}
         size={size}
         decorative={decorative}
-        className={cx('absolute inset-0 size-full object-cover', playing && 'archie-breathe')}
+        eager={eager}
+        className={cx('block h-auto w-full', playing && 'archie-breathe')}
       />
       <MotionLayer mood={mood} playing={playing} particles={particles} onParticleDone={removeParticle} />
     </div>
@@ -193,14 +211,12 @@ export function Archie({
 }) {
   if (size === 'avatar') {
     return (
-      <span
-        data-mood={mood}
-        data-size="avatar"
-        className={cx('archie-avatar relative inline-block shrink-0 overflow-hidden rounded-full bg-sky', className)}
-      >
+      // overflow-hidden cuts the image to the bust square, and no edge of that square shows: its
+      // top and sides are in the transparent part of the cut-out, and archie.css fades the rest.
+      <span data-mood={mood} data-size="avatar" className={cx('archie-avatar relative inline-block shrink-0 overflow-hidden', className)}>
         <Illustration mood={mood} size="avatar" decorative={decorative} eager={eager} style={avatarStyle(mood)} />
       </span>
     )
   }
-  return <Frame mood={mood} size={size} decorative={decorative} className={className} />
+  return <Frame mood={mood} size={size} decorative={decorative} eager={eager} className={className} />
 }

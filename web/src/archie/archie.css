@@ -1,9 +1,14 @@
-/* The motion layer of Archie (S31, decision 23): the keyframes of
-   docs/design/prototype/archie-moods.html, ported from its Web Animations to CSS.
+/* Archie (S31, decision 23; S39: transparent cut-outs, no sky and no frame) and his motion
+   layer: the keyframes of docs/design/prototype/archie-moods.html, ported from its Web Animations
+   to CSS.
 
-   Sizes and paths are in cqw (a percent of the frame's width; the frame is the container): the
-   prototype multiplied the frame's width w by a factor, and cqw follows the frame when it resizes
-   without measuring it. The frame is 900/655, so the full height is 72.8cqw.
+   Sizes and paths are in units of the art: --archie-u is 9 pixels of the illustration (1% of the
+   900px frame the prototype measured in), given by Archie.tsx in cqw of the frame, since every
+   cut-out has its own width. The frame is the container, so the layer follows it when it resizes
+   without measuring it. --archie-fall is four fifths of the frame's height.
+
+   Nothing here paints a background, and nothing is clipped: a piece that leaves its place fades
+   out inside the frame.
 
    Everything moves only while the layer has data-playing (Archie.tsx sets it when the frame is on
    screen and the system did not ask for less motion), and under prefers-reduced-motion the layer
@@ -13,9 +18,17 @@
 
 @layer components {
   /* An avatar is 40px unless the place that shows it gives a size (size-16, w-12). */
+  /* The avatar is a bust with no circle and no box. The square that cuts it never shows: its
+     top and sides are in the transparent part of the cut-out, the bottom fades out like a bust
+     rising from the surface, and the outer tenth of each side fades too, for the moods where he
+     leans and a shoulder reaches the side. */
   .archie-avatar {
     width: 2.5rem;
     aspect-ratio: 1;
+    -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent 98%), linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to bottom, #000 62%, transparent 98%), linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+    mask-composite: intersect;
   }
 
   .archie-frame {
@@ -66,13 +79,16 @@
     animation: archie-sprout 5.2s ease-in-out infinite alternate both;
   }
 
-  /* eureka: three dashed gold rings around his head, a turn every 40 seconds. */
+  /* eureka: three dashed gold rings behind his head, a turn every 40 seconds. Behind the
+     illustration (the frame is its own stacking context), and no wider than the space the
+     cut-out leaves above his head, so the rings stay inside the frame. */
   .archie-halo {
-    left: 50%;
-    top: 31%;
-    width: 66cqw;
-    height: 66cqw;
-    margin: -33cqw 0 0 -33cqw;
+    z-index: -1;
+    left: 49.3%;
+    top: 19.7%;
+    width: calc(23 * var(--archie-u));
+    height: calc(23 * var(--archie-u));
+    margin: calc(-11.5 * var(--archie-u)) 0 0 calc(-11.5 * var(--archie-u));
     animation: archie-turn 40s linear infinite;
   }
 
@@ -82,28 +98,28 @@
     background: radial-gradient(circle, rgba(255, 226, 140, 0.85), rgba(255, 200, 80, 0.25) 45%, transparent 70%);
   }
   .archie-glow--stone {
-    left: 48%;
-    top: 79%;
-    width: 16cqw;
-    height: 16cqw;
-    margin: -8cqw 0 0 -8cqw;
+    left: 49.5%;
+    top: 74%;
+    width: calc(16 * var(--archie-u));
+    height: calc(16 * var(--archie-u));
+    margin: calc(-8 * var(--archie-u)) 0 0 calc(-8 * var(--archie-u));
     animation: archie-glow-stone 2.6s ease-in-out infinite;
   }
   .archie-glow--hand {
-    left: 75%;
-    top: 50%;
-    width: 22cqw;
-    height: 22cqw;
-    margin: -11cqw 0 0 -11cqw;
+    left: 85.5%;
+    top: 52.5%;
+    width: calc(20 * var(--archie-u));
+    height: calc(20 * var(--archie-u));
+    margin: calc(-10 * var(--archie-u)) 0 0 calc(-10 * var(--archie-u));
     background: radial-gradient(circle, rgba(255, 226, 140, 0.8), rgba(255, 200, 80, 0.2) 45%, transparent 70%);
     animation: archie-glow-hand 2.4s ease-in-out infinite;
   }
 
   /* wisdom: an ink line written near the brush, held, and faded, every 6 seconds. */
   .archie-ink {
-    left: 46%;
-    top: 75%;
-    width: 16cqw;
+    left: 45%;
+    top: 70.2%;
+    width: calc(10 * var(--archie-u));
     height: auto;
     opacity: 0.85;
   }
@@ -111,12 +127,6 @@
     stroke-dasharray: 100;
     stroke-dashoffset: 100;
     animation: archie-ink 6s linear infinite;
-  }
-
-  /* flow: willow leaves hang from the branch and sway. */
-  .archie-willow {
-    transform-origin: 50% 0;
-    animation: archie-sway 3.2s ease-in-out infinite alternate;
   }
 
   /* --- The particles ---------------------------------------------------------------------- */
@@ -131,7 +141,7 @@
     opacity: 0;
   }
 
-  /* A paper shape drifting down the whole frame, swaying and turning. */
+  /* A paper shape drifting down the frame, swaying, turning and fading on the way. */
   .archie-fall {
     animation-name: archie-fall;
   }
@@ -155,13 +165,13 @@
   .archie-steam {
     animation-name: archie-steam;
   }
-  /* A sand ripple spreading out from the rake. */
+  /* A sand ripple spreading out from the rake, no further than the sand. */
   .archie-ripple {
     animation-name: archie-ripple;
   }
   .archie-ripple-shape {
-    height: 4cqw;
-    margin: -2cqw 0 0 -5cqw;
+    height: calc(4 * var(--archie-u));
+    margin: calc(-2 * var(--archie-u)) 0 0 calc(-5 * var(--archie-u));
     border-radius: 50%;
     border: 2px solid;
     box-shadow: 0 1px 0 rgba(255, 250, 235, 0.7);
@@ -232,14 +242,6 @@
       opacity: 0;
     }
   }
-  @keyframes archie-sway {
-    from {
-      transform: rotate(-10deg);
-    }
-    to {
-      transform: rotate(10deg);
-    }
-  }
   @keyframes archie-fall {
     0% {
       transform: translate(0, 0) rotate(var(--r));
@@ -249,10 +251,10 @@
       opacity: 1;
     }
     50% {
-      transform: translate(calc(var(--dx) * 0.5), 32.8cqw) rotate(calc(var(--r) + 90deg));
+      transform: translate(calc(var(--dx) * 0.5), calc(var(--archie-fall) * 0.45)) rotate(calc(var(--r) + 90deg));
     }
     100% {
-      transform: translate(var(--dx), 72.8cqw) rotate(calc(var(--r) + 200deg));
+      transform: translate(var(--dx), var(--archie-fall)) rotate(calc(var(--r) + 200deg));
       opacity: 0;
     }
   }
@@ -265,11 +267,11 @@
       opacity: 1;
     }
     85% {
-      transform: translate(5cqw, 12cqw) scale(1);
+      transform: translate(calc(1.6 * var(--archie-u)), calc(6.4 * var(--archie-u))) scale(1);
       opacity: 0.9;
     }
     100% {
-      transform: translate(6cqw, 15cqw) scale(0.4);
+      transform: translate(calc(1.9 * var(--archie-u)), calc(7.8 * var(--archie-u))) scale(0.4);
       opacity: 0;
     }
   }
@@ -335,7 +337,7 @@
       opacity: 1;
     }
     100% {
-      transform: scale(3.2);
+      transform: scale(1.9);
       opacity: 0;
     }
   }

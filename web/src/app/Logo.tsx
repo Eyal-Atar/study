@@ -1,9 +1,10 @@
 import { Archie } from '../archie/Archie'
 import { en } from '../i18n/en'
 
-// The logo of the all-screens mockup (.logo, S31 decision 29): Archie's joy as a 34px avatar and
-// the name beside it in the display font, Amatic SC at 30px. Archie is decoration (alt=""): the
-// name is the text. The name is PRODUCT_NAME, ארצ׳י (decision 31). The same at both widths.
+// The logo (S31 decision 29; S39): Archi's joy as a 34px avatar, a bust with no circle behind it,
+// and the name beside it in the display font, Amatic SC bold at 30px. Amatic SC draws Latin as
+// tall capitals, so the name stands as high as his head and the two share a centre line. Archi
+// is decoration here (alt=""): the name is the text. The same at both widths.
 export function Logo() {
   return (
     <span className="flex min-w-0 shrink-0 items-center gap-2">
