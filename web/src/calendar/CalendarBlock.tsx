@@ -1,4 +1,4 @@
-import type { CSSProperties, KeyboardEvent, MouseEvent } from 'react'
+import type { CSSProperties, DOMAttributes, KeyboardEvent, MouseEvent } from 'react'
 import { useBlockActions } from '../board/actions'
 import { blockName } from '../board/blockName'
 import { formatRange } from '../board/time'
@@ -59,6 +59,12 @@ function fromInnerControl(target: EventTarget): boolean {
   return target instanceof Element && target.closest('button') !== null
 }
 
+// The gestures of the grid (Task 8, useBlockDrag and useSwipe), laid on the block by TimeGrid.
+export type BlockGestures = Pick<
+  DOMAttributes<HTMLDivElement>,
+  'onPointerDown' | 'onPointerMove' | 'onPointerUp' | 'onPointerCancel' | 'onLostPointerCapture' | 'onKeyDown' | 'onBlur'
+>
+
 export interface CalendarBlockProps {
   block: Block
   tz: string
@@ -71,6 +77,7 @@ export interface CalendarBlockProps {
   // About to be moved by a change that is still a preview (new busy time over it).
   leaving?: boolean
   style?: CSSProperties
+  gestures?: BlockGestures
 }
 
 // A study block on the grid (decision 4, audit guideline 13): the colour says which exam, the icon
@@ -78,7 +85,7 @@ export interface CalendarBlockProps {
 // transparent: a done block is muted and struck through, an overdue one is outlined in dashes.
 //
 // A div with role="button" and not a <button>: the check inside it is a button.
-export function CalendarBlock({ block, tz, view, top, height, onOpen, lifted = false, leaving = false, style }: CalendarBlockProps) {
+export function CalendarBlock({ block, tz, view, top, height, onOpen, lifted = false, leaving = false, style, gestures }: CalendarBlockProps) {
   const actions = useBlockActions()
   const color = examColor(block.exam_color_index)
   const look = LOOK[view]
@@ -116,6 +123,9 @@ export function CalendarBlock({ block, tz, view, top, height, onOpen, lifted = f
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    // A key the move took (an arrow, or Enter while moving) is not a press on the block.
+    gestures?.onKeyDown?.(event)
+    if (event.defaultPrevented) return
     if (event.target !== event.currentTarget) return
     if (event.key !== 'Enter' && event.key !== ' ') return
     event.preventDefault()
@@ -130,11 +140,13 @@ export function CalendarBlock({ block, tz, view, top, height, onOpen, lifted = f
       aria-describedby={GRID_INSTRUCTIONS_ID}
       data-block-id={block.id}
       {...(lifted ? { 'data-lifted': '' } : {})}
+      {...gestures}
       onClick={open}
       onKeyDown={onKeyDown}
       style={{ top, height, ...style }}
       className={cx(
-        'calendar-block absolute inset-x-[3px] cursor-pointer overflow-hidden rounded-[10px] border border-s-4 border-s-current ps-[7px] pe-0',
+        // pan-y: a finger scrolls the day over a block, and a sideways one is the block's (Task 8).
+        'calendar-block absolute inset-x-[3px] cursor-pointer touch-pan-y select-none overflow-hidden rounded-[10px] border border-s-4 border-s-current ps-[7px] pe-0',
         'transition-colors duration-(--duration-base) motion-reduce:transition-none',
         look.text,
         // The colour of the exam is the block's currentColor: the stripe, the icon and the check's square.

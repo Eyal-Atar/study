@@ -62,6 +62,9 @@ function setup(options: Options = {}) {
       rangeText="22–28 November 2026"
       onOpenBlock={onOpenBlock}
       onOpenBusy={onOpenBusy}
+      dayBounds={() => ({ dayStart: null, dayEnd: null })}
+      onSwipeAction={vi.fn()}
+      onCreateBusy={vi.fn()}
     />,
     { api: fake.api },
   )
