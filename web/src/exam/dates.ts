@@ -1,3 +1,5 @@
+import { LOCALE } from '../i18n/locale'
+
 // Calendar days as 'YYYY-MM-DD' strings. Arithmetic runs on UTC midnights, so no daylight saving
 // change in the browser zone shifts a day; "today" is read in the profile's zone (spec 7.3).
 
@@ -48,34 +50,34 @@ export function daysBetween(from: string, to: string): number {
   return Math.round((utc(to).getTime() - utc(from).getTime()) / DAY_MS)
 }
 
-const WEEKDAY = new Intl.DateTimeFormat('he-IL', { weekday: 'short', timeZone: 'UTC' })
-const DAY_MONTH = new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'numeric', timeZone: 'UTC' })
-const LONG_DATE = new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+const WEEKDAY = new Intl.DateTimeFormat(LOCALE, { weekday: 'short', timeZone: 'UTC' })
+const DAY_MONTH = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'numeric', timeZone: 'UTC' })
+const LONG_DATE = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
 
-// "יום ג׳"
+// "Tue"
 export function weekdayShort(day: string): string {
   return WEEKDAY.format(utc(day))
 }
 
-// "17.11"
+// "17/11"
 export function dayMonth(day: string): string {
   return DAY_MONTH.format(utc(day))
 }
 
-// "20 בינואר 2027"
+// "20 January 2027"
 export function longDate(day: string): string {
   return LONG_DATE.format(utc(day))
 }
 
-// A moment as "יום ג׳ 17.11, 09:00" in `timeZone`.
+// A moment as "Tue 17/11, 09:00" in `timeZone`. hourCycle h23: just after midnight is 00:30, never 24:30.
 export function momentIn(at: string, timeZone: string): string {
   const date = new Date(at)
   const day = todayIn(timeZone, date)
   let time: string
   try {
-    time = new Intl.DateTimeFormat('he-IL', { timeZone, hour: '2-digit', minute: '2-digit', hour12: false }).format(date)
+    time = new Intl.DateTimeFormat(LOCALE, { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date)
   } catch {
-    time = new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }).format(date)
+    time = new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date)
   }
   return `${weekdayShort(day)} ${dayMonth(day)}, ${time}`
 }

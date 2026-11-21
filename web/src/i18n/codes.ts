@@ -1,4 +1,5 @@
 import { en } from './en'
+import { LOCALE } from './locale'
 
 type Codes = typeof en.codes
 export type Code = keyof Codes
@@ -18,20 +19,20 @@ function numberParam(params: CodeParams, key: string): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
-// "HH:MM" in Jerusalem, with the date when it is not today there.
+// "HH:MM" in Jerusalem (24-hour, h23: never 24:30), with the date ("00:00 (17/11)") when it is not today there.
 function resetTime(params: CodeParams, now: Date): string | null {
   const raw = params.resets_at
   if (typeof raw !== 'string') return null
   const at = new Date(raw)
   if (Number.isNaN(at.getTime())) return null
-  const time = new Intl.DateTimeFormat('he-IL', { timeZone: QUOTA_TIMEZONE, hour: '2-digit', minute: '2-digit', hour12: false }).format(at)
+  const time = new Intl.DateTimeFormat(LOCALE, { timeZone: QUOTA_TIMEZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(at)
   const day = (date: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: QUOTA_TIMEZONE }).format(date)
   if (day(at) === day(now)) return time
-  const date = new Intl.DateTimeFormat('he-IL', { timeZone: QUOTA_TIMEZONE, day: 'numeric', month: 'numeric' }).format(at)
+  const date = new Intl.DateTimeFormat(LOCALE, { timeZone: QUOTA_TIMEZONE, day: 'numeric', month: 'numeric' }).format(at)
   return `${time} (${date})`
 }
 
-// The Hebrew text of a code. An unknown code gets the generic message, never the raw code.
+// The text of a code. An unknown code gets the generic message, never the raw code.
 export function codeText(code: string, params: CodeParams = {}, now: Date = new Date()): string {
   if (!isKnownCode(code)) return en.errors.generic
   switch (code) {

@@ -16,7 +16,7 @@ function color(name: string): string {
 }
 
 describe('manifest', () => {
-  it('names the app and opens it as a Hebrew RTL standalone app on /today', () => {
+  it('names the app and opens it as an English LTR standalone app on /today', () => {
     expect(manifest).toMatchObject({
       name: PRODUCT_NAME,
       short_name: PRODUCT_NAME,

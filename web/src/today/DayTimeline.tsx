@@ -14,7 +14,7 @@ import { useToast } from '../ui/useToast'
 
 // Today's waking hours as a vertical line of time (S18 decisions 11–12). Every block sits at its
 // time; an upcoming one has a handle that moves it in 15-minute steps, by pointer (mouse, touch,
-// pen) or by keyboard. The axis is vertical, so RTL needs no flipping: up is earlier everywhere.
+// pen) or by keyboard. The axis is vertical, so the text direction never flips it: up is earlier.
 //
 // The drag reads only clientY deltas and this constant, never the layout (getBoundingClientRect),
 // so the same code runs in a browser and in jsdom. Only the handle has `touch-action: none`: a

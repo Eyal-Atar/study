@@ -3,7 +3,7 @@ import { ListBox, ListBoxItem, type Selection } from 'react-aria-components'
 import { cx, FOCUS_RING, ICON_STROKE } from './styles'
 
 export interface OptionGridProps {
-  // The name of the list says what is being chosen: "שעה פנויה".
+  // The name of the list says what is being chosen: "A free time".
   'aria-label': string
   options: readonly { id: string; label: string }[]
   // null while nothing is chosen.
@@ -11,7 +11,8 @@ export interface OptionGridProps {
   // Called with the id that was asked for, or with null when the chosen option is pressed again.
   // The grid is controlled: it shows `value`.
   onChange: (value: string | null) => void
-  // Puts each label inside dir="ltr": a time or a range of times, which must not flip in RTL.
+  // Puts each label inside dir="ltr": a time or a range of times, which keeps its order even
+  // when it sits next to right-to-left user content.
   ltr?: boolean | undefined
 }
 

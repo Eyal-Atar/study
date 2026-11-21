@@ -63,6 +63,8 @@ describe('ExamPage', () => {
     openRoute(examServer(), '/exams/nope')
     expect(await screen.findByText(t.notFound)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: t.backToList })).toHaveAttribute('href', '/exams')
+    // LTR: "back" points left.
+    expect(screen.getByRole('link', { name: t.backToList }).querySelector('svg')).toHaveClass('lucide-chevron-left')
   })
 
   it('the h1 is there at once: "מבחן" while the exams load, then the name of the exam', async () => {

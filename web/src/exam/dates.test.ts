@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, daysBetween, dayMonth, studyDateIn, todayIn, weekdayShort } from './dates'
+import { addDays, daysBetween, dayMonth, longDate, momentIn, studyDateIn, todayIn, weekdayShort } from './dates'
 
 describe('exam dates', () => {
   it('todayIn reads the calendar day in the given zone, not the browser zone', () => {
@@ -31,9 +31,23 @@ describe('exam dates', () => {
     expect(daysBetween('2026-11-16', '2026-11-15')).toBe(-1)
   })
 
-  it('formats a day as weekday and day.month', () => {
+  it('formats a day as weekday and day/month (en-IL: day before month)', () => {
     // 2026-11-17 is a Tuesday.
-    expect(dayMonth('2026-11-17')).toBe('17.11')
-    expect(weekdayShort('2026-11-17')).toMatch(/ג/)
+    expect(dayMonth('2026-11-17')).toBe('17/11')
+    // en-IL pads the day and the month to two digits.
+    expect(dayMonth('2026-03-05')).toBe('05/03')
+    expect(weekdayShort('2026-11-17')).toBe('Tue')
+    expect(weekdayShort('2026-11-22')).toBe('Sun')
+  })
+
+  it('longDate is day, long month and year', () => {
+    expect(longDate('2027-01-20')).toBe('20 January 2027')
+  })
+
+  it('momentIn is the weekday, day/month and 24-hour time in the zone', () => {
+    expect(momentIn('2026-11-17T07:00:00Z', 'Asia/Jerusalem')).toBe('Tue 17/11, 09:00')
+    expect(momentIn('2026-11-17T14:05:00Z', 'Asia/Jerusalem')).toBe('Tue 17/11, 16:05')
+    // Just after midnight is 00:30 on the next day, never 24:30.
+    expect(momentIn('2026-11-16T22:30:00Z', 'Asia/Jerusalem')).toBe('Tue 17/11, 00:30')
   })
 })

@@ -120,6 +120,17 @@ describe('Timeline', () => {
     expect(box).toHaveClass('overflow-x-auto', 'rounded-card', 'border', 'border-line', 'bg-surface')
   })
 
+  it('in LTR today is the first day in the row, so the box opens on it at the left', () => {
+    show()
+    const list = screen.getByRole('list', { name: t.listLabel })
+    const box = list.parentElement
+    // No reversed row and no direction of its own: the scroll starts at the left, on day one.
+    expect(list.className).not.toMatch(/reverse/)
+    expect(list).not.toHaveAttribute('dir')
+    expect(box).not.toHaveAttribute('dir')
+    expect(within(list).getAllByRole('listitem')[0]).toBe(dayItem(TODAY))
+  })
+
   it('a failed plan shows the error with a retry above the chart, and the days stay', () => {
     const { onRetry } = show({ blocks: [], error: new ApiError(500, 'internal', null, {}) })
     const alert = screen.getByRole('alert')

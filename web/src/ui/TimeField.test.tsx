@@ -3,14 +3,15 @@ import { userEvent } from '@testing-library/user-event'
 import { useState } from 'react'
 import { I18nProvider } from 'react-aria-components'
 import { describe, expect, it, vi } from 'vitest'
+import { LOCALE } from '../i18n/locale'
 import { TimeField, type TimeFieldProps } from './TimeField'
 
 // A screen keeps the time as an 'HH:MM' string, so the test holds it the same way. The app renders
-// everything under he-IL (AppProviders).
+// everything under LOCALE (AppProviders).
 function Field({ initial = '', onChange, ...props }: Partial<TimeFieldProps> & { initial?: string }) {
   const [value, setValue] = useState(initial)
   return (
-    <I18nProvider locale="he-IL">
+    <I18nProvider locale={LOCALE}>
       <TimeField
         label="תחילת הלימוד"
         {...props}
@@ -46,7 +47,7 @@ describe('TimeField', () => {
     expect(hour).toHaveAttribute('aria-valuemax', '23')
   })
 
-  it('looks like the box of the other fields, and reads left to right inside the RTL page', () => {
+  it('looks like the box of the other fields, reads left to right, and starts at the start of the box', () => {
     const { group, hour } = setup({ initial: '08:30' })
 
     for (const part of [
@@ -58,11 +59,12 @@ describe('TimeField', () => {
       'data-[focus-within]:ring-2',
       'data-[focus-within]:ring-brand',
       'data-[invalid]:border-danger',
-      // The row is LTR, so its end is the right edge: where an RTL field starts.
-      'justify-end',
+      // The value starts at the left edge, where the value of every other field starts.
+      'justify-start',
     ]) {
       expect(group.className).toContain(part)
     }
+    expect(group.className).not.toContain('justify-end')
     expect(group).toHaveAttribute('dir', 'ltr')
     expect(hour.className).toContain('data-[focused]:bg-brand')
     expect(hour.className).toContain('data-[focused]:data-[placeholder]:text-on-brand')
@@ -137,7 +139,7 @@ describe('TimeField', () => {
     function Keeps() {
       const [value, setValue] = useState('08:30')
       return (
-        <I18nProvider locale="he-IL">
+        <I18nProvider locale={LOCALE}>
           <TimeField
             label="שעה"
             value={value}
@@ -162,12 +164,12 @@ describe('TimeField', () => {
 
   it('a value that changes from outside is shown', () => {
     const { rerender } = render(
-      <I18nProvider locale="he-IL">
+      <I18nProvider locale={LOCALE}>
         <TimeField label="שעה" value="08:30" onChange={vi.fn()} />
       </I18nProvider>,
     )
     rerender(
-      <I18nProvider locale="he-IL">
+      <I18nProvider locale={LOCALE}>
         <TimeField label="שעה" value="21:05" onChange={vi.fn()} />
       </I18nProvider>,
     )

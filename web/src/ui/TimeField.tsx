@@ -35,9 +35,9 @@ export interface TimeFieldProps {
 }
 
 // The box of a TextField around the two segments, with its focus inside it (as in the DatePicker).
-// A time is a number, so the row reads left to right even on the RTL page (dir="ltr" on the box);
-// in an LTR row the end is the right edge, which is where the value of every other field starts.
-const INPUT_CLASS = `${FIELD_BOX_CLASS} flex items-center justify-end px-3 ${FIELD_FOCUS_WITHIN_CLASS}`
+// The value sits at the start (left) of the box, like the value of every other field. dir="ltr" on
+// the box keeps HH:MM in that order even if the field ever sits inside right-to-left content.
+const INPUT_CLASS = `${FIELD_BOX_CLASS} flex items-center justify-start px-3 ${FIELD_FOCUS_WITHIN_CLASS}`
 
 // parseTime throws on anything that is not a time ('25:99', 'abc'); such a value is no time at all.
 function toTime(value: string): Time | null {

@@ -46,7 +46,7 @@ function Day({ info, max }: { info: DayInfo; max: number }) {
   return (
     // The visible column is a picture of the label; a screen reader reads the label once.
     <li aria-label={dayLabel(info)} className="flex max-w-16 min-w-11 flex-1 flex-col items-center gap-1 py-2">
-      {/* "היום" in words, not only in colour. */}
+      {/* "Today" in words, not only in colour. */}
       <span
         aria-hidden="true"
         className={cx('text-caption whitespace-nowrap', info.isToday ? 'font-semibold text-brand-strong' : 'text-ink-muted')}
@@ -55,7 +55,7 @@ function Day({ info, max }: { info: DayInfo; max: number }) {
       </span>
       <span aria-hidden="true" className="flex w-full items-end justify-center" style={{ height: BAR_MAX_PX }}>
         {info.isExam ? (
-          // An icon and no words: "יום המבחן" does not fit a narrow column, and used to wrap.
+          // An icon and no words: "Exam day" does not fit a narrow column, and used to wrap.
           <Flag aria-hidden="true" data-mark="exam" size={18} strokeWidth={ICON_STROKE} className="text-brand-strong" />
         ) : info.isRest ? (
           <Coffee aria-hidden="true" data-mark="rest" size={18} strokeWidth={ICON_STROKE} className="text-ink-muted" />
@@ -101,7 +101,8 @@ function Legend() {
 }
 
 // The days from today to the exam (plan decision 13): this exam's planned and done minutes per day,
-// the rest days, the exam day and today. Scrolls sideways inside its own box, never the page.
+// the rest days, the exam day and today. Scrolls sideways inside its own box, never the page. The
+// days are in date order in the DOM, so in LTR today is at the left, where the scroll starts.
 export function Timeline({
   examId,
   examDate,

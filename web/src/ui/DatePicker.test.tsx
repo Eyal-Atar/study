@@ -3,18 +3,19 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { I18nProvider } from 'react-aria-components'
 import { describe, expect, it, vi } from 'vitest'
+import { LOCALE } from '../i18n/locale'
 import { DatePicker, type DatePickerProps } from './DatePicker'
 import { ICON_BUTTON_CLASS } from './styles'
 
-// The app renders everything under he-IL (AppProviders), which gives the Hebrew labels and day, month, year.
+// The app renders everything under LOCALE (en-IL, AppProviders): English labels, day, month, year, and weeks from Sunday.
 function setup(props: Partial<DatePickerProps> = {}) {
   const onChange = vi.fn()
   render(
-    <I18nProvider locale="he-IL">
-      <DatePicker label="תאריך המבחן" defaultValue={new CalendarDate(2027, 1, 12)} onChange={onChange} {...props} />
+    <I18nProvider locale={LOCALE}>
+      <DatePicker label="Exam date" defaultValue={new CalendarDate(2027, 1, 12)} onChange={onChange} {...props} />
     </I18nProvider>,
   )
-  const group = screen.getByRole('group', { name: 'תאריך המבחן' })
+  const group = screen.getByRole('group', { name: 'Exam date' })
   return { onChange, group, button: within(group).getByRole('button') }
 }
 
@@ -23,7 +24,7 @@ describe('DatePicker', () => {
     const { group } = setup()
 
     const segments = within(group).getAllByRole('spinbutton')
-    expect(segments.map((segment) => segment.textContent)).toEqual(['12', '1', '2027'])
+    expect(segments.map((segment) => segment.textContent)).toEqual(['12', '01', '2027'])
     expect(group.className).toContain('min-h-touch')
     expect(group.className).toContain('data-[focus-within]:ring-2')
     expect(group.className).toContain('data-[focus-within]:border-brand')
@@ -104,7 +105,7 @@ describe('DatePicker', () => {
     const dialog = screen.getByRole('dialog')
     const heading = within(dialog).getByRole('heading')
     const before = heading.textContent
-    // The two arrows are the only buttons outside the grid; React Aria names them in Hebrew.
+    // The two arrows are the only buttons outside the grid; React Aria names them in English.
     const grid = within(dialog).getByRole('grid')
     const arrows = within(dialog)
       .getAllByRole('button')
@@ -116,6 +117,45 @@ describe('DatePicker', () => {
     }
     await user.click(arrows[1] as HTMLElement)
     expect(heading.textContent).not.toBe(before)
+  })
+
+  it('in LTR the previous month points left and the next month points right, with no flip', async () => {
+    const user = userEvent.setup()
+    const { button } = setup()
+
+    await user.click(button)
+    const dialog = screen.getByRole('dialog')
+    const grid = within(dialog).getByRole('grid')
+    const [previous, next] = within(dialog)
+      .getAllByRole('button')
+      .filter((candidate) => !grid.contains(candidate) && candidate.querySelector('svg.lucide') !== null)
+    if (previous === undefined || next === undefined) throw new Error('no month arrows')
+    expect(previous).toHaveAccessibleName('Previous')
+    expect(next).toHaveAccessibleName('Next')
+    const previousIcon = previous.querySelector('svg')
+    const nextIcon = next.querySelector('svg')
+    expect(previousIcon).toHaveClass('lucide-chevron-left')
+    expect(nextIcon).toHaveClass('lucide-chevron-right')
+    expect(previousIcon?.getAttribute('class')).not.toMatch(/scale-x/)
+    expect(nextIcon?.getAttribute('class')).not.toMatch(/scale-x/)
+    // Previous comes first in the row (the left in LTR).
+    expect(previous.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('the month grid starts its week on Sunday', async () => {
+    const user = userEvent.setup()
+    const { button } = setup()
+
+    await user.click(button)
+    const grid = within(screen.getByRole('dialog')).getByRole('grid')
+    // The grid's first row starts on a Sunday: 1 January 2027 is a Friday, so the row opens on 27 December.
+    const firstRow = within(grid).getAllByRole('row').find((row) => within(row).queryAllByRole('gridcell').length > 0)
+    if (firstRow === undefined) throw new Error('no week rows')
+    const days = within(firstRow).getAllByRole('button')
+    expect(days).toHaveLength(7)
+    expect(days[0]).toHaveAccessibleName('Sunday, 27 December 2026')
+    expect(days[5]).toHaveAccessibleName('Friday, 1 January 2027')
+    expect(days[6]).toHaveAccessibleName('Saturday, 2 January 2027')
   })
 
   it('an error message makes the field invalid, and is shown and linked', () => {

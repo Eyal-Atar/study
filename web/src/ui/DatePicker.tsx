@@ -65,8 +65,9 @@ const CELL_CLASS = cx(
   'data-[selected]:data-[disabled]:text-on-brand data-[selected]:data-[unavailable]:text-on-brand',
 )
 
-// React Aria's DatePicker: typed segments (the locale's order, he-IL: day, month, year) and a calendar
-// in a popover. React Aria gives the calendar button and the month arrows their Hebrew labels.
+// React Aria's DatePicker: typed segments (the locale's order, en-IL: day, month, year) and a calendar
+// in a popover whose weeks start on Sunday. React Aria gives the calendar button and the month arrows
+// their English labels.
 export function DatePicker({ label, description, errorMessage, ...props }: DatePickerProps) {
   return (
     <AriaDatePicker {...props} isInvalid={errorMessage !== undefined} className={FIELD_CLASS}>
@@ -88,14 +89,14 @@ export function DatePicker({ label, description, errorMessage, ...props }: DateP
       <Popover className="rounded-card border border-line bg-surface p-3 shadow-overlay transition-opacity duration-(--duration-slow) data-[entering]:opacity-0 data-[exiting]:opacity-0">
         <Dialog className="outline-none">
           <Calendar className="flex flex-col gap-2">
-            {/* The arrows point where the months go: in RTL "previous" points to the right. */}
+            {/* The arrows point where the months go: in LTR "previous" points left, "next" right. */}
             <header className="flex items-center justify-between gap-2">
               <Button slot="previous" className={ICON_BUTTON_CLASS}>
-                <ChevronLeft aria-hidden="true" size={18} strokeWidth={ICON_STROKE} className="rtl:-scale-x-100" />
+                <ChevronLeft aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
               </Button>
               <Heading className="text-body font-semibold text-ink" />
               <Button slot="next" className={ICON_BUTTON_CLASS}>
-                <ChevronRight aria-hidden="true" size={18} strokeWidth={ICON_STROKE} className="rtl:-scale-x-100" />
+                <ChevronRight aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
               </Button>
             </header>
             <CalendarGrid className="border-separate border-spacing-0.5">

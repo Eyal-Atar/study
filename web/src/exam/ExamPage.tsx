@@ -1,4 +1,4 @@
-import { ChevronRight } from '../ui/icons'
+import { ChevronLeft } from '../ui/icons'
 import type { ReactNode } from 'react'
 import { useParams } from 'react-router'
 import { errorMessage } from '../api/client'
@@ -19,11 +19,11 @@ import { timelineRange } from './timelineDays'
 
 const t = en.exam
 
-// In RTL "back" points right, so the chevron needs no flip.
+// In LTR "back" points left.
 function BackLink() {
   return (
     <TextLink to="/exams" className="inline-flex min-h-touch items-center gap-1 self-start text-small">
-      <ChevronRight aria-hidden="true" size={14} strokeWidth={ICON_STROKE} />
+      <ChevronLeft aria-hidden="true" size={14} strokeWidth={ICON_STROKE} />
       {t.backToList}
     </TextLink>
   )

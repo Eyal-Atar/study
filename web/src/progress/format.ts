@@ -1,19 +1,21 @@
-// Numbers and dates of the progress board, in Hebrew.
+import { LOCALE } from '../i18n/locale'
 
-const NUMBER = new Intl.NumberFormat('he-IL')
+// Numbers and dates of the progress board, in the product's LOCALE.
+
+const NUMBER = new Intl.NumberFormat(LOCALE)
 
 // 10000 → "10,000"
 export function formatNumber(n: number): string {
   return NUMBER.format(n)
 }
 
-// The calendar date of an instant in `timeZone`, "12 בנובמבר 2026".
+// The calendar date of an instant in `timeZone`, "12 November 2026".
 export function formatEarnedDate(at: string, timeZone: string): string {
   const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' }
   try {
-    return new Intl.DateTimeFormat('he-IL', { ...options, timeZone }).format(new Date(at))
+    return new Intl.DateTimeFormat(LOCALE, { ...options, timeZone }).format(new Date(at))
   } catch {
-    return new Intl.DateTimeFormat('he-IL', options).format(new Date(at))
+    return new Intl.DateTimeFormat(LOCALE, options).format(new Date(at))
   }
 }
 

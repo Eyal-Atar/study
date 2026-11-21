@@ -132,6 +132,9 @@ describe('the week screen', () => {
     })
     await weekShown()
     expect(within(screen.getByRole('group', { name: en.week.moves })).getAllByRole('button')).toHaveLength(3)
+    // LTR: back in time points left, forward points right.
+    expect(screen.getByRole('button', { name: en.week.previous }).querySelector('svg')).toHaveClass('lucide-chevron-left')
+    expect(screen.getByRole('button', { name: en.week.next }).querySelector('svg')).toHaveClass('lucide-chevron-right')
 
     await user.click(screen.getByRole('button', { name: en.week.next }))
     // The week screen writes ?from= alone; the calendar puts view=week back (S31).

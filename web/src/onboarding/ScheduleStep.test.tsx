@@ -163,9 +163,9 @@ describe('ScheduleStep', () => {
     const bar = build.parentElement
     if (bar === null) throw new Error('no actions bar')
     expect(within(bar).getAllByRole('button').map((button) => button.textContent)).toEqual([t.build, en.common.back])
-    // U+2066 … U+2069 isolate the range as left-to-right text inside the Hebrew card.
-    expect(screen.getByText('\u206606:00–12:00\u2069')).toBeInTheDocument()
-    expect(screen.getByText('\u206621:00–02:00\u2069')).toBeInTheDocument()
+    // The page is LTR, so a range needs no isolate marks: it reads left to right as it is.
+    expect(screen.getByText('06:00–12:00')).toBeInTheDocument()
+    expect(screen.getByText('21:00–02:00')).toBeInTheDocument()
   })
 
   it('"back" goes to the materials step', async () => {

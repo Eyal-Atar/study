@@ -6,6 +6,7 @@ import { RouterProvider } from 'react-router/dom'
 import { describe, expect, it } from 'vitest'
 import { AppProviders } from '../app/AppProviders'
 import { en } from '../i18n/en'
+import { LOCALE } from '../i18n/locale'
 import { createFakeApi, problem, type ApiCall, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { createFakeStorage } from '../test/fakeStorage'
@@ -77,7 +78,7 @@ function daysFromToday(days: number) {
   }
 }
 
-// Types a date into the DatePicker's segments (he-IL: day, month, year).
+// Types a date into the DatePicker's segments (en-IL: day, month, year).
 async function typeDate(user: UserEvent, value: { day: string; month: string; year: string }) {
   const group = screen.getByRole('group', { name: t.date })
   const [first] = within(group).getAllByRole('spinbutton')
@@ -119,9 +120,11 @@ describe('ExamsStep', () => {
     const list = await screen.findByRole('list', { name: t.listTitle })
     const item = within(list).getByRole('listitem')
     expect(item).toHaveTextContent('אלגוריתמים')
-    const hebrewDate = new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'long', year: 'numeric' }).format(date.date)
+    // "20 January 2027": day, long month, year (en-IL).
+    const longDate = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' }).format(date.date)
+    expect(longDate).toMatch(/^\d{1,2} [A-Z][a-z]+ \d{4}$/)
     // One subtitle, with a comma-and-period separator and not a middle dot.
-    expect(within(item).getByText(t.details(hebrewDate, t.difficultyLevels[3]))).toBeInTheDocument()
+    expect(within(item).getByText(t.details(longDate, t.difficultyLevels[3]))).toBeInTheDocument()
 
     expect(screen.getByRole('textbox', { name: t.name })).toHaveValue('')
     expect(screen.getByRole('radio', { name: t.difficultyLevels[2] })).toBeChecked()

@@ -54,6 +54,17 @@ describe('Switch', () => {
     expect(container.innerHTML).not.toMatch(/shadow|opacity/)
   })
 
+  it('in LTR the knob moves right when on, with no rtl or ltr variant', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<Demo onChange={vi.fn()} />)
+    const knob = container.querySelector('label [aria-hidden="true"] > span')
+    expect(knob).not.toBeNull()
+    expect(knob).not.toHaveClass('translate-x-5')
+    await user.click(screen.getByRole('switch'))
+    expect(knob).toHaveClass('translate-x-5')
+    expect(container.innerHTML).not.toMatch(/\b(rtl|ltr):/)
+  })
+
   it('does not change while disabled', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()

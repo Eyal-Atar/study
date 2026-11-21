@@ -57,7 +57,7 @@ function keyOf(index: number): string {
 }
 
 // One choice from a list that is too long for RadioCards (task kinds, topics). React Aria's Select
-// and not the browser's: the same look, focus and RTL as the other fields, and a list a test can open.
+// and not the browser's: the same look, focus and direction as the other fields, and a list a test can open.
 export function Select({
   label,
   value,

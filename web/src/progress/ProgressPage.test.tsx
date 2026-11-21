@@ -104,7 +104,7 @@ describe('the progress board', () => {
 
     // 22:30 UTC on the 12th is the 13th in Jerusalem.
     const week = badgeItem(t.badges.items.iron_will_7.name)
-    expect(week).toHaveTextContent(t.badges.earnedOn('13 בנובמבר 2026'))
+    expect(week).toHaveTextContent(t.badges.earnedOn('13 November 2026'))
     expect(week).not.toHaveTextContent(t.badges.notEarned)
 
     const twenty = badgeItem(t.badges.items.task_master_20.name)

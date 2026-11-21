@@ -4,6 +4,7 @@ import { Form } from 'react-aria-components'
 import { useNavigate } from 'react-router'
 import { errorMessage } from '../api/client'
 import { en } from '../i18n/en'
+import { LOCALE } from '../i18n/locale'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { DatePicker, type DateValue } from '../ui/DatePicker'
@@ -43,9 +44,9 @@ function dateRangeError(iso: string): string | undefined {
   return undefined
 }
 
-// '2027-01-20' → '20 בינואר 2027', read as a local date (new Date('2027-01-20') would be UTC midnight).
-const DATE_FORMAT = new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })
-function hebrewDate(iso: string): string {
+// '2027-01-20' → '20 January 2027', read as a local date (new Date('2027-01-20') would be UTC midnight).
+const DATE_FORMAT = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' })
+function longDate(iso: string): string {
   const [year, month, day] = iso.split('-').map(Number)
   if (year === undefined || month === undefined || day === undefined) return iso
   return DATE_FORMAT.format(new Date(year, month - 1, day))
@@ -244,7 +245,7 @@ export function ExamsStep() {
                 // An exam name can be in any language: <bdi> isolates its direction.
                 title={<bdi>{exam.name}</bdi>}
                 subtitle={
-                  <span className="tabular-nums">{t.details(hebrewDate(exam.exam_date), difficultyLabel(exam.difficulty))}</span>
+                  <span className="tabular-nums">{t.details(longDate(exam.exam_date), difficultyLabel(exam.difficulty))}</span>
                 }
                 trailing={
                   <IconButton

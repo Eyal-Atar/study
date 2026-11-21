@@ -2,6 +2,7 @@ import { CalendarDate } from '@internationalized/date'
 import { render, screen, within } from '@testing-library/react'
 import { I18nProvider } from 'react-aria-components'
 import { describe, expect, it } from 'vitest'
+import { LOCALE } from '../i18n/locale'
 import { CheckboxCards } from './CheckboxCards'
 import { CompactSelect } from './CompactSelect'
 import { DatePicker } from './DatePicker'
@@ -48,7 +49,7 @@ describe('the white of fields and choice cards', () => {
 
   it('DatePicker', () => {
     render(
-      <I18nProvider locale="he-IL">
+      <I18nProvider locale={LOCALE}>
         <DatePicker label="תאריך המבחן" defaultValue={new CalendarDate(2027, 1, 12)} />
       </I18nProvider>,
     )

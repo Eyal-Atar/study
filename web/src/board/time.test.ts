@@ -24,6 +24,8 @@ describe('formatTime and formatRange', () => {
 
   it('uses a 24-hour clock with midnight as 00', () => {
     expect(formatTime('2026-11-16T22:05:00Z', 'Asia/Jerusalem')).toBe('00:05')
+    expect(formatTime('2026-11-16T22:30:00Z', 'Asia/Jerusalem')).toBe('00:30')
+    expect(formatTime('2026-11-16T22:00:00Z', 'Asia/Jerusalem')).toBe('00:00')
   })
 
   it('a block across the switch to winter time shows the wall clock and lasts two hours', () => {
@@ -54,10 +56,12 @@ describe('dates', () => {
     expect(addDays('2026-10-25', 1)).toBe('2026-10-26')
   })
 
-  it('formatDay gives the Hebrew weekday and day.month from the date itself', () => {
-    expect(formatDay('2026-11-15')).toBe(en.board.day('ראשון', 15, 11))
-    expect(formatDay('2026-11-21')).toBe(en.board.day('שבת', 21, 11))
-    expect(formatDay('2026-10-25')).toBe(en.board.day('ראשון', 25, 10))
+  it('formatDay gives the en-IL weekday, day and short month from the date itself', () => {
+    expect(formatDay('2026-11-22')).toBe('Sunday, 22 Nov')
+    expect(formatDay('2026-11-21')).toBe('Saturday, 21 Nov')
+    // The day of the date string, not of the browser's timezone: 25 October is the night of the clock change.
+    expect(formatDay('2026-10-25')).toBe('Sunday, 25 Oct')
+    expect(formatDay('2026-09-05')).toBe('Saturday, 5 Sept')
   })
 
   it('dayLabel says today, tomorrow and yesterday, else the day', () => {

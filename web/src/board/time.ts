@@ -1,5 +1,6 @@
 import { useMe } from '../api/me'
 import { en } from '../i18n/en'
+import { LOCALE } from '../i18n/locale'
 import type { Block } from './types'
 
 // Times on the board are shown in the profile's timezone, not the browser's (spec 7.3): the server
@@ -38,6 +39,7 @@ const timeFormats = new Map<string, Intl.DateTimeFormat>()
 function timeFormat(tz: string): Intl.DateTimeFormat {
   let format = timeFormats.get(tz)
   if (format === undefined) {
+    // en-GB with h23, not LOCALE: a machine-stable 'HH:MM' (never '24:30') that tests and ranges rely on.
     format = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
     timeFormats.set(tz, format)
   }
@@ -80,18 +82,20 @@ export function addDays(date: string, n: number): string {
   return day.toISOString().slice(0, 10)
 }
 
-// The Sunday that starts the week of `date`, as in the Israeli calendar.
+// The Sunday that starts the week of `date`: the product's week starts on Sunday (LOCALE en-IL).
 export function weekStart(date: string): string {
   return addDays(date, -utcDay(date).getUTCDay())
 }
 
-// "יום ראשון, 15.11"
+// The date is a calendar day, so it is formatted in UTC on its own UTC midnight: no timezone moves it.
+const DAY_FORMAT = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' })
+
+// "Sunday, 22 Nov"
 export function formatDay(date: string): string {
-  const [, m, d] = parts(date)
-  return en.board.day(en.board.weekdays[utcDay(date).getUTCDay()] ?? '', d, m)
+  return DAY_FORMAT.format(utcDay(date))
 }
 
-// 'היום', 'מחר' or 'אתמול' relative to `today`, else formatDay.
+// Today, tomorrow or yesterday relative to `today`, else formatDay.
 export function dayLabel(date: string, today: string): string {
   if (date === today) return en.board.today
   if (date === addDays(today, 1)) return en.board.tomorrow
@@ -105,7 +109,7 @@ function hoursText(hours: number): string {
   return en.board.hours(hours)
 }
 
-// Under an hour in minutes; whole and half hours as hours ("שעה וחצי", "2.5 שעות"); else hours and minutes.
+// Under an hour in minutes; whole and half hours as hours (an hour and a half, 2.5 hours); else hours and minutes.
 export function durationText(minutes: number): string {
   const total = Math.max(0, Math.round(minutes))
   if (total === 1) return en.board.minute

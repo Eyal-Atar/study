@@ -6,7 +6,7 @@ import { clickTarget, readPushPayload } from './notification'
 const ORIGIN = 'https://app.example.com'
 
 describe('readPushPayload', () => {
-  it('shows a valid reminder as Hebrew RTL, with the icon, the tag and the url', () => {
+  it('shows a valid reminder as English LTR, with the icon, the tag and the url', () => {
     const view = readPushPayload({
       title: 'פרק 3',
       body: 'בעוד 10 דקות · 09:00–10:30 · אלגוריתמים',

@@ -60,8 +60,8 @@ describe('the calendar (S31, temporary)', () => {
     await viewSwitch()
 
     option(en.calendar.day).focus()
-    // RTL: the next option is to the left.
-    await user.keyboard('{ArrowLeft}')
+    // LTR: the next option is to the right.
+    await user.keyboard('{ArrowRight}')
     expect(option(en.calendar.week)).toHaveFocus()
     await user.keyboard(' ')
     await waitFor(() => {
@@ -70,7 +70,7 @@ describe('the calendar (S31, temporary)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: en.week.title })).toBeInTheDocument()
     expect(option(en.calendar.week)).toHaveFocus()
 
-    await user.keyboard('{ArrowRight} ')
+    await user.keyboard('{ArrowLeft} ')
     await waitFor(() => {
       expect(router.state.location.search).toBe('')
     })

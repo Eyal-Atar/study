@@ -28,11 +28,7 @@ const DONE = makeBlock({
 function Harness() {
   const today = useToday()
   if (today.data === undefined) return null
-  return (
-    <div dir="rtl">
-      <DayTimeline today={today.data} tz="Asia/Jerusalem" />
-    </div>
-  )
+  return <DayTimeline today={today.data} tz="Asia/Jerusalem" />
 }
 
 function setup(blocks: Block[] = [A, B, DONE]) {
@@ -197,7 +193,7 @@ describe('DayTimeline', () => {
     })
     await user.keyboard('{Enter}{ArrowDown}{ArrowDown}')
     expect(live()).toHaveTextContent(en.move.candidate('14:30–15:30', true))
-    // Left and right do nothing: the axis is vertical, in RTL as well.
+    // Left and right do nothing: the axis is vertical.
     await user.keyboard('{ArrowLeft}{ArrowRight}')
     expect(live()).toHaveTextContent(en.move.candidate('14:30–15:30', true))
     await user.keyboard('{Enter}')

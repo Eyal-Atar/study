@@ -117,7 +117,7 @@ export function WeekPage() {
         action={
           from === undefined ? undefined : (
             <div role="group" aria-label={en.week.moves} className="flex items-center gap-2">
-              {/* The app is RTL only: back in time is to the right, forward to the left. */}
+              {/* The app is LTR: back in time points left, forward points right. */}
               <IconButton
                 variant="secondary"
                 aria-label={en.week.previous}
@@ -125,7 +125,7 @@ export function WeekPage() {
                   move(addDays(from, -7))
                 }}
               >
-                <ChevronRight aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+                <ChevronLeft aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
               </IconButton>
               <Button
                 variant="secondary"
@@ -142,7 +142,7 @@ export function WeekPage() {
                   move(addDays(from, 7))
                 }}
               >
-                <ChevronLeft aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+                <ChevronRight aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
               </IconButton>
             </div>
           )

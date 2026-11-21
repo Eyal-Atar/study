@@ -14,14 +14,14 @@ const t = en.onboardingMaterials
 export interface MaterialItemProps {
   filename: string
   kind: MaterialKind
-  // What is happening to the file, already in Hebrew ("מעלה…", "מוכן, 12 עמודים", an error).
+  // What is happening to the file, already as text ("Uploading…", "Ready, 12 pages", an error).
   status: string
   tone: MaterialTone
   // Texts of the material's warnings (pages_truncated, text_truncated), shown under the status.
   warnings?: readonly string[]
   // What sits at the end of the row: the delete button of a registered file.
   actions?: ReactNode
-  // The ways out of a failed upload ("לנסות שוב", "הסרה"). They sit under the error and not at the
+  // The ways out of a failed upload ("Try again", "Remove"). They sit under the error and not at the
   // end of the row: two text buttons there would leave a phone no room for the name.
   recovery?: ReactNode
   // Replaces the kind's text with a control that changes it (the exam screen, S15). It sits at
@@ -31,8 +31,8 @@ export interface MaterialItemProps {
 
 // One file of an exam: a pending upload, or a registered material. The parent decides the status and the
 // actions; this row only lays them out.
-// The name is shown without its extension, and the type moves to the subtitle: "מבחן עבר, PDF. מוכן,
-// 24 עמודים" (fileName.ts says why). The accessible names of the buttons keep the full name.
+// The name is shown without its extension, and the type moves to the subtitle: "Past exam, PDF. Ready,
+// 24 pages" (fileName.ts says why). The accessible names of the buttons keep the full name.
 export function MaterialItem({ filename, kind, status, tone, warnings = [], actions, recovery, kindControl }: MaterialItemProps) {
   const { name, type } = splitFileName(filename)
   const lead = t.fileLead(kindControl === undefined ? t.kinds[kind] : null, type)
@@ -42,7 +42,7 @@ export function MaterialItem({ filename, kind, status, tone, warnings = [], acti
   return (
     <ListRow
       // A file name can be in any language: <bdi> isolates its direction, while the line itself stays
-      // aligned with the rest of the (RTL) row. A long name without spaces breaks (the row's title).
+      // aligned with the rest of the (LTR) row. A long name without spaces breaks (the row's title).
       title={<bdi>{name}</bdi>}
       subtitle={
         <>

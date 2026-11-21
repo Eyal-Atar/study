@@ -26,7 +26,7 @@ function knobColors(isSelected: boolean, isDisabled: boolean): string {
   return isSelected ? 'bg-on-brand' : 'bg-line-strong'
 }
 
-// A setting that is on or off and takes effect with the form it sits in ("זמן לעצמי כל יום").
+// A setting that is on or off and takes effect with the form it sits in ("Time for yourself every day").
 // React Aria's SwitchField: role="switch", Space toggles, and the whole row (label and track) is the
 // 44px target. The track is 44x24 with a 16px knob; off is an outlined track with a grey knob, on
 // is a brand track with a white knob that moved to the end side, so the state is carried by the
@@ -54,12 +54,12 @@ export function Switch({ label, description, isSelected, onChange, isDisabled }:
                   isFocusVisible && 'ring-2 ring-brand ring-offset-2',
                 )}
               >
-                {/* The knob moves toward the end side: left in RTL, right in LTR. */}
+                {/* The knob moves toward the end side: right in the LTR app. */}
                 <span
                   className={cx(
                     'size-4 rounded-full transition-transform',
                     knobColors(on, disabled),
-                    on && 'ltr:translate-x-5 rtl:-translate-x-5',
+                    on && 'translate-x-5',
                   )}
                 />
               </span>
