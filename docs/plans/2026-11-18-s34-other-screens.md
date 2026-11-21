@@ -10,7 +10,7 @@
 
 **כלים:** ‏React 19, ‏TypeScript strict, ‏React Router, ‏TanStack Query 5, ‏Tailwind 4, ‏React Aria Components, ‏Vitest; ב-API ‏Python 3.14, ‏psycopg 3, ‏Alembic עם SQL מפורש. בלי תלויות חדשות.
 
-**מקורות (לפי סדר עדיפות):** `docs/design/2026-11-21-archi-ux-audit.md` (גובר על כל מסמך עיצוב ישן), ‏`docs/design/archi-voice.md`, ההדמיה `docs/design/prototype/all-screens.html`, ‏`docs/superpowers/specs/2026-11-18-availability-design.md` (סעיפים 5, 7, 10, 11), ‏`docs/design/design-language.md`, וסעיף 7.9 במסמך התכנון הראשי.
+**מקורות (לפי סדר עדיפות):** `docs/design/2026-11-21-archi-ux-audit.md` (גובר על כל מסמך עיצוב ישן), ‏`docs/design/archi-voice.md`, ההדמיה `docs/design/prototype/all-screens.html`, ‏`docs/spec/2026-11-18-availability-design.md` (סעיפים 5, 7, 10, 11), ‏`docs/design/design-language.md`, וסעיף 7.9 במסמך התכנון הראשי.
 
 ## איך החלקים מתחברים
 
@@ -489,7 +489,7 @@ export function feasibility(input: FeasibilityInput): FeasibilityEstimate | null
 
 ### Task 21: סביבת הצילום, צילומי "לפני" ו"אחרי", ומעבר מול ההדמיה (controller)
 
-- [ ] להעתיק את `~/studyflow-manager/s31-shots-harness/` ל-`~/studyflow-manager/s34-shots-harness/` (פורט 4234, לא 5173), ‏`SHOTS_OUT=~/studyflow-manager/s34-screens`, עם נתוני דמה ל-`/me`, ‏`/exams`, ‏`/commitments`, ‏`/timetables`, ‏`/jobs` ולכל שלב של האונבורדינג.
+- [ ] להעתיק את `~/studyflow-manager/s31-shots-harness/` ל-`~/studyflow-manager/screens/s34-shots-harness/` (פורט 4234, לא 5173), ‏`SHOTS_OUT=~/studyflow-manager/screens/s34-screens`, עם נתוני דמה ל-`/me`, ‏`/exams`, ‏`/commitments`, ‏`/timetables`, ‏`/jobs` ולכל שלב של האונבורדינג.
 - [ ] צילומי "לפני" על `7a21e5e` (`before/`), צילומי ההדמיה של אותם מסכים (`prototype/`), וצילומי "אחרי" ב-390px וב-1280px (`after/`) של: כניסה, ארבעת השלבים (כולל המשוב החי בשלוש הרמות והצעות הצילום), בנייה, מוכן, רשימת המבחנים, מבחנים ריק, מסך המבחן בשני הגבהים, ההגדרות, הדיאלוג, מחיקת חשבון, 404, ‏`/terms`.
 - [ ] מעבר על כל צילום מול ההדמיה, רשימת פערים, תיקון (סוכן `sonnet` למראה, `fable` לניסוח או לפער חזותי עדין), וצילום חוזר. סטיות מכוונות (החלטות 8, 15) נרשמות.
 
