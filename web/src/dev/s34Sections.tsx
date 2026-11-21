@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import type { ArchieMood } from '../archie/moods'
+import { paintedRanges } from '../commitments/model'
+import { WeekPainter } from '../commitments/WeekPainter'
+import { en } from '../i18n/en'
 import { isolate } from '../i18n/bidi'
 import { FeasibilityNote, type FeasibilityEstimate } from '../onboarding/FeasibilityNote'
 import { ArchiLead } from '../ui/ArchiLead'
@@ -317,6 +320,37 @@ export function RecapLineSection() {
   )
 }
 
+// The week painter with its state held here, as the onboarding holds it, and the runs it makes
+// read back below it as the commitments they would become.
+function DemoWeekPainter({ firstHour, lastHour, initial, saved }: { firstHour: number; lastHour: number; initial: string[]; saved: string[] }) {
+  const [painted, setPainted] = useState<ReadonlySet<string>>(() => new Set(initial))
+  const [savedCells] = useState<ReadonlySet<string>>(() => new Set(saved))
+  const runs = paintedRanges(painted, firstHour).map((r) => `${en.commitments.weekdayShort[r.weekday]} ${r.start_time}–${r.end_time}`)
+  return (
+    <div className="flex flex-col gap-2">
+      <WeekPainter firstHour={firstHour} lastHour={lastHour} painted={painted} saved={savedCells} onChange={setPainted} />
+      <p className="text-small text-ink-muted tabular-nums">
+        {t.weekPainter.marked} {runs.length > 0 ? runs.join(', ') : t.weekPainter.nothing}
+      </p>
+    </div>
+  )
+}
+
+export function WeekPainterSection() {
+  return (
+    <Section id="week-painter">
+      <div className={FIELD_GRID}>
+        <Example caption={t.weekPainter.caption} className={PHONE}>
+          <DemoWeekPainter firstHour={8} lastHour={23} initial={['2-14', '2-15', '2-16']} saved={['0-10', '0-11', '1-16', '1-17']} />
+        </Example>
+        <Example caption={t.weekPainter.late} className={PHONE}>
+          <DemoWeekPainter firstHour={18} lastHour={26} initial={['4-23', '4-0']} saved={[]} />
+        </Example>
+      </div>
+    </Section>
+  )
+}
+
 // All the S34 sections in their order, so the page adds them in one line.
 export function S34Sections() {
   return (
@@ -328,6 +362,7 @@ export function S34Sections() {
       <InkButtonSection />
       <ArchiLeadSection />
       <RecapLineSection />
+      <WeekPainterSection />
     </>
   )
 }

@@ -58,6 +58,7 @@ export const SECTIONS = [
   { id: 'ink-button', title: 'Ink button' },
   { id: 'archi-lead', title: 'Archi lead' },
   { id: 'recap-line', title: 'Recap line' },
+  { id: 'week-painter', title: 'Week painter' },
 ] as const
 
 export type SectionId = (typeof SECTIONS)[number]['id']
@@ -540,6 +541,14 @@ export const devText = {
       plainText: '4 hours a day, in the morning and the evening',
       long: 'A long list of names is one value: the cut falls at the end of the list, in the direction of its text',
       longName: 'One long name is cut at its own end: its beginning stays',
+    },
+    // The small week of the onboarding (Task 5).
+    weekPainter: {
+      caption:
+        'Drag across the hours to mark them busy, or tap one hour; a drag that starts on a marked hour clears. Saved hours are a fuller tone with a border and don’t change here. The arrows move between hours, and Space or Enter marks one.',
+      marked: 'Marked:',
+      nothing: 'nothing yet',
+      late: 'A day that ends after midnight: the hours after it sit at the bottom of the day before',
     },
   },
   optionGrid: {
