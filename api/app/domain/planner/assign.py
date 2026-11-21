@@ -16,6 +16,18 @@ B + MIN_PART_MINUTES, so it gets one part a day like any multi-day task, and
 that part aims at B. The bites so land on different days: a bite, not the same
 block with a break in it. A remainder shorter than B + MIN_PART_MINUTES goes in
 whole, since cutting a bite off it would leave a part under the minimum.
+
+One bite a day also holds against the blocks a run does not place: held gives,
+per split task, the days that already hold a live block of it (a fixed one, or a
+candidate that stays), and the task skips them. Without that, a single bite
+placed again (a deferred one, say) is packed like a whole task, on any day.
+held may leave a task with no day; the callers then run again without it, so
+the rule never makes a task unplaceable.
+
+On the last day a split task may use (eligible, past its after day, not held,
+with a budget), its part takes the rest of the task, not just a bite, when the
+budget and room allow. Otherwise a task with fewer days than bites would never
+finish, and a multi-day task that never finishes is placed whole or not at all.
 """
 
 import datetime as dt
@@ -98,14 +110,15 @@ class _Day:
             and day_fits(self.windows, self.regular, minutes)
         )
 
-    def part(self, remainder: int, bite: int | None = None) -> int:
+    def part(self, remainder: int, bite: int | None = None, *, last: bool = False) -> int:
         """How much of a multi-day task's remainder goes in today; 0 for nothing.
 
         A split task's part aims at its bite, or at the whole remainder once less
-        than a bite and a part is left; the day's budget and room still bound it.
+        than a bite and a part is left, or on its last usable day (last), so it
+        can still finish; the day's budget and room still bound it.
         """
         part = min(self.budget, room(self.windows, self.regular, self.simulation))
-        if bite is not None and remainder >= bite + MIN_PART_MINUTES:
+        if bite is not None and not last and remainder >= bite + MIN_PART_MINUTES:
             part = min(part, bite)
         if part >= remainder:
             return remainder
@@ -137,6 +150,11 @@ class _Context:
     eligible: Mapping[UUID, tuple[int, ...]]  # exam -> indices of the days it may use
     dependencies: Dependencies
     multi_day: frozenset[UUID]
+    # Split task -> the days that already hold a live block of it: it skips them.
+    held: Mapping[UUID, frozenset[dt.date]]
+    # Split task -> the index of the last day it may use, where its part is not
+    # bounded by its bite (see the module docstring).
+    last_usable: Mapping[UUID, int]
     # Ready only on a day after the prerequisite's last day (see _waits_a_day).
     day_after: frozenset[UUID]
     # Simulations that no eligible day can hold: within the budget and in one window.
@@ -170,12 +188,14 @@ def assign_days(
     used: Mapping[dt.date, int] | None = None,
     simulation_days: Collection[dt.date] = (),
     after: Mapping[UUID, dt.date] | None = None,
+    held: Mapping[UUID, Collection[dt.date]] | None = None,
 ) -> DayAssignment:
     """Assign every todo task to study days, or report why it does not fit.
 
     The keywords come from the fixed blocks: used takes minutes out of a day's
-    budget, a day in simulation_days takes no simulation, and a task in after
-    goes only on a day after the given one.
+    budget, a day in simulation_days takes no simulation, a task in after goes
+    only on a day after the given one, and a split task in held goes on none of
+    the given days (a task without a bite, and a simulation, ignore held).
     """
     _check_input(exams, tasks)
     # study_days rejects a naive now, even when there is nothing to plan.
@@ -185,7 +205,9 @@ def assign_days(
         used=MappingProxyType(dict(used or {})),
         simulation_days=frozenset(simulation_days),
     )
-    context = _prepare(profile, exams, tasks, _new_days(study, limits), dict(after or {}))
+    context = _prepare(
+        profile, exams, tasks, _new_days(study, limits), dict(after or {}), held or {}
+    )
     # A multi-day task that never finishes is placed whole or not at all. Its parts
     # took time that other tasks could have used, so the loop runs again without
     # it. Each run drops one: the unfinished task of the earliest exam, and of that
@@ -273,6 +295,7 @@ def _prepare(
     tasks: Sequence[Task],
     days: Sequence[_Day],
     after: Mapping[UUID, dt.date],
+    held: Mapping[UUID, Collection[dt.date]],
 ) -> _Context:
     # sorted() is stable, so the input order breaks the remaining ties.
     ranked = sorted(exams, key=lambda e: (e.exam_date, -e.difficulty))
@@ -284,14 +307,28 @@ def _prepare(
     }
     todo = tuple(task for task in tasks if task.status is TaskStatus.TODO)
     dependencies = resolve_dependencies(tasks)
+    held_days = {
+        task.id: frozenset(held[task.id]) for task in todo if _splits(task) and task.id in held
+    }
 
     def usable(task: Task) -> tuple[int, ...]:
-        """The indices of the eligible days the task may use: after its after day."""
+        """The indices of the eligible days the task may use: after its after day,
+        and not held."""
         waits_past = after.get(task.id)
-        indices = eligible[task.exam_id]
-        if waits_past is None:
-            return indices
-        return tuple(index for index in indices if days[index].date > waits_past)
+        skipped = held_days.get(task.id, frozenset())
+        return tuple(
+            index
+            for index in eligible[task.exam_id]
+            if (waits_past is None or days[index].date > waits_past)
+            and days[index].date not in skipped
+        )
+
+    last_usable: dict[UUID, int] = {}
+    for task in todo:
+        if _splits(task):
+            with_budget = [index for index in usable(task) if days[index].limit > 0]
+            if with_budget:
+                last_usable[task.id] = with_budget[-1]
 
     multi_day = frozenset(
         task.id for task in todo if _is_multi_day(task, [days[index] for index in usable(task)])
@@ -313,6 +350,8 @@ def _prepare(
         eligible=eligible,
         dependencies=dependencies,
         multi_day=multi_day,
+        held=MappingProxyType(held_days),
+        last_usable=MappingProxyType(last_usable),
         day_after=frozenset(
             task.id for task in todo if _waits_a_day(task, dependencies, simulation_ids)
         ),
@@ -437,6 +476,11 @@ def _phase(task: Task) -> int:
     return 0 if task.kind in (TaskKind.REVIEW, TaskKind.LEARN) else 1
 
 
+def _splits(task: Task) -> bool:
+    """Whether the task has a bite the planner follows: a simulation never splits."""
+    return task.bite_minutes is not None and task.kind is not TaskKind.SIMULATION
+
+
 def _is_multi_day(task: Task, eligible: Sequence[_Day]) -> bool:
     """Only a task that no empty day of its exam holds whole is split over days, and
     a split task that holds at least a bite and a part: it gets one bite a day."""
@@ -494,9 +538,9 @@ def _next_part(
     if not _is_eligible(day, context.last_day[exam_id]):
         return None
     for task in progress.started.values():
-        if task.exam_id == exam_id and not day.holds(task.id):
+        if task.exam_id == exam_id and not day.holds(task.id) and not _is_held(context, task, day):
             remainder = task.estimated_minutes - progress.placed[task.id]
-            minutes = day.part(remainder, task.bite_minutes)
+            minutes = day.part(remainder, task.bite_minutes, last=_is_last(context, task, day))
             if minutes:
                 return task, minutes
     return None
@@ -521,6 +565,7 @@ def _is_candidate(context: _Context, progress: _Progress, day: _Day, task: Task)
         and task.id not in context.dependencies.in_cycle
         and _is_eligible(day, context.last_day[task.exam_id])
         and _is_after(context, task, day)
+        and not _is_held(context, task, day)
         and _is_ready(context, progress, task, day.index)
     )
 
@@ -531,10 +576,22 @@ def _is_after(context: _Context, task: Task, day: _Day) -> bool:
     return waits_past is None or day.date > waits_past
 
 
+def _is_held(context: _Context, task: Task, day: _Day) -> bool:
+    """Whether the day already holds a live block of the split task (see held)."""
+    return day.date in context.held.get(task.id, ())
+
+
+def _is_last(context: _Context, task: Task, day: _Day) -> bool:
+    """Whether the day is the last one the split task may use."""
+    return context.last_usable.get(task.id) == day.index
+
+
 def _fitting_minutes(context: _Context, day: _Day, task: Task) -> int:
     """All of a task that fits whole, the first part of a multi-day task, or 0."""
     if task.id in context.multi_day:
-        return day.part(task.estimated_minutes, task.bite_minutes)
+        return day.part(
+            task.estimated_minutes, task.bite_minutes, last=_is_last(context, task, day)
+        )
     return task.estimated_minutes if day.fits(task.estimated_minutes) else 0
 
 

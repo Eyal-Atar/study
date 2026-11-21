@@ -2,13 +2,13 @@
 
 import datetime as dt
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from typing import Final
 from uuid import UUID
 
 from app.domain.planner.assign import assign_days
-from app.domain.planner.availability import start_minute
+from app.domain.planner.availability import start_minute, study_date
 from app.domain.planner.dependencies import resolve_dependencies
 from app.domain.planner.fixed import BlockRole, FixedState, block_role, check_blocks, fixed_state
 from app.domain.planner.intervals import Interval
@@ -49,6 +49,9 @@ def plan(
     blocks (planned for later, not pinned) are all removed and planned again;
     with keep_valid, the valid ones (see `valid_blocks`) stay as if they were
     fixed, and only the others are removed. Blocks in the past do nothing.
+
+    A split task skips the days that hold one of the blocks that stay (one bite
+    a day, see `assign_days`), unless that leaves more minutes unscheduled.
     """
     check_blocks(existing_blocks)
     start = start_minute(now)
@@ -58,7 +61,8 @@ def plan(
         stays = {block.id for block in valid_blocks(profile, exams, tasks, existing_blocks, now)}
     fixed = [block for block, role in roles if role is BlockRole.FIXED or block.id in stays]
     state = fixed_state(profile, tasks, fixed, start)
-    assignment = _assign(profile, exams, state, now)
+    held = _held(profile, tasks, fixed)
+    assignment = _assign(profile, exams, state, now, held)
     placed = pack_assignment(state.tasks, assignment)
     return PlanResult(
         blocks=number_parts(tasks, fixed, placed),
@@ -69,7 +73,7 @@ def plan(
         ),
         unscheduled=assignment.unscheduled,
         warnings=assignment.warnings,
-        shortfalls=_shortfalls(profile, exams, state, now, assignment),
+        shortfalls=_shortfalls(profile, exams, state, now, assignment, held),
     )
 
 
@@ -95,20 +99,57 @@ def _unscheduled_minutes(result: PlanResult) -> int:
     return sum(item.minutes for item in result.unscheduled)
 
 
+def _held(
+    profile: Profile, tasks: Sequence[Task], fixed: Sequence[ExistingBlock]
+) -> dict[UUID, frozenset[dt.date]]:
+    """Split task -> the study days of its blocks that stay, which it then skips."""
+    split = {task.id for task in tasks if task.bite_minutes is not None}
+    days: dict[UUID, set[dt.date]] = defaultdict(set)
+    for block in fixed:
+        if block.task_id in split:
+            days[block.task_id].add(study_date(profile, block.interval.start))
+    return {task_id: frozenset(dates) for task_id, dates in days.items()}
+
+
 def _assign(
-    profile: Profile, exams: Sequence[Exam], state: FixedState, now: dt.datetime
+    profile: Profile,
+    exams: Sequence[Exam],
+    state: FixedState,
+    now: dt.datetime,
+    held: Mapping[UUID, frozenset[dt.date]],
 ) -> DayAssignment:
-    """Assign what the fixed blocks leave, around them."""
-    return assign_days(
-        profile,
-        exams,
-        state.tasks,
-        now,
-        state.busy,
-        used=state.used,
-        simulation_days=state.simulation_days,
-        after=state.after,
-    )
+    """Assign what the fixed blocks leave, around them.
+
+    The split tasks skip their held days. When that leaves one of them
+    unscheduled, the whole assignment runs again without held, and the run with
+    fewer unscheduled minutes wins (the held one on a tie): the rule may cost a
+    bite its own day, never its place.
+    """
+
+    def run(held_days: Mapping[UUID, frozenset[dt.date]] | None) -> DayAssignment:
+        return assign_days(
+            profile,
+            exams,
+            state.tasks,
+            now,
+            state.busy,
+            used=state.used,
+            simulation_days=state.simulation_days,
+            after=state.after,
+            held=held_days,
+        )
+
+    first = run(held)
+    if not any(item.task_id in held for item in first.unscheduled):
+        return first
+    free = run(None)
+    if _minutes(free) < _minutes(first):
+        return free
+    return first
+
+
+def _minutes(assignment: DayAssignment) -> int:
+    return sum(item.minutes for item in assignment.unscheduled)
 
 
 def pack_assignment(
@@ -202,6 +243,7 @@ def _shortfalls(
     state: FixedState,
     now: dt.datetime,
     assignment: DayAssignment,
+    held: Mapping[UUID, frozenset[dt.date]],
 ) -> tuple[ExamShortfall, ...]:
     """Per exam with missing minutes: the smallest larger daily budget that fits them.
 
@@ -225,7 +267,7 @@ def _shortfalls(
     for budget in range(first, _MAX_DAILY_MINUTES + 1, _BUDGET_STEP):
         if len(fixed) == len(sweep):
             break
-        trial = _assign(replace(profile, daily_study_minutes=budget), exams, state, now)
+        trial = _assign(replace(profile, daily_study_minutes=budget), exams, state, now, held)
         still = _missing_minutes(exams, tasks, trial, stuck)
         fixed.update({id_: budget for id_ in sweep if id_ not in fixed and still[id_] == 0})
     return tuple(

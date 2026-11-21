@@ -5,6 +5,11 @@ task. Every live block (fixed or candidate, except the ones released) is treated
 as fixed: it keeps its time, takes its day's budget and breaks, and the task's own
 live blocks count against its minutes. The task goes in the first slot the engine
 finds, and the whole placement is all-or-nothing: a failure changes nothing.
+
+A split task skips the days that already hold one of its live blocks, so a bite
+placed again does not join another bite on its day (one bite a day, see assign).
+When that leaves no slot, the placement is tried again without the rule: a bite
+on a day that has one is better than no bite at all.
 """
 
 import datetime as dt
@@ -116,25 +121,35 @@ def place_task(
     warnings: tuple[PlanWarning, ...] = ()
     if left:
         earliest = start if not_before is None else max(start, start_minute(not_before))
-        assignment = assign_days(
-            profile,
-            exams,
-            left,
-            earliest,
-            busy,
-            used=board.used,
-            simulation_days=board.simulation_days,
-            after=after,
-        )
-        if assignment.unscheduled:
-            item = assignment.unscheduled[0]
-            return fail(item.reason, item.blocked_by)
-        placed = pack_assignment(left, assignment)
+        held = {task_id: {study_date(profile, block.interval.start) for block in own}}
+        # With the held days first; the last try, without them, gives the failure.
+        tries = (held, None) if task.bite_minutes is not None and own else (None,)
+        for held_days in tries:
+            assignment = assign_days(
+                profile,
+                exams,
+                left,
+                earliest,
+                busy,
+                used=board.used,
+                simulation_days=board.simulation_days,
+                after=after,
+                held=held_days,
+            )
+            failure: tuple[UnscheduledReason, UUID | None] | None = None
+            if assignment.unscheduled:
+                item = assignment.unscheduled[0]
+                failure = item.reason, item.blocked_by
+            else:
+                placed = pack_assignment(left, assignment)
+                dependent = _dependent_too_early(profile, task, tasks, live, own, placed)
+                if dependent is not None:
+                    failure = UnscheduledReason.DEPENDENT_TOO_EARLY, dependent
+            if failure is None:
+                break
+        if failure is not None:
+            return fail(*failure)
         warnings = assignment.warnings
-
-        dependent = _dependent_too_early(profile, task, tasks, live, own, placed)
-        if dependent is not None:
-            return fail(UnscheduledReason.DEPENDENT_TOO_EARLY, dependent)
 
     blocks: tuple[PlannedBlock, ...] = number_parts([task], own, placed)
     return PlanResult(
