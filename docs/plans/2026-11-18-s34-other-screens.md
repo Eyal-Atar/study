@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**מטרה:** כל המסכים שמחוץ ליומן (כניסה, callback, שגיאת תצורה, 404, פרידה, תנאי שימוש ופרטיות, האונבורדינג, המבחנים, מסך המבחן, ההגדרות ומחיקת החשבון) נראים כמו ההדמיה המחייבת באנגלית (`docs/design/prototype/all-screens.html`, סעיפים s1, s4, s6 ו-s7), מדברים בקול של Archi (`docs/design/archi-voice.md`), והאונבורדינג הוא **שיחה ש-Archi מוביל** (הנחיות 7 ו-8 במסמך הביקורת) עם **משוב חי על היתכנות** (הנחיה 9). באונבורדינג נוסף שלב 4 "Do you have work, classes or other fixed hours?" (שבוע קטן לסימון בגרירה וייבוא צילום של מערכת השעות), ובהגדרות קטע "Busy time" לעריכת ההתחייבויות. עמודות התחביב הישנות יוצאות מהמסד (מיגרציה 0017).
+**מטרה:** כל המסכים שמחוץ ליומן (כניסה, callback, שגיאת תצורה, 404, פרידה, תנאי שימוש ופרטיות, האונבורדינג, המבחנים, מסך המבחן, ההגדרות ומחיקת החשבון) נראים כמו ההדמיה המחייבת באנגלית (`docs/design/prototype/all-screens.html`, סעיפים s1, s4, s6 ו-s7), מדברים בקול של Archi (`docs/design/archi-voice.md`), והאונבורדינג הוא **שיחה ש-Archi מוביל** (הנחיות 7 ו-8 במסמך הביקורת) עם **משוב חי על היתכנות** (הנחיה 9). באונבורדינג נוסף שלב 4 "Do you have work, classes or other fixed hours?" (שבוע קטן לסימון בגרירה וייבוא צילום של מערכת השעות), ובהגדרות קטע "Busy time" לעריכת ההתחייבויות. עמודות התחביב הישנות יוצאות מהמסד (מיגרציה 0017). התוכנית הראשונה אחרי האונבורדינג מזכה ב-50 XP אמיתיים, פעם אחת למשתמש, ו-"Your plan is ready" מציג את הצ'יפ הזהוב "+50 XP" רק כשהשרת באמת נתן אותם (מיגרציה 0018, החלטה 8).
 
 **השער במפת הדרכים:** "כל המסכים בשפה החדשה, והאונבורדינג עדיין מסתיים תוך 5 דקות".
 
-**מה השתנה מאז הגרסה הראשונה (18.11):** המוצר עבר לאנגלית בלבד, LTR, בשם Archi (S39); `he.ts` הוחלף ב-`en.ts`; אייקונים רק מ-`web/src/ui/icons/`; אפס אימוג׳י; Archi בגוף ראשון ומוביל כל זרימה. נכנסו ל-`main` גם S35 (זמינות), השרת של S44 (מיגרציה 0015) והשרת של S45 (מיגרציה 0016). המיגרציה של ה-scope הפכה ל-0017. ההדמיה החדשה שינתה כמה החלטות (רשימת המבחנים על משטח אחד, "Me time" נשאר שורה בהעדפות, החומרים פתוחים ולא מקופלים). כל אלה מעודכנים כאן.
+**מה השתנה מאז הגרסה הראשונה (18.11):** המוצר עבר לאנגלית בלבד, LTR, בשם Archi (S39); `he.ts` הוחלף ב-`en.ts`; אייקונים רק מ-`web/src/ui/icons/`; אפס אימוג׳י; Archi בגוף ראשון ומוביל כל זרימה. נכנסו ל-`main` גם S35 (זמינות), השרת של S44 (מיגרציה 0015) והשרת של S45 (מיגרציה 0016). המיגרציה של ה-scope הפכה ל-0017. ב-21.11 אייל החליט שהתוכנית הראשונה מזכה ב-XP אמיתי (החלטה 8 התהפכה), ולכן נוספו Task 15b בשרת ומיגרציה 0018. ההדמיה החדשה שינתה כמה החלטות (רשימת המבחנים על משטח אחד, "Me time" נשאר שורה בהעדפות, החומרים פתוחים ולא מקופלים). כל אלה מעודכנים כאן.
 
 **כלים:** ‏React 19, ‏TypeScript strict, ‏React Router, ‏TanStack Query 5, ‏Tailwind 4, ‏React Aria Components, ‏Vitest; ב-API ‏Python 3.14, ‏psycopg 3, ‏Alembic עם SQL מפורש. בלי תלויות חדשות.
 
@@ -37,6 +37,7 @@ flowchart TB
 - **`web/src/commitments/`** הוא מודול משותף לאונבורדינג ולהגדרות: המודל (קיבוץ התחייבויות זהות לשורה אחת "Sun, Tue, 14:00–17:00", וזיהוי קבוצת ה-Me time), הדיאלוג שמוסיף ועורך קבוצה, השבוע הקטן (`WeekPainter`) וייבוא הצילום (`TimetableImport`). הוא קורא רק ל-`web/src/availability/api.ts` של S35, כך שהשרת לא משתנה בשבילו.
 - **התחייבות היא "שינוי גלובלי"** (מסמך הזמינות, סעיף 5): כל כתיבה מחזירה `plan_affected`, וההגדרות מציעות `ReplanOffer` (`web/src/plan/ReplanOffer.tsx`) כמו שינוי העדפה. באונבורדינג אין עוד תוכנית ולכן אין הצעה: ההתחייבויות נשמרות לפני מסך הבנייה, וה-`generate_plan` כבר רואה אותן.
 - **Me time** נשאר בשרת כמו שהוא: `GET/PATCH /me` עם `hobby_start` ו-`hobby_minutes`, שקוראים וכותבים את שבע ההתחייבויות של `app/services/hobby.py` (S35, עם הכותרת "Me time" של S39 והזיהוי של הכותרת העברית הישנה). רק העמודות המתות ב-`app.profiles` נמחקות (החלטה 1).
+- **ה-XP של התוכנית הראשונה** עובר בשלוש תחנות: ה-job ‏`generate_plan` (`api/app/jobs/plan_jobs.py`) מסיים את האונבורדינג באותה טרנזקציה שבה הוא שומר את התוכנית (`complete_onboarding`, שכותב רק כשהעמודה עוד `NULL`); כשהכתיבה הזאת באמת קרתה, הוא קורא ל-`award_first_plan` (`api/app/services/gamification.py`), שמכניס ל-`app.xp_events` שורה מסוג `first_plan` עם 50 XP; והתוצאה של ה-job מחזירה `first_plan_xp` (50 או 0), ש-`BuildingStep` קורא כדי להחליט אם להציג את הצ'יפ. כך "פעם אחת" נקבע במסד (אינדקס ייחודי חלקי) ובתנאי של האונבורדינג, והצ'יפ לא יכול להופיע בלי שורה אמיתית בספר ה-XP.
 - **מחרוזות:** כל מחרוזת חדשה נכתבת בקובץ חלק משלה (`i18n/enEntry.ts`, ‏`enOnboardingFlow.ts`, ‏`enCommitments.ts`, ‏`enExams.ts`, ‏`enSettingsScreen.ts`, ‏`enControls.ts`) ומחוברת ל-`en.ts` בשורת import אחת ובשורת מאפיין אחת. כך S32, שעושה את אותו דבר עם `enCalendar*.ts`, לא מתנגש איתנו ב-`en.ts`.
 
 ## מה מצאתי אחרי ה-rebase (21.11.2026, HEAD ‏`c73bb53`)
@@ -56,7 +57,7 @@ flowchart TB
 ## מה מצאתי לפני התכנון (18.11, ומה עדיין נכון)
 
 - `api/eval/materials/timetables/` לא קיימת: אייל עוד לא סיפק צילומים. ה-eval על צילומים אמיתיים נשאר פתוח ונרשם מחדש (Task 23).
-- XP ניתן רק על השלמת בלוק (`api/app/services/gamification.py`). אין XP על תוכנית ראשונה, וה-"+50 XP" של ההדמיה אינו אמיתי (החלטה 8, ושאלה לאייל).
+- XP ניתן היום רק על השלמת בלוק (`api/app/services/gamification.py`, ‏`record_completion`): ב-`app.xp_events` (0011) אין עמודת סוג, אין CHECK או enum על סוג אירוע, ו"פעם אחת" נאכף רק ב-`UNIQUE (block_id)` עם `ON CONFLICT (block_id) DO NOTHING`. הקוד מניח ששורה = בלוק: `_totals` סופר `count(*)` כ-`blocks_done` (שקובע את תגי `first_task` ו-`blocks_*`), ‏`_study_days` בונה מהשורות את הרצף, ו-`progress` את 14 הימים. שורה בלי בלוק הייתה מדליקה רצף ותג "first task" בלי לימוד, ולכן Task 15b מוסיף עמודת `kind` ומסנן לפיה. ‏`friction.py` ו-`plan_writes.py` עושים JOIN ל-`app.blocks`, ולכן שורה בלי בלוק לא משפיעה עליהם. ה-+50 XP של ההדמיה נעשה אמיתי ב-Task 15b (החלטה 8).
 - למבחן אין שדה התקדמות ב-`GET /exams`. ל-S45 יש `services/exam_stats.py` עם `completion_percent`, אבל הוא לא חשוף בנקודת קצה. ההתקדמות ברשימה מחושבת מ-`GET /exams/{id}/tasks`, כמו בסרגל הצד של S32, כדי ששני המקומות יציגו אותו אחוז (החלטה 11).
 - ל-`ExamOut` יש עכשיו `state` (`active`, ‏`pending`, ‏`waiting_moed_b`, ‏`done`), ‏`sitting`, ‏`closed_at` (S45). הממשק של הסגירה ייבנה אחרי S32 ו-S33 (התוכנית של S45). כאן רק דואגים שמבחן במצב אחר לא נשבר ברשימה (החלטה 12).
 - `BuildingStep` נמצא היום בשלב 4 של `OnboardingLayout`. עכשיו שלב 4 הוא "fixed hours", ומסך הבנייה יוצא מפס השלבים, כמו בהדמיה.
@@ -72,7 +73,7 @@ flowchart TB
 5. **"No, I'm flexible" ממשיך מיד לבנייה** בלחיצה אחת, ו-"Yes, I do" פותח את השבוע. כשכבר יש התחייבויות (חזרה לשלב), "Yes" נבחר מראש. היעד של 5 דקות: אין שדה חובה חדש.
 6. **השבוע הקטן:** רשת של שעות שלמות, משעת הקימה עד שעת השינה של הפרופיל (ברירת המחדל 08:00–23:00, ‏15 שורות), ראשון ראשון. ריצה רציפה של תאים ביום אחד = התחייבות אחת, בשם `"Busy"` (`en.commitments.defaultTitle`) ומסוג `other`; שם וסוג אפשר לשנות בהגדרות. שעות מדויקות (10:15) נכנסות דרך "Add exact hours" (הדיאלוג). מה שכבר נשמר מוצג בשבוע כתא "שמור" ולא משתנה בגרירה, כדי שמשתמש לא ימחק הרצאה בטעות, ונמחק רק מהרשימה שמתחת. נגישות: `role="grid"` עם roving tabindex וחצים, כל תא toggle בשם ("Sunday 10:00"), הקשה היא החלופה הגלויה לגרירה, Space ו-Enter מסמנים.
 7. **משוב ההיתכנות (הנחיה 9):** `estimateStudyMinutes` סופר, לכל יום ממחר ועד יום הלימוד האחרון של כל מבחן (`exam_date - (rest_days_before_exam + 1)`), את המינימום בין `daily_study_minutes` לבין דקות חלונות הלימוד שנבחרו, בתוך שעות הערות (מ-`wake_time + study_start_delay_minutes` עד `sleep_time`), פחות ההתחייבויות של אותו יום (שמורות וגם מסומנות שעוד לא נשמרו), כשרק קטעים של 30 דקות ומעלה נספרים. אין שעון קיץ ואין אירועים חד-פעמיים: זו הערכה, והמשפט אומר "about". הרמות: `none` (למבחן כלשהו 0 דקות), ‏`tight` (פחות מ-`TIGHT_HOURS_PER_EXAM = 10` שעות לכל מבחן עד המבחן המוקדם שבו זה קורה), ‏`roomy` (כל השאר). הקבוע ניתן לכוונון; 10 שעות נבחרו כי הן בערך תקציב של מבחן קל עם מעט חומר. ההחלטה נרשמת לבדיקה מול נתונים ב-S29.
-8. **"Your plan is ready" בלי XP מזויף**, עד שאייל מחליט אחרת (שאלה לאייל). הצ'יפ הזהוב לא מוצג; מוצג רק הצ'יפ הירוק "The first seed in your garden" (`SproutIcon`). אם אייל רוצה +50 XP אמיתי, זה סוג אירוע חדש ב-`xp_events` (S33), והצ'יפ נוסף אז.
+8. **התוכנית הראשונה מזכה ב-50 XP אמיתיים, והצ'יפ "+50 XP" מוצג רק כשהם ניתנו** (אייל, 21.11.2026; מחליף את ההחלטה הקודמת "בלי XP מזויף"). השרת כותב ל-`app.xp_events` שורה מסוג `kind = 'first_plan'`, ‏`xp = 50`, ‏`block_id = NULL`, באותה טרנזקציה של ה-job ‏`generate_plan` שבה `complete_onboarding` עובר מ-`NULL` לזמן התכנון, ורק אז (Task 15b). "פעם אחת למשתמש" נאכף פעמיים: בתנאי של האונבורדינג, ובאינדקס ייחודי חלקי `(user_id) WHERE kind = 'first_plan'` עם `ON CONFLICT DO NOTHING`, כי ה-job יכול לרוץ שוב (retry) ושני jobs יכולים לרוץ יחד. תוכנית שנייה, מבחן חדש מאוחר יותר, replan (`apply_replan`) ומשתמש ותיק שכבר סיים אונבורדינג לפני 0018: לא מקבלים כלום, ולא נכתב להם רטרואקטיבית. ה-XP הזה נספר ב-`total_xp`, ברמה ובתגי ה-XP, אבל לא ב-`blocks_done`, לא ברצף ולא ב-14 הימים, כי שם נספר רק לימוד. ‏`BuildingStep` מציג את הצ'יפ הזהוב (`XpSparkIcon`, ‏`bg-gold-soft text-gold-ink`) לפי `first_plan_xp > 0` בתוצאת ה-job, ליד הצ'יפ הירוק "The first seed in your garden" (`SproutIcon`), שמוצג תמיד (Task 16).
 9. **`OnboardingLayout`:** כפתור חזרה (`ChevronLeft`, שם נגיש "Back") בראש, ליד פס השלבים, כמו `obTop` בהדמיה. ה-"Back" שבתחתית יוצא, כדי שבתחתית יישאר רק הכפתור הראשי.
 10. **רשימת המבחנים על משטח אחד:** ההדמיה החדשה שמה את כל המבחנים בכרטיס אחד (`Card`) עם שורות (`ListRow` של `ui/List.tsx`, ‏`to` לכל שורה). ‏`TileList` (מה-WIP) משמש לנושאים במסך המבחן, שבהדמיה הם כרטיסים נפרדים. ההחלטה הישנה "TileList לרשימת המבחנים" מבוטלת.
 11. **ההתקדמות של מבחן** = דקות של משימות `done` מתוך דקות כל המשימות שלא דולגו, מ-`GET /exams/{id}/tasks` לכל מבחן (`useQueries`), באותה נוסחה של S32 בסרגל הצד. מבחן בלי משימות: "No tasks yet" ופס ריק. הפס בצבע המבחן: הירוק שמור ל-"Done" של בלוק.
@@ -106,6 +107,8 @@ flowchart TB
 - 44px לכל מה שלוחצים (`min-h-touch`), שם נגיש לכל כפתור שחוזר ("Delete: משמרת עבודה", נבנה מפונקציה ב-`en` עם `isolate`), ‏`h1` אחד שמופיע מיד, ‏`tabular-nums` למספרים, רק logical properties. אין `dir="ltr"` על שעות ואין `rtl:` (המוצר LTR).
 - ההתנהגות, הבדיקות של ההתנהגות וה-API של S13–S19, ‏S35, ‏S44 ו-S45 נשמרים. בדיקה משתנה רק כשהיא נשענת על מבנה או טקסט שהשתנה, והציפייה נבנית מ-`en.<key>` ולא מטקסט מועתק.
 - **כל טבלה חדשה בסכמה `app` צריכה RLS** (`tests/db/test_schema.py` נכשל בלעדיו). ב-scope הזה אין טבלה חדשה.
+- **מיגרציות ה-scope:** `0017` (`down_revision = "0016"`, Task 1) ו-`0018` (`down_revision = "0017"`, Task 15b), SQL מפורש ב-`op.execute`, ה-RLS וה-policies של `app.xp_events` לא משתנים, ו-`uv run alembic heads` מחזיר שורה אחת: `0018 (head)`. ההחלה על dev היא של ה-controller (Task 25), לא של ה-implementer.
+- **ה-XP של התוכנית הראשונה (החלטה 8):** ‏`kind = 'first_plan'`, ‏`FIRST_PLAN_XP = 50`, פעם אחת לכל משתמש, רק כש-`complete_onboarding` באמת כתב בתוך `generate_plan`. השדה בתוצאת ה-job: `"first_plan_xp"` (מספר שלם, ‏50 או 0). הצ'יפ באתר מוצג רק כש-`first_plan_xp > 0`, והמספר שבו בא מהשדה, לא מקבוע באתר.
 - **השרת:** הפקודות רצות מתוך `api/`. ‏pytest רץ עם `STUDYFLOW_TEST_DB=studyflow_test_s34`. את `tests/db` לא מריצים במקביל לסשן אחר (התפקידים במסד המקומי משותפים); ה-implementer שואל את ה-controller לפני ריצה של `tests/db`. נפילה על `permission denied to set role` = לחכות דקה ולהריץ שוב.
 - **git:** ה-implementer לא מריץ פקודות git שכותבות. ה-controller עושה commit לפי שמות קבצים אחרי כל משימה, בעברית עם מונחים באנגלית.
 - הבדיקות של כל משימה: `npm test -- <הקבצים>`, ואז `npm run typecheck` ו-`npm run lint` (מתוך `web/`) נקיים לגמרי, כי המשימות רצות ברצף ולא במקביל.
@@ -119,6 +122,7 @@ flowchart TB
 4. **עריכת קבוצה שבה רק חלק מהבקשות הצליחו:** הרשימה מתרעננת מהשרת, הודעת שגיאה, והצעת תכנון מחדש אם משהו השתנה. בדיקה ב-Task 19.
 5. **משתמש ותיק עם Me time** (שבע התחייבויות "Me time" או הכותרת העברית): בהגדרות הוא שורה אחת "Me time every day: 18:00, 1 hour" ב-Study preferences, ולא מופיע ב-Busy time. בדיקה ב-Task 4 (המודל), Task 19 ו-Task 20.
 6. **המשוב החי לא משקר:** מבחן מחר עם יום מנוחה = `none`; שבועות עם 4 שעות ביום = `roomy`; התחייבות שמכסה את כל החלונות = 0. בדיקה ב-Task 10.
+7. **ה-XP של התוכנית הראשונה ניתן פעם אחת בדיוק, והצ'יפ לא משקר:** ‏retry של ה-job, שני jobs של אותו משתמש, תוכנית שנייה ו-replan לא מוסיפים שורה; השורה לא מדליקה רצף ולא את התג `first_task`; ‏`uncomplete` של בלוק לא מוחק אותה; תוצאה בלי `first_plan_xp` (job ישן) או עם 0 לא מציגה צ'יפ. בדיקות ב-Task 15b וב-Task 16.
 
 ## הסדר והתלויות
 
@@ -141,7 +145,8 @@ flowchart TB
 | 13 שלב 3 (שתי שאלות) | 11 | sonnet |
 | 14 ניסוחי המשוב החי | 10, 11 | fable |
 | 15 שלב 4 (fixed hours) | 5, 7, 13, 14 | opus |
-| 16 בנייה ו"מוכן" | 15 | sonnet |
+| 15b שרת: 50 XP על התוכנית הראשונה, 0018 | 1 | opus |
+| 16 בנייה ו"מוכן" | 15, 15b | sonnet |
 | 17 רשימת המבחנים ומסך ריק | 2 | sonnet |
 | 18 מסך המבחן | 17 | sonnet |
 | 19 Busy time בהגדרות | 6, 7 | opus |
@@ -149,6 +154,8 @@ flowchart TB
 | 21–25 | המשימות של ה-controller | — |
 
 Task 1 (שרת) ו-Task 2 (אתר) נוגעים בתיקיות נפרדות, וסדר ביניהם לא משנה. Task 20 צריך את Task 1 כי שמירת Me time עוברת דרך `PATCH /me`.
+
+Task 15b רץ אחרי Task 15 ולפני Task 16, בסדר המספרים. הוא תלוי ב-Task 1 בשלושה מקומות: 0018 בא אחרי 0017 (`down_revision = "0017"`); הבדיקה `test_one_head` ש-Task 1 הוסיף ל-`tests/db/test_drop_hobby_columns.py` (שמצפה ל-`["0017"]`) עוברת לקובץ הבדיקה של 0018 ומצפה ל-`["0018"]`; ו-`api/app/services/account.py` (הייצוא), ש-Task 1 שחזר, מקבל את העמודה `kind`. Task 16 צריך את Task 15b כי הצ'יפ נשען על השדה `first_plan_xp` בתוצאת ה-job.
 
 ## קבצים משותפים עם S32
 
@@ -166,6 +173,8 @@ S32 (היומן) רץ במקביל ב-worktree משלו, ושייכים לו `we
 | `docs/design/design-language.md`, סעיף 7.9 במסמך התכנון | הסעיפים שלנו בלבד. |
 
 **רכיבים חדשים שלנו ש-S32 יכול להשתמש בהם אחרי המיזוג:** `ui/ArchiLead`, ‏`ui/Stepper`, ‏`ui/ExamMark` (‏`ExamInitial`, ‏`ExamProgressBar`, ‏`ExamChip`). זה נרשם בהודעת הסיום.
+
+**ל-S33 (הגיימיפיקציה במרכז):** אחרי המיזוג יש ב-`app.xp_events` עמודת `kind` (`'block'` או `'first_plan'`, ‏CHECK ב-0018), ו-`award_first_plan` ב-`api/app/services/gamification.py` מחזיר `ProgressChange` כמו השלמת בלוק. האנימציה של ה-XP ב-S33 (ניצוץ שמרחף אל טבעת הרמה) יכולה להשתמש באירוע הזה ובשדה `first_plan_xp` של תוצאת `generate_plan` בלי שינוי בשרת. סוג אירוע נוסף ב-S33 = מיגרציה שמרחיבה את ה-CHECK `xp_events_kind_check`, וכל שאילתה שסופרת לימוד (`blocks_done`, רצף, ימים) ממשיכה לסנן `kind = 'block'`. זה נרשם בהודעת הסיום ובמפת הדרכים (Task 25).
 
 ---
 
@@ -426,15 +435,113 @@ export function feasibility(input: FeasibilityInput): FeasibilityEstimate | null
 - [ ] **Step 1: בדיקות:** "No, I’m flexible" מנווט לבנייה בלחיצה אחת ולא שולח כלום; "Yes" מציג את השבוע; סימון 10–12 בראשון ו-"Build my plan" שולח `POST` אחד עם `{title: 'Busy', kind: 'other', weekday: 0, start_time: '10:00', end_time: '12:00'}` ואז מנווט; כשל ב-POST השני משאיר אותו מסומן, מציג הודעה, ולחיצה חוזרת שולחת רק אותו (Review Focus 2); התחייבות קיימת מוצגת כשמורה, "Yes" נבחר מראש, ונמחקת מהרשימה; כשל בבנייה חוזר ל-`/onboarding/fixed-hours`; ‏`flow.test.tsx`: הזרימה עוברת דרך השלב החדש.
 - [ ] **Step 2–4:** מימוש → ‏`npm test -- src/onboarding src/commitments`, typecheck, lint.
 
+### Task 15b: השרת: 50 XP על התוכנית הראשונה, פעם אחת, ומיגרציה 0018
+
+**מודל:** `opus`. שינוי בספר ה-XP שכל חישובי ההתקדמות נשענים עליו, עם אכיפה של "פעם אחת" תחת retry ומקביליות, שבו טעות קטנה (שורה שנספרת כבלוק, רצף שנדלק בלי לימוד) לא נראית בבדיקה שטחית.
+
+**הרקע (החלטה 8):** אייל החליט שהתלמיד מקבל XP אמיתי על התוכנית הראשונה, והמסך "Your plan is ready" מציג "+50 XP" רק כשהשרת באמת נתן אותם. היום `app.xp_events` (מיגרציה 0011) היא ספר של בלוקים בלבד: אין עמודת סוג, "פעם אחת" נאכף ב-`UNIQUE (block_id)`, ו-`api/app/services/gamification.py` מניח ששורה = בלוק (`_totals` סופר `count(*)` כ-`blocks_done`, ‏`_study_days` בונה מכל השורות את הרצף, ‏`progress` בונה מהן את 14 הימים). התוכנית הראשונה נוצרת ב-job ‏`generate_plan` (`api/app/jobs/plan_jobs.py`), בטרנזקציה אחת שטוענת את הלוח עם נעילה (`load_board(..., lock=True)`), כותבת גרסה (`apply_result`) ומסיימת את האונבורדינג (`complete_onboarding` ב-`api/app/services/profiles.py`, ‏`UPDATE ... WHERE onboarding_completed_at IS NULL`). המעבר הזה מ-`NULL` הוא בדיוק "התוכנית הראשונה", ולכן ה-XP ניתן רק כשהוא קרה, באותה טרנזקציה: אם היא נופלת, גם ה-XP לא נכתב, ו-retry מתחיל נקי.
+
+**Files:**
+- Create: `api/migrations/versions/0018_first_plan_xp.py`, ‏`api/tests/db/test_first_plan_xp.py`.
+- Modify: `api/app/domain/gamification/xp.py` (`FIRST_PLAN_XP: Final = 50`, עם הערה: ה-XP של התוכנית הראשונה, S34 החלטה 8), ‏`api/app/domain/gamification/__init__.py` (ייבוא ו-`"FIRST_PLAN_XP"` ב-`__all__`), ‏`api/app/services/gamification.py`, ‏`api/app/services/profiles.py` (`complete_onboarding`), ‏`api/app/jobs/plan_jobs.py` (`generate_plan` וה-docstring של המודול), ‏`api/app/services/account.py` (הייצוא של `xp_events`), ‏`api/migrations/versions/0011_xp_and_badges.py` **לא** משתנה.
+- Modify (בדיקות): `api/tests/jobs/test_plan_jobs.py`, ‏`api/tests/api/test_gamification.py`, ‏`api/tests/api/test_account.py` (המפתחות של שורת `xp_events` בייצוא), ‏`api/tests/db/test_xp_and_badges.py` (רשימת העמודות והרשאות העמודות, שנבדקות ב-head), ‏`api/tests/db/test_drop_hobby_columns.py` (רק להוציא ממנו את `test_one_head`, שעובר לקובץ החדש).
+- לא נוגעים: `api/app/services/replans.py` (‏`apply_replan` ממשיך לקרוא ל-`complete_onboarding` ולהתעלם מהתוצאה: replan לא נותן XP), ‏`friction.py` ו-`plan_writes.py` (עושים JOIN ל-`app.blocks`, ולכן שורה בלי בלוק לא נכנסת אליהם), ו-RLS/policies של `app.xp_events`.
+
+**המיגרציה 0018** (`revision = "0018"`, ‏`down_revision = "0017"`, ‏docstring בסגנון של 0011 ו-0017 שמסביר למה), כל פקודה ב-`op.execute` נפרד:
+
+```sql
+-- upgrade
+ALTER TABLE app.xp_events ADD COLUMN kind text NOT NULL DEFAULT 'block';
+ALTER TABLE app.xp_events ADD CONSTRAINT xp_events_kind_check CHECK (kind IN ('block', 'first_plan'));
+ALTER TABLE app.xp_events ADD CONSTRAINT xp_events_kind_block CHECK (kind = 'block' OR block_id IS NULL);
+CREATE UNIQUE INDEX xp_events_first_plan_key ON app.xp_events (user_id) WHERE kind = 'first_plan';
+GRANT INSERT (kind) ON app.xp_events TO authenticated;
+
+-- downgrade
+DELETE FROM app.xp_events WHERE kind <> 'block';
+REVOKE INSERT (kind) ON app.xp_events FROM authenticated;
+DROP INDEX app.xp_events_first_plan_key;
+ALTER TABLE app.xp_events DROP CONSTRAINT xp_events_kind_block;
+ALTER TABLE app.xp_events DROP CONSTRAINT xp_events_kind_check;
+ALTER TABLE app.xp_events DROP COLUMN kind;
+```
+
+למה כך, במשפט לכל אחד: ברירת המחדל `'block'` ממלאת את כל השורות הקיימות בלי UPDATE (עמודה עם ברירת מחדל קבועה היא שינוי מטא-דאטה בלבד ב-Postgres); ה-CHECK הראשון הוא רשימה סגורה, כדי שסוג חדש יעבור דרך מיגרציה ולא יופיע בשקט; השני מונע שורת `first_plan` שמצביעה על בלוק (ובלוק שנמחק משאיר `block_id = NULL` עם `'block'`, ולכן הכיוון ההפוך לא נאכף); האינדקס הייחודי החלקי הוא שומר ה"פעם אחת" של המסד; ה-GRANT נדרש כי ה-worker כותב כ-`authenticated` (RLS), ו-INSERT מוענק לפי עמודות (0011). ה-downgrade מוחק את שורות `first_plan` קודם, כי בלי העמודה הן היו נספרות כבלוקים (`blocks_done`). אין `DEFAULT` שמוסר ואין policy שמשתנה.
+
+**השירות (`api/app/services/gamification.py`):**
+- `_totals`: ‏`count(*) FILTER (WHERE kind = 'block')::int AS blocks` במקום `count(*)`; ה-`sum(xp)` נשאר על כל השורות (ה-50 נספרים ב-`total_xp`, ברמה ובתגי ה-XP).
+- `_study_days` ושאילתת `by_day` ב-`progress`: להוסיף `AND kind = 'block'` (ה-XP של התוכנית לא מדליק יום לימוד, לא את `studied_today` ולא עמודה ב-14 הימים).
+- `record_completion`: מוסיף במפורש `kind` ל-INSERT עם `'block'` (‏`INSERT INTO app.xp_events (user_id, block_id, xp, study_date, kind) VALUES (%s, %s, %s, %s, 'block') ON CONFLICT (block_id) DO NOTHING RETURNING xp`), כדי שהכוונה תהיה כתובה ולא תלויה בברירת המחדל. ‏`revoke_completion` ו-`_split_xp` לא משתנים (הם לפי `block_id`, ושורת `first_plan` בלי בלוק לא נמחקת ולא נספרת בהם).
+- פונקציה חדשה, אחרי `revoke_completion`:
+
+```python
+def award_first_plan(conn: Conn, user_id: UUID, profile: Profile, now: dt.datetime) -> ProgressChange:
+    """The first plan's XP (S34 decision 8): once per user, in the transaction that ends the onboarding.
+
+    The partial unique index xp_events_first_plan_key is the database's guard: a second call
+    writes nothing and returns xp_change 0.
+    """
+    before = _totals(conn, user_id)
+    row = conn.execute(
+        "INSERT INTO app.xp_events (user_id, block_id, xp, study_date, kind) "
+        "VALUES (%s, NULL, %s, %s, 'first_plan') "
+        "ON CONFLICT (user_id) WHERE kind = 'first_plan' DO NOTHING RETURNING xp",
+        (user_id, FIRST_PLAN_XP, study_date(profile, now)),
+    ).fetchone()
+    return _change(conn, user_id, before, 0 if row is None else row["xp"], sync=True)
+```
+
+  (`sync=True`, כדי ש-`app.badges` יישאר בדיוק מה שהספר מזכה בו, כמו אחרי כל שינוי; עם 50 XP אף תג XP או רמה לא נפתח היום, אבל הכלל לא תלוי בזה.) לעדכן גם את ה-docstring של המודול: הספר מחזיק שורה לכל בלוק שהושלם (`kind = 'block'`) ושורה אחת לכל היותר של התוכנית הראשונה (`kind = 'first_plan'`), ו-`blocks_done` והרצף נספרים רק מבלוקים.
+
+**`complete_onboarding`** (`api/app/services/profiles.py`) מחזיר `bool`: ‏`True` רק כשה-`UPDATE` כתב שורה (`cursor.rowcount == 1`). ה-docstring: "True when this call ended the onboarding (the first plan); False when it had already ended." ‏`replans.py` לא משתנה.
+
+**`generate_plan`** (`api/app/jobs/plan_jobs.py`), בתוך אותה טרנזקציה של התכנון:
+
+```python
+        first_plan_xp = 0
+        if board.tasks and complete_onboarding(conn, user_id, now):
+            first_plan_xp = award_first_plan(conn, user_id, board.profile, now).xp_change
+    return fit_result(
+        {"exams": exams, "plan": _plan_result(version_id, result), "first_plan_xp": first_plan_xp}
+    )
+```
+
+(‏`board.profile` הוא ה-`Profile` של המתכנן, ש-`study_date` צריך.) ‏`fit_result` ו-`_shrink` כבר שומרים מפתחות אחרים של התוצאה (`dict(result, ...)`), ולכן `first_plan_xp` לא נחתך. ב-docstring של המודול, אחרי המשפט על `onboarding_completed_at`: "When that write ends the onboarding, the same transaction writes the first plan's 50 XP (`award_first_plan`), and the result says so in `first_plan_xp` (50, or 0 for any later plan)." ‏`reanalyze_exam` לא משתנה (אין בו תוכנית).
+
+**איך האתר יודע:** ‏`GET /jobs/{id}` מחזיר את `result` של ה-job כמו שהוא, ולכן `result.first_plan_xp` הוא 50 רק ב-job שבאמת כתב את השורה, ו-0 בכל job אחר של `generate_plan` (מבחן חדש מאוחר יותר, משתמש ותיק). job שהסתיים לפני הפריסה לא מכיל את השדה, והאתר מתייחס לזה כ-0 (Task 16). מקרה קצה: אם הטרנזקציה של התכנון נכנסה ל-commit וה-worker נפל לפני ששמר את התוצאה, ה-retry רואה שהאונבורדינג כבר הסתיים ומחזיר 0. ה-XP נשאר בספר והצ'יפ לא מוצג: חסר, אבל אף פעם לא מזויף. אין נקודת קצה חדשה ואין שינוי ב-`GET /progress` חוץ מהסינון.
+
+**הייצוא (`api/app/services/account.py`):** בשורת `"xp_events"` העמודות הן `("id", "block_id", "xp", "study_date", "kind", "created_at")`.
+
+- [ ] **Step 1: בדיקות, לפני הקוד.**
+  - `api/tests/db/test_first_plan_xp.py` (חדש, לפי הדפוס של `tests/db/test_xp_and_badges.py` ו-`test_drop_hobby_columns.py`): אחרי `upgrade head` יש עמודה `kind` מסוג `text`, ‏`NOT NULL`, ברירת מחדל `'block'::text`; שורה קיימת מלפני 0018 (נכתבת אחרי `downgrade` ל-`0017`, ואז `upgrade`) מקבלת `kind = 'block'`; ‏`kind = 'bonus'` נדחה (`CheckViolation`, ‏`xp_events_kind_check`); שורת `first_plan` עם `block_id` נדחית (`xp_events_kind_block`); שורת `first_plan` שנייה לאותו משתמש נדחית (`UniqueViolation`), ולמשתמש אחר מתקבלת; כ-`authenticated` אפשר להכניס `kind` לשורה של עצמו ואי אפשר למשתמש אחר (RLS, כמו היום); downgrade ל-`0017` מוחק את שורות `first_plan`, משאיר את שורות הבלוקים ומסיר את העמודה, האינדקס ושני ה-CHECK; ‏`upgrade` חוזר עובר; ‏`test_one_head`: ‏`ScriptDirectory.from_config(...).get_heads() == ["0018"]` (ולמחוק את `test_one_head` מ-`test_drop_hobby_columns.py`).
+  - `api/tests/db/test_xp_and_badges.py`: ברשימת העמודות להוסיף `("xp_events", "kind", "text", "NO", "'block'::text")` במקומה לפי הסדר של השאילתה, וב-`test_column_grants` להוסיף `("xp_events", "kind", "INSERT")` לפי הסדר.
+  - `api/tests/jobs/test_plan_jobs.py`: (א) משתמש חדש, ‏`generate_plan` מצליח → ‏`result["first_plan_xp"] == 50`, ושורה אחת ב-`app.xp_events` עם `kind = 'first_plan'`, ‏`xp = 50`, ‏`block_id IS NULL`, ‏`study_date` = יום הלימוד של `now`; (ב) job שני של אותו משתמש (מבחן נוסף) → ‏`0`, ועדיין שורה אחת; (ג) משתמש שה-`onboarding_completed_at` שלו כבר מלא (הדפוס של הבדיקה הקיימת בשורה ~1103) → ‏`0` ואין שורה; (ד) retry: להריץ את `generate_plan` פעמיים על אותו job (או לדמות attempt שני) → שורה אחת, והשני מחזיר `0`; (ה) job שכל המבחנים שלו דולגו (`board.tasks` ריק) → ‏`0`, אין שורה, והאונבורדינג לא הסתיים; (ו) כשל בכתיבת התוכנית (חריגה בתוך הטרנזקציה, באותו דפוס של בדיקות הכשל הקיימות) → אין שורת `first_plan`.
+  - מקביליות, ב-`test_plan_jobs.py` או בבדיקת שירות: שתי טרנזקציות נפרדות של אותו משתמש קוראות `complete_onboarding` + `award_first_plan` (השנייה נחסמת על השורה של `profiles` עד שהראשונה עושה commit) → אחת מחזירה 50, השנייה `False` מ-`complete_onboarding`; וקריאה ישירה ל-`award_first_plan` פעמיים → ‏`xp_change` ‏50 ואז 0 (שומר האינדקס, גם בלי התנאי של האונבורדינג).
+  - `api/tests/api/test_gamification.py`: אחרי שורת `first_plan` (נכתבת ישירות במסד או דרך `award_first_plan`): ‏`GET /progress` מחזיר `total_xp == 50`, ‏`blocks_done == 0`, ‏`streak.current == 0`, ‏`studied_today is False`, כל 14 הימים עם `xp == 0`, והתג `first_task` לא `earned`; אחרי `complete` של בלוק: ‏`total_xp == 50 + block_xp(...)`, ‏`blocks_done == 1`; אחרי `uncomplete`: ‏`total_xp == 50`, השורה של `first_plan` קיימת.
+  - `api/tests/api/test_account.py`: בייצוא, שורת `xp_events` של בלוק כוללת `"kind": "block"`.
+- [ ] **Step 2:** `STUDYFLOW_TEST_DB=studyflow_test_s34 uv run pytest tests/api/test_gamification.py tests/api/test_account.py tests/jobs/test_plan_jobs.py -q` → נכשל על הבדיקות החדשות. לשאול את ה-controller אם `tests/db` פנוי, ואז `STUDYFLOW_TEST_DB=studyflow_test_s34 uv run pytest tests/db/test_first_plan_xp.py tests/db/test_xp_and_badges.py -q` → נכשל.
+- [ ] **Step 3:** מימוש: המיגרציה, `FIRST_PLAN_XP`, השירות, `complete_onboarding`, ‏`generate_plan`, הייצוא.
+- [ ] **Step 4:** הבדיקות של Step 2 → עוברות. ‏`uv run alembic heads` → שורה אחת, `0018 (head)`. אחרי אישור ה-controller: `STUDYFLOW_TEST_DB=studyflow_test_s34 uv run pytest -q` (כל הבדיקות, כולל `tests/db`; ‏`tests/db/test_schema.py` עובר בלי שינוי, כי ההרשאות ברמת הטבלה וה-RLS לא השתנו), ואז `uv run ruff check .`, ‏`uv run ruff format --check .`, ‏`uv run mypy` → נקי. הבדיקות של S19 (gamification), ‏S44 (split, friction) ו-S45 (closure) עוברות בלי שינוי בציפיות שלהן.
+
+**קבלה:** התוכנית הראשונה של משתמש חדש כותבת שורת `first_plan` אחת של 50 XP ומחזירה `first_plan_xp: 50`; כל `generate_plan` אחר, replan, retry ו-job מקביל מחזירים 0 ולא כותבים; ה-50 נספרים ב-`total_xp` ולא ב-`blocks_done`, ברצף או בימים; אין שינוי ב-RLS; head אחד `0018`; כל הפקודות נקיות. **החלת 0018 על dev אינה חלק מהמשימה** (Task 25).
+
 ### Task 16: "I'm building your plan" ו-"Your plan is ready"
 
 **מודל:** `sonnet`. מסך קיים, שינוי מראה ומצבי Archi לפי ההדמיה.
 
-**Files:** Modify: `web/src/onboarding/BuildingStep.tsx` (**חוץ משורת `navigate(...)` בסוף הבנייה, של S32**), ‏`BuildingStep.test.tsx`, ‏`enOnboardingFlow.ts`.
+**תלוי ב-:** Task 15 (המסך הקודם וחזרה אליו בכשל) ו-Task 15b (השדה `first_plan_xp` בתוצאת ה-job).
 
-**מה משתנה:** מחוץ ל-`OnboardingLayout` (אין פס שלבים). בנייה: `Archie mood="wisdom" size="scene"`, קו `line` מתחת, ‏`h1` ‏`en.building.title` ב-`font-display`, ‏`en.building.intro`, ‏`ProgressBar` של 8px, וחמשת השלבים הקיימים עם עיגול 22px (הושלם: `bg-brand` ו-`CheckMarkIcon`; נוכחי: גבול `brand` ונקודה; הבא: גבול `line-strong`, טקסט `ink-muted`). מוכן: `Archie mood="eureka" size="scene"`, כרטיס עם `h1` ‏`'Your plan is ready'`, המשפט `'I placed 46 study blocks on your calendar. Your first exam is in 22 days.'` (המספרים מתוצאת ה-job ומהמבחן הקרוב, יחיד ורבים נכונים), שורה לכל מבחן (ריבוע צבע, השם ב-`UserText`, ‏`'16 tasks'`), הצ'יפ `SproutIcon` ‏`'The first seed in your garden'` (בלי XP, החלטה 8), והכפתור `'Go to my calendar'`. ה-eureka נכנס עם קפיצה קטנה, רק ב-`motion-safe`.
+**Files:** Modify: `web/src/onboarding/BuildingStep.tsx` (**חוץ משורת `navigate(...)` בסוף הבנייה, של S32**), ‏`BuildingStep.test.tsx`, ‏`enOnboardingFlow.ts`, ‏`web/src/onboarding/types.ts` (ב-`GenerateResult` שדה אופציונלי `first_plan_xp?: number`, עם הערה: "50 only in the job that gave the first plan's XP; absent in jobs from before S34, read as 0"; אופציונלי כי גם `exam/AnalysisSection.tsx` קורא את הטיפוס, ו-job ישן לא מכיל אותו).
 
-- [ ] **Step 1: בדיקות:** Archi `wisdom` בזמן הבנייה ו-`eureka` במוכן (לפי `en.archie.alt`); המספרים מהתוצאה; אין "XP" בטקסט; הבדיקות של הכשל והניסיון החוזר נשארות.
+**מה משתנה:** מחוץ ל-`OnboardingLayout` (אין פס שלבים). בנייה: `Archie mood="wisdom" size="scene"`, קו `line` מתחת, ‏`h1` ‏`en.building.title` ב-`font-display`, ‏`en.building.intro`, ‏`ProgressBar` של 8px, וחמשת השלבים הקיימים עם עיגול 22px (הושלם: `bg-brand` ו-`CheckMarkIcon`; נוכחי: גבול `brand` ונקודה; הבא: גבול `line-strong`, טקסט `ink-muted`). מוכן: `Archie mood="eureka" size="scene"`, כרטיס עם `h1` ‏`'Your plan is ready'`, המשפט `'I placed 46 study blocks on your calendar. Your first exam is in 22 days.'` (המספרים מתוצאת ה-job ומהמבחן הקרוב, יחיד ורבים נכונים), שורה לכל מבחן (ריבוע צבע, השם ב-`UserText`, ‏`'16 tasks'`), שורת צ'יפים (`flex flex-wrap gap-2`, כמו בהדמיה s1 "The plan is ready", שורה 498), והכפתור `'Go to my calendar'`. ה-eureka נכנס עם קפיצה קטנה, רק ב-`motion-safe`.
+
+**הצ'יפים (החלטה 8):**
+- **הזהוב, רק כש-`(result.first_plan_xp ?? 0) > 0`:** ראשון בשורה, `inline-flex items-center gap-1.5 rounded-full px-3 py-1 bg-gold-soft text-gold-ink text-small font-semibold tabular-nums` (הזוג `gold-ink` על `gold-soft` שכבר מוגדר ב-`index.css` לצ'יפ ה-XP), ‏`XpSparkIcon` בגודל 15 עם `aria-hidden`, והטקסט הגלוי `en.onboardingFlow.ready.xpChip(n)` → ‏`'+50 XP'` (המספר מהשדה, לא קבוע באתר). לקורא מסך: הטקסט הגלוי ב-`aria-hidden`, ולצידו `<span className="sr-only">` עם `en.onboardingFlow.ready.xpChipLabel(n)` → ‏`'I gave you 50 XP for your first plan'` (גוף ראשון של Archi, בלי סימן קריאה). כשהצ'יפ מוצג, ‏`queryClient.invalidateQueries({ queryKey: progressKey(userId) })` (`web/src/progress/api.ts`), באותו `useEffect` שכבר מרענן את `meKey` כשה-job `done`, כדי שהצ'יפ של הרמה בכותרת יראה את ה-50.
+- **הירוק, תמיד:** ‏`SproutIcon` ו-`'The first seed in your garden'` (`bg-brand-soft text-brand-ink`, באותו מבנה).
+- **משתמש שהתוכנית הראשונה שלו כבר קיימת** (חזר למסך הבנייה עם job חדש, או job שנגמר לפני S34): ‏`first_plan_xp` הוא 0 או חסר, ולכן אין צ'יפ זהוב ואין "XP" בשום מקום במסך; הירוק נשאר.
+- ב-`enOnboardingFlow.ts`, בקטע `ready`: ‏`xpChip: (xp: number) => \`+${xp} XP\``, ‏`xpChipLabel: (xp: number) => \`I gave you ${xp} XP for your first plan\``, ‏`seedChip: 'The first seed in your garden'`. "XP" נשאר "XP" (המונח של `archi-voice.md`, לא "points").
+
+- [ ] **Step 1: בדיקות:** Archi `wisdom` בזמן הבנייה ו-`eureka` במוכן (לפי `en.archie.alt`); המספרים מהתוצאה; תוצאה עם `first_plan_xp: 50` → הטקסט `en.onboardingFlow.ready.xpChip(50)` גלוי, והשם הנגיש `en.onboardingFlow.ready.xpChipLabel(50)` נמצא (`getByText` על ה-sr-only), והצ'יפ בא לפני הירוק; תוצאה עם `first_plan_xp: 0` ותוצאה בלי השדה → אין "XP" בטקסט של המסך (`queryByText(/XP/)` ריק), והירוק מוצג; עם `first_plan_xp: 50` ה-query של `progressKey` מסומן כ-invalidated (spy על `invalidateQueries`, או `getQueryState(...).isInvalidated`), ועם 0 לא; הבדיקות של הכשל והניסיון החוזר נשארות.
 - [ ] **Step 2–4:** מימוש → ‏`npm test -- src/onboarding`, typecheck, lint.
 
 ### Task 17: רשימת המבחנים והמסך הריק
@@ -490,8 +597,8 @@ export function feasibility(input: FeasibilityInput): FeasibilityEstimate | null
 ### Task 21: סביבת הצילום, צילומי "לפני" ו"אחרי", ומעבר מול ההדמיה (controller)
 
 - [ ] להעתיק את `~/studyflow-manager/s31-shots-harness/` ל-`~/studyflow-manager/screens/s34-shots-harness/` (פורט 4234, לא 5173), ‏`SHOTS_OUT=~/studyflow-manager/screens/s34-screens`, עם נתוני דמה ל-`/me`, ‏`/exams`, ‏`/commitments`, ‏`/timetables`, ‏`/jobs` ולכל שלב של האונבורדינג.
-- [ ] צילומי "לפני" על `7a21e5e` (`before/`), צילומי ההדמיה של אותם מסכים (`prototype/`), וצילומי "אחרי" ב-390px וב-1280px (`after/`) של: כניסה, ארבעת השלבים (כולל המשוב החי בשלוש הרמות והצעות הצילום), בנייה, מוכן, רשימת המבחנים, מבחנים ריק, מסך המבחן בשני הגבהים, ההגדרות, הדיאלוג, מחיקת חשבון, 404, ‏`/terms`.
-- [ ] מעבר על כל צילום מול ההדמיה, רשימת פערים, תיקון (סוכן `sonnet` למראה, `fable` לניסוח או לפער חזותי עדין), וצילום חוזר. סטיות מכוונות (החלטות 8, 15) נרשמות.
+- [ ] צילומי "לפני" על `7a21e5e` (`before/`), צילומי ההדמיה של אותם מסכים (`prototype/`), וצילומי "אחרי" ב-390px וב-1280px (`after/`) של: כניסה, ארבעת השלבים (כולל המשוב החי בשלוש הרמות והצעות הצילום), בנייה, מוכן (פעמיים: עם `first_plan_xp: 50` ועם 0), רשימת המבחנים, מבחנים ריק, מסך המבחן בשני הגבהים, ההגדרות, הדיאלוג, מחיקת חשבון, 404, ‏`/terms`.
+- [ ] מעבר על כל צילום מול ההדמיה, רשימת פערים, תיקון (סוכן `sonnet` למראה, `fable` לניסוח או לפער חזותי עדין), וצילום חוזר. סטיות מכוונות (החלטה 15; ובמסך "מוכן" עם 0, היעדר הצ'יפ הזהוב לפי החלטה 8) נרשמות.
 
 ### Task 22: סקירה סופית (controller)
 
@@ -499,15 +606,15 @@ export function feasibility(input: FeasibilityInput): FeasibilityEstimate | null
 
 ### Task 23: מסמכים (controller)
 
-- [ ] `docs/design/design-language.md`: סעיף 5.8 (‏`ArchiLead`, ‏`RecapLine`, ‏`TileList`, ‏`Stepper`, ‏`IconChoiceCards`, ‏`ExamMark`, ‏`InkButton`, ‏`WeekPainter`), הכלל של האות הגדולה, וסעיף 11. מסמך התכנון הראשי 7.9 (האונבורדינג בארבעה שלבים, המשוב החי). מסמך הזמינות סעיף 12 (מה נבנה ב-S34). ‏`docs/design/archi-voice.md` רק אם נוסף מונח.
+- [ ] `docs/design/design-language.md`: סעיף 5.8 (‏`ArchiLead`, ‏`RecapLine`, ‏`TileList`, ‏`Stepper`, ‏`IconChoiceCards`, ‏`ExamMark`, ‏`InkButton`, ‏`WeekPainter`), הכלל של האות הגדולה, וסעיף 11. מסמך התכנון הראשי 7.9 (האונבורדינג בארבעה שלבים, המשוב החי). מסמך הזמינות סעיף 12 (מה נבנה ב-S34). ‏`docs/spec/2026-11-18-archie-look-and-gamification.md` סעיף 4: ה-XP של התוכנית הראשונה (50, פעם אחת, `kind = 'first_plan'`, לא נספר ברצף ובבלוקים), כדי ש-S33 יתחיל ממנו. ‏`docs/design/archi-voice.md` רק אם נוסף מונח.
 - [ ] ה-eval של הצילומים: `api/eval/materials/timetables/` ריקה → נרשם כפתוח בטבלה (S29), עם הפקודה.
 
 ### Task 24: בדיקה מלאה ומיזוג (controller)
 
-- [ ] כל הפקודות של `api/` (‏`pytest` מלא, לבד; ‏`ruff`; ‏`mypy`; ‏`alembic heads` → ‏`0017` בלבד) ושל `web/` (‏`npm test`, ‏lint, ‏typecheck, ‏build).
+- [ ] כל הפקודות של `api/` (‏`pytest` מלא, לבד; ‏`ruff`; ‏`mypy`; ‏`alembic heads` → ‏`0018` בלבד) ושל `web/` (‏`npm test`, ‏lint, ‏typecheck, ‏build).
 - [ ] `git fetch`, ‏`git rebase origin/main` (אם S32 מוזג קודם: לפתור את `en.ts`, ‏`sourceGuards.test.ts`, ‏`glyphs.ts`, ‏`ComponentsPage.tsx`, ‏`devText.ts`, ‏`BuildingStep.tsx` לפי טבלת הקבצים המשותפים), בדיקות שוב, gitleaks נקי, ‏`git push origin s34-other-screens:main` (רק fast-forward), ורק אחרי שה-push הצליח מחיקת הענף ב-`origin`.
 
 ### Task 25: מיגרציה על dev ומפת הדרכים (controller)
 
-- [ ] 0017 על פרויקט ה-dev לפי הנוהל (`supabase-dev-migrations-via-sql-editor.md`): בדיקה ש-`alembic_version` = ‏`0016` (אם `0015`, לעצור ולדווח, ולא להחיל את 0016 בלי לבדוק שהיא זהה ל-`origin/main`), ושאין שורה עם `hobby_start IS NOT NULL`; ‏render offline של 0017 בלבד, החלה, ובדיקה ש-`alembic_version` = ‏`0017`.
-- [ ] מפת הדרכים: S34 "הושלם"; השורות המתויגות S34 נסגרות; נרשמים: XP על תוכנית ראשונה (S33, אם אייל רוצה), חשיפת `exam_stats` ב-`GET /exams` במקום N בקשות (S29), ה-eval של הצילומים (S29), כוונון `TIGHT_HOURS_PER_EXAM` מול נתונים (S29).
+- [ ] 0017 ו-0018 על פרויקט ה-dev לפי הנוהל (`supabase-dev-migrations-via-sql-editor.md`), אחת אחרי השנייה: בדיקה ש-`alembic_version` = ‏`0016` (אם `0015`, לעצור ולדווח, ולא להחיל את 0016 בלי לבדוק שהיא זהה ל-`origin/main`), ושאין שורה עם `hobby_start IS NOT NULL`; ‏render offline של 0017 בלבד, החלה, ובדיקה ש-`alembic_version` = ‏`0017`; ואז render offline של 0018 בלבד (`0017:0018`), החלה, ובדיקה ש-`alembic_version` = ‏`0018`, ש-`SELECT count(*) FROM app.xp_events WHERE kind <> 'block'` הוא 0 (אין הענקה רטרואקטיבית), ושהאינדקס `xp_events_first_plan_key` קיים.
+- [ ] מפת הדרכים: S34 "הושלם"; השורות המתויגות S34 נסגרות; נרשמים: ל-S33, שסוג האירוע `first_plan` ו-`award_first_plan` קיימים ואנימציית ה-XP יכולה להשתמש בהם (וסוג אירוע נוסף = הרחבת `xp_events_kind_check`), חשיפת `exam_stats` ב-`GET /exams` במקום N בקשות (S29), ה-eval של הצילומים (S29), כוונון `TIGHT_HOURS_PER_EXAM` מול נתונים (S29).
