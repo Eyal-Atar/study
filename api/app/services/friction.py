@@ -11,12 +11,15 @@ replan, a busy event or an edit that moves the block without being asked writes 
 reason and is not counted. All the times compared come from the database clock.
 
 At SPLIT_THRESHOLD the task has an offer: the planner's real placement of the task in bites
-(Task.bite_minutes, one a day), computed from the board as it is, with the board's
-fingerprint as the basis that `split_task` checks before it writes the same placement.
+(Task.bite_minutes, one a day), computed from the board as it is. Its basis hashes the
+board's fingerprint with what the offer shows (block, bite, parts), and `split_task` writes
+only that same placement, else stale_plan.
 """
 
 import dataclasses
 import datetime as dt
+import hashlib
+import json
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -168,6 +171,29 @@ def _plan(board: Board, task_id: UUID) -> _Plan | None:
     return _Plan(bite, result, block)
 
 
+def _parts(plan: _Plan) -> tuple[SplitPart, ...]:
+    return tuple(
+        SplitPart(b.interval)
+        for b in sorted(plan.result.blocks, key=lambda b: b.interval.start)
+        if b.block_id is None
+    )
+
+
+def _offer_basis(board_basis: str, task_id: UUID, plan: _Plan) -> str:
+    """SHA-256 of the board's fingerprint and of what the offer shows: its task, block,
+    bite and parts. The fingerprint leaves `now` out, and the block, the bite and the parts
+    all follow from `now` (a block that started is no longer the one put off), so the
+    split checks that it would write exactly what the offer showed (review of S44)."""
+    shown = [
+        board_basis,
+        str(task_id),
+        str(plan.block.id),
+        plan.bite,
+        [[p.interval.start.isoformat(), p.interval.end.isoformat()] for p in _parts(plan)],
+    ]
+    return hashlib.sha256(json.dumps(shown, separators=(",", ":")).encode()).hexdigest()
+
+
 def _titles(conn: Conn, user_id: UUID, task_ids: Sequence[UUID]) -> dict[UUID, dict[str, Any]]:
     rows = conn.execute(
         "SELECT id, exam_id, title, kind FROM app.tasks WHERE user_id = %s AND id = ANY(%s)",
@@ -195,7 +221,7 @@ def split_offers(conn: Conn, user_id: UUID, now: dt.datetime) -> tuple[SplitOffe
     found = _offerable(conn, user_id, board)
     if not found:
         return ()
-    basis = fingerprint(board)
+    board_basis = fingerprint(board)
     rows = _titles(conn, user_id, [task_id for task_id, _, _ in found])
     offers = [
         SplitOffer(
@@ -206,12 +232,8 @@ def split_offers(conn: Conn, user_id: UUID, now: dt.datetime) -> tuple[SplitOffe
             deferrals=count,
             block=plan.block,
             bite_minutes=plan.bite,
-            parts=tuple(
-                SplitPart(b.interval)
-                for b in sorted(plan.result.blocks, key=lambda b: b.interval.start)
-                if b.block_id is None
-            ),
-            basis=basis,
+            parts=_parts(plan),
+            basis=_offer_basis(board_basis, task_id, plan),
         )
         for task_id, count, plan in found
     ]
@@ -251,9 +273,9 @@ def split_task(
     """
     board = load_board(conn, user_id, now, lock=True)
     row = _live_task(conn, user_id, task_id)
-    if fingerprint(board) != basis:
-        raise ApiError("stale_plan")
     plan = _offer_plan(conn, user_id, board, task_id)
+    if _offer_basis(fingerprint(board), task_id, plan) != basis:
+        raise ApiError("stale_plan")
     conn.execute(
         "UPDATE app.tasks SET bite_minutes = %s WHERE user_id = %s AND id = %s",
         (plan.bite, user_id, task_id),

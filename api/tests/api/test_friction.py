@@ -337,3 +337,50 @@ def test_the_bites_of_a_split_task_earn_no_more_xp_than_one_block(
         task,
     )
     assert total == block_xp(3, 105) == 52
+
+
+def test_the_offer_tells_how_many_minutes_it_places_again(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    task = _task_90(api, user, db, minutes=90)
+    for _ in range(3):
+        _defer(api, user, db, task)
+    (offer,) = _offers(api, user)
+    assert offer["split_minutes"] == 90 == sum(part["minutes"] for part in offer["parts"])
+
+
+def test_a_split_after_the_offered_block_started_writes_nothing(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, clock: FrozenClock
+) -> None:
+    task = _task_90(api, user, db, minutes=90)
+    for _ in range(3):
+        _defer(api, user, db, task)
+    (offer,) = _offers(api, user)
+    clock.set(dt.datetime.fromisoformat(offer["block"]["starts_at"]) + dt.timedelta(minutes=1))
+    before = _planned(db, task)
+    response = _split(api, user, task, offer["basis"])
+    assert response.status_code == 409, response.text
+    assert response.json()["code"] in ("stale_plan", "no_split_offer")
+    assert _planned(db, task) == before
+    assert scalar(db, "SELECT bite_minutes FROM app.tasks WHERE id = %s", task) is None
+
+
+def test_the_split_cannot_be_undone_once_a_bite_was_done(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    task = _task_90(api, user, db, minutes=90)
+    for _ in range(3):
+        _defer(api, user, db, task)
+    version = _split(api, user, task, _offers(api, user)[0]["basis"]).json()["version_id"]
+    first = _next_block(db, task)
+    assert api.post(f"/blocks/{first}/complete", headers=user.headers).status_code == 200
+    planned = _planned(db, task)
+    refused = _undo(api, user, version)
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "invalid_state"
+    assert _planned(db, task) == planned
+    assert scalar(db, "SELECT bite_minutes FROM app.tasks WHERE id = %s", task) == 30
+    # Taking the completion back makes the split undoable again.
+    assert api.post(f"/blocks/{first}/uncomplete", headers=user.headers).status_code == 200
+    assert _undo(api, user, version).status_code == 200
+    assert scalar(db, "SELECT bite_minutes FROM app.tasks WHERE id = %s", task) is None

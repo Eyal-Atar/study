@@ -33,6 +33,9 @@ class SplitOfferOut(BaseModel):
     deferrals: int
     block: OfferBlockOut
     bite_minutes: int
+    # Every minute the split places again: the sum of parts. It can be more than the block's
+    # minutes, since every planned block of the task that has not started is split.
+    split_minutes: int
     parts: list[SplitPartOut]
     basis: str
 
@@ -52,6 +55,7 @@ class SplitOfferOut(BaseModel):
                 minutes=block.interval.minutes,
             ),
             bite_minutes=offer.bite_minutes,
+            split_minutes=sum(part.minutes for part in offer.parts),
             parts=[
                 SplitPartOut(
                     starts_at=part.interval.start, ends_at=part.interval.end, minutes=part.minutes

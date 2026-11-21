@@ -442,6 +442,42 @@ def _restore_task(conn: Conn, user_id: UUID, task_id: UUID, before: Any) -> None
     )
 
 
+def _check_no_bite_progress(
+    conn: Conn, user_id: UUID, version: VersionRow, now: dt.datetime
+) -> None:
+    """Refuse to undo a split once the user studied the task since it (invalid_state).
+
+    Progress is a block of the task completed after the split, or a block the split wrote
+    that is running now. Completing writes no version, so the split can still be the latest
+    one; undoing it would bring the old long block back on top of the bites already done,
+    and the task would hold more minutes than it needs (review of S44).
+    """
+    row = conn.execute(
+        """
+        SELECT EXISTS (
+            SELECT 1 FROM app.xp_events x
+            JOIN app.blocks b ON b.id = x.block_id AND b.user_id = x.user_id
+            WHERE x.user_id = %(user_id)s AND b.task_id = %(task_id)s
+              AND x.created_at > %(created_at)s
+        ) OR EXISTS (
+            SELECT 1 FROM app.blocks b
+            WHERE b.user_id = %(user_id)s AND b.task_id = %(task_id)s
+              AND b.plan_version_id = %(version_id)s AND b.status IN ('planned', 'done')
+              AND b.starts_at < %(now)s AND b.ends_at > %(now)s
+        ) AS found
+        """,
+        {
+            "user_id": user_id,
+            "task_id": version.task_id,
+            "created_at": version.created_at,
+            "version_id": version.id,
+            "now": now,
+        },
+    ).fetchone()
+    if row is not None and row["found"]:
+        raise ApiError("invalid_state")
+
+
 def _restore_bite(conn: Conn, user_id: UUID, task_id: UUID, before: Any) -> None:
     """Put a split task's bite_minutes back (task_before of a task_split version).
 
@@ -555,7 +591,8 @@ def _undo_side_effect(conn: Conn, user_id: UUID, version: VersionRow, now: dt.da
     loads the board, so the restored blocks are checked against the event as it is after.
 
     A task_split version puts the task's bite_minutes back (task_before), before the board
-    is loaded, so a task the undo places again is placed as it was before the split.
+    is loaded, so a task the undo places again is placed as it was before the split. It is
+    refused (invalid_state, nothing written) once the task was studied since the split.
 
     A review version sets its past block back to planned if it is still missed or skipped
     (one marked done since stays done), so it returns to the review; a review_skipped
@@ -576,6 +613,7 @@ def _undo_side_effect(conn: Conn, user_id: UUID, version: VersionRow, now: dt.da
             _restore_task(conn, user_id, version.task_id, version.task_before)
         return
     if version.reason == VersionReason.TASK_SPLIT and version.task_id is not None:
+        _check_no_bite_progress(conn, user_id, version, now)
         _restore_bite(conn, user_id, version.task_id, version.task_before)
         return
     if version.reason == VersionReason.BUSY_ADDED and version.busy_event_id is not None:
