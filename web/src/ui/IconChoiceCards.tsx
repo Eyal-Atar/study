@@ -1,5 +1,5 @@
-import { Check, type LucideIcon } from 'lucide-react'
 import { CheckboxButton, CheckboxField, CheckboxGroup, FieldError, Label, Text } from 'react-aria-components'
+import { CheckMarkIcon, type IconType } from './icons'
 import { cx, FOCUS_RING, ICON_STROKE } from './styles'
 import { FIELD_DESCRIPTION_CLASS, FIELD_ERROR_CLASS, FIELD_LABEL_CLASS } from './TextField'
 
@@ -8,7 +8,7 @@ export interface IconChoiceOption {
   label: string
   // A range or a short detail under the label, read left to right ("06:00–12:00").
   description?: string | undefined
-  icon: LucideIcon
+  icon: IconType
 }
 
 export interface IconChoiceCardsProps {
@@ -24,7 +24,7 @@ export interface IconChoiceCardsProps {
 }
 
 // One tile: the 2×2 windows of the mockup's onboarding step 3. Aligned to the start, the icon
-// above the label and the range. Chosen: a 2px brand border on brand-soft and a ✓ in the corner,
+// above the label and the range. Chosen: a 2px brand border on brand-soft and a check mark in the corner,
 // so the choice is not in colour alone; the padding drops by the extra pixel so nothing moves.
 const TILE = cx(
   'relative flex min-h-touch w-full cursor-pointer flex-col items-start gap-1 rounded-control border border-line bg-field p-3 text-start text-ink transition-colors duration-(--duration-fast)',
@@ -70,7 +70,7 @@ export function IconChoiceCards({ label, description, options, value, onChange, 
                       aria-hidden="true"
                       className="absolute end-2 top-2 inline-flex size-5 items-center justify-center rounded-full bg-brand text-on-brand"
                     >
-                      <Check size={14} strokeWidth={ICON_STROKE} />
+                      <CheckMarkIcon size={14} />
                     </span>
                   ) : null}
                 </>

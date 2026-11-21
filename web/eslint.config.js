@@ -8,7 +8,8 @@ import tseslint from 'typescript-eslint'
 import { guards } from './eslint/guards.js'
 
 export default defineConfig([
-  globalIgnores(['dist', 'coverage']),
+  // pending-s34: two test files waiting for the modules of Tasks 4 and 7, parked outside src.
+  globalIgnores(['dist', 'coverage', 'pending-s34']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

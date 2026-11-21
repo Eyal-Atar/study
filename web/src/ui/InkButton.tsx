@@ -1,11 +1,11 @@
-import { LoaderCircle } from 'lucide-react'
 import { Button as AriaButton, type ButtonProps as AriaButtonProps, composeRenderProps } from 'react-aria-components'
+import { LoaderCircle } from './icons'
 import { BUTTON_BASE, cx, FOCUS_RING, ICON_STROKE } from './styles'
 
 export type InkButtonProps = AriaButtonProps
 
-// The dark button of the all-screens mockup (S34 decision 11): "המשך עם Google" on the login
-// screen and "+ הוספת מבחן" in the onboarding form. on-inverse on inverse is a checked text pair
+// The dark button of the all-screens mockup (S34 decision 11): "Continue with Google" on the login
+// screen and "Add an exam" in the onboarding form. on-inverse on inverse is a checked text pair
 // (11.45:1). It is not a second primary: a screen still has at most one green button. Under the
 // pointer it lifts (shadow-raised), since no darker fill reads on the dark. The ring is the brand
 // one, with its 2px gap of the light page around the dark. Disabled is muted, never transparent,

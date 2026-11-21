@@ -1,19 +1,27 @@
-import { Briefcase, GraduationCap, Moon, MoreHorizontal, Sun, Sunrise, Sunset } from 'lucide-react'
 import { useState } from 'react'
+import { isolate } from '../i18n/bidi'
 import { ExamChip, ExamInitial, ExamProgressBar } from '../ui/ExamMark'
 import { EXAM_COLOR_COUNT } from '../ui/examColor'
 import { IconButton } from '../ui/IconButton'
 import { IconChoiceCards } from '../ui/IconChoiceCards'
 import { InkButton } from '../ui/InkButton'
 import { Stepper } from '../ui/Stepper'
+import { ClassIcon, Ellipsis, EveningIcon, MorningIcon, NightIcon, NoonIcon, WorkIcon } from '../ui/icons'
 import { ICON_STROKE } from '../ui/styles'
 import { TileList, TileRow } from '../ui/TileList'
+import { UserText } from '../ui/UserText'
 import { devText } from './devText'
 import { Example, FIELD_GRID, ROW, Section } from './Section'
+import { sample } from './sampleContent'
 
 // The components S34 added to ui/, each in every state. Their texts are in the s34 section of
 // devText.ts.
 const t = devText.s34
+
+// The user content of the examples: the exam names, and the titles of two fixed commitments.
+const EXAM_NAMES = [sample.exams[0], sample.exams[1]] as const
+const WORK = sample.busyTitle
+const LECTURE = sample.lectureTitle
 
 export function TileListSection() {
   const [pressed, setPressed] = useState<string>(t.tileList.nothing)
@@ -21,9 +29,9 @@ export function TileListSection() {
     <Section id="tile-list">
       <Example caption={t.tileList.plain}>
         <TileList aria-label={t.tileList.fixedLabel}>
-          <TileRow title={t.tileList.work} />
+          <TileRow title={<UserText>{WORK}</UserText>} />
           <TileRow
-            title={t.tileList.lecture}
+            title={<UserText>{LECTURE}</UserText>}
             subtitle={
               <>
                 {t.tileList.lectureWhen}
@@ -35,32 +43,35 @@ export function TileListSection() {
       </Example>
       <Example caption={t.tileList.link}>
         <TileList aria-label={t.tileList.label}>
-          {t.tileList.exams.map((exam) => (
+          {t.tileList.exams.map((exam, index) => {
+          const name = EXAM_NAMES[index] ?? ''
+          return (
             <TileRow
               key={exam.id}
               to="/dev/components#tile-list"
-              leading={<ExamInitial name={exam.name} colorIndex={exam.color} />}
-              title={exam.name}
+              leading={<ExamInitial name={name} colorIndex={exam.color} />}
+              title={<UserText>{name}</UserText>}
               subtitle={exam.done === 0 ? `${exam.date}, ${t.tileList.noTasks}` : `${exam.date}, ${t.tileList.ofPlan(exam.done)}`}
               footer={
                 <ExamProgressBar
                   colorIndex={exam.color}
                   value={exam.done}
                   max={exam.done === 0 ? 0 : 100}
-                  aria-label={t.tileList.progress(exam.name)}
+                  aria-label={`${t.tileList.progress}: ${isolate(name)}`}
                   valueText={exam.done === 0 ? t.tileList.noTasks : t.tileList.ofPlan(exam.done)}
                 />
               }
               trailing={<ExamChip colorIndex={exam.color}>{exam.days}</ExamChip>}
             />
-          ))}
+          )
+        })}
         </TileList>
       </Example>
       <Example caption={t.tileList.button}>
         <TileList aria-label={t.tileList.fixedLabel}>
           <TileRow
-            leading={<Briefcase aria-hidden="true" size={18} strokeWidth={ICON_STROKE} className="text-ink-muted" />}
-            title={t.tileList.work}
+            leading={<WorkIcon aria-hidden="true" size={18} className="text-ink-muted" />}
+            title={<UserText>{WORK}</UserText>}
             subtitle={
               <>
                 {t.tileList.workWhen}
@@ -68,17 +79,17 @@ export function TileListSection() {
               </>
             }
             onPress={() => {
-              setPressed(t.tileList.work)
+              setPressed(WORK)
             }}
             trailing={
-              <IconButton aria-label={t.tileList.actions(t.tileList.work)}>
-                <MoreHorizontal aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+              <IconButton aria-label={`${t.tileList.actionsFor} ${isolate(WORK)}`}>
+                <Ellipsis aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
               </IconButton>
             }
           />
           <TileRow
-            leading={<GraduationCap aria-hidden="true" size={18} strokeWidth={ICON_STROKE} className="text-ink-muted" />}
-            title={t.tileList.lecture}
+            leading={<ClassIcon aria-hidden="true" size={18} className="text-ink-muted" />}
+            title={<UserText>{LECTURE}</UserText>}
             subtitle={
               <>
                 {t.tileList.lectureWhen}
@@ -86,12 +97,12 @@ export function TileListSection() {
               </>
             }
             onPress={() => {
-              setPressed(t.tileList.lecture)
+              setPressed(LECTURE)
             }}
           />
         </TileList>
         <p className="text-small text-ink-muted">
-          {t.tileList.pressed} {pressed}
+          {t.tileList.pressed} <UserText>{pressed}</UserText>
         </p>
       </Example>
     </Section>
@@ -131,10 +142,10 @@ export function StepperSection() {
 }
 
 const WINDOWS = [
-  { value: 'morning', label: t.iconChoice.morning, description: t.iconChoice.morningRange, icon: Sunrise },
-  { value: 'noon', label: t.iconChoice.noon, description: t.iconChoice.noonRange, icon: Sun },
-  { value: 'evening', label: t.iconChoice.evening, description: t.iconChoice.eveningRange, icon: Sunset },
-  { value: 'night', label: t.iconChoice.night, description: t.iconChoice.nightRange, icon: Moon },
+  { value: 'morning', label: t.iconChoice.morning, description: t.iconChoice.morningRange, icon: MorningIcon },
+  { value: 'noon', label: t.iconChoice.noon, description: t.iconChoice.noonRange, icon: NoonIcon },
+  { value: 'evening', label: t.iconChoice.evening, description: t.iconChoice.eveningRange, icon: EveningIcon },
+  { value: 'night', label: t.iconChoice.night, description: t.iconChoice.nightRange, icon: NightIcon },
 ] as const
 
 function DemoIconChoice({ initial, withError }: { initial: string[]; withError?: boolean }) {
@@ -173,9 +184,9 @@ export function ExamMarkSection() {
       <Example caption={t.examMark.initials}>
         <div className={ROW}>
           {INDEXES.map((index) => (
-            <ExamInitial key={index} name={t.examMark.names[index] ?? ''} colorIndex={index} />
+            <ExamInitial key={index} name={sample.exams[index] ?? ''} colorIndex={index} />
           ))}
-          <ExamInitial name={t.examMark.names[0]} colorIndex={0} size="lg" />
+          <ExamInitial name={sample.exams[0]} colorIndex={0} size="lg" />
         </div>
       </Example>
       <Example caption={t.examMark.bars}>
@@ -186,7 +197,7 @@ export function ExamMarkSection() {
               colorIndex={index + 1}
               value={percent}
               max={100}
-              aria-label={`${t.examMark.progress}: ${t.examMark.names[index + 1] ?? ''}`}
+              aria-label={`${t.examMark.progress}: ${isolate(sample.exams[index + 1] ?? '')}`}
               valueText={`${String(percent)}%`}
             />
           ))}

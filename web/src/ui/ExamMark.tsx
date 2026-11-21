@@ -13,7 +13,7 @@ export interface ExamInitialProps {
   size?: 'md' | 'lg'
 }
 
-// The first letter of a name, past spaces and quotes ("שפת C" → ש).
+// The first letter or digit of a name, past spaces and quotes.
 function initial(name: string): string {
   const letter = /[\p{L}\p{N}]/u.exec(name)?.[0]
   return letter ?? ''
@@ -45,7 +45,7 @@ export interface ExamProgressBarProps {
   value: number
   max: number
   'aria-label': string
-  // The value in words, read as aria-valuetext ("42% מהתוכנית", "עוד אין משימות").
+  // The value in words, read as aria-valuetext ("42% of the plan", "no tasks yet").
   valueText: string
 }
 
@@ -74,7 +74,7 @@ export interface ExamChipProps {
   children: ReactNode
 }
 
-// The chip of the days left ("22 ימים"): a pill in the soft colour of the exam with its line. The
+// The chip of the days left ("22 days"): a pill in the soft colour of the exam with its line. The
 // text is ink, the readable pair on the soft fill; the strong colour is not text at this size.
 export function ExamChip({ colorIndex, children }: ExamChipProps) {
   const colour = examColor(colorIndex)

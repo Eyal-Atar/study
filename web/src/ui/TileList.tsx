@@ -25,7 +25,7 @@ export interface TileRowProps {
   // A fixed column at the start: the initial of an exam, an icon.
   leading?: ReactNode
   title: ReactNode
-  // Details under the title: "10 בדצמבר, 42% מהתוכנית".
+  // Details under the title: "10 December, 42% of the plan".
   subtitle?: ReactNode
   // What sits at the end, in one line: a chip, a menu. It is pressed separately from the tile.
   trailing?: ReactNode

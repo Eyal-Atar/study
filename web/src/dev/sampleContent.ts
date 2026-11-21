@@ -24,6 +24,8 @@ export const sample = {
   },
   // A commitment of the student's.
   busyTitle: 'משמרת בעבודה',
+  // A fixed lecture of the student's timetable.
+  lectureTitle: 'הרצאה באלגוריתמים',
   // What a student types into a text field.
   examNameValue: 'אלגוריתמים, מועד א׳',
   examNamePlaceholder: 'למשל: הסתברות, מועד א׳',

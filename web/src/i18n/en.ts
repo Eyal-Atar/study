@@ -1,6 +1,8 @@
 import { PRODUCT_NAME } from '../product'
 import { isolate } from './bidi'
+import { enControls } from './enControls'
 import { enCrash } from './enCrash'
+import { enEntry } from './enEntry'
 import { enPwa } from './enPwa'
 
 // Every text the user reads or hears, in Archi's voice (docs/design/archi-voice.md): Archi speaks
@@ -38,6 +40,8 @@ export const en = {
   },
   // S16: the crash screen (AppErrorBoundary, and the boot fallback in index.html); texts in enCrash.ts.
   crash: enCrash,
+  controls: enControls,
+  entry: enEntry,
   shell: {
     signOut: 'Sign out',
     mainNav: 'Main navigation',

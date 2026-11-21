@@ -66,8 +66,10 @@ describe('the language rules of the source', () => {
   })
 
   it('en.ts speaks in the first person: Archi is never the subject of a verb', () => {
-    const texts = FILES.filter((file) => /^i18n\/en(Crash|Pwa)?\.ts$/.test(file.name))
-    expect(texts.map((file) => file.name).sort()).toEqual(['i18n/en.ts', 'i18n/enCrash.ts', 'i18n/enPwa.ts'])
+    const texts = FILES.filter((file) => /^i18n\/en[A-Za-z]*\.ts$/.test(file.name))
+    expect(texts.map((file) => file.name)).toEqual(
+      expect.arrayContaining(['i18n/en.ts', 'i18n/enCrash.ts', 'i18n/enPwa.ts', 'i18n/enControls.ts', 'i18n/enEntry.ts']),
+    )
     for (const file of texts) {
       // The texts alone: a comment may quote what not to write.
       const strings = file.text.replace(/^\s*\/\/.*$/gm, '')

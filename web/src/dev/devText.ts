@@ -50,6 +50,12 @@ export const SECTIONS = [
   { id: 'switch', title: 'Switch' },
   { id: 'compact-select', title: 'CompactSelect' },
   { id: 'collapsible-section', title: 'CollapsibleSection' },
+  // S34
+  { id: 'tile-list', title: 'Tile list' },
+  { id: 'stepper', title: 'Stepper' },
+  { id: 'icon-choice-cards', title: 'Icon choice cards' },
+  { id: 'exam-mark', title: 'Exam mark' },
+  { id: 'ink-button', title: 'Ink button' },
 ] as const
 
 export type SectionId = (typeof SECTIONS)[number]['id']
@@ -418,6 +424,76 @@ export const devText = {
     warningTitle: 'Your calendar is out of date',
     warningActionText: 'Your study hours changed after I built your calendar.',
     rebuild: 'Rebuild',
+  },
+  // S34: the five components it added to ui/. The exam names and commitment titles are user
+  // content, so they come from sampleContent.ts; what is here is the page's own English.
+  s34: {
+    tileList: {
+      plain: 'Plain tiles, with no action',
+      link: 'The whole tile is a link, with a progress bar and a chip',
+      button: 'The whole tile is a button, with a menu at the end',
+      label: 'Exams',
+      fixedLabel: 'Fixed hours',
+      lectureWhen: 'Sun, Tue, ',
+      lectureHours: '10:00–12:00',
+      workWhen: 'Mon, Wed, ',
+      workHours: '16:00–20:00',
+      noTasks: 'no tasks yet',
+      ofPlan: (percent: number) => `${String(percent)}% of the plan`,
+      progress: 'Progress',
+      actionsFor: 'Actions for',
+      pressed: 'Last pressed:',
+      nothing: 'nothing yet',
+      exams: [
+        { id: 'a', date: '10 December', done: 42, days: '22 days', color: 1 },
+        { id: 'b', date: '17 December', done: 0, days: '29 days', color: 2 },
+      ],
+    },
+    stepper: {
+      label: 'How many hours a day can you study?',
+      caption: 'on a study day',
+      description: 'You can change this later in Settings.',
+      middle: 'In the middle: both buttons work',
+      top: 'At the top: More is off',
+      bottom: 'At the bottom, with a description: Less is off',
+      hours: [
+        { value: 60, label: '1 hour' },
+        { value: 120, label: '2 hours' },
+        { value: 180, label: '3 hours' },
+        { value: 240, label: '4 hours' },
+        { value: 300, label: '5 hours' },
+        { value: 360, label: '6 hours' },
+      ],
+    },
+    iconChoice: {
+      label: 'When do you like to study?',
+      some: 'Two chosen: a check mark in the corner',
+      none: 'None chosen, with an error',
+      error: 'Choose at least one window',
+      morning: 'Morning',
+      morningRange: '06:00–12:00',
+      noon: 'Noon',
+      noonRange: '12:00–17:00',
+      evening: 'Evening',
+      eveningRange: '17:00–21:00',
+      night: 'Night',
+      nightRange: '21:00–02:00',
+    },
+    examMark: {
+      initials: 'The initial, in each of the eight colours, and the large size',
+      bars: 'The progress bar: empty, partial, full',
+      chips: 'The days-left chip, in each colour',
+      progress: 'Progress',
+      days: (n: number) => `${String(n)} days`,
+    },
+    inkButton: {
+      rest: 'At rest',
+      pending: 'Pending: a spinner, and presses are ignored',
+      disabled: 'Disabled',
+      // Not the login button's own text: the page test checks that the login screen is not here.
+      google: 'Continue with your account',
+      addExam: 'Add an exam',
+    },
   },
   optionGrid: {
     empty: 'No time chosen yet',

@@ -27,10 +27,13 @@ function fakeBlob(width: number, height: number, quality: number): Blob {
 }
 
 class FakeOffscreenCanvas {
-  constructor(
-    public width: number,
-    public height: number,
-  ) {}
+  width: number
+  height: number
+
+  constructor(width: number, height: number) {
+    this.width = width
+    this.height = height
+  }
 
   getContext() {
     return { fillStyle: '', fillRect: vi.fn(), drawImage: vi.fn() }
