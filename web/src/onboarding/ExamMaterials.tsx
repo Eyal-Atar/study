@@ -12,6 +12,7 @@ import { List } from '../ui/List'
 import { SectionHeading } from '../ui/SectionHeading'
 import { ErrorState, LoadingState } from '../ui/states'
 import { ICON_STROKE } from '../ui/styles'
+import { UserText } from '../ui/UserText'
 import { UNDO_TIMEOUT_MS, useToast } from '../ui/useToast'
 import { materialsKey, useDeleteMaterial, useMaterials } from './api'
 import { MaterialItem } from './MaterialItem'
@@ -53,7 +54,7 @@ function uploadErrorText(error: unknown): string {
 }
 
 // Answers that a retry would get again: the file's type or size, a full exam, or an exam that is gone.
-// They get only "הסרה".
+// They get only "Remove".
 const FINAL_CODES: ReadonlySet<string> = new Set(['unsupported_file', 'file_too_large', 'too_many_materials', 'not_found'])
 
 function canRetry(error: unknown): boolean {
@@ -81,7 +82,7 @@ export interface ExamMaterialsProps {
   heading?: string
   // A control that changes a registered material's kind, in place of its kind's text (S15).
   kindControl?: (material: Material) => ReactNode
-  // Only the "הוספת קבצים" button and the files, without a heading or a section of its own: the
+  // Only the "Add files" button and the files, without a heading or a section of its own: the
   // exam screen puts this inside a collapsible section that already has the heading (S28).
   bare?: boolean
 }
@@ -101,7 +102,7 @@ export function ExamMaterials({ exam, onCountChange, heading, kindControl, bare 
   const visible = (materials.data ?? []).filter((m) => !hidden.has(m.id))
   const count = visible.length + pending.length
 
-  // The step says "המשך" instead of "המשך בלי חומרים" once any exam has a file.
+  // The step says "Continue" instead of "Continue without materials" once any exam has a file.
   useEffect(() => {
     onCountChange(exam.id, count)
   }, [exam.id, count, onCountChange])
@@ -110,7 +111,7 @@ export function ExamMaterials({ exam, onCountChange, heading, kindControl, bare 
     upload.mutateAsync({ id: item.id, file: item.file, kind: item.kind, stored: item.stored }).then(
       (answer) => {
         // The hook already refetched the list; this puts the new material in even if that refetch lost a race,
-        // so the row never blinks out between "מעלה…" and "קוראים את הקובץ…". A null answer (registered on
+        // so the row never blinks out between "Uploading…" and "Reading the file…". A null answer (registered on
         // an earlier try) has nothing to add: the refetch brought it.
         if (answer !== null) {
           queryClient.setQueryData<Material[]>(materialsKey(userId, exam.id), (list = []) =>
@@ -158,7 +159,7 @@ export function ExamMaterials({ exam, onCountChange, heading, kindControl, bare 
     setPending((rows) => rows.filter((row) => row.id !== item.id))
   }
 
-  // A material delete is hard on the server, so the screen hides the file, offers "בטל" for 10 seconds,
+  // A material delete is hard on the server, so the screen hides the file, offers "Undo" for 10 seconds,
   // and sends DELETE only when the toast goes away without it (S13, "why a material delete waits").
   function remove(material: Material) {
     const show = () => {
@@ -287,7 +288,7 @@ export function ExamMaterials({ exam, onCountChange, heading, kindControl, bare 
       {/* The name of the exam and its one action share a row; a long name wraps under itself. */}
       <div className="flex items-center justify-between gap-3">
         <SectionHeading id={headingId} className="min-w-0 break-words">
-          {heading ?? <bdi>{exam.name}</bdi>}
+          {heading ?? <UserText>{exam.name}</UserText>}
         </SectionHeading>
         <div className="shrink-0">{picker}</div>
       </div>

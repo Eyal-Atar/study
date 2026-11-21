@@ -96,7 +96,7 @@ export function useExamTasks(examId: string): UseQueryResult<ExamTaskItem[], Api
 }
 
 // Live AI tasks: the list holds only live tasks, and every status (todo, done, skipped) counts, since
-// they all came from an analysis. Without any the exam offers "בניית תוכנית", with them "ניתוח חוזר".
+// they all came from an analysis. Without any the exam offers "Build a plan for this exam", with them "Analyse again".
 export function hasAiTasks(tasks: readonly ExamTaskItem[]): boolean {
   return tasks.some((task) => task.source === 'ai')
 }

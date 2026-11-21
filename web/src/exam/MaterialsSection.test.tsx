@@ -12,7 +12,7 @@ import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { createFakeStorage } from '../test/fakeStorage'
 import { ToastRegion } from '../ui/toast'
 import { MaterialsSection } from './MaterialsSection'
-import { taskItem } from './analysisFixtures'
+import { taskItem } from '../test/analysisFixtures'
 
 const t = en.exam.materials
 const kinds = en.onboardingMaterials.kinds
@@ -124,9 +124,9 @@ describe('MaterialsSection', () => {
   })
 
   it('says how many files there are: none, one, several', () => {
-    expect(t.count(0)).toBe('אין קבצים')
-    expect(t.count(1)).toBe('קובץ אחד')
-    expect(t.count(3)).toBe('3 קבצים')
+    expect(t.count(0)).toBe('No files')
+    expect(t.count(1)).toBe('1 file')
+    expect(t.count(3)).toBe('3 files')
   })
 
   it('a kind change sends PATCH, shows the new kind, and hints at a reanalysis when the exam has AI tasks', async () => {

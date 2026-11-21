@@ -16,16 +16,16 @@ function WithToolbar() {
   return (
     <>
       <ShellToolbar>
-        <button type="button">פקד בסרגל</button>
+        <button type="button">Toolbar control</button>
       </ShellToolbar>
-      <h1>עם סרגל</h1>
-      <Link to="/plain">למסך אחר</Link>
+      <h1>With toolbar</h1>
+      <Link to="/plain">To another screen</Link>
     </>
   )
 }
 
 function Plain() {
-  return <h1>בלי סרגל</h1>
+  return <h1>Without toolbar</h1>
 }
 
 function renderShell() {
@@ -48,19 +48,19 @@ describe('ShellToolbar', () => {
     renderShell()
 
     const banner = within(await screen.findByRole('banner'))
-    const control = await banner.findByRole('button', { name: 'פקד בסרגל' })
-    expect(within(screen.getByRole('main')).queryByRole('button', { name: 'פקד בסרגל' })).not.toBeInTheDocument()
+    const control = await banner.findByRole('button', { name: 'Toolbar control' })
+    expect(within(screen.getByRole('main')).queryByRole('button', { name: 'Toolbar control' })).not.toBeInTheDocument()
     expect(control).toBeInTheDocument()
 
-    await user.click(screen.getByRole('link', { name: 'למסך אחר' }))
-    expect(await screen.findByRole('heading', { name: 'בלי סרגל' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'פקד בסרגל' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: 'To another screen' }))
+    expect(await screen.findByRole('heading', { name: 'Without toolbar' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Toolbar control' })).not.toBeInTheDocument()
   })
 
   it('outside the shell renders nothing', () => {
     render(
       <ShellToolbar>
-        <button type="button">פקד בסרגל</button>
+        <button type="button">Toolbar control</button>
       </ShellToolbar>,
     )
     expect(screen.queryByRole('button')).not.toBeInTheDocument()

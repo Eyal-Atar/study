@@ -14,7 +14,7 @@ export function waitToDelete(materialId: string, close: () => void): void {
   waiting.set(materialId, close)
 }
 
-// "בטל": the delete will not happen.
+// "Undo": the delete will not happen.
 export function cancelDelete(materialId: string): void {
   waiting.delete(materialId)
 }

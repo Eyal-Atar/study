@@ -14,7 +14,7 @@ import type { TaskCreate, Topic } from './types'
 
 const t = en.exam.tasks
 
-// "הוספת משימה": a user task for this exam (POST /tasks), placed on the board by the server.
+// "Add task": a user task for this exam (POST /tasks), placed on the board by the server.
 export function AddTask({ examId, topics }: { examId: string; topics: readonly Topic[] }) {
   const create = useCreateTask()
   const toast = useToast()

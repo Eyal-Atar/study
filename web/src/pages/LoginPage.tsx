@@ -16,7 +16,7 @@ export function LoginPage() {
 
   return (
     <StandalonePage>
-      {/* Written here and not with PageHeader, which would name the tab "ארצ׳י · ארצ׳י". */}
+      {/* Written here and not with PageHeader, which would name the tab "Archi – Archi". */}
       <h1 className="text-display font-semibold break-words text-ink">{en.appName}</h1>
       <p className="mt-3 max-w-prose text-body text-ink-muted">{en.tagline}</p>
       {/* Full width on a phone, where the thumb is; the width of its text from md. */}

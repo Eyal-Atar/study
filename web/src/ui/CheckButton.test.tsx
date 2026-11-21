@@ -3,7 +3,7 @@ import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { CheckButton } from './CheckButton'
 
-const NAME = 'בוצע: תרגול תוחלת'
+const NAME = 'Done: Practice תוחלת'
 
 function circleOf(button: HTMLElement): HTMLElement {
   const circle = button.firstElementChild

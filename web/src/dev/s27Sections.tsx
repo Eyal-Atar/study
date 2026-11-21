@@ -4,7 +4,9 @@ import { Note } from '../ui/Note'
 import { OptionGrid } from '../ui/OptionGrid'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { useToast } from '../ui/useToast'
+import { UserText } from '../ui/UserText'
 import { devText } from './devText'
+import { sample } from './sampleContent'
 import { Example, FIELD_GRID, Section } from './Section'
 
 // The components that S27 (the daily screens) added to ui/. They are in a file of their own, so
@@ -112,7 +114,7 @@ export function NoteSection() {
               </Button>
             }
           >
-            {t.note.longText}
+            <UserText>{sample.longFileName}</UserText>
           </Note>
         </Example>
       </div>

@@ -9,7 +9,7 @@ import { BUTTON_BASE, BUTTON_REST, cx, FOCUS_RING, FOCUS_RING_INVERSE, ICON_STRO
 export interface ButtonProps extends AriaButtonProps {
   // primary: the one action the screen exists for, at most one per screen or card.
   // secondary: any other action. quiet: an action inside text. danger: cannot be undone.
-  // inverse: the action of the dark toast ("בטל").
+  // inverse: the action of the dark toast ("Undo").
   variant?: ButtonVariant
 }
 
@@ -17,7 +17,7 @@ export interface ButtonProps extends AriaButtonProps {
 // the element, and the look hangs only on those (design language 5.3).
 const BASE = cx(BUTTON_BASE, 'data-[disabled]:cursor-not-allowed data-[pending]:cursor-progress')
 
-// A disabled button is muted and never transparent: opacity made "שמירה" unreadable on soft
+// A disabled button is muted and never transparent: opacity made "Save" unreadable on soft
 // backgrounds. ink-muted on surface-muted is a checked text pair (theme.test.ts).
 const DISABLED = 'data-[disabled]:border-line data-[disabled]:bg-surface-muted data-[disabled]:text-ink-muted'
 

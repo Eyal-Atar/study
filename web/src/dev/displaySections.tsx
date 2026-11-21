@@ -1,5 +1,5 @@
-import { CalendarOff, EllipsisVertical, FileText, Plus } from '../ui/icons'
 import { useState } from 'react'
+import { isolate } from '../i18n/bidi'
 import { en } from '../i18n/en'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
@@ -11,12 +11,15 @@ import { IconButton } from '../ui/IconButton'
 import { List, ListRow } from '../ui/List'
 import { Menu, MenuItem } from '../ui/Menu'
 import { ProgressBar } from '../ui/ProgressBar'
+import { CalendarOff, EllipsisVertical, FileText, Plus } from '../ui/icons'
 import { SectionHeading } from '../ui/SectionHeading'
 import { EmptyState, ErrorState, LoadingState } from '../ui/states'
 import { ICON_STROKE } from '../ui/styles'
 import { TextLink } from '../ui/TextLink'
 import { useToast } from '../ui/useToast'
+import { UserText } from '../ui/UserText'
 import { devText } from './devText'
+import { sample } from './sampleContent'
 import { Example, ROW, Section } from './Section'
 
 const t = devText
@@ -68,7 +71,14 @@ export function SectionHeadingSection() {
           {t.sectionHeading.title}
         </SectionHeading>
         <List>
-          <ListRow title={t.sectionHeading.rowTitle} subtitle={t.sectionHeading.rowSubtitle} />
+          <ListRow
+            title={<UserText>{sample.tasks.lecture5}</UserText>}
+            subtitle={
+              <>
+                <UserText>{sample.exams[2]}</UserText>, {t.sectionHeading.rowSubtitle}
+              </>
+            }
+          />
         </List>
       </Example>
     </Section>
@@ -81,12 +91,12 @@ export function CheckButtonSection() {
   return (
     <Section id="check-button">
       <Example caption={t.checkButton.caption} className={ROW}>
-        <CheckButton aria-label={t.checkButton.label} isDone={first} onChange={setFirst} />
-        <CheckButton aria-label={t.checkButton.doneLabel} isDone={second} onChange={setSecond} />
+        <CheckButton aria-label={en.board.completeLabel(sample.tasks.expectation)} isDone={first} onChange={setFirst} />
+        <CheckButton aria-label={en.board.completeLabel(sample.tasks.chapter3)} isDone={second} onChange={setSecond} />
       </Example>
       <Example caption={t.checkButton.disabled} className={ROW}>
-        <CheckButton aria-label={t.checkButton.disabledLabel} isDone={false} isDisabled onChange={noop} />
-        <CheckButton aria-label={t.checkButton.disabledDoneLabel} isDone isDisabled onChange={noop} />
+        <CheckButton aria-label={en.board.completeLabel(sample.tasks.lecture5)} isDone={false} isDisabled onChange={noop} />
+        <CheckButton aria-label={en.board.completeLabel(sample.tasks.pastExam)} isDone isDisabled onChange={noop} />
       </Example>
     </Section>
   )
@@ -105,27 +115,39 @@ export function ListSection() {
         <List aria-label={t.list.label}>
           <ListRow
             leading={<Hour>{t.list.checkHour}</Hour>}
-            title={t.list.checkTitle}
-            subtitle={t.list.checkSubtitle}
+            title={<UserText>{sample.tasks.expectation}</UserText>}
+            subtitle={
+              <>
+                <UserText>{sample.exams[0]}</UserText>, {t.list.checkSubtitle}
+              </>
+            }
             done={done}
-            trailing={<CheckButton aria-label={t.list.checkLabel} isDone={done} onChange={setDone} />}
+            trailing={<CheckButton aria-label={en.board.completeLabel(sample.tasks.expectation)} isDone={done} onChange={setDone} />}
           />
           <ListRow
             leading={<Hour>{t.list.doneHour}</Hour>}
-            title={t.list.doneTitle}
-            subtitle={t.list.doneSubtitle}
+            title={<UserText>{sample.tasks.chapter3}</UserText>}
+            subtitle={
+              <>
+                <UserText>{sample.exams[1]}</UserText>, {t.list.doneSubtitle}
+              </>
+            }
             done
             trailing={<Badge tone="success">{t.badge.done}</Badge>}
           />
           <ListRow
             leading={<Hour>{t.list.linkHour}</Hour>}
-            title={t.list.linkTitle}
-            subtitle={t.list.linkSubtitle}
+            title={<UserText>{sample.tasks.lecture5}</UserText>}
+            subtitle={
+              <>
+                <UserText>{sample.exams[2]}</UserText>, {t.list.linkSubtitle}
+              </>
+            }
             to={SELF_PATH}
             trailing={
               <Menu
                 trigger={
-                  <IconButton aria-label={t.list.linkMenuLabel}>
+                  <IconButton aria-label={`${t.iconButton.moreLabel}: ${isolate(sample.tasks.lecture5)}`}>
                     <EllipsisVertical aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
                   </IconButton>
                 }
@@ -137,7 +159,7 @@ export function ListSection() {
           />
           <ListRow
             leading={<Hour>{t.list.pressHour}</Hour>}
-            title={t.list.pressTitle}
+            title={<UserText>{sample.tasks.pastExam}</UserText>}
             subtitle={t.list.pressSubtitle}
             onPress={() => {
               setPressOpen(true)
@@ -145,16 +167,16 @@ export function ListSection() {
           />
           <ListRow
             leading={<Hour>{t.list.crowdedHour}</Hour>}
-            title={t.list.crowdedTitle}
+            title={<UserText>{sample.tasks.bayes}</UserText>}
             subtitle={t.list.crowdedSubtitle}
             done={crowdedDone}
             trailing={
               <>
                 <Badge tone="warning">{t.list.crowdedBadge}</Badge>
-                <CheckButton aria-label={t.list.crowdedCheckLabel} isDone={crowdedDone} onChange={setCrowdedDone} />
+                <CheckButton aria-label={en.board.completeLabel(sample.tasks.bayes)} isDone={crowdedDone} onChange={setCrowdedDone} />
                 <Menu
                   trigger={
-                    <IconButton aria-label={t.list.crowdedMenuLabel}>
+                    <IconButton aria-label={`${t.iconButton.moreLabel}: ${isolate(sample.tasks.bayes)}`}>
                       <EllipsisVertical aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
                     </IconButton>
                   }
@@ -165,9 +187,9 @@ export function ListSection() {
               </>
             }
           />
-          <ListRow title={t.list.longTitle} subtitle={t.list.longSubtitle} />
+          <ListRow title={<UserText>{sample.longWord}</UserText>} subtitle={t.list.longSubtitle} />
         </List>
-        <Dialog title={t.list.pressDialogTitle} isOpen={isPressOpen} onOpenChange={setPressOpen}>
+        <Dialog title={<UserText>{sample.tasks.pastExam}</UserText>} isOpen={isPressOpen} onOpenChange={setPressOpen}>
           <p className="text-body text-ink">{t.list.pressDialogBody}</p>
         </Dialog>
       </Example>
@@ -204,7 +226,7 @@ export function ProgressBarSection() {
         <ProgressBar label={t.progressBar.label} value={60} max={345} />
       </Example>
       <Example caption={t.progressBar.ariaOnly}>
-        <ProgressBar aria-label={t.progressBar.ariaLabel} value={2} max={5} />
+        <ProgressBar aria-label={`${t.progressBar.ariaPrefix} ${isolate(sample.exams[1])}`} value={2} max={5} />
       </Example>
     </Section>
   )
@@ -242,11 +264,13 @@ export function DisclosureSection() {
   return (
     <Section id="disclosure">
       <Example caption={t.disclosure.closed}>
-        <Disclosure label={t.disclosure.label}>{t.disclosure.text}</Disclosure>
+        <Disclosure label={t.disclosure.label}>
+          <UserText prose>{sample.paragraphHebrew}</UserText>
+        </Disclosure>
       </Example>
       <Example caption={t.disclosure.open}>
         <Disclosure label={t.disclosure.label} defaultExpanded>
-          {t.disclosure.text}
+          <UserText prose>{sample.paragraphEnglish}</UserText>
         </Disclosure>
       </Example>
     </Section>

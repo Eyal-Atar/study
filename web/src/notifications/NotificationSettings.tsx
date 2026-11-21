@@ -25,7 +25,7 @@ export function NotificationSettings() {
   )
 }
 
-// Reminders on this device: a subscription per browser (decision 8), so "כיבוי" here leaves the
+// Reminders on this device: a subscription per browser (decision 8), so "Turn off" here leaves the
 // other devices on.
 function DeviceReminders() {
   const { vapidPublicKey } = usePushState()

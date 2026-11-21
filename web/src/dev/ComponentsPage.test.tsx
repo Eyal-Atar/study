@@ -5,8 +5,10 @@ import { en } from '../i18n/en'
 import { createFakeAuth } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
 import { examColor } from '../ui/examColor'
+import { ARCHI_ICONS } from '../ui/icons'
 import { ARCHIE_SECTIONS } from './archieText'
 import { devText, SECTIONS } from './devText'
+import { sample } from './sampleContent'
 
 // Every section of the page: devText's, and Archie's from its own file (S31, Task 8).
 const ALL_SECTIONS = [...SECTIONS, ...ARCHIE_SECTIONS]
@@ -28,7 +30,7 @@ async function open() {
   return view
 }
 
-// The page renders every component at once (13 Archies, 39 swatches), so a test of it can pass
+// The page renders every component at once (52 Archies, 39 swatches), so a test of it can pass
 // 5s on a busy machine; 15s is its own budget, not a looser check.
 describe('the components page (dev only)', { timeout: 15_000 }, () => {
   it('opens signed out, without a redirect to login', async () => {
@@ -112,13 +114,17 @@ describe('the components page (dev only)', { timeout: 15_000 }, () => {
       const rows = region('exam-palette').querySelectorAll('[data-exam]')
       expect(rows).toHaveLength(8)
       // The hues in the order of the all-screens mockup (S31 decision 25).
-      const hues = ['זית', 'טרקוטה', 'אבן כחולה', 'שזיף', 'חרדל', 'מנטה כהה', 'ורד עתיק', 'אדמה']
+      const hues = ['Olive', 'Terracotta', 'Blue stone', 'Plum', 'Mustard', 'Dark mint', 'Antique rose', 'Earth']
       expect(devText.palette.hues).toEqual(hues)
       rows.forEach((row, n) => {
         expect(row).toHaveTextContent(hues[n] ?? '')
         const c = examColor(n)
         expect(row).toHaveAttribute('data-exam', String(n))
-        expect(row).toHaveTextContent(devText.palette.exams[n] ?? '')
+        expect(row).toHaveTextContent(sample.exams[n] ?? '')
+        // The exam name is user content: it is in an element that takes its own direction.
+        for (const name of within(row as HTMLElement).getAllByText(sample.exams[n] ?? '')) {
+          expect(name.closest('[dir="auto"]')).not.toBeNull()
+        }
 
         // The block: the soft fill, the line border, and a start stripe and a checkbox in the
         // strong colour (currentColor); the name and the time are ink.
@@ -138,7 +144,8 @@ describe('the components page (dev only)', { timeout: 15_000 }, () => {
 
       const busy = region('exam-palette').querySelector('[data-part="busy"]')
       expect(busy).toHaveClass('bg-busy-soft', 'border-busy-line', 'border-s-busy')
-      expect(busy).toHaveTextContent(devText.palette.busyTitle)
+      expect(busy).toHaveTextContent(sample.busyTitle)
+      expect(within(busy as HTMLElement).getByText(sample.busyTitle).closest('[dir="auto"]')).not.toBeNull()
       expect(region('exam-palette')).toHaveTextContent(devText.palette.busy)
     })
   })
@@ -212,17 +219,57 @@ describe('the components page (dev only)', { timeout: 15_000 }, () => {
   })
 
   // S31, Task 8.
-  it('the Archie section shows the six moods as cards, one scene and the avatars', async () => {
+  it('the Archie section shows the six moods as cards, scenes and avatars, on the canvas and on a surface', async () => {
     await open()
 
     const archie = region('archie')
+    const moods = ['intentions', 'eureka', 'wisdom', 'flow', 'rest', 'joy']
+    // S39: everything twice, once on each background, to show that the character has none of its own.
     const cards = archie.querySelectorAll('[data-size="card"]')
-    expect([...cards].map((card) => card.getAttribute('data-mood'))).toEqual([
-      'intentions', 'eureka', 'wisdom', 'flow', 'rest', 'joy',
-    ])
-    expect(archie.querySelectorAll('[data-size="scene"]')).toHaveLength(1)
-    expect(archie.querySelectorAll('[data-size="avatar"]').length).toBeGreaterThanOrEqual(6)
-    // The scene and the avatar of flow are named; the cards are decorative beside their captions.
-    expect(within(archie).getAllByRole('img', { name: en.archie.alt.flow })).toHaveLength(2)
+    expect([...cards].map((card) => card.getAttribute('data-mood'))).toEqual([...moods, ...moods])
+    expect(archie.querySelectorAll('[data-size="scene"]')).toHaveLength(12)
+    expect(archie.querySelectorAll('[data-size="avatar"]').length).toBeGreaterThanOrEqual(12)
+    // The scenes and the avatars of flow are named; the cards are decorative beside their captions.
+    expect(within(archie).getAllByRole('img', { name: en.archie.alt.flow })).toHaveLength(4)
+  })
+
+  // S39: Archi's own icons, all of them, by name, at three sizes.
+  describe('the icons section', () => {
+    it('lists every icon of ARCHI_ICONS at 16, 20 and 24', async () => {
+      await open()
+
+      const icons = region('icons')
+      for (const name of Object.keys(ARCHI_ICONS)) {
+        const item = icons.querySelector(`[data-icon="${name}"]`)
+        expect(item, name).not.toBeNull()
+        expect(item).toHaveTextContent(name)
+        const widths = [...(item?.querySelectorAll('svg') ?? [])].map((svg) => svg.getAttribute('width'))
+        expect(widths).toEqual(['16', '20', '24'])
+      }
+      expect(icons.querySelectorAll('[data-icon]')).toHaveLength(Object.keys(ARCHI_ICONS).length)
+    })
+  })
+
+  // S39: the rule for user content, shown in its three modes.
+  describe('the user content section', () => {
+    it('shows Hebrew, English and mixed text in an element that takes its own direction', async () => {
+      await open()
+
+      const content = region('user-content')
+      for (const text of [sample.hebrew, sample.english, sample.mixed, sample.examWithBrackets]) {
+        const element = within(content).getByText(text)
+        expect(element.closest('[dir="auto"]')).not.toBeNull()
+        expect(element.closest('[data-user-text]')).not.toBeNull()
+      }
+    })
+
+    it('shows the truncated and the prose modes', async () => {
+      await open()
+
+      const content = region('user-content')
+      expect(within(content).getByText(sample.longExamName)).toHaveClass('user-text-truncate')
+      expect(within(content).getByText(sample.longExamName).textContent).toHaveLength(sample.longExamName.length)
+      expect(within(content).getAllByText(sample.paragraphHebrew)[0]).toHaveClass('block', 'text-start')
+    })
   })
 })

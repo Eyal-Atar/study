@@ -1,11 +1,12 @@
 import { Check, ChevronDown } from './icons'
 import { Button, ListBox, ListBoxItem, Popover, Select as AriaSelect, SelectValue } from 'react-aria-components'
 import type { SelectOption } from './Select'
+import { UserText } from './UserText'
 import { cx, FOCUS_RING, ICON_STROKE } from './styles'
 
 export interface CompactSelectProps {
   // There is no visible label: the row the select sits in says what it is, and this names it for
-  // a screen reader, with the item ("סוג הקובץ סילבוס.pdf").
+  // a screen reader, with the item ("File type syllabus.pdf").
   'aria-label': string
   value: string
   options: readonly SelectOption[]
@@ -60,7 +61,9 @@ export function CompactSelect({ 'aria-label': label, value, options, onChange, i
             <ListBoxItem key={keyOf(index)} id={keyOf(index)} textValue={option.label} className={OPTION}>
               {({ isSelected }) => (
                 <>
-                  <span className="min-w-0 break-words">{option.label}</span>
+                  <span className="min-w-0 break-words">
+                    {option.userContent === true ? <UserText>{option.label}</UserText> : option.label}
+                  </span>
                   {isSelected ? <Check aria-hidden="true" size={18} strokeWidth={ICON_STROKE} className="shrink-0" /> : null}
                 </>
               )}

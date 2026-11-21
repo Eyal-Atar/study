@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { isolate } from '../i18n/bidi'
 import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
 import { TextField } from '../ui/TextField'
 import { useToast } from '../ui/useToast'
 import { devText } from './devText'
+import { sample } from './sampleContent'
 import { Example, ROW, Section } from './Section'
 
 const t = devText
@@ -13,7 +15,7 @@ export function DialogSection() {
   const [isRegularOpen, setRegularOpen] = useState(false)
   const [isAlertOpen, setAlertOpen] = useState(false)
   const [isFormOpen, setFormOpen] = useState(false)
-  const [name, setName] = useState<string>(t.dialog.formValue)
+  const [name, setName] = useState<string>(sample.examNameValue)
   const [isNameMissing, setNameMissing] = useState(false)
   const toast = useToast()
   return (
@@ -115,7 +117,7 @@ export function DialogSection() {
               return
             }
             setFormOpen(false)
-            toast.show({ text: `${t.dialog.formSaved} ${name.trim()}`, tone: 'success' })
+            toast.show({ text: `${t.dialog.formSaved} ${isolate(name.trim())}`, tone: 'success' })
           }}
           footer={
             <>

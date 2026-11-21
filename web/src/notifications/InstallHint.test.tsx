@@ -43,7 +43,7 @@ describe('InstallHint', () => {
     expect(hint()).not.toBeInTheDocument()
   })
 
-  it('"הבנתי" closes it', async () => {
+  it('the dismiss button closes it', async () => {
     const user = userEvent.setup()
     push = installFakePush({ userAgent: IPHONE_UA, supported: false })
     open()

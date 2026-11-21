@@ -17,14 +17,15 @@ const CODES = [
 ]
 
 describe('codeText', () => {
-  it.each(CODES)('%s has its own Hebrew text', (code) => {
+  it.each(CODES)('%s has its own English text', (code) => {
     const text = codeText(code)
     expect(text).not.toBe(en.errors.generic)
-    expect(text).toMatch(/[א-ת]/)
+    expect(text).toMatch(/[A-Za-z]/)
+    expect(text).not.toMatch(/[\u0590-\u05FF]/)
   })
 
   it('no_study_time also names the daily time for yourself, which the planner subtracts too', () => {
-    expect(codeText('no_study_time')).toContain('הזמן לעצמי')
+    expect(codeText('no_study_time')).toMatch(/me time/)
   })
 
   it('an unknown code gets the generic text, never the code', () => {
@@ -61,16 +62,16 @@ describe('codeText', () => {
 describe('reports', () => {
   it('a shortfall with a daily amount suggests it', () => {
     const text = shortfallText('חדו"א', 240, 300)
-    expect(text).toContain('4 שעות')
-    expect(text).toContain('5 שעות')
+    expect(text).toContain('4 hours')
+    expect(text).toContain('5 hours')
     expect(text).toContain('חדו"א')
   })
 
   it('a shortfall without a daily amount suggests the other ways, with no number', () => {
     const text = shortfallText('פיזיקה', 90, null)
-    expect(text).toContain('1.5 שעות')
-    expect(text).toContain('לוותר על משימות')
-    expect(text).not.toMatch(/ביום/)
+    expect(text).toContain('1.5 hours')
+    expect(text).toContain('drop tasks')
+    expect(text).not.toMatch(/daily study time to/)
   })
 
   it('a cycle reason has its own wording', () => {

@@ -20,7 +20,7 @@ export function LevelCard({ progress }: { progress: Progress }) {
 
   return (
     <Card role="region" aria-labelledby={titleId} className="flex flex-col gap-4">
-      {/* The large number under it already reads "רמה 4", so the heading is for the outline only. */}
+      {/* The large number under it already reads "Level 4", so the heading is for the outline only. */}
       <h2 id={titleId} className="sr-only">
         {t.title}
       </h2>

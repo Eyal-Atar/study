@@ -120,6 +120,8 @@ describe('ExamsStep', () => {
     const list = await screen.findByRole('list', { name: t.listTitle })
     const item = within(list).getByRole('listitem')
     expect(item).toHaveTextContent('אלגוריתמים')
+    // A name in any language decides its own direction.
+    expect(within(item).getByText('אלגוריתמים').closest('[dir="auto"]')).not.toBeNull()
     // "20 January 2027": day, long month, year (en-IL).
     const longDate = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' }).format(date.date)
     expect(longDate).toMatch(/^\d{1,2} [A-Z][a-z]+ \d{4}$/)
@@ -197,7 +199,7 @@ describe('ExamsStep', () => {
     expect(await screen.findByRole('button', { name: t.deleteExam('שפת C') })).toBeInTheDocument()
   })
 
-  it('a double press on "הוספת מבחן" sends one POST, and the button keeps its text while it is sent', async () => {
+  it('a double press on "Add exam" sends one POST, and the button keeps its text while it is sent', async () => {
     const user = userEvent.setup()
     const fake = examsApi()
     let answer: () => void = () => undefined
@@ -256,7 +258,7 @@ describe('ExamsStep', () => {
     expect(await screen.findByText(t.empty)).toBeInTheDocument()
   })
 
-  it('"המשך" is disabled without an exam, and goes to the materials step with one', async () => {
+  it('"Continue" is disabled without an exam, and goes to the materials step with one', async () => {
     const user = userEvent.setup()
     renderExams(examsApi())
     await screen.findByText(t.empty)

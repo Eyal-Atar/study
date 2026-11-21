@@ -6,7 +6,7 @@ import { IconButton } from './IconButton'
 import { cx, ICON_STROKE } from './styles'
 
 export interface DialogProps {
-  title: string
+  title: ReactNode
   description?: string | undefined
   isOpen: boolean
   onOpenChange: (isOpen: boolean) => void

@@ -15,12 +15,12 @@ import { undoOnce } from './undoOnce'
 // The morning review (S18, spec 7.9): planned blocks that ended without a mark, and what to do with
 // each one.
 //
-// "בוצע" is the board's complete (S14), whose undo is uncomplete. It is optimistic on every board
+// "Done" is the board's complete (S14), whose undo is uncomplete. It is optimistic on every board
 // query, and the review answer is one of them (reviewKey lives under boardKey), so the block turns
 // `done` in the review cache at once and the card, which lists only planned blocks, drops it; a
 // failure restores it there too. No second optimistic layer is needed.
 //
-// "העבר" and "דלג" are not optimistic: the planner on the server picks the new place (and may find
+// "Move to today" and "Skip" are not optimistic: the planner on the server picks the new place (and may find
 // none), and a skip removes the task's open blocks. The undo of both is POST /plan/undo with the
 // version they wrote, which also puts the reviewed block back to planned (decision 5).
 //
@@ -52,7 +52,7 @@ export interface ReviewActions {
   skip(block: Block, options?: ReviewCallOptions): void
   // True while any action on this block runs, in any screen (or from a toast).
   pending(blockId: string): boolean
-  // True while this block is being moved (the button says "מעביר…").
+  // True while this block is being moved (the button says "Moving…").
   moving(blockId: string): boolean
 }
 

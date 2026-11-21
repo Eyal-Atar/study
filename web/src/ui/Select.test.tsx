@@ -5,15 +5,15 @@ import { en } from '../i18n/en'
 import { Select, type SelectOption } from './Select'
 
 const OPTIONS: readonly SelectOption[] = [
-  { value: 'a', label: 'קריאה' },
-  { value: 'b', label: 'תרגול' },
-  { value: 'c', label: 'חזרה' },
+  { value: 'a', label: 'Reading' },
+  { value: 'b', label: 'Practice' },
+  { value: 'c', label: 'Review' },
 ]
 
 function setup(props: Partial<Parameters<typeof Select>[0]> = {}) {
   const onChange = vi.fn()
-  render(<Select label="סוג" value="a" options={OPTIONS} onChange={onChange} {...props} />)
-  return { onChange, trigger: screen.getByRole('button', { name: /סוג/ }) }
+  render(<Select label="Type" value="a" options={OPTIONS} onChange={onChange} {...props} />)
+  return { onChange, trigger: screen.getByRole('button', { name: /Type/ }) }
 }
 
 describe('Select', () => {
@@ -23,8 +23,8 @@ describe('Select', () => {
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
     expect(trigger).toHaveAttribute('aria-haspopup', 'listbox')
-    expect(trigger).toHaveAccessibleName('קריאה סוג')
-    expect(trigger).toHaveTextContent('קריאה')
+    expect(trigger).toHaveAccessibleName('Reading Type')
+    expect(trigger).toHaveTextContent('Reading')
   })
 
   it('opens with a click and lists the options, the chosen one marked selected', async () => {
@@ -32,9 +32,9 @@ describe('Select', () => {
     const { trigger } = setup()
 
     await user.click(trigger)
-    const listbox = screen.getByRole('listbox', { name: 'סוג' })
+    const listbox = screen.getByRole('listbox', { name: 'Type' })
     const options = within(listbox).getAllByRole('option')
-    expect(options.map((option) => option.textContent)).toEqual(['קריאה', 'תרגול', 'חזרה'])
+    expect(options.map((option) => option.textContent)).toEqual(['Reading', 'Practice', 'Review'])
     expect(options[0]).toHaveAttribute('aria-selected', 'true')
     expect(options[1]).toHaveAttribute('aria-selected', 'false')
     // Chosen is not said by colour alone: only the chosen option carries the check icon.
@@ -65,7 +65,7 @@ describe('Select', () => {
     const { onChange, trigger } = setup()
 
     await user.click(trigger)
-    await user.click(screen.getByRole('option', { name: 'חזרה' }))
+    await user.click(screen.getByRole('option', { name: 'Review' }))
     expect(onChange.mock.calls).toEqual([['c']])
   })
 
@@ -111,30 +111,30 @@ describe('Select', () => {
 
   it('an option whose value is the empty string can be shown and chosen', async () => {
     const user = userEvent.setup()
-    const options = [{ value: '', label: 'בלי נושא' }, ...OPTIONS]
+    const options = [{ value: '', label: 'No topic' }, ...OPTIONS]
     const { onChange, trigger } = setup({ options, value: '' })
 
-    expect(trigger).toHaveTextContent('בלי נושא')
+    expect(trigger).toHaveTextContent('No topic')
     await user.click(trigger)
-    expect(screen.getByRole('option', { name: 'בלי נושא' })).toHaveAttribute('aria-selected', 'true')
-    await user.click(screen.getByRole('option', { name: 'תרגול' }))
+    expect(screen.getByRole('option', { name: 'No topic' })).toHaveAttribute('aria-selected', 'true')
+    await user.click(screen.getByRole('option', { name: 'Practice' }))
     expect(onChange.mock.calls).toEqual([['b']])
   })
 
   it('choosing the empty-string option reports the empty string', async () => {
     const user = userEvent.setup()
-    const options = [{ value: '', label: 'בלי נושא' }, ...OPTIONS]
+    const options = [{ value: '', label: 'No topic' }, ...OPTIONS]
     const { onChange, trigger } = setup({ options, value: 'b' })
 
     await user.click(trigger)
-    await user.click(screen.getByRole('option', { name: 'בלי נושא' }))
+    await user.click(screen.getByRole('option', { name: 'No topic' }))
     expect(onChange.mock.calls).toEqual([['']])
   })
 
   it('takes its own placeholder', () => {
-    const { trigger } = setup({ value: 'gone', placeholder: 'בלי נושא' })
+    const { trigger } = setup({ value: 'gone', placeholder: 'No topic' })
 
-    expect(trigger).toHaveTextContent('בלי נושא')
+    expect(trigger).toHaveTextContent('No topic')
   })
 
   it('an empty list of options renders the placeholder and does not throw', async () => {
@@ -159,21 +159,21 @@ describe('Select', () => {
   })
 
   it('links its description to the trigger', () => {
-    const { trigger } = setup({ description: 'אפשר לשנות אחר כך' })
+    const { trigger } = setup({ description: 'You can change this later' })
 
-    expect(trigger).toHaveAccessibleDescription('אפשר לשנות אחר כך')
+    expect(trigger).toHaveAccessibleDescription('You can change this later')
   })
 
   it('an error message makes it invalid and is linked to the trigger', () => {
-    const { trigger } = setup({ errorMessage: 'צריך לבחור סוג' })
+    const { trigger } = setup({ errorMessage: 'Pick a type' })
 
-    expect(trigger).toHaveAccessibleDescription('צריך לבחור סוג')
+    expect(trigger).toHaveAccessibleDescription('Pick a type')
     // React Aria marks the field, not the button: the border of the trigger hangs on the group.
     const field = trigger.closest('[data-invalid]')
     expect(field).not.toBeNull()
     expect(field?.className).toContain('group')
     expect(trigger.className).toContain('group-data-[invalid]:border-danger')
-    expect(screen.getByText('צריך לבחור סוג').className).toContain('text-danger')
+    expect(screen.getByText('Pick a type').className).toContain('text-danger')
   })
 
   it('the keyboard focus in the list is a brand ring, also on the chosen option', async () => {
@@ -205,13 +205,13 @@ describe('Select', () => {
     const { trigger } = setup()
 
     await user.click(trigger)
-    await user.hover(screen.getByRole('option', { name: 'תרגול' }))
-    expect(screen.getByRole('option', { name: 'תרגול' })).not.toHaveAttribute('data-focus-visible')
+    await user.hover(screen.getByRole('option', { name: 'Practice' }))
+    expect(screen.getByRole('option', { name: 'Practice' })).not.toHaveAttribute('data-focus-visible')
   })
 
   it('invalid and focused keeps the danger border, like a TextField', async () => {
     const user = userEvent.setup()
-    const { trigger } = setup({ errorMessage: 'צריך לבחור סוג' })
+    const { trigger } = setup({ errorMessage: 'Pick a type' })
 
     await user.tab()
     expect(trigger).toHaveAttribute('data-focus-visible', 'true')
@@ -219,5 +219,19 @@ describe('Select', () => {
     // Stacked, so it is more specific than data-[focus-visible]:border-brand.
     expect(trigger.className).toContain('group-data-[invalid]:data-[focus-visible]:border-danger')
     expect(trigger.className).toContain('data-[focus-visible]:ring-brand')
+  })
+
+  it('shows an option marked userContent through UserText, and keeps the plain textValue', async () => {
+    const user = userEvent.setup()
+    const options: readonly SelectOption[] = [
+      { value: 'a', label: 'הסתברות', userContent: true },
+      { value: 'b', label: 'Plain' },
+    ]
+    setup({ options, value: 'b' })
+
+    await user.click(screen.getByRole('button', { name: /Type/ }))
+    const items = screen.getAllByRole('option')
+    expect(within(items[0] as HTMLElement).getByText('הסתברות').closest('[dir="auto"]')).not.toBeNull()
+    expect(items[1]?.querySelector('[dir]')).toBeNull()
   })
 })

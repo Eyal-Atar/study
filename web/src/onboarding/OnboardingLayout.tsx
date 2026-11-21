@@ -9,7 +9,7 @@ export interface OnboardingLayoutProps {
   title: string
   intro?: string
   children: ReactNode
-  // The step's buttons: the primary one first (it grows on a phone), then "חזרה". On phones they
+  // The step's buttons: the primary one first (it grows on a phone), then "Back". On phones they
   // sit in a bar pinned to the bottom, within thumb reach; from md up they follow the content.
   actions?: ReactNode
 }

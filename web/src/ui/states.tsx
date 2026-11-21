@@ -81,7 +81,7 @@ export function LoadingState({ shape = 'list', rows = 3, label = en.common.loadi
 export interface EmptyStateProps {
   // Optional: a small empty place (a list inside a card) reads better with the words alone.
   icon?: LucideIcon | undefined
-  // One sentence that says what is missing: "עוד אין מבחנים".
+  // One sentence that says what is missing: "No exams yet".
   title: string
   // What to do about it, when the title is not enough.
   description?: string

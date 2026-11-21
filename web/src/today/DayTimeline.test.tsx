@@ -155,6 +155,13 @@ describe('DayTimeline', () => {
     expect(within(item as HTMLElement).getByText(en.board.states.done)).toBeInTheDocument()
   })
 
+  it('a Hebrew title inside a calendar block is user content: its own direction, cut at the end', async () => {
+    setup()
+    const title = await screen.findByText(A.task_title)
+    expect(title).toHaveAttribute('dir', 'auto')
+    expect(title).toHaveClass('user-text-truncate')
+  })
+
   it('a small drag moves in 15-minute steps, and a tiny one does nothing', async () => {
     const { fake } = setup()
     const grip = await handle(A)

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { cx } from './styles'
 
 export interface BadgeProps {
-  // brand: "עכשיו". success: "בוצע". warning: "עבר הזמן". neutral: "הוחמץ", "דולג".
+  // brand: "Now". success: "Done". warning: "Overdue". neutral: "Missed", "Skipped".
   // There is no danger tone on purpose: a task that was not done is never red.
   tone: 'brand' | 'success' | 'warning' | 'neutral'
   children: ReactNode
@@ -17,7 +17,7 @@ const TONES = {
 } as const
 
 // A badge is for a state, and always has words: colour alone carries nothing. What is not a state
-// (the name of the exam, "נעול") is text in the subtitle of the row (design language 5.5).
+// (the name of the exam, "Locked") is text in the subtitle of the row (design language 5.5).
 // A pill, like the chips of the prototype, with a medium label. It is always one line. In a place narrower than its words (the end of a row on a phone) it is
 // cut with an ellipsis instead of widening what holds it: max-w-full needs a block box, hence
 // inline-block, and align-middle keeps it on the line of the text beside it.

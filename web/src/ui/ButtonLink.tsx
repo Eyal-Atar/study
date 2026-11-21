@@ -18,8 +18,8 @@ const HOVER: Record<ButtonVariant, string> = {
   inverse: 'hover:text-on-inverse active:text-on-inverse',
 }
 
-// A move to another screen that has the weight of an action: "מחיקת חשבון" in the settings, "חזרה
-// לכניסה" on the goodbye page. It is a link (role link, opens in a new tab, Enter only) that looks
+// A move to another screen that has the weight of an action: "Delete account" in the settings, "Back
+// to sign in" on the goodbye page. It is a link (role link, opens in a new tab, Enter only) that looks
 // like a Button. For a link inside text use TextLink; for an action use Button.
 export function ButtonLink({ to, variant = 'secondary', className, children }: ButtonLinkProps) {
   const ring = variant === 'inverse' ? FOCUS_RING_INVERSE_NATIVE : FOCUS_RING_NATIVE

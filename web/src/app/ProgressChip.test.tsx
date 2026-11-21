@@ -40,7 +40,7 @@ describe('ProgressChip', () => {
     renderChip(progressWith(5, 3))
 
     const link = await screen.findByRole('link', { name: en.shell.progressChip(5, 3) })
-    expect(en.shell.progressChip(5, 3)).toBe('רצף של 5 ימים, רמה 3')
+    expect(en.shell.progressChip(5, 3)).toBe('5-day streak, level 3')
     expect(link).toHaveAttribute('href', '/progress')
     expect(screen.getAllByRole('link')).toHaveLength(1)
     // The numbers are what the eye reads; the drawings are decoration.
@@ -59,7 +59,11 @@ describe('ProgressChip', () => {
     const pill = link.querySelector('[data-part="streak"]')
     expect(pill).toHaveClass('rounded-full', 'bg-brand-soft', 'text-brand-strong')
     expect(pill).toHaveTextContent('5')
-    expect(pill?.querySelector('svg.lucide-leaf')).toHaveAttribute('aria-hidden', 'true')
+    // Archi's own leaf (no lucide class), 16px, decoration only.
+    const leaf = pill?.querySelector('svg')
+    expect(leaf).toHaveAttribute('aria-hidden', 'true')
+    expect(leaf).toHaveAttribute('width', '16')
+    expect(leaf?.getAttribute('class') ?? '').not.toContain('lucide')
     expect(link.querySelector('svg.lucide-flame')).not.toBeInTheDocument()
 
     const ring = link.querySelector('[data-part="level"]')
@@ -74,11 +78,11 @@ describe('ProgressChip', () => {
 
   it('says one day and two days in words', async () => {
     const { unmount } = renderChip(progressWith(1, 1))
-    expect(await screen.findByRole('link', { name: 'רצף של יום אחד, רמה 1' })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: en.shell.progressChip(1, 1) })).toBeInTheDocument()
     unmount()
 
     renderChip(progressWith(2, 4))
-    expect(await screen.findByRole('link', { name: 'רצף של יומיים, רמה 4' })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: en.shell.progressChip(2, 4) })).toBeInTheDocument()
   })
 
   // The arc is counted out of 100 (pathLength), so its dash is the percentage.

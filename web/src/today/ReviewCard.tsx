@@ -7,11 +7,12 @@ import type { Block } from '../board/types'
 import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
+import { UserText } from '../ui/UserText'
 
 type Action = 'complete' | 'moveToday' | 'skip'
 
-// The morning review (S18): every planned block that ended without a mark, with "בוצע", "העבר
-// להיום" and "דלג". Nothing shows while there is nothing to decide (or the review did not load):
+// The morning review (S18): every planned block that ended without a mark, with "Done", "Move to
+// today" and "Skip". Nothing shows while there is nothing to decide (or the review did not load):
 // the card is a question, not a status.
 //
 // Focus (decision 14a): an action takes its row off the card, so the focus moves to the first button
@@ -35,7 +36,7 @@ export function ReviewCard() {
   const [touched, setTouched] = useState(false)
   const [, setFailures] = useState(0)
 
-  // "בוצע" marks the block done in the cache at once (review.ts), so only planned blocks are rows.
+  // "Done" marks the block done in the cache at once (review.ts), so only planned blocks are rows.
   const blocks = useMemo(() => (review.data?.blocks ?? []).filter((b) => b.status === 'planned'), [review.data])
   const ids = useMemo(() => blocks.map((b) => b.id), [blocks])
 
@@ -88,7 +89,7 @@ export function ReviewCard() {
     // display: contents, which would drop the margin the screen puts between its sections.
     <div ref={sectionRef}>
       {/* A plain white card with no primary button (S27 decision 4): the one primary button of the
-          screen is "בוצע" of the next task, above this card. */}
+          screen is "Done" of the next task, above this card. */}
       <Card role="region" aria-labelledby="review-title" className="space-y-3">
         <div className="space-y-1">
           <h2 id="review-title" ref={headingRef} tabIndex={-1} className="text-body font-semibold outline-none">
@@ -106,7 +107,7 @@ export function ReviewCard() {
                 <li key={block.id} data-review-row={block.id} aria-labelledby={titleId} className="space-y-3 border-t border-line py-3 last:pb-0">
                   <div className="min-w-0 space-y-1">
                     <h3 id={titleId} className="text-body font-semibold break-words">
-                      {block.task_title}
+                      <UserText>{block.task_title}</UserText>
                     </h3>
                     <p className="text-small break-words text-ink-muted">
                       {en.review.when(dayLabel(block.study_date, todayDate))}

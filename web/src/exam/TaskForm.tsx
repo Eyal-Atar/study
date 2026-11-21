@@ -12,7 +12,7 @@ const t = en.exam.tasks
 const KIND_OPTIONS = TASK_KINDS.map((kind) => ({ value: kind, label: t.kinds[kind] }))
 
 // The fields of a task, for the in-place edit (with focus) and for "add task" (without).
-// Nothing is sent until "שמירה" or Enter; the caller decides what to send. The form always opens
+// Nothing is sent until "Save" or Enter; the caller decides what to send. The form always opens
 // in the place of the button that asked for it, so the keyboard starts in its first field.
 export function TaskForm({
   label,
@@ -35,7 +35,7 @@ export function TaskForm({
 }) {
   const [draft, setDraft] = useState<TaskDraft>(initial)
   const [errors, setErrors] = useState<TaskDraftErrors>(emptyErrors)
-  const topicOptions = [{ value: '', label: en.exam.topics.noTopic }, ...topics.map((p) => ({ value: p.id, label: p.name }))]
+  const topicOptions = [{ value: '', label: en.exam.topics.noTopic }, ...topics.map((p) => ({ value: p.id, label: p.name, userContent: true }))]
 
   function set<K extends keyof TaskDraft>(key: K, value: TaskDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }))

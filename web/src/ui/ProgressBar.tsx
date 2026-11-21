@@ -4,7 +4,7 @@ interface ProgressBarBase {
   value: number
   // Defaults to 100.
   max?: number
-  // The value in words ("60 מתוך 345 דקות"): shown at the end of the row, and read as
+  // The value in words ("60 of 345 minutes"): shown at the end of the row, and read as
   // aria-valuetext. Without it the value is the rounded percentage ("40%"), which is shown only
   // beside a visible label.
   valueText?: string | undefined

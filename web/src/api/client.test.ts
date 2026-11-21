@@ -44,17 +44,17 @@ describe('createApiClient', () => {
   it('a 401 problem signs the user out', async () => {
     const { api, onUnauthenticated } = setup(() =>
       Promise.resolve(
-        problem(401, { type: 'x', title: 'צריך להתחבר מחדש.', status: 401, code: 'unauthenticated' }),
+        problem(401, { type: 'x', title: 'Please sign in again.', status: 401, code: 'unauthenticated' }),
       ),
     )
     const error = await api.get('/me').catch((e: unknown) => e)
     expect(error).toBeInstanceOf(ApiError)
-    expect(error).toMatchObject({ status: 401, code: 'unauthenticated', title: 'צריך להתחבר מחדש.' })
+    expect(error).toMatchObject({ status: 401, code: 'unauthenticated', title: 'Please sign in again.' })
     expect(onUnauthenticated).toHaveBeenCalledTimes(1)
   })
 
   it('a 503 problem keeps the user signed in', async () => {
-    const title = 'שירות ההתחברות לא זמין כרגע. נסו שוב בעוד רגע.'
+    const title = 'Sign-in isn’t available right now. Please try again in a moment.'
     const { api, onUnauthenticated } = setup(() =>
       Promise.resolve(problem(503, { type: 'x', title, status: 503, code: 'auth_unavailable' })),
     )
@@ -422,11 +422,11 @@ describe('createApiClient on concurrent 401s', () => {
 
 describe('errorMessage', () => {
   it('prefers our own text for a known code', () => {
-    expect(errorMessage(new ApiError(422, 'exam_in_past', 'כותרת של השרת'))).toBe(en.codes.exam_in_past)
+    expect(errorMessage(new ApiError(422, 'exam_in_past', 'A title from the server'))).toBe(en.codes.exam_in_past)
   })
 
   it('returns the title when there is one', () => {
-    expect(errorMessage(new ApiError(503, 'x_unknown', 'כותרת'))).toBe('כותרת')
+    expect(errorMessage(new ApiError(503, 'x_unknown', 'A title'))).toBe('A title')
   })
 
   it('says the server is unreachable when there was no response', () => {

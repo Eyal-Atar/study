@@ -1,10 +1,10 @@
 import { BROWSER_ZONE, COMPLETED_AT, examFixture, meFixture, previewFixture } from '../onboarding/testFixtures'
 import type { Block, Exam } from '../onboarding/types'
-import { createFakeApi, type FakeApi } from '../test/fakeApi'
-import { createFakeAuth, fakeSession } from '../test/fakeAuth'
-import { renderRoute } from '../test/renderRoute'
-import { addDays, todayIn } from './dates'
-import type { ExamTask, PlanResponse, Topic, TopicsResponse } from './types'
+import { createFakeApi, type FakeApi } from './fakeApi'
+import { createFakeAuth, fakeSession } from './fakeAuth'
+import { renderRoute } from './renderRoute'
+import { addDays, todayIn } from '../exam/dates'
+import type { ExamTask, PlanResponse, Topic, TopicsResponse } from '../exam/types'
 
 // Shared test data for the exam screen (only tests import this file).
 

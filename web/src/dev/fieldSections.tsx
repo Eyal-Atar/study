@@ -1,5 +1,6 @@
 import { CalendarDate } from '@internationalized/date'
 import { useId, useState } from 'react'
+import { isolate } from '../i18n/bidi'
 import { CheckboxCards } from '../ui/CheckboxCards'
 import { DatePicker } from '../ui/DatePicker'
 import { RadioCards } from '../ui/RadioCards'
@@ -7,6 +8,7 @@ import { Select, type SelectProps } from '../ui/Select'
 import { TextField, type TextFieldProps } from '../ui/TextField'
 import { TimeField } from '../ui/TimeField'
 import { devText } from './devText'
+import { sample } from './sampleContent'
 import { Example, FIELD_GRID, Section } from './Section'
 
 const t = devText
@@ -29,10 +31,10 @@ export function TextFieldSection() {
     <Section id="text-field">
       <div className={FIELD_GRID}>
         <Example caption={t.textField.empty}>
-          <DemoTextField label={t.textField.examName} placeholder={t.textField.examNamePlaceholder} />
+          <DemoTextField label={t.textField.examName} placeholder={sample.examNamePlaceholder} />
         </Example>
         <Example caption={t.textField.filled}>
-          <DemoTextField label={t.textField.examName} initial={t.textField.examNameValue} />
+          <DemoTextField label={t.textField.examName} initial={sample.examNameValue} />
         </Example>
         <Example caption={t.textField.withDescription}>
           <DemoTextField label={t.textField.lecturer} description={t.textField.lecturerDescription} />
@@ -58,6 +60,9 @@ function DemoSelect({
   return <Select {...props} value={value} onChange={setValue} errorMessage={value === '' ? errorWhenEmpty : undefined} />
 }
 
+// The topics are user content, and an option label is a plain string, so each is isolated.
+const TOPIC_OPTIONS = sample.topics.map((topic, index) => ({ value: `t${String(index + 1)}`, label: isolate(topic) }))
+
 export function SelectSection() {
   return (
     <Section id="select">
@@ -78,7 +83,7 @@ export function SelectSection() {
           <DemoSelect label={t.select.kind} options={t.select.kinds} initial="summary" isDisabled />
         </Example>
         <Example caption={t.select.long}>
-          <DemoSelect label={t.select.topic} options={t.select.topics} initial="t6" />
+          <DemoSelect label={t.select.topic} options={TOPIC_OPTIONS} initial="t6" />
         </Example>
       </div>
     </Section>

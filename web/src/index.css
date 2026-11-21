@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
-  The design language of the app, as Tailwind theme variables. S25 set it ("נייר"); S31 redesigned
+  The design language of the app, as Tailwind theme variables. S25 set it ("paper"); S31 redesigned
   it around a calendar, after the approved prototype docs/design/prototype/calendar-prototype.html
   (Rubik, soft corners, a palette of eight exam colours), in the colours of Archie: bark browns, a
   leaf green brand on a linen page, and a dawn sky.
@@ -120,7 +120,7 @@
   --color-success-soft: #e2ead3;
   --color-warning: #80520e;
   --color-warning-soft: #f5ead0;
-  /* The bark toast: its background, its text, its quiet action ("בטל") and its state icons. */
+  /* The bark toast: its background, its text, its quiet action ("Undo") and its state icons. */
   --color-inverse: #3b2a1e;
   --color-on-inverse: #f3ead9;
   --color-inverse-action: #cfe3b4;
@@ -288,7 +288,7 @@ body {
 }
 
 /* The targets of a focus that code moves (the h1 of a screen after a navigation, <main> after
-   "דלג לתוכן"): they are not controls and Tab cannot reach them, so they show no ring. */
+   "Skip to content"): they are not controls and Tab cannot reach them, so they show no ring. */
 main[tabindex='-1']:focus,
 h1[tabindex='-1']:focus {
   outline: none;

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/client'
 import { en } from '../i18n/en'
 import { addDays, dayMonth, weekdayShort } from './dates'
-import { blockFixture, TODAY } from './testFixtures'
+import { blockFixture, TODAY } from '../test/examFixtures'
 import { Timeline } from './Timeline'
 import { timelineRange } from './timelineDays'
 
@@ -79,7 +79,7 @@ describe('Timeline', () => {
     expect(today).toHaveClass('min-w-11', 'flex-1')
   })
 
-  it('today says "היום" in words; the exam day and the rest day are icons with no text that can wrap', () => {
+  it('today says "Today" in words; the exam day and the rest day are icons with no text that can wrap', () => {
     show()
     expect(within(dayItem(TODAY)).getByText(t.today)).toHaveClass('font-semibold', 'text-brand-strong')
 

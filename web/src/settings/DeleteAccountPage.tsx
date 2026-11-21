@@ -17,10 +17,10 @@ import { EXPORT_SECTION_ID } from './SettingsPage'
 
 const t = en.settings.deleteAccount
 
-// /settings/delete-account. No 10-second "בטל" toast here, unlike other destructive actions
+// /settings/delete-account. No 10-second "Undo" toast here, unlike other destructive actions
 // (spec 7.9): S15 decision 9 — the owner chose an immediate delete with no grace period, and an
 // undo would mean keeping the data for 10 seconds after the user confirmed. Typing the word on
-// this screen replaces it: it stops a press by mistake, which is what "בטל" is for.
+// this screen replaces it: it stops a press by mistake, which is what "Undo" is for.
 export function DeleteAccountPage() {
   const navigate = useNavigate()
   const { signOut } = useAuth()
@@ -31,7 +31,7 @@ export function DeleteAccountPage() {
   // A second press before the re-render that disables the button must not send a second DELETE.
   const sending = useRef(false)
 
-  const confirmed = word.trim() === t.confirmWord
+  const confirmed = word.trim().toLowerCase() === t.confirmWord.toLowerCase()
 
   async function remove() {
     if (!confirmed || sending.current) return

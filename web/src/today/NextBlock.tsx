@@ -10,22 +10,23 @@ import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { ICON_STROKE } from '../ui/styles'
+import { UserText } from '../ui/UserText'
 
 export interface NextBlockProps {
   block: Block
   tz: string
-  // Set when the block is on a later day: "מחר, 09:00". Today's block already shows its time.
+  // Set when the block is on a later day: "Tomorrow, 09:00". Today's block already shows its time.
   when?: string
 }
 
 // The one card the eye lands on first: what to do now. A plain white card (design language 5.1):
-// what makes it stand out is the label, the title and the one primary button of the screen, "בוצע".
-// "דחייה" is a button too; of the rest, one action is a third button and two go into a menu, since
+// what makes it stand out is the label, the title and the one primary button of the screen, "Done".
+// "Defer" is a button too; of the rest, one action is a third button and two go into a menu, since
 // four buttons do not fit in a row on a phone (S27 decision 2).
 export function NextBlock({ block, tz, when }: NextBlockProps) {
   const { name, available, pending, deferring, start, move } = useBlockControls(block, tz)
   const headingId = useId()
-  // The first action is always "בוצע", or its undo for a done block.
+  // The first action is always "Done", or its undo for a done block.
   const main = block.state === 'done' ? 'uncomplete' : 'complete'
   const canDefer = available.includes('defer')
   const rest = available.filter(isExtra).filter((action) => action !== 'defer')
@@ -43,7 +44,9 @@ export function NextBlock({ block, tz, when }: NextBlockProps) {
         {when === undefined ? <StateBadge block={block} /> : <p className="text-small font-semibold">{when}</p>}
       </div>
       <div className="flex min-w-0 flex-col gap-1">
-        <h3 className="text-title font-semibold break-words">{block.task_title}</h3>
+        <h3 className="text-title font-semibold break-words">
+          <UserText>{block.task_title}</UserText>
+        </h3>
         <p className="text-small break-words text-ink-muted">
           <span dir="ltr" className="tabular-nums">
             {formatRange(block, tz)}

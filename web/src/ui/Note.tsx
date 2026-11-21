@@ -2,16 +2,16 @@ import type { ReactNode } from 'react'
 import { cx } from './styles'
 
 export interface NoteProps {
-  // neutral: something to know ("אין שעה פנויה"). warning: something that needs attention and did
-  // not fail ("לא הצלחנו לרענן"). There is no danger tone on purpose: content that failed to load
+  // neutral: something to know ("No free time"). warning: something that needs attention and did
+  // not fail ("Could not refresh"). There is no danger tone on purpose: content that failed to load
   // is an ErrorState, and a failed action is a toast.
   tone?: 'neutral' | 'warning' | undefined
   // Given when the note appears after an action and has to be announced. A note that is on the
   // screen from the start is ordinary content, and has no role.
   role?: 'status' | 'alert' | undefined
   // A first line in semibold. It is not a heading: a note is too small to be a part of the outline.
-  title?: string | undefined
-  // A quiet Button at the end of the note ("לנסות שוב"). In a warning note pass a secondary
+  title?: ReactNode | undefined
+  // A quiet Button at the end of the note ("Try again"). In a warning note pass a secondary
   // Button: brand text on warning-soft is not one of the checked pairs.
   action?: ReactNode
   children: ReactNode

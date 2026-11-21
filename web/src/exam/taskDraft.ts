@@ -10,7 +10,7 @@ const MINUTES_MAX = 600
 const FOCUS_MIN = 1
 const FOCUS_MAX = 10
 
-// The form's fields as typed. topicId '' is "בלי נושא".
+// The form's fields as typed. topicId '' is "No topic".
 export interface TaskDraft {
   title: string
   minutes: string

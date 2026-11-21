@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { Button } from './Button'
 import { Note } from './Note'
 
-const TEXT = 'לא הצלחנו לרענן את הלוח.'
+const TEXT = 'Could not refresh the plan.'
 
 // The note itself: the box with the fill, around the text.
 function noteOf(text: string): HTMLElement {
@@ -39,23 +39,23 @@ describe('Note', () => {
   })
 
   it('the title is a first line in semibold, before the children, and it is not a heading', () => {
-    render(<Note title="אין שעה פנויה">אפשר לבחור יום אחר.</Note>)
-    const title = screen.getByText('אין שעה פנויה')
+    render(<Note title="No free time">You can pick another day.</Note>)
+    const title = screen.getByText('No free time')
     expect(title).toHaveClass('font-semibold')
     expect(screen.queryByRole('heading')).not.toBeInTheDocument()
-    const body = screen.getByText('אפשר לבחור יום אחר.')
+    const body = screen.getByText('You can pick another day.')
     expect(title.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(noteOf('אין שעה פנויה')).toBe(noteOf('אפשר לבחור יום אחר.'))
+    expect(noteOf('No free time')).toBe(noteOf('You can pick another day.'))
   })
 
   it('the action sits inside the note, after the text, on a line that wraps', () => {
     render(
-      <Note role="status" action={<Button variant="quiet">לנסות שוב</Button>}>
+      <Note role="status" action={<Button variant="quiet">Try again</Button>}>
         {TEXT}
       </Note>,
     )
     const note = screen.getByRole('status')
-    const button = screen.getByRole('button', { name: 'לנסות שוב' })
+    const button = screen.getByRole('button', { name: 'Try again' })
     expect(note).toContainElement(button)
     expect(note).toHaveClass('flex', 'flex-wrap', 'items-center')
     expect(screen.getByText(TEXT).compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()

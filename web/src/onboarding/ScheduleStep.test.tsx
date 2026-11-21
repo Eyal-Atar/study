@@ -131,7 +131,7 @@ describe('ScheduleStep', () => {
     expect(screen.queryByText('building')).not.toBeInTheDocument()
   })
 
-  it('a double press on "בניית התוכנית" saves once, and the button keeps its text', async () => {
+  it('a double press on "Build my plan" saves once, and the button keeps its text', async () => {
     const user = userEvent.setup()
     const fake = meApi()
     let answer: () => void = () => undefined

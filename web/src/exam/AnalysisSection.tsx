@@ -49,9 +49,9 @@ function stageText(stage: string | null | undefined): string {
   return t.starting
 }
 
-// The exam's analysis (plan decision 12). An exam without live AI tasks gets "בניית תוכנית למבחן"
+// The exam's analysis (plan decision 12). An exam without live AI tasks gets "Build a plan for this exam"
 // (POST /plans/generate, which analyzes exactly such exams and then plans the board). An exam with them
-// gets "ניתוח חוזר": the job writes a draft, and nothing changes until the user approves its preview
+// gets "Analyse again": the job writes a draft, and nothing changes until the user approves its preview
 // (AnalysisPreview). A draft that finished while the user was away waits behind a banner.
 // The section is collapsible (S28 decision 2): closed for an exam that already has its plan, and
 // open by itself whenever something in it needs the user.
@@ -265,7 +265,7 @@ export function AnalysisSection({ examId }: AnalysisSectionProps) {
             }}
           />
         ) : null}
-        {/* With a draft waiting, "הצגת השינוי" is the one primary button of the section. */}
+        {/* With a draft waiting, "Show the change" is the one primary button of the section. */}
         <Button
           variant={draft === null ? 'primary' : 'secondary'}
           isPending={mutation.isPending}

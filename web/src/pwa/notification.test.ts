@@ -8,14 +8,14 @@ const ORIGIN = 'https://app.example.com'
 describe('readPushPayload', () => {
   it('shows a valid reminder as English LTR, with the icon, the tag and the url', () => {
     const view = readPushPayload({
-      title: 'פרק 3',
-      body: 'בעוד 10 דקות · 09:00–10:30 · אלגוריתמים',
+      title: 'Chapter 3',
+      body: 'In 10 min · 09:00–10:30 · אלגוריתמים',
       url: '/today',
       tag: 'block:1',
     })
-    expect(view.title).toBe('פרק 3')
+    expect(view.title).toBe('Chapter 3')
     expect(view.options).toMatchObject({
-      body: 'בעוד 10 דקות · 09:00–10:30 · אלגוריתמים',
+      body: 'In 10 min · 09:00–10:30 · אלגוריתמים',
       tag: 'block:1',
       lang: 'en',
       dir: 'ltr',
@@ -37,8 +37,8 @@ describe('readPushPayload', () => {
   )
 
   it('keeps a valid title when only the body is missing', () => {
-    const view = readPushPayload({ title: 'פרק 3' })
-    expect(view.title).toBe('פרק 3')
+    const view = readPushPayload({ title: 'Chapter 3' })
+    expect(view.title).toBe('Chapter 3')
     expect(view.options.body).toBe(en.pwa.pushFallbackBody)
   })
 

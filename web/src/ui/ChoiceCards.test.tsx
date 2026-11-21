@@ -6,9 +6,9 @@ import { CheckboxCards } from './CheckboxCards'
 import { OPTION_CLASS, RadioCards, type ChoiceOption } from './RadioCards'
 
 const LEVELS: readonly ChoiceOption[] = [
-  { value: 'easy', label: 'קל' },
-  { value: 'medium', label: 'בינוני', description: '90 דקות' },
-  { value: 'hard', label: 'קשה' },
+  { value: 'easy', label: 'Easy' },
+  { value: 'medium', label: 'Medium', description: '90 minutes' },
+  { value: 'hard', label: 'Hard' },
 ]
 
 function Radios({
@@ -25,7 +25,7 @@ function Radios({
   const [value, setValue] = useState('easy')
   return (
     <RadioCards
-      label="רמת קושי"
+      label="Difficulty"
       options={LEVELS}
       value={value}
       isDisabled={isDisabled}
@@ -52,8 +52,8 @@ function Checks({
   return (
     <>
       <CheckboxCards
-        label="ימי לימוד"
-        description="לפחות יום אחד"
+        label="Study days"
+        description="At least one day"
         options={LEVELS}
         value={value}
         errorId={errorId}
@@ -64,7 +64,7 @@ function Checks({
         }}
       />
       <p id="days-error" role="alert">
-        צריך לבחור יום
+        Pick a day
       </p>
     </>
   )
@@ -96,13 +96,13 @@ describe('RadioCards', () => {
   it('is a radiogroup named by its label, with a radio for each option', () => {
     render(<Radios onChange={vi.fn()} />)
 
-    const group = screen.getByRole('radiogroup', { name: 'רמת קושי' })
+    const group = screen.getByRole('radiogroup', { name: 'Difficulty' })
     const radios = within(group).getAllByRole('radio')
     expect(radios).toHaveLength(3)
-    expect(within(group).getByRole('radio', { name: /קל/ })).toBeChecked()
-    expect(within(group).getByRole('radio', { name: /בינוני/ })).not.toBeChecked()
-    expect(within(group).getByText('90 דקות').className).toContain('text-caption')
-    expect(within(group).getByText('רמת קושי').className).toContain('text-small font-medium')
+    expect(within(group).getByRole('radio', { name: /Easy/ })).toBeChecked()
+    expect(within(group).getByRole('radio', { name: /Medium/ })).not.toBeChecked()
+    expect(within(group).getByText('90 minutes').className).toContain('text-caption')
+    expect(within(group).getByText('Difficulty').className).toContain('text-small font-medium')
   })
 
   it('the arrow keys move the choice and report it, with a visible focus', async () => {
@@ -111,10 +111,10 @@ describe('RadioCards', () => {
     render(<Radios onChange={onChange} />)
 
     await user.tab()
-    const easy = screen.getByRole('radio', { name: /קל/ })
+    const easy = screen.getByRole('radio', { name: /Easy/ })
     expect(easy).toHaveFocus()
     await user.keyboard('{ArrowDown}')
-    const medium = screen.getByRole('radio', { name: /בינוני/ })
+    const medium = screen.getByRole('radio', { name: /Medium/ })
     expect(medium).toHaveFocus()
     expect(medium).toBeChecked()
     expect(onChange.mock.calls).toEqual([['medium']])
@@ -134,9 +134,9 @@ describe('RadioCards', () => {
     const onChange = vi.fn()
     render(<Radios onChange={onChange} />)
 
-    await user.click(screen.getByText('קשה'))
+    await user.click(screen.getByText('Hard'))
     expect(onChange.mock.calls).toEqual([['hard']])
-    expect(screen.getByRole('radio', { name: /קשה/ })).toBeChecked()
+    expect(screen.getByRole('radio', { name: /Hard/ })).toBeChecked()
   })
 
   it('does nothing when disabled', async () => {
@@ -144,37 +144,37 @@ describe('RadioCards', () => {
     const onChange = vi.fn()
     render(<Radios onChange={onChange} isDisabled />)
 
-    await user.click(screen.getByText('קשה'))
+    await user.click(screen.getByText('Hard'))
     expect(onChange).not.toHaveBeenCalled()
-    expect(screen.getByRole('radio', { name: /קשה/ })).toBeDisabled()
+    expect(screen.getByRole('radio', { name: /Hard/ })).toBeDisabled()
   })
 
   it('without a description or an error the group is neither described nor invalid', () => {
     render(<Radios onChange={vi.fn()} />)
 
-    const group = screen.getByRole('radiogroup', { name: 'רמת קושי' })
+    const group = screen.getByRole('radiogroup', { name: 'Difficulty' })
     expect(group).not.toHaveAttribute('aria-describedby')
     expect(group).not.toHaveAttribute('aria-invalid')
   })
 
   it('links its description to the group', () => {
-    render(<Radios onChange={vi.fn()} description="אפשר לשנות אחר כך" />)
+    render(<Radios onChange={vi.fn()} description="You can change this later" />)
 
-    const group = screen.getByRole('radiogroup', { name: 'רמת קושי' })
-    expect(group).toHaveAccessibleDescription('אפשר לשנות אחר כך')
-    expect(screen.getByText('אפשר לשנות אחר כך').className).toContain('text-small text-ink-muted')
+    const group = screen.getByRole('radiogroup', { name: 'Difficulty' })
+    expect(group).toHaveAccessibleDescription('You can change this later')
+    expect(screen.getByText('You can change this later').className).toContain('text-small text-ink-muted')
   })
 
   it('an error message is shown under the options, linked to the group, and makes it invalid', () => {
-    render(<Radios onChange={vi.fn()} description="אפשר לשנות אחר כך" errorMessage="צריך לבחור רמה" />)
+    render(<Radios onChange={vi.fn()} description="You can change this later" errorMessage="Pick a level" />)
 
-    const group = screen.getByRole('radiogroup', { name: 'רמת קושי' })
-    const error = screen.getByText('צריך לבחור רמה')
+    const group = screen.getByRole('radiogroup', { name: 'Difficulty' })
+    const error = screen.getByText('Pick a level')
     expect(error.className).toContain('text-small text-danger')
     expect(group).toHaveAttribute('aria-invalid', 'true')
     expect(group).toHaveAttribute('aria-describedby')
-    expect(group).toHaveAccessibleDescription(/צריך לבחור רמה/)
-    expect(group).toHaveAccessibleDescription(/אפשר לשנות אחר כך/)
+    expect(group).toHaveAccessibleDescription(/Pick a level/)
+    expect(group).toHaveAccessibleDescription(/You can change this later/)
     // Under the options: the error comes after the last radio in the document.
     const radios = within(group).getAllByRole('radio')
     const last = radios[radios.length - 1] as HTMLElement
@@ -186,10 +186,10 @@ describe('CheckboxCards', () => {
   it('is a group named by its label and described by its description', () => {
     render(<Checks onChange={vi.fn()} />)
 
-    const group = screen.getByRole('group', { name: 'ימי לימוד' })
-    expect(group).toHaveAccessibleDescription('לפחות יום אחד')
+    const group = screen.getByRole('group', { name: 'Study days' })
+    expect(group).toHaveAccessibleDescription('At least one day')
     expect(within(group).getAllByRole('checkbox')).toHaveLength(3)
-    expect(within(group).getByRole('checkbox', { name: /קל/ })).toBeChecked()
+    expect(within(group).getByRole('checkbox', { name: /Easy/ })).toBeChecked()
   })
 
   it('Space toggles the focused option and reports the whole list, with a visible focus', async () => {
@@ -199,7 +199,7 @@ describe('CheckboxCards', () => {
 
     await user.tab()
     await user.tab()
-    const medium = screen.getByRole('checkbox', { name: /בינוני/ })
+    const medium = screen.getByRole('checkbox', { name: /Medium/ })
     expect(medium).toHaveFocus()
     const card = medium.closest('[data-focus-visible]')
     expect(card).not.toBeNull()
@@ -216,30 +216,30 @@ describe('CheckboxCards', () => {
   it('errorId links an error shown elsewhere and makes the group invalid', () => {
     render(<Checks onChange={vi.fn()} errorId="days-error" />)
 
-    const group = screen.getByRole('group', { name: 'ימי לימוד' })
+    const group = screen.getByRole('group', { name: 'Study days' })
     expect(group.getAttribute('aria-describedby')).toContain('days-error')
-    expect(group).toHaveAccessibleDescription(/צריך לבחור יום/)
+    expect(group).toHaveAccessibleDescription(/Pick a day/)
     expect(group).toHaveAttribute('data-invalid', 'true')
   })
 
   it('an error message is shown under the options, linked to the group, and makes it invalid', () => {
-    render(<Checks onChange={vi.fn()} errorMessage="צריך לבחור לפחות יום אחד" />)
+    render(<Checks onChange={vi.fn()} errorMessage="Pick at least one day" />)
 
-    const group = screen.getByRole('group', { name: 'ימי לימוד' })
-    const error = within(group).getByText('צריך לבחור לפחות יום אחד')
+    const group = screen.getByRole('group', { name: 'Study days' })
+    const error = within(group).getByText('Pick at least one day')
     expect(error.className).toContain('text-small text-danger')
     expect(group).toHaveAttribute('data-invalid', 'true')
-    expect(group).toHaveAccessibleDescription(/צריך לבחור לפחות יום אחד/)
+    expect(group).toHaveAccessibleDescription(/Pick at least one day/)
     // The description stays linked too, and the error shown elsewhere is not.
-    expect(group).toHaveAccessibleDescription(/לפחות יום אחד/)
+    expect(group).toHaveAccessibleDescription(/At least one day/)
     expect(group.getAttribute('aria-describedby')).not.toContain('days-error')
   })
 
   it('errorMessage and errorId together: both are linked', () => {
-    render(<Checks onChange={vi.fn()} errorId="days-error" errorMessage="צריך לבחור לפחות יום אחד" />)
+    render(<Checks onChange={vi.fn()} errorId="days-error" errorMessage="Pick at least one day" />)
 
-    const group = screen.getByRole('group', { name: 'ימי לימוד' })
-    const own = within(group).getByText('צריך לבחור לפחות יום אחד')
+    const group = screen.getByRole('group', { name: 'Study days' })
+    const own = within(group).getByText('Pick at least one day')
     const ids = (group.getAttribute('aria-describedby') ?? '').split(' ')
     expect(ids).toContain('days-error')
     expect(ids).toContain(own.id)
@@ -249,6 +249,23 @@ describe('CheckboxCards', () => {
   it('without an error the group is not invalid', () => {
     render(<Checks onChange={vi.fn()} />)
 
-    expect(screen.getByRole('group', { name: 'ימי לימוד' })).not.toHaveAttribute('data-invalid')
+    expect(screen.getByRole('group', { name: 'Study days' })).not.toHaveAttribute('data-invalid')
+  })
+})
+
+describe('an option with an icon', () => {
+  it('shows the icon before the label, as decoration, in both kinds of cards', () => {
+    const options = [
+      { value: 'morning', label: 'Morning', icon: <svg data-testid="sun" aria-hidden="true" /> },
+      { value: 'night', label: 'Night' },
+    ]
+    const { unmount } = render(<CheckboxCards label="When" options={options} value={[]} onChange={() => undefined} />)
+    const sun = screen.getByTestId('sun')
+    expect(sun.compareDocumentPosition(screen.getByText('Morning')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByRole('checkbox', { name: 'Morning' })).toBeInTheDocument()
+    unmount()
+    render(<RadioCards label="When" options={options} value="night" onChange={() => undefined} />)
+    expect(screen.getByTestId('sun')).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Morning' })).toBeInTheDocument()
   })
 })

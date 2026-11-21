@@ -27,18 +27,18 @@ export const ICON_STROKE = 1.75
 
 // The look of a button, shared by Button (React Aria: data-hovered, data-pressed, data-disabled)
 // and ButtonLink (a router link: :hover, :active). Design language 5.3. The label is medium (500),
-// like the "היום" and the tabs of the prototype; semibold is for names and headings. The corners are
+// like the "Today" and the tabs of the prototype; semibold is for names and headings. The corners are
 // the 14px of the all-screens mockup's .btn (rounded-button), a little rounder than a field's 12px.
 // The focus ring is not here: each variant brings its own (the inverse one differs).
 export const BUTTON_BASE =
   'inline-flex min-h-touch cursor-pointer items-center justify-center gap-2 rounded-button border px-4 text-small font-medium transition-colors duration-(--duration-fast)'
 
-// inverse: the action on the dark toast ("בטל"), and nowhere else.
+// inverse: the action on the dark toast ("Undo"), and nowhere else.
 export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'danger' | 'inverse'
 
 // The colours of each variant at rest. Hover and press are added by the component, in its own
 // way of marking them.
-// secondary and danger have the quiet border-line of the prototype's "היום": a button has text, so
+// secondary and danger have the quiet border-line of the prototype's "Today": a button has text, so
 // its border is not what identifies it (WCAG 1.4.11 asks 3:1 only of what identifies a control).
 // A field, whose border is all there is, keeps line-strong (TextField).
 export const BUTTON_REST: Record<ButtonVariant, string> = {

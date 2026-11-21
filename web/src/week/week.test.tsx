@@ -93,7 +93,7 @@ describe('the week screen', () => {
     expect(row(TODAY, 'פרק 3: גרפים')).toBeInTheDocument()
     expect(screen.queryByRole('article')).not.toBeInTheDocument()
     expect(within(day(TODAY)).queryByText(en.week.free)).not.toBeInTheDocument()
-    expect(within(day(TODAY)).getByText(en.week.total('שעה'))).toBeInTheDocument()
+    expect(within(day(TODAY)).getByText(en.week.total(en.board.hour))).toBeInTheDocument()
     for (const date of WEEK_DAYS.filter((d) => d !== TODAY)) {
       expect(within(day(date)).getByText(en.week.free)).toBeInTheDocument()
     }
@@ -121,7 +121,7 @@ describe('the week screen', () => {
     expect(row('2026-11-16', 'סימולציה מאוחרת')).toBeInTheDocument()
     expect(within(day('2026-11-17')).queryByText('סימולציה מאוחרת')).not.toBeInTheDocument()
     expect(row('2026-11-17', 'חזרה של בוקר')).toBeInTheDocument()
-    expect(within(day('2026-11-17')).getByText(en.week.total('45 דקות'))).toBeInTheDocument()
+    expect(within(day('2026-11-17')).getByText(en.week.total(en.board.minutes(45)))).toBeInTheDocument()
   })
 
   it('the next, previous and this-week buttons move the week through ?from=', async () => {
@@ -218,8 +218,8 @@ describe('the week screen', () => {
     const names = within(day(TODAY))
       .getAllByRole('button')
       .map((b) => b.getAttribute('aria-label'))
-    const first = `${part1.task_title} (${en.board.part(1, 2)})`
-    const second = `${part1.task_title} (${en.board.part(2, 2)})`
+    const first = en.board.partName(part1.task_title, en.board.part(1, 2))
+    const second = en.board.partName(part1.task_title, en.board.part(2, 2))
     expect(names).toEqual([
       en.board.actionsLabel(first),
       en.board.completeLabel(first),

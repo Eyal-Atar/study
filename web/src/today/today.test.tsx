@@ -114,11 +114,11 @@ describe('the today screen', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: en.today.title })).toBeInTheDocument()
     expect(await screen.findByText(formatDay('2026-11-16'))).toBeInTheDocument()
-    expect(screen.getByText('60 מתוך 180 דקות')).toBeInTheDocument()
+    expect(screen.getByText(en.today.progress(60, 180))).toBeInTheDocument()
     const meter = screen.getByRole('progressbar', { name: en.today.progressLabel })
     expect(meter).toHaveAttribute('aria-valuenow', '60')
     expect(meter).toHaveAttribute('aria-valuemax', '180')
-    expect(meter).toHaveAttribute('aria-valuetext', '60 מתוך 180 דקות')
+    expect(meter).toHaveAttribute('aria-valuetext', en.today.progress(60, 180))
   })
 
   it('the next block is the one in progress, before an upcoming one, and never an overdue one', async () => {
@@ -274,7 +274,7 @@ describe('the today screen', () => {
       expect(meter).toHaveAttribute('aria-valuenow', '60')
     })
     expect(meter).toHaveAttribute('aria-valuemax', '120')
-    expect(screen.getByText('60 מתוך 120 דקות')).toBeInTheDocument()
+    expect(screen.getByText(en.today.progress(60, 120))).toBeInTheDocument()
 
     // The refetch after the failure never answers, so what shows is the rollback.
     fake.on('GET /today', () => new Promise<never>(() => undefined))
@@ -283,7 +283,7 @@ describe('the today screen', () => {
       expect(meter).toHaveAttribute('aria-valuenow', '0')
     })
     expect(meter).toHaveAttribute('aria-valuemax', '120')
-    expect(screen.getByText('0 מתוך 120 דקות')).toBeInTheDocument()
+    expect(screen.getByText(en.today.progress(0, 120))).toBeInTheDocument()
   })
 
   it('uncomplete moves the meter back at once', async () => {
@@ -364,8 +364,8 @@ describe('the today screen', () => {
     const part2 = makeBlock({ ...LATER, id: 'b-part-2', part_index: 2, part_count: 2, starts_at: '2026-11-16T09:30:00Z', ends_at: '2026-11-16T10:30:00Z' })
     setup({ today: makeToday([part1, part2]) })
 
-    const first = `${LATER.task_title} (${en.board.part(1, 2)})`
-    const second = `${LATER.task_title} (${en.board.part(2, 2)})`
+    const first = en.board.partName(LATER.task_title, en.board.part(1, 2))
+    const second = en.board.partName(LATER.task_title, en.board.part(2, 2))
     expect(await screen.findByRole('button', { name: en.board.completeLabel(first) })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: en.board.completeLabel(second) })).toBeInTheDocument()
     // The first part is the next block (a card), the second a row; each has its own menu.

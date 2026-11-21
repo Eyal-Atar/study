@@ -38,7 +38,7 @@ describe('the progress board', () => {
     expect(within(level).getByText(t.level.totalXp('1,240'))).toBeInTheDocument()
     // The bar says how far along the level is, once: no second sentence with what is left.
     expect(within(level).getByText(t.level.barValue('240', '1,000'))).toBeInTheDocument()
-    expect(within(level).queryByText(/עוד 760/)).not.toBeInTheDocument()
+    expect(within(level).queryByText(/760 (left|more|to go)/i)).not.toBeInTheDocument()
     expect(within(level).getByText(t.level.blocksDone(12))).toBeInTheDocument()
 
     const streak = section(t.streak.title)

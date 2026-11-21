@@ -105,7 +105,7 @@ describe('BuildingStep', () => {
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0')
   })
 
-  it('done: a summary with every exam, the failed one with its reason, the shortfalls, and "למסך היום"', async () => {
+  it('done: a summary with every exam, the failed one with its reason, the shortfalls, and "Go to my calendar"', async () => {
     const user = userEvent.setup()
     const result = resultFixture(
       { unscheduled_count: 3, shortfalls: [{ exam_id: 'e1', minutes: 240, daily_minutes: 300 }], warnings: [] },
@@ -126,6 +126,7 @@ describe('BuildingStep', () => {
     // One row per exam (the gaps of an exam are a list of their own inside its row).
     const calculus = screen.getByText('חדו"א').closest('li')
     const physics = screen.getByText('פיזיקה').closest('li')
+    expect(screen.getByText('פיזיקה').closest('[dir="auto"]')).not.toBeNull()
     const exams = screen.getByRole('list', { name: en.building.examsTitle })
     expect(exams).toContainElement(calculus)
     expect(exams).toContainElement(physics)
@@ -136,7 +137,7 @@ describe('BuildingStep', () => {
     // The failed exam is marked by an icon and the words, not only by the red.
     expect(physics).toHaveTextContent(en.building.examFailed)
     expect(physics?.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
-    // "למסך היום" is the only primary button of the summary.
+    // "Go to my calendar" is the only primary button of the summary.
     expect(screen.getAllByRole('button').filter((button) => button.classList.contains('bg-brand'))).toHaveLength(1)
     // A partial failure is not a silent success.
     expect(screen.getByText(en.building.someFailed)).toBeInTheDocument()
@@ -163,7 +164,7 @@ describe('BuildingStep', () => {
     expect(buttons[1]).not.toHaveClass('bg-brand')
   })
 
-  it('failed with analysis_invalid: the reason, and "לנסות שוב" starts a new job', async () => {
+  it('failed with analysis_invalid: the reason, and "Try again" starts a new job', async () => {
     const user = userEvent.setup()
     const { fake } = server({ jobs: [jobFixture({ status: 'failed', error: 'analysis_invalid' })] })
     fake.on('POST /plans/generate', { job_id: 'j2', created: true })
@@ -291,7 +292,7 @@ describe('BuildingStep', () => {
     expect(fake.calls('POST', '/plan/replan')).toHaveLength(0)
   })
 
-  it('applying the offer after nothing_to_analyze shows "הלוח עודכן" on the calendar', async () => {
+  it('applying the offer after nothing_to_analyze shows "Calendar updated" on the calendar', async () => {
     const user = userEvent.setup()
     const { fake, state } = server()
     fake.on('POST /plans/generate', () => problem(409, 'nothing_to_analyze'))
@@ -313,7 +314,7 @@ describe('BuildingStep', () => {
   it.each([
     ['a failed job', { jobs: [jobFixture({ status: 'failed', error: 'analysis_invalid' })] }, '/onboarding/building?job=j1'],
     ['an account failure', { jobs: [jobFixture({ status: 'failed', error: 'ai_no_credit' })] }, '/onboarding/building?job=j1'],
-  ])('%s offers "חזרה" to the schedule step', async (_name, options, path) => {
+  ])('%s offers "Back" to the schedule step', async (_name, options, path) => {
     const user = userEvent.setup()
     const { fake } = server(options)
     const { router } = open(fake, path)
@@ -325,7 +326,7 @@ describe('BuildingStep', () => {
     })
   })
 
-  it('429 offers "חזרה" to the schedule step', async () => {
+  it('429 offers "Back" to the schedule step', async () => {
     const user = userEvent.setup()
     const { fake } = server()
     fake.on('POST /plans/generate', () => problem(429, 'ai_quota_exceeded', { limit: 3, resets_at: new Date(Date.now() + 3600000).toISOString() }))

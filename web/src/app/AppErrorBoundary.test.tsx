@@ -35,10 +35,10 @@ describe('AppErrorBoundary', () => {
   it('renders its children when nothing throws', () => {
     render(
       <AppErrorBoundary>
-        <p>בסדר</p>
+        <p>All good</p>
       </AppErrorBoundary>,
     )
-    expect(screen.getByText('בסדר')).toBeInTheDocument()
+    expect(screen.getByText('All good')).toBeInTheDocument()
   })
 })
 

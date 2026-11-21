@@ -162,3 +162,13 @@ describe('icons', () => {
     expect(await ruleIds("export { Check } from 'lucide-react'", 'src/ui/icons/glyphs.ts')).toEqual([])
   })
 })
+
+describe('sentences in the dictionary', () => {
+  it('are not read as Tailwind classes', async () => {
+    expect(await ruleIds("export const en = { a: 'That can’t be done right now.' }", 'src/i18n/en.ts')).toEqual([])
+  })
+
+  it('but a class in a component still is', async () => {
+    expect(await ruleIds("const c = 'text-right'", SOURCE)).toEqual(['no-restricted-syntax'])
+  })
+})

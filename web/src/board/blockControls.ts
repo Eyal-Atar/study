@@ -10,7 +10,7 @@ import type { Block } from './types'
 // component: running an action, the words and the accessible names. The components they share
 // are in blockParts.tsx (a file of components exports nothing else, for fast refresh).
 
-// The actions that are never the check button or the "בוצע" button: they go into the menu.
+// The actions that are never the check button or the "Done" button: they go into the menu.
 export type ExtraAction = Exclude<BlockAction, 'complete' | 'uncomplete'>
 
 export function isExtra(action: BlockAction): action is ExtraAction {
@@ -62,7 +62,7 @@ export interface BlockControls {
   // True while any action on the block is on its way: every control of the block is disabled.
   pending: boolean
   // True only while a defer of this block is pending, whichever screen or toast started it:
-  // `pending` covers every action, and a pending complete must not read "דוחה…".
+  // `pending` covers every action, and a pending complete must not read "Deferring…".
   deferring: boolean
   start: (action: BlockAction) => void
   // The props of the block's <MoveDialog>, which "move" opens. The caller draws it: the dialog
@@ -97,7 +97,7 @@ export function useBlockControls(block: Block, tz: string): BlockControls {
   }
 }
 
-// ". חלק 1 מתוך 2" after the details of a split task, else nothing.
+// ". Part 1 of 2" after the details of a split task, else nothing.
 export function partSuffix(block: Pick<Block, 'part_index' | 'part_count'>): string {
   return block.part_count > 1 ? en.board.metaPart(en.board.part(block.part_index, block.part_count)) : ''
 }

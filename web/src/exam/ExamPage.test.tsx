@@ -5,7 +5,7 @@ import { en } from '../i18n/en'
 import { COMPLETED_AT, examFixture, meFixture } from '../onboarding/testFixtures'
 import { addDays, dayMonth, longDate, weekdayShort } from './dates'
 import { problem } from '../test/fakeApi'
-import { EXAM, TODAY, blockFixture, examServer, openRoute } from './testFixtures'
+import { EXAM, TODAY, blockFixture, examServer, openRoute } from '../test/examFixtures'
 
 const t = en.exam
 const f = en.onboardingExams
@@ -52,7 +52,7 @@ describe('ExamPage study day', () => {
   it('at 01:00 the days left and the edit form still count calendar days (the API checks exam_date > calendar today)', async () => {
     atJerusalem('2026-11-20T23:00:00Z')
     // 21.11 to 26.11: 5 calendar days, not 6.
-    // The h1 is on screen from the first render ("מבחן" while loading), so wait for the header itself.
+    // The h1 is on screen from the first render (the generic title while loading), so wait for the header itself.
     expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
     expect((await screen.findAllByText(t.inDays(5))).length).toBeGreaterThan(0)
   })
@@ -67,7 +67,7 @@ describe('ExamPage', () => {
     expect(screen.getByRole('link', { name: t.backToList }).querySelector('svg')).toHaveClass('lucide-chevron-left')
   })
 
-  it('the h1 is there at once: "מבחן" while the exams load, then the name of the exam', async () => {
+  it('the h1 is there at once: the generic title while the exams load, then the name of the exam', async () => {
     let answer: (value: unknown) => void = () => undefined
     const fake = examServer().on(
       'GET /exams',
@@ -81,8 +81,10 @@ describe('ExamPage', () => {
     expect(screen.getByRole('link', { name: t.backToList })).toHaveAttribute('href', '/exams')
     expect(screen.getAllByRole('status').length).toBeGreaterThan(0)
     answer([EXAM])
-    expect(await screen.findByRole('heading', { level: 1, name: EXAM.name })).toBeInTheDocument()
+    const heading = await screen.findByRole('heading', { level: 1, name: EXAM.name })
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    // The exam name is user content: a Hebrew name in the h1 takes its own direction.
+    expect(within(heading).getByText(EXAM.name).closest('[dir="auto"]')).not.toBeNull()
   })
 
   it('a failed load keeps the h1 and offers to try again', async () => {
@@ -98,7 +100,7 @@ describe('ExamPage', () => {
     })
   })
 
-  it('the header is one quiet line (date, days left, difficulty), and the edit button shows "עריכה"', async () => {
+  it('the header is one quiet line (date, days left, difficulty), and the edit button shows the edit label', async () => {
     openRoute(examServer(), '/exams/e1')
     const heading = await screen.findByRole('heading', { level: 1, name: EXAM.name })
     const line = heading.nextElementSibling

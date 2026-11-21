@@ -2,7 +2,7 @@ import { ToggleButton, ToggleButtonGroup, type Key } from 'react-aria-components
 import { cx, FOCUS_RING } from './styles'
 
 export interface SegmentedControlProps<T extends string> {
-  // The name of the group says what is being switched: "תצוגת היום".
+  // The name of the group says what is being switched: "Day view".
   'aria-label': string
   options: readonly { id: T; label: string }[]
   value: T
@@ -23,7 +23,7 @@ function optionColors(isSelected: boolean, isHovered: boolean): string {
   return cx('border-transparent', isHovered ? 'text-ink' : 'text-ink-muted')
 }
 
-// A switch between two or three views of the same content ("רשימה" / "ציר"). Each option acts at
+// A switch between two or three views of the same content ("List" / "Timeline"). Each option acts at
 // once and changes what is shown below it; a choice that is a value of a form is RadioCards.
 // React Aria's ToggleButtonGroup with a single selection renders a radiogroup of radios: one Tab
 // stop, the arrows move between the options, and Space or Enter chooses. It never becomes empty,

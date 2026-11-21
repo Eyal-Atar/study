@@ -7,7 +7,7 @@ export interface CollapsibleSectionProps {
   // The heading of the section (an h2), which is also the button that opens it.
   title: string
   // What is inside, in a few words, shown at the end of the heading row while the section is
-  // closed and open: "3 קבצים".
+  // closed and open: "3 files".
   summary?: string | undefined
   // Controlled: the screen decides when the section opens by itself (something in it needs the
   // user), and remembers what the user chose.
@@ -40,7 +40,7 @@ export function CollapsibleSection({ title, summary, isExpanded, onExpandedChang
           )}
         >
           <span className="min-w-0 flex-1 text-body font-semibold break-words text-ink">{title}</span>
-          {/* The space is for the accessible name, which joins the two texts: "חומרים 3 קבצים". */}
+          {/* The space is for the accessible name, which joins the two texts: "Materials 3 files". */}
           {summary === undefined ? null : <span className="shrink-0 text-small font-normal text-ink-muted"> {summary}</span>}
           <ChevronDown
             aria-hidden="true"

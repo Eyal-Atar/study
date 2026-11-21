@@ -83,7 +83,7 @@ function EditForm({ exam, today, onDone }: { exam: Exam; today: string; onDone: 
   )
 }
 
-// The exam's name, and under it one quiet line: date, days left, difficulty. "עריכה" opens a small
+// The exam's name, and under it one quiet line: date, days left, difficulty. "Edit" opens a small
 // form under the title; the title itself stays, so the screen never loses its h1.
 export function ExamHeader({ exam, today }: { exam: Exam; today: string }) {
   const [editing, setEditing] = useState(false)
@@ -92,6 +92,7 @@ export function ExamHeader({ exam, today }: { exam: Exam; today: string }) {
     <div className="flex flex-col gap-4">
       <PageHeader
         title={exam.name}
+        userTitle
         subtitle={
           <>
             {t.header.dateThen(longDate(exam.exam_date))}

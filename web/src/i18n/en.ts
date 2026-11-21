@@ -52,7 +52,8 @@ export const en = {
     skipToContent: 'Skip to content',
     profile: 'Profile',
     // S31: the name of the progress chip in the header, a link to the progress board.
-    progressChip: (streak: number, level: number) => `${dayCount(streak)} streak, level ${String(level)}`,
+    progressChip: (streak: number, level: number) =>
+      streak === 0 ? `No streak yet, level ${String(level)}` : `${String(streak)}-day streak, level ${String(level)}`,
   },
   // S31: the temporary /calendar, which shows the day or the week (S32 replaces it).
   calendar: {
@@ -323,10 +324,10 @@ export const en = {
     part: (index: number, count: number) => `Part ${String(index)} of ${String(count)}`,
     // blockName (blockName.ts): two parts of one task on one day must not share a button name.
     partName: (title: string, part: string) => `${isolate(title)} (${part})`,
-    // S27: the subtitle of a block's row (BlockRow): "הסתברות, Practice. 1 hour". Commas and full
+    // S27: the subtitle of a block's row (BlockRow): "Probability, Practice. 1 hour". Commas and full
     // stops, never a middle dot (design language 5.2).
     meta: (exam: string, kind: string, duration: string) => `${isolate(exam)}, ${kind}. ${duration}`,
-    // The same in the "next" card (NextBlock), after the time range: ", 1.5 hours. אלגוריתמים, Learning".
+    // The same in the "next" card (NextBlock), after the time range: ", 1.5 hours. Algorithms, Learning".
     nextMeta: (duration: string, exam: string, kind: string) => `, ${duration}. ${isolate(exam)}, ${kind}`,
     // A split task adds its part to either line: ". Part 1 of 2".
     metaPart: (part: string) => `. ${part}`,
@@ -365,7 +366,7 @@ export const en = {
     hour: '1 hour',
     hourAndHalf: '1.5 hours',
     twoHours: '2 hours',
-    hours: (n: number) => `${String(n)} hours`,
+    hours: (n: number) => plural(n, 'hour', 'hours'),
     hoursAndMinutes: (hours: string, minutes: number) => `${hours} ${String(minutes)} min`,
     report: {
       title: 'What didn’t fit',
@@ -373,7 +374,7 @@ export const en = {
       failed: 'I couldn’t check why these tasks didn’t fit.',
       tasks: 'Tasks that didn’t fit',
       task: (title: string, duration: string) => `${isolate(title)} (${duration})`,
-      // After the task, when the preview said why: "פרק 3 (1.5 hours): There isn't enough time before the exam."
+      // After the task, when the preview said why: "Chapter 3 (1.5 hours): There isn't enough time before the exam."
       reason: (reason: string) => `: ${reason}`,
       raise: (duration: string) => `Raise to ${duration} a day`,
       raised: (duration: string) => `Your daily study time is now ${duration}. You can ask me to replan your calendar.`,
@@ -413,7 +414,7 @@ export const en = {
     allDone: 'That’s every past block sorted.',
     // "Yesterday, 14:00–15:00".
     when: (day: string) => `${day}, `,
-    // After the time range, on the same line: ". הסתברות" or ". הסתברות. Part 1 of 2".
+    // After the time range, on the same line: ". Probability" or ". Probability. Part 1 of 2".
     details: (exam: string, part: string | null) => `. ${isolate(exam)}${part === null ? '' : `. ${part}`}`,
     complete: 'Done',
     moveToday: 'Move to today',
@@ -650,7 +651,7 @@ export const en = {
     // A length of time: the start delay, the me time, and a daily study time that is not a whole hour.
     duration: (minutes: number) => {
       const named: Record<number, string> = { 60: '1 hour', 90: '1.5 hours', 120: '2 hours' }
-      return named[minutes] ?? `${String(minutes)} minutes`
+      return named[minutes] ?? plural(minutes, 'minute', 'minutes')
     },
     preferences: {
       title: 'Study preferences',
@@ -839,10 +840,10 @@ export const en = {
   archie: {
     alt: {
       intentions: 'Archi watering a pot with books sprouting from it',
-      eureka: 'Archi meditating, with a golden stone and a halo',
+      eureka: 'Archi meditating, with a golden stone',
       wisdom: 'Archi writing calligraphy on a scroll',
       flow: 'Archi raking spirals in the sand of a zen garden',
-      rest: 'Archi at a tea ceremony, under cherry blossom',
+      rest: 'Archi at a tea ceremony',
       joy: 'Archi smiling, with a golden stone in hand',
     },
   },

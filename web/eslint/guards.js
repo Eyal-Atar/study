@@ -36,7 +36,7 @@ const LOGICAL_CLASS_MESSAGE =
 // No emoji, anywhere (S39, audit section 2): every pictograph, the dingbats (the check mark and the
 // cross among them), the miscellaneous symbols and the emoji selector. An icon is a component of
 // src/ui/icons. The same ranges as src/test/sourceGuards.test.ts, which also reads comments and CSS.
-const EMOJI = /[\p{Extended_Pictographic}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{1F000}-\u{1FAFF}\u{FE0F}]/u
+const EMOJI = /[\p{Extended_Pictographic}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{1F000}-\u{1FAFF}]|\u{FE0F}/u
 
 const EMOJI_MESSAGE =
   'No emoji and no symbol characters as icons. Use an icon component from src/ui/icons (for example <StreakLeafIcon />).'
@@ -99,6 +99,15 @@ export const guards = [
         { selector: `Literal[value=${PHYSICAL}]`, message: LOGICAL_CLASS_MESSAGE },
         { selector: `TemplateElement[value.raw=${PHYSICAL}]`, message: LOGICAL_CLASS_MESSAGE },
       ],
+    },
+  },
+  {
+    // The dictionaries hold sentences, not class lists: "right now" and "left out" are English,
+    // not physical directions. Everything else still applies to them.
+    files: ['src/i18n/**/*.ts', 'src/dev/*Text.ts'],
+    ignores: ['src/**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': ['error', ...NO_RAW_HTML],
     },
   },
   {

@@ -9,6 +9,10 @@ import { createFakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
 
+// Emoji are written as code points, so this file holds no emoji character.
+const FACE = String.fromCodePoint(0x1f642)
+const FAMILY = [0x1f468, 0x1f469, 0x1f467].map((c) => String.fromCodePoint(c)).join(String.fromCodePoint(0x200d))
+
 // A signed-in user with a plan, on `path`, inside the real routes.
 function open(path: string, session: Session = fakeSession()) {
   const auth = createFakeAuth(session)
@@ -107,7 +111,7 @@ describe('AppShell', () => {
     expect(await screen.findByRole('heading', { level: 1, name: en.settings.title })).toBeInTheDocument()
     await new Promise((resolve) => setTimeout(resolve, 50))
     const banner = within(screen.getByRole('banner'))
-    expect(banner.queryByRole('link', { name: /רצף/ })).not.toBeInTheDocument()
+    expect(banner.queryByRole('link', { name: /streak/ })).not.toBeInTheDocument()
     expect(banner.queryByRole('alert')).not.toBeInTheDocument()
     expect(banner.getByRole('button', { name: en.shell.profile })).toBeInTheDocument()
   })
@@ -270,7 +274,7 @@ describe('the letter on the profile button', () => {
   })
 
   it('a name that starts with an emoji and no email: an icon, no letter', async () => {
-    open('/today', sessionOf({ fullName: '🙂 x' }))
+    open('/today', sessionOf({ fullName: `${FACE} x` }))
 
     const button = await profileButton()
     expect(button).toHaveTextContent('')
@@ -290,7 +294,7 @@ describe('the letter on the profile button', () => {
   it.each([
     { fullName: '  dana', email: undefined, letter: 'D' },
     { fullName: '', email: 'dana@example.com', letter: 'D' },
-    { fullName: '🙂 x', email: 'dana@example.com', letter: 'D' },
+    { fullName: `${FACE} x`, email: 'dana@example.com', letter: 'D' },
     { fullName: 'אייל', email: 'x@example.com', letter: 'א' },
   ])('name "$fullName" and email "$email" give the letter $letter', async ({ fullName, email, letter }) => {
     open('/today', sessionOf({ fullName, email }))
@@ -300,7 +304,7 @@ describe('the letter on the profile button', () => {
 
   it.each([
     { fullName: '   ', email: undefined },
-    { fullName: '👨‍👩‍👧 family', email: '' },
+    { fullName: `${FAMILY} family`, email: '' },
     { fullName: undefined, email: '7up@example.com' },
     { fullName: 42, email: undefined },
     { fullName: null, email: undefined },

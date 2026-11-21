@@ -12,11 +12,15 @@ import {
 } from 'react-aria-components'
 import { en } from '../i18n/en'
 import { ICON_STROKE } from './styles'
+import { UserText } from './UserText'
 import { FIELD_BOX_CLASS, FIELD_CLASS, FIELD_DESCRIPTION_CLASS, FIELD_ERROR_CLASS, FIELD_LABEL_CLASS } from './TextField'
 
 export interface SelectOption {
   value: string
   label: string
+  // The label is the user's own text (a topic name): it is shown through UserText, so it takes
+  // its own direction. The textValue (type-ahead, screen reader) stays the plain string.
+  userContent?: boolean
 }
 
 export interface SelectProps {
@@ -102,7 +106,9 @@ export function Select({
             <ListBoxItem key={keyOf(index)} id={keyOf(index)} textValue={option.label} className={OPTION_CLASS}>
               {({ isSelected }) => (
                 <>
-                  <span className="min-w-0 break-words">{option.label}</span>
+                  <span className="min-w-0 break-words">
+                    {option.userContent === true ? <UserText>{option.label}</UserText> : option.label}
+                  </span>
                   {isSelected ? <Check aria-hidden="true" size={18} strokeWidth={ICON_STROKE} className="shrink-0" /> : null}
                 </>
               )}

@@ -13,7 +13,7 @@ function Field({ initial = '', onChange, ...props }: Partial<TimeFieldProps> & {
   return (
     <I18nProvider locale={LOCALE}>
       <TimeField
-        label="תחילת הלימוד"
+        label="Study start"
         {...props}
         value={value}
         onChange={(next) => {
@@ -28,7 +28,7 @@ function Field({ initial = '', onChange, ...props }: Partial<TimeFieldProps> & {
 function setup(props: Partial<TimeFieldProps> & { initial?: string } = {}) {
   const onChange = vi.fn()
   render(<Field onChange={onChange} {...props} />)
-  const group = screen.getByRole('group', { name: 'תחילת הלימוד' })
+  const group = screen.getByRole('group', { name: 'Study start' })
   const [hour, minute] = within(group).getAllByRole('spinbutton') as [HTMLElement, HTMLElement]
   return { onChange, group, hour, minute }
 }
@@ -38,8 +38,8 @@ describe('TimeField', () => {
     const { group, hour, minute } = setup({ initial: '08:30' })
 
     expect(within(group).getAllByRole('spinbutton')).toHaveLength(2)
-    expect(hour).toHaveAccessibleName(/תחילת הלימוד/)
-    expect(minute).toHaveAccessibleName(/תחילת הלימוד/)
+    expect(hour).toHaveAccessibleName(/Study start/)
+    expect(minute).toHaveAccessibleName(/Study start/)
     expect(hour).toHaveTextContent('08')
     expect(minute).toHaveTextContent('30')
     expect(group).toHaveTextContent('08:30')
@@ -141,7 +141,7 @@ describe('TimeField', () => {
       return (
         <I18nProvider locale={LOCALE}>
           <TimeField
-            label="שעה"
+            label="Time"
             value={value}
             onChange={(next) => {
               onChange(next)
@@ -152,38 +152,38 @@ describe('TimeField', () => {
       )
     }
     render(<Keeps />)
-    const [, minute] = within(screen.getByRole('group', { name: 'שעה' })).getAllByRole('spinbutton')
+    const [, minute] = within(screen.getByRole('group', { name: 'Time' })).getAllByRole('spinbutton')
 
     await user.click(minute as HTMLElement)
     await user.keyboard('{Backspace}{Backspace}')
     expect(onChange.mock.calls.filter(([value]) => value === '')).toHaveLength(1)
     await user.keyboard('45')
     expect(onChange).toHaveBeenLastCalledWith('08:45')
-    expect(screen.getByRole('group', { name: 'שעה' })).toHaveTextContent('08:45')
+    expect(screen.getByRole('group', { name: 'Time' })).toHaveTextContent('08:45')
   })
 
   it('a value that changes from outside is shown', () => {
     const { rerender } = render(
       <I18nProvider locale={LOCALE}>
-        <TimeField label="שעה" value="08:30" onChange={vi.fn()} />
+        <TimeField label="Time" value="08:30" onChange={vi.fn()} />
       </I18nProvider>,
     )
     rerender(
       <I18nProvider locale={LOCALE}>
-        <TimeField label="שעה" value="21:05" onChange={vi.fn()} />
+        <TimeField label="Time" value="21:05" onChange={vi.fn()} />
       </I18nProvider>,
     )
 
-    expect(screen.getByRole('group', { name: 'שעה' })).toHaveTextContent('21:05')
+    expect(screen.getByRole('group', { name: 'Time' })).toHaveTextContent('21:05')
   })
 
   it('an error message makes the field invalid, and is shown and linked', () => {
-    const { group, hour } = setup({ initial: '08:30', errorMessage: 'הסיום צריך להיות אחרי ההתחלה' })
+    const { group, hour } = setup({ initial: '08:30', errorMessage: 'The end must be after the start' })
 
-    expect(screen.getByText('הסיום צריך להיות אחרי ההתחלה').className).toContain('text-small text-danger')
+    expect(screen.getByText('The end must be after the start').className).toContain('text-small text-danger')
     expect(group).toHaveAttribute('data-invalid', 'true')
     expect(hour).toHaveAttribute('aria-invalid', 'true')
-    expect(hour).toHaveAccessibleDescription(/הסיום צריך להיות אחרי ההתחלה/)
+    expect(hour).toHaveAccessibleDescription(/The end must be after the start/)
   })
 
   it('without an error the field is not invalid', () => {
@@ -194,10 +194,10 @@ describe('TimeField', () => {
   })
 
   it('links its description to the field', () => {
-    const { hour } = setup({ description: 'לפי השעון המקומי' })
+    const { hour } = setup({ description: 'In local time' })
 
-    expect(screen.getByText('לפי השעון המקומי').className).toContain('text-small text-ink-muted')
-    expect(hour).toHaveAccessibleDescription(/לפי השעון המקומי/)
+    expect(screen.getByText('In local time').className).toContain('text-small text-ink-muted')
+    expect(hour).toHaveAccessibleDescription(/In local time/)
   })
 
   it('disabled: muted and not transparent, and the keyboard does not reach or change it', async () => {

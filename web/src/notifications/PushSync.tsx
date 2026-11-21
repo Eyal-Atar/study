@@ -6,7 +6,7 @@ import { usePushState } from './pushContext'
 
 // Sends this browser's subscription again on every load (once per user), because the server may
 // have deleted its row (a 410 from the push service) and iOS sometimes changes the endpoint, and the
-// service worker cannot call the API itself (it has no token). The answer's id is what "כיבוי" deletes.
+// service worker cannot call the API itself (it has no token). The answer's id is what "Turn off" deletes.
 // Silent: a failure here changes nothing the user can act on. Renders nothing.
 export function PushSync() {
   const userId = useUserId()

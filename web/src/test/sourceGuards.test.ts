@@ -31,7 +31,7 @@ const mayHoldHebrew = (file: string) =>
 const HEBREW = /[֐-׿יִ-ﭏ]/
 // Every pictograph, the dingbats (the check mark and the cross among them), the miscellaneous
 // symbols, and the selector that turns a plain character into an emoji.
-const EMOJI = /[\p{Extended_Pictographic}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{1F000}-\u{1FAFF}\u{FE0F}]/u
+const EMOJI = /[\p{Extended_Pictographic}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{1F000}-\u{1FAFF}]|\u{FE0F}/u
 // "Archi" as the subject of a finite verb. A description of a picture ("Archi watering a pot")
 // and an introduction ("I'm Archi") are not.
 const THIRD_PERSON =
@@ -69,9 +69,11 @@ describe('the language rules of the source', () => {
     const texts = FILES.filter((file) => /^i18n\/en(Crash|Pwa)?\.ts$/.test(file.name))
     expect(texts.map((file) => file.name).sort()).toEqual(['i18n/en.ts', 'i18n/enCrash.ts', 'i18n/enPwa.ts'])
     for (const file of texts) {
-      expect(linesWith(file.text, THIRD_PERSON)).toEqual([])
-      // The name is Archi: not the old spelling, and not "the app" or "the system" speaking.
-      expect(linesWith(file.text.replace(/\/\/.*$/gm, ''), /\bArchie\b|\bthe (app|system) (will|is|has)\b/)).toEqual([])
+      // The texts alone: a comment may quote what not to write.
+      const strings = file.text.replace(/^\s*\/\/.*$/gm, '')
+      expect(linesWith(strings, THIRD_PERSON)).toEqual([])
+      // The name is Archi: not the old spelling, and not "the app will" or "the system has": Archi speaks.
+      expect(linesWith(strings, /\bArchie\b|\bthe (app|system) (will|has|can)\b/)).toEqual([])
     }
   })
 

@@ -12,6 +12,7 @@ import { List, ListRow } from '../ui/List'
 import { PageHeader } from '../ui/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '../ui/states'
 import { ICON_STROKE } from '../ui/styles'
+import { UserText } from '../ui/UserText'
 import { useToday } from './api'
 import { daysBetween, longDate } from './dates'
 import { ExamFields } from './ExamFields'
@@ -134,7 +135,7 @@ export function ExamsPage() {
             <ListRow
               key={exam.id}
               to={`/exams/${exam.id}`}
-              title={exam.name}
+              title={<UserText>{exam.name}</UserText>}
               subtitle={longDate(exam.exam_date)}
               trailing={<Countdown days={daysBetween(today, exam.exam_date)} />}
             />

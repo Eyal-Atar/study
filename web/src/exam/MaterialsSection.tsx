@@ -20,7 +20,7 @@ export interface MaterialsSectionProps {
 // The exam's files: the S13 list, upload and delete (ExamMaterials), plus a kind for each file
 // (PATCH /materials/{id}). A kind change or a new file does not touch the board; it feeds the next
 // analysis (plan decision 8), so an exam that already has AI tasks gets a hint to reanalyze. An exam
-// without them shows "בניית תוכנית" below, which reads the files anyway.
+// without them shows "Build a plan for this exam" below, which reads the files anyway.
 //
 // The section is collapsible (S28 decision 2): for an exam that already has a plan the files are
 // secondary, so it is closed, with the number of files in its heading. For an exam that was not

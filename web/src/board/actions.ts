@@ -21,7 +21,7 @@ import { undoOnce } from './undoOnce'
 // they create no plan version).
 //
 // defer is not optimistic: the planner on the server picks the new place, and may find none. The
-// button shows "דוחה…" until the answer; the undo is POST /plan/undo with the version it created.
+// button shows "Deferring…" until the answer; the undo is POST /plan/undo with the version it created.
 //
 // After every action the whole board (['board', userId]) is refetched.
 //
@@ -36,7 +36,7 @@ export interface BlockActions {
   setPinned(block: Block, pinned: boolean): void
   // True while an action on this block is running, in any screen.
   pending(blockId: string): boolean
-  // True while this block is being deferred (the button says "דוחה…").
+  // True while this block is being deferred (the button says "Deferring…").
   deferring(blockId: string): boolean
 }
 

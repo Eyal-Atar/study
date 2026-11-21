@@ -95,10 +95,12 @@ describe('durationText', () => {
     expect(durationText(minutes)).toBe(text)
   })
 
-  it('reads as Hebrew', () => {
-    expect(durationText(45)).toBe('45 דקות')
-    expect(durationText(90)).toBe('שעה וחצי')
-    expect(durationText(150)).toBe('2.5 שעות')
+  it('reads as English', () => {
+    expect(durationText(45)).toBe('45 min')
+    expect(durationText(60)).toBe('1 hour')
+    expect(durationText(90)).toBe('1.5 hours')
+    expect(durationText(120)).toBe('2 hours')
+    expect(durationText(80)).toBe('1 hour 20 min')
   })
 })
 

@@ -1,4 +1,4 @@
-import { useId, type ComponentPropsWithoutRef } from 'react'
+import { useId, type ComponentPropsWithoutRef, type ReactNode } from 'react'
 import { cx } from './styles'
 
 export interface CardProps extends Omit<ComponentPropsWithoutRef<'div'>, 'title'> {
@@ -8,7 +8,7 @@ export interface CardProps extends Omit<ComponentPropsWithoutRef<'div'>, 'title'
   tone?: 'plain' | 'danger' | 'warning' | 'success'
   // The heading of the card, drawn first, in the colour of the tone. When the card has a `role`
   // (region, group, alert) and no name from the caller, the heading also names it.
-  title?: string | undefined
+  title?: ReactNode | undefined
   // 2 (the default) when the card is a section of the screen; 3 inside a section with its own h2.
   titleLevel?: 2 | 3
 }

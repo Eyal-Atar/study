@@ -47,12 +47,21 @@ describe('DeleteAccountPage', () => {
     open(server())
     const field = await screen.findByRole('textbox', { name: t.confirmLabel })
     expect(submit()).toBeDisabled()
-    await user.type(field, 'מחיק')
+    await user.type(field, t.confirmWord.slice(0, -1))
     expect(submit()).toBeDisabled()
-    await user.type(field, 'ה ')
+    await user.type(field, `${t.confirmWord.slice(-1)} `)
     expect(submit()).toBeEnabled()
     await user.type(field, 'x')
     expect(submit()).toBeDisabled()
+  })
+
+  it('a capital first letter and a trailing space still confirm', async () => {
+    const user = userEvent.setup()
+    open(server())
+    const field = await screen.findByRole('textbox', { name: t.confirmLabel })
+    const word = t.confirmWord.charAt(0).toUpperCase() + t.confirmWord.slice(1)
+    await user.type(field, `${word} `)
+    expect(submit()).toBeEnabled()
   })
 
   it('deletes, signs out locally and shows the goodbye page without passing through /login', async () => {

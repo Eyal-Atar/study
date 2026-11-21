@@ -4,6 +4,7 @@ import { en } from '../i18n/en'
 import { ListRow } from '../ui/List'
 import { Note } from '../ui/Note'
 import { cx, ICON_STROKE } from '../ui/styles'
+import { UserText } from '../ui/UserText'
 import { splitFileName } from './fileName'
 import type { MaterialKind } from './types'
 
@@ -41,9 +42,9 @@ export function MaterialItem({ filename, kind, status, tone, warnings = [], acti
   const StatusIcon = tone === 'danger' ? CircleAlert : tone === 'success' ? Check : null
   return (
     <ListRow
-      // A file name can be in any language: <bdi> isolates its direction, while the line itself stays
+      // A file name can be in any language: <UserText> isolates its direction, while the line itself stays
       // aligned with the rest of the (LTR) row. A long name without spaces breaks (the row's title).
-      title={<bdi>{name}</bdi>}
+      title={<UserText>{name}</UserText>}
       subtitle={
         <>
           <p className="tabular-nums">

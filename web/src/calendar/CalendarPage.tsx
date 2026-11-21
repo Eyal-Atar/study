@@ -21,7 +21,7 @@ function weekParams(params: URLSearchParams): URLSearchParams {
 }
 
 // /calendar, temporary (S31): the home of the app until S32 replaces this whole file with the
-// calendar itself. It keeps both existing screens alive: a switch "יום / שבוע" and under it the
+// calendar itself. It keeps both existing screens alive: a switch "Day / Week" and under it the
 // today screen, or the week screen with ?view=week. Without view, and with any other value, it is
 // the day. The view lives in the URL, so back, forward and a shared link keep it, and a change of
 // the query alone does not move the focus (useRouteFocus), so the focus stays on the switch.
@@ -29,7 +29,7 @@ function weekParams(params: URLSearchParams): URLSearchParams {
 // The week screen moves through ?from= and knows nothing about ?view=: its buttons write ?from=X,
 // or nothing for "this week", and drop view. So a forward move (PUSH) that loses view while the
 // week is on screen keeps the week, and view=week is put back into the address in place (REPLACE).
-// The day the switch asks for, and the one "יומן" in the navigation asks for, are told apart by
+// The day the switch asks for, and the one "Calendar" in the navigation asks for, are told apart by
 // their history state (calendarState.ts); back and forward (POP) are taken as they are.
 export function CalendarPage() {
   const [params, setParams] = useSearchParams()

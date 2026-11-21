@@ -9,8 +9,8 @@ import type { TaskWriteResponse } from './types'
 const t = en.exam.tasks
 
 // What the screen says after a task write (plan decision "small change", spec 7.6 step 8):
-// - placement null: the board did not need to change, "נשמר".
-// - placed: the board changed; with a version, a toast with "בטל" that sends POST /plan/undo.
+// - placement null: the board did not need to change, "Saved".
+// - placed: the board changed; with a version, a toast with "Undo" that sends POST /plan/undo.
 // - placed false: the fields are saved but the task is off the board, so the replan offer opens
 //   with the reason.
 export function usePlacementFeedback() {
@@ -45,7 +45,7 @@ export function usePlacementFeedback() {
 }
 
 // The delete of a task: sent at once (a soft delete with a version, plan "why delete at once"),
-// then "בטל" for 10 seconds that sends POST /plan/undo.
+// then "Undo" for 10 seconds that sends POST /plan/undo.
 export function useTaskDeleteFeedback() {
   const toast = useToast()
   const undo = useTaskUndo()

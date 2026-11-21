@@ -1,9 +1,9 @@
-import { Leaf } from '../ui/icons'
+import { StreakLeafIcon } from '../ui/icons'
 import { Link } from 'react-router'
 import { en } from '../i18n/en'
 import { useProgress } from '../progress/api'
 import type { Progress, Streak } from '../progress/types'
-import { cx, FOCUS_RING_NATIVE, ICON_STROKE } from '../ui/styles'
+import { cx, FOCUS_RING_NATIVE } from '../ui/styles'
 
 // Not imported from routes.tsx: routes imports AppShell, which imports this file.
 const PROGRESS_PATH = '/progress'
@@ -32,7 +32,7 @@ function levelPercent({ total_xp, level_start_xp, next_level_xp }: ChipProgress)
 // The streak and the level in the header, as a link to the progress board (S31 decision 12), in
 // the two parts of the mockup's chip (decision 29): a green pill with a leaf and the days of the
 // streak (the garden of Archie grows from it, decision 21), and a 34px gold ring around the level
-// that fills towards the next one. One accessible name says both ("רצף של 5 ימים, רמה 3"); the
+// that fills towards the next one. One accessible name says both ("5 day streak, level 3"); the
 // numbers and the drawings are for the eye, so the gold, which is decoration and not 3:1 on its
 // track, carries nothing that the number does not say. An extra and not something the user needs:
 // while GET /progress loads, or after it failed, the chip is simply not there, with no spinner and
@@ -64,7 +64,7 @@ export function ProgressChipView({ progress }: { progress: ChipProgress }) {
         data-part="streak"
         className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-1 text-caption font-semibold text-brand-strong"
       >
-        <Leaf aria-hidden="true" size={16} strokeWidth={ICON_STROKE} className="shrink-0 text-brand-strong" />
+        <StreakLeafIcon size={16} className="shrink-0 text-brand-strong" />
         <span className="tabular-nums">{streak.current}</span>
       </span>
       <span data-part="level" className="relative inline-flex size-[34px] shrink-0 items-center justify-center">

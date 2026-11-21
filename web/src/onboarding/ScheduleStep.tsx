@@ -5,6 +5,7 @@ import { useMe, type Me, type StudyWindow } from '../api/me'
 import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { CheckboxCards } from '../ui/CheckboxCards'
+import { DAYPART_ICON } from '../ui/icons'
 import { Note } from '../ui/Note'
 import { RadioCards } from '../ui/RadioCards'
 import { ErrorState, LoadingState } from '../ui/states'
@@ -22,11 +23,16 @@ const DEFAULT_MINUTES = 240
 const HOUR_OPTIONS = HOURS.map((hours) => ({ value: String(hours * 60), label: t.hours(hours) }))
 
 const WINDOWS: readonly StudyWindow[] = ['morning', 'afternoon', 'evening', 'night']
-const WINDOW_OPTIONS = WINDOWS.map((window) => ({
-  value: window,
-  label: t.windows[window].label,
-  description: t.windows[window].range,
-}))
+// Each time of day carries its icon (audit section 2: designed sun and moon icons, never emoji).
+const WINDOW_OPTIONS = WINDOWS.map((window) => {
+  const Icon = DAYPART_ICON[window]
+  return {
+    value: window,
+    label: t.windows[window].label,
+    description: t.windows[window].range,
+    icon: <Icon size={18} />,
+  }
+})
 
 function isWindow(value: string): value is StudyWindow {
   return (WINDOWS as readonly string[]).includes(value)

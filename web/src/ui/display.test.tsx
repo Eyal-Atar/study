@@ -13,12 +13,12 @@ import { TextLink } from './TextLink'
 describe('Card', () => {
   it('shows its children inside a lined surface, never a shadow, and passes div props through', () => {
     render(
-      <Card role="region" aria-label="המשימה הבאה" id="next" className="mt-4">
-        תרגול תוחלת
+      <Card role="region" aria-label="Next task" id="next" className="mt-4">
+        Practice תוחלת
       </Card>,
     )
-    const card = screen.getByRole('region', { name: 'המשימה הבאה' })
-    expect(card).toHaveTextContent('תרגול תוחלת')
+    const card = screen.getByRole('region', { name: 'Next task' })
+    expect(card).toHaveTextContent('Practice תוחלת')
     expect(card).toHaveAttribute('id', 'next')
     for (const name of ['rounded-card', 'border', 'border-line', 'bg-surface', 'p-card', 'mt-4']) {
       expect(card).toHaveClass(name)
@@ -32,18 +32,18 @@ describe('Card', () => {
     ['success', 'border-success', 'bg-success-soft'],
   ] as const)('a %s card has the state border and its soft background, with ink text', (tone, border, background) => {
     render(
-      <Card tone={tone} role="group" aria-label="מצב">
-        תוכן
+      <Card tone={tone} role="group" aria-label="Status">
+        Content
       </Card>,
     )
-    const card = screen.getByRole('group', { name: 'מצב' })
+    const card = screen.getByRole('group', { name: 'Status' })
     expect(card).toHaveClass(border, background, 'text-ink')
     expect(card).not.toHaveClass('border-line', 'bg-surface')
     expect(card.className).not.toMatch(/shadow/)
   })
 
   it('without a title it has no heading and no aria-labelledby', () => {
-    render(<Card role="group">תוכן</Card>)
+    render(<Card role="group">Content</Card>)
     expect(screen.queryByRole('heading')).not.toBeInTheDocument()
     expect(screen.getByRole('group')).not.toHaveAttribute('aria-labelledby')
   })
@@ -55,45 +55,45 @@ describe('Card', () => {
     ['success', 'text-success'],
   ] as const)('a %s card with a title starts with an h2 in the colour of its tone', (tone, colour) => {
     render(
-      <Card tone={tone} title="הקובץ לא נקרא">
-        <p>אפשר להעלות אותו שוב.</p>
+      <Card tone={tone} title="The file could not be read">
+        <p>You can upload it again.</p>
       </Card>,
     )
-    const heading = screen.getByRole('heading', { level: 2, name: 'הקובץ לא נקרא' })
+    const heading = screen.getByRole('heading', { level: 2, name: 'The file could not be read' })
     expect(heading).toHaveClass('text-body', 'font-semibold', 'mb-2', colour)
     const card = heading.parentElement as HTMLElement
     expect(card.firstElementChild).toBe(heading)
-    expect(card).toHaveTextContent('אפשר להעלות אותו שוב.')
+    expect(card).toHaveTextContent('You can upload it again.')
     // Without a role an accessible name would be ignored, so none is set.
     expect(card).not.toHaveAttribute('aria-labelledby')
   })
 
   it('titleLevel makes the heading an h3', () => {
-    render(<Card title="הלוח מוכן" titleLevel={3} />)
-    expect(screen.getByRole('heading', { level: 3, name: 'הלוח מוכן' })).toBeInTheDocument()
+    render(<Card title="Your plan is ready" titleLevel={3} />)
+    expect(screen.getByRole('heading', { level: 3, name: 'Your plan is ready' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()
   })
 
   it('a card with a role is named by its title, unless the caller names it', () => {
     render(
       <>
-        <Card role="region" title="המשימה הבאה">
-          תוכן
+        <Card role="region" title="Next task">
+          Content
         </Card>
-        <Card role="group" aria-label="שם אחר" title="כותרת">
-          תוכן
+        <Card role="group" aria-label="Name אחר" title="Title">
+          Content
         </Card>
       </>,
     )
-    expect(screen.getByRole('region', { name: 'המשימה הבאה' })).toContainElement(screen.getByRole('heading', { name: 'המשימה הבאה' }))
-    expect(screen.getByRole('group', { name: 'שם אחר' })).not.toHaveAttribute('aria-labelledby')
+    expect(screen.getByRole('region', { name: 'Next task' })).toContainElement(screen.getByRole('heading', { name: 'Next task' }))
+    expect(screen.getByRole('group', { name: 'Name אחר' })).not.toHaveAttribute('aria-labelledby')
   })
 })
 
 describe('SectionHeading', () => {
   it('is an h2 that reads as a label: small, medium, muted', () => {
-    render(<SectionHeading id="today">עוד היום</SectionHeading>)
-    const heading = screen.getByRole('heading', { level: 2, name: 'עוד היום' })
+    render(<SectionHeading id="today">Later today</SectionHeading>)
+    const heading = screen.getByRole('heading', { level: 2, name: 'Later today' })
     expect(heading).toHaveAttribute('id', 'today')
     expect(heading).toHaveClass('text-small', 'font-medium', 'text-ink-muted')
     expect(heading).not.toHaveClass('font-semibold')
@@ -102,28 +102,28 @@ describe('SectionHeading', () => {
   it('level 3 is an h3, and it takes a class', () => {
     render(
       <SectionHeading level={3} className="mb-2">
-        קבצים
+        Files
       </SectionHeading>,
     )
-    expect(screen.getByRole('heading', { level: 3, name: 'קבצים' })).toHaveClass('text-small', 'mb-2')
+    expect(screen.getByRole('heading', { level: 3, name: 'Files' })).toHaveClass('text-small', 'mb-2')
   })
 })
 
 describe('List', () => {
   it('is a named list of rows with a title and a subtitle, each a soft canvas tile like the task of the prototype', () => {
     render(
-      <List aria-label="עוד היום">
-        <ListRow leading="10:00" title="תרגול תוחלת" subtitle="הסתברות, תרגול. שעה" />
+      <List aria-label="Later today">
+        <ListRow leading="10:00" title="Practice תוחלת" subtitle="Probability, practice. 1 h" />
         <ListRow title="סיכום פרק 3" />
       </List>,
     )
-    const list = screen.getByRole('list', { name: 'עוד היום' })
+    const list = screen.getByRole('list', { name: 'Later today' })
     const rows = within(list).getAllByRole('listitem')
     expect(rows).toHaveLength(2)
     const first = rows[0] as HTMLElement
     expect(first).toHaveTextContent('10:00')
-    expect(within(first).getByText('תרגול תוחלת')).toHaveClass('text-body', 'font-semibold', 'text-ink')
-    expect(within(first).getByText('הסתברות, תרגול. שעה')).toHaveClass('text-small', 'text-ink-muted')
+    expect(within(first).getByText('Practice תוחלת')).toHaveClass('text-body', 'font-semibold', 'text-ink')
+    expect(within(first).getByText('Probability, practice. 1 h')).toHaveClass('text-small', 'text-ink-muted')
     expect(within(first).getByText('10:00')).toHaveClass('tabular-nums', 'shrink-0')
     for (const row of rows) {
       // 6px apart (the first has no margin), no line between them, no card and no shadow.
@@ -147,17 +147,17 @@ describe('List', () => {
                 <ListRow
                   to="/exams/e1"
                   title="חדו״א 1"
-                  subtitle="בעוד 12 ימים"
+                  subtitle="In 12 days"
                   trailing={
                     <Button variant="secondary" onPress={onPress}>
-                      פעולות
+                      Actions
                     </Button>
                   }
                 />
               </List>
             }
           />
-          <Route path="/exams/e1" element={<p>עמוד המבחן</p>} />
+          <Route path="/exams/e1" element={<p>Exam page</p>} />
         </Routes>
       </MemoryRouter>,
     )
@@ -167,15 +167,15 @@ describe('List', () => {
     // The link is stretched over the whole row, and the control sits above it.
     expect(row).toHaveClass('relative', 'hover:bg-surface-muted')
     expect(link).toHaveClass('after:absolute', 'after:inset-0', 'outline-none', 'focus-visible:after:ring-2', 'focus-visible:after:ring-brand')
-    const button = within(row).getByRole('button', { name: 'פעולות' })
+    const button = within(row).getByRole('button', { name: 'Actions' })
     expect(button.parentElement).toHaveClass('relative', 'z-10', 'shrink-0', 'flex', 'items-center', 'gap-2', 'min-w-0', 'max-w-[50%]')
 
     await user.click(button)
     expect(onPress).toHaveBeenCalledOnce()
-    expect(screen.queryByText('עמוד המבחן')).not.toBeInTheDocument()
+    expect(screen.queryByText('Exam page')).not.toBeInTheDocument()
 
     await user.click(link)
-    expect(screen.getByText('עמוד המבחן')).toBeInTheDocument()
+    expect(screen.getByText('Exam page')).toBeInTheDocument()
   })
 
   it('the link of a row takes keyboard focus before the control at its end', async () => {
@@ -183,14 +183,14 @@ describe('List', () => {
     render(
       <MemoryRouter>
         <List>
-          <ListRow to="/exams/e1" title="חדו״א 1" trailing={<Button variant="secondary">פעולות</Button>} />
+          <ListRow to="/exams/e1" title="חדו״א 1" trailing={<Button variant="secondary">Actions</Button>} />
         </List>
       </MemoryRouter>,
     )
     await user.tab()
     expect(screen.getByRole('link', { name: 'חדו״א 1' })).toHaveFocus()
     await user.tab()
-    expect(screen.getByRole('button', { name: 'פעולות' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Actions' })).toHaveFocus()
   })
 
   it('a row with `onPress` is a button named by the title, stretched over the row like the link', async () => {
@@ -201,18 +201,18 @@ describe('List', () => {
       <List>
         <ListRow
           onPress={onPress}
-          title="תרגול תוחלת"
+          title="Practice תוחלת"
           subtitle="הסתברות"
           trailing={
             <Button variant="secondary" onPress={onTrailing}>
-              פעולות
+              Actions
             </Button>
           }
         />
       </List>,
     )
     const row = screen.getByRole('listitem')
-    const title = within(row).getByRole('button', { name: 'תרגול תוחלת' })
+    const title = within(row).getByRole('button', { name: 'Practice תוחלת' })
     expect(title).toHaveAttribute('type', 'button')
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
     expect(row).toHaveClass('relative', 'hover:bg-surface-muted')
@@ -236,7 +236,7 @@ describe('List', () => {
     await user.click(title)
     expect(onPress).toHaveBeenCalledTimes(2)
 
-    await user.click(within(row).getByRole('button', { name: 'פעולות' }))
+    await user.click(within(row).getByRole('button', { name: 'Actions' }))
     expect(onTrailing).toHaveBeenCalledOnce()
     expect(onPress).toHaveBeenCalledTimes(2)
   })
@@ -254,15 +254,15 @@ describe('List', () => {
   })
 
   it('the end of a row holds several controls in a line, and a long badge is cut instead of widening the row', () => {
-    const long = 'תג ארוך מאוד '.repeat(8).trim()
+    const long = 'A very long badge '.repeat(8).trim()
     render(
       <List>
         <ListRow
-          title="תרגול תוחלת"
+          title="Practice תוחלת"
           trailing={
             <>
               <Badge tone="warning">{long}</Badge>
-              <Button variant="secondary">פעולות</Button>
+              <Button variant="secondary">Actions</Button>
             </>
           }
         />
@@ -271,19 +271,19 @@ describe('List', () => {
     const badge = screen.getByText(long)
     expect(badge).toHaveClass('truncate', 'max-w-full')
     expect(badge.parentElement).toHaveClass('flex', 'min-w-0', 'max-w-[50%]', 'shrink-0', 'items-center', 'gap-2')
-    expect(badge.parentElement).toContainElement(screen.getByRole('button', { name: 'פעולות' }))
+    expect(badge.parentElement).toContainElement(screen.getByRole('button', { name: 'Actions' }))
   })
 
   it('a done row strikes its title through in the muted colour and the normal weight', () => {
     render(
       <MemoryRouter>
         <List>
-          <ListRow done title="תרגול תוחלת" />
+          <ListRow done title="Practice תוחלת" />
           <ListRow done to="/tasks/t1" title="סיכום פרק 3" />
         </List>
       </MemoryRouter>,
     )
-    for (const title of [screen.getByText('תרגול תוחלת'), screen.getByRole('link', { name: 'סיכום פרק 3' })]) {
+    for (const title of [screen.getByText('Practice תוחלת'), screen.getByRole('link', { name: 'סיכום פרק 3' })]) {
       expect(title).toHaveClass('line-through', 'text-ink-muted', 'font-normal')
       expect(title).not.toHaveClass('font-semibold', 'text-ink')
     }
@@ -293,7 +293,7 @@ describe('List', () => {
     const long = 'א'.repeat(60)
     render(
       <List>
-        <ListRow leading="10:00" title={long} trailing={<Button variant="secondary">פעולות</Button>} />
+        <ListRow leading="10:00" title={long} trailing={<Button variant="secondary">Actions</Button>} />
       </List>,
     )
     const title = screen.getByText(long)
@@ -304,10 +304,10 @@ describe('List', () => {
 
 describe('Badge', () => {
   it.each([
-    ['brand', 'עכשיו', 'bg-brand-soft', 'text-brand-strong'],
-    ['success', 'בוצע', 'bg-success-soft', 'text-success'],
-    ['warning', 'עבר הזמן', 'bg-warning-soft', 'text-warning'],
-    ['neutral', 'דולג', 'bg-surface-muted', 'text-ink-muted'],
+    ['brand', 'Now', 'bg-brand-soft', 'text-brand-strong'],
+    ['success', 'Done', 'bg-success-soft', 'text-success'],
+    ['warning', 'Overdue', 'bg-warning-soft', 'text-warning'],
+    ['neutral', 'Skipped', 'bg-surface-muted', 'text-ink-muted'],
   ] as const)('a %s badge shows its text on the soft colour of its state', (tone, text, background, colour) => {
     render(<Badge tone={tone}>{text}</Badge>)
     const badge = screen.getByText(text)
@@ -317,7 +317,7 @@ describe('Badge', () => {
   })
 
   it('a long badge stays on one line and is cut with an ellipsis at the width of its container', () => {
-    const long = 'מחכה לאישור של המרצה על מועד חדש '.repeat(4).trim()
+    const long = 'Waiting for the lecturer to confirm a new date '.repeat(4).trim()
     render(<Badge tone="neutral">{long}</Badge>)
     const badge = screen.getByText(long)
     // truncate: overflow hidden, an ellipsis, and no wrapping. max-w-full needs a block box.
@@ -328,13 +328,13 @@ describe('Badge', () => {
 
 describe('ProgressBar', () => {
   it('is a progressbar named by its label, and says its value in words', () => {
-    render(<ProgressBar label="התקדמות היום" value={60} max={345} valueText="60 מתוך 345 דקות" />)
-    const bar = screen.getByRole('progressbar', { name: 'התקדמות היום' })
+    render(<ProgressBar label="Progress for today" value={60} max={345} valueText="60 of 345 minutes" />)
+    const bar = screen.getByRole('progressbar', { name: 'Progress for today' })
     expect(bar).toHaveAttribute('aria-valuenow', '60')
     expect(bar).toHaveAttribute('aria-valuemax', '345')
-    expect(bar).toHaveAttribute('aria-valuetext', '60 מתוך 345 דקות')
-    expect(within(bar).getByText('התקדמות היום')).toHaveClass('text-small', 'text-ink-muted')
-    expect(within(bar).getByText('60 מתוך 345 דקות')).toHaveClass('text-small', 'font-medium', 'tabular-nums')
+    expect(bar).toHaveAttribute('aria-valuetext', '60 of 345 minutes')
+    expect(within(bar).getByText('Progress for today')).toHaveClass('text-small', 'text-ink-muted')
+    expect(within(bar).getByText('60 of 345 minutes')).toHaveClass('text-small', 'font-medium', 'tabular-nums')
     const fill = bar.querySelector('[data-fill]')
     expect(fill).toHaveClass('bg-success', 'rounded-full')
     // The 6px rounded bar of the prototype's exams, on the surface-muted track.
@@ -343,30 +343,30 @@ describe('ProgressBar', () => {
   })
 
   it('max defaults to 100, and a value outside the range is clamped', () => {
-    const { rerender } = render(<ProgressBar label="התקדמות" value={250} valueText="הכול" />)
-    const bar = screen.getByRole('progressbar', { name: 'התקדמות' })
+    const { rerender } = render(<ProgressBar label="Progress" value={250} valueText="All" />)
+    const bar = screen.getByRole('progressbar', { name: 'Progress' })
     expect(bar).toHaveAttribute('aria-valuenow', '100')
     expect(bar).toHaveAttribute('aria-valuemax', '100')
     expect((bar.querySelector('[data-fill]') as HTMLElement).style.width).toBe('100%')
 
-    rerender(<ProgressBar label="התקדמות" value={-5} valueText="כלום" />)
+    rerender(<ProgressBar label="Progress" value={-5} valueText="None" />)
     expect(bar).toHaveAttribute('aria-valuenow', '0')
     expect((bar.querySelector('[data-fill]') as HTMLElement).style.width).toBe('0%')
   })
 
   it.each([0, -10])('max of %d shows an empty bar and does not throw', (max) => {
-    render(<ProgressBar label="התקדמות" value={30} max={max} valueText="אין משימות" />)
-    const bar = screen.getByRole('progressbar', { name: 'התקדמות' })
+    render(<ProgressBar label="Progress" value={30} max={max} valueText="No tasks" />)
+    const bar = screen.getByRole('progressbar', { name: 'Progress' })
     expect(bar).toHaveAttribute('aria-valuenow', '0')
-    expect(bar).toHaveAttribute('aria-valuetext', 'אין משימות')
+    expect(bar).toHaveAttribute('aria-valuetext', 'No tasks')
     expect((bar.querySelector('[data-fill]') as HTMLElement).style.width).toBe('0%')
   })
 })
 
 describe('ProgressBar without a visible label', () => {
   it('is named by aria-label, says the rounded percentage, and draws only the track', () => {
-    render(<ProgressBar aria-label="התקדמות המבחן" value={2} max={5} />)
-    const bar = screen.getByRole('progressbar', { name: 'התקדמות המבחן' })
+    render(<ProgressBar aria-label="Exam progress" value={2} max={5} />)
+    const bar = screen.getByRole('progressbar', { name: 'Exam progress' })
     expect(bar).toHaveAttribute('aria-valuenow', '2')
     expect(bar).toHaveAttribute('aria-valuetext', '40%')
     expect(bar).toHaveTextContent('')
@@ -376,16 +376,16 @@ describe('ProgressBar without a visible label', () => {
   })
 
   it('with a valueText and no label, shows the value alone at the end of the row', () => {
-    render(<ProgressBar aria-label="התקדמות המבחן" value={2} max={5} valueText="2 מתוך 5" />)
-    const bar = screen.getByRole('progressbar', { name: 'התקדמות המבחן' })
-    expect(bar).toHaveAttribute('aria-valuetext', '2 מתוך 5')
-    expect(within(bar).getByText('2 מתוך 5')).toHaveClass('ms-auto', 'tabular-nums')
+    render(<ProgressBar aria-label="Exam progress" value={2} max={5} valueText="2 of 5" />)
+    const bar = screen.getByRole('progressbar', { name: 'Exam progress' })
+    expect(bar).toHaveAttribute('aria-valuetext', '2 of 5')
+    expect(within(bar).getByText('2 of 5')).toHaveClass('ms-auto', 'tabular-nums')
     expect(bar.children).toHaveLength(2)
   })
 
   it('with a visible label and no valueText, shows the rounded percentage at the end of the row', () => {
-    render(<ProgressBar label="התקדמות היום" value={60} max={345} />)
-    const bar = screen.getByRole('progressbar', { name: 'התקדמות היום' })
+    render(<ProgressBar label="Progress for today" value={60} max={345} />)
+    const bar = screen.getByRole('progressbar', { name: 'Progress for today' })
     expect(bar).toHaveAttribute('aria-valuetext', '17%')
     expect(within(bar).getByText('17%')).toHaveClass('text-small', 'font-medium', 'tabular-nums')
   })
@@ -397,11 +397,11 @@ describe('TextLink', () => {
     render(
       <MemoryRouter>
         <TextLink to="/exams" className="inline-flex min-h-touch items-center">
-          לכל המבחנים
+          All exams
         </TextLink>
       </MemoryRouter>,
     )
-    const link = screen.getByRole('link', { name: 'לכל המבחנים' })
+    const link = screen.getByRole('link', { name: 'All exams' })
     expect(link).toHaveAttribute('href', '/exams')
     expect(link).toHaveClass('text-brand-strong', 'underline', 'hover:text-brand-strong', 'min-h-touch')
     expect(link).toHaveClass('outline-none', 'focus-visible:ring-2', 'focus-visible:ring-brand')
@@ -410,8 +410,8 @@ describe('TextLink', () => {
   })
 
   it('with `href` to another site it is a plain link that opens in a new tab', () => {
-    render(<TextLink href="https://example.com/terms">תנאי השימוש</TextLink>)
-    const link = screen.getByRole('link', { name: 'תנאי השימוש' })
+    render(<TextLink href="https://example.com/terms">Terms of use</TextLink>)
+    const link = screen.getByRole('link', { name: 'Terms of use' })
     expect(link).toHaveAttribute('href', 'https://example.com/terms')
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noreferrer')
@@ -421,10 +421,10 @@ describe('TextLink', () => {
   it.each(['mailto:support@example.com', '/files/terms.pdf', '#top'])('with the href %s it stays in the same tab', (href) => {
     render(
       <TextLink href={href} className="text-small">
-        קישור
+        Link
       </TextLink>,
     )
-    const link = screen.getByRole('link', { name: 'קישור' })
+    const link = screen.getByRole('link', { name: 'Link' })
     expect(link).toHaveAttribute('href', href)
     expect(link).not.toHaveAttribute('target')
     expect(link).not.toHaveAttribute('rel')

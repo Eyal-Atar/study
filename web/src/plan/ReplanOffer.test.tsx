@@ -112,7 +112,7 @@ describe('ReplanOffer', () => {
     expect(fake.calls('POST', '/plan/replan')).toHaveLength(1)
   })
 
-  it('during the onboarding, an empty board says there is nothing to schedule yet, without "אישור"', async () => {
+  it('during the onboarding, an empty board says there is nothing to schedule yet, without "Confirm"', async () => {
     const fake = server([previewFixture({ changed: false })])
     fake.on('GET /me', meFixture({ onboarding_completed_at: null }))
     wrap(fake, <ReplanOffer isOpen onClose={vi.fn()} />)
@@ -123,7 +123,7 @@ describe('ReplanOffer', () => {
     expect(screen.getByRole('button', { name: en.replan.understood })).toBeInTheDocument()
   })
 
-  it('a board with unscheduled tasks still offers "אישור" although nothing is placed', async () => {
+  it('a board with unscheduled tasks still offers "Confirm" although nothing is placed', async () => {
     const fake = server([
       previewFixture({ changed: false, unscheduled: [{ task_id: 't7', minutes: 60, reason: 'not_enough_time', blocked_by: null }] }),
     ])
@@ -131,7 +131,7 @@ describe('ReplanOffer', () => {
     expect(await screen.findByRole('button', { name: en.replan.confirm })).toBeEnabled()
   })
 
-  it('"אישור" applies with the basis of the preview, then closes', async () => {
+  it('"Confirm" applies with the basis of the preview, then closes', async () => {
     const user = userEvent.setup()
     const fake = server()
     const onClose = vi.fn()
@@ -149,7 +149,7 @@ describe('ReplanOffer', () => {
     expect(await screen.findByText(en.replan.applied)).toBeInTheDocument()
   })
 
-  it('"הלוח עודכן" shows also when the offer is gone before the apply answers', async () => {
+  it('"Calendar updated" shows also when the offer is gone before the apply answers', async () => {
     const user = userEvent.setup()
     const fake = server()
     let answer: (value: unknown) => void = () => undefined
@@ -175,7 +175,7 @@ describe('ReplanOffer', () => {
     expect(await screen.findByText(en.replan.applied)).toBeInTheDocument()
   })
 
-  it('stale_plan runs a new preview, and the next "אישור" sends its basis', async () => {
+  it('stale_plan runs a new preview, and the next "Confirm" sends its basis', async () => {
     const user = userEvent.setup()
     const fake = server([preview, { ...preview, basis: 'b2' }])
     let applies = 0
@@ -203,7 +203,7 @@ describe('ReplanOffer', () => {
     expect(fake.calls('POST', '/plan/replan').at(-1)?.body).toEqual({ preview: false, basis: 'b2' })
   })
 
-  it('"לא עכשיו" closes without applying', async () => {
+  it('"Not now" closes without applying', async () => {
     const user = userEvent.setup()
     const fake = server()
     const onClose = vi.fn()
@@ -231,7 +231,7 @@ describe('ReplanOffer', () => {
 })
 
 describe('ReplanOffer as a dialog', () => {
-  it('says it is computing while the preview is on its way, with "אישור" disabled', async () => {
+  it('says it is computing while the preview is on its way, with "Confirm" disabled', async () => {
     const fake = server()
     fake.on('POST /plan/replan', () => new Promise(() => undefined))
     wrap(fake, <ReplanOffer isOpen onClose={vi.fn()} />)
@@ -241,7 +241,7 @@ describe('ReplanOffer as a dialog', () => {
     expect(dialog.getByRole('button', { name: en.replan.notNow })).toBeEnabled()
   })
 
-  it('"אישור" shows that it is on its way and is sent once', async () => {
+  it('"Confirm" shows that it is on its way and is sent once', async () => {
     const user = userEvent.setup()
     const fake = server()
     fake.on('POST /plan/replan', (call: ApiCall) => ((call.body as { preview: boolean }).preview ? preview : new Promise(() => undefined)))
@@ -256,7 +256,7 @@ describe('ReplanOffer as a dialog', () => {
     expect(fake.calls('POST', '/plan/replan')).toHaveLength(2)
   })
 
-  it('a failed apply says why under the summary, and "אישור" can be pressed again', async () => {
+  it('a failed apply says why under the summary, and "Confirm" can be pressed again', async () => {
     const user = userEvent.setup()
     const fake = server()
     const failure = problem(503, 'database_unavailable')

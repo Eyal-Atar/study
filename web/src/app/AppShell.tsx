@@ -18,7 +18,7 @@ import { useRouteFocus } from './useRouteFocus'
 // The three destinations of the redesign (S31): the calendar, the exams and the progress. Settings
 // and sign out are not destinations: they live in the profile menu. The paths are literals because
 // routes.tsx imports this file. The calendar is current also on ?view=week: NavLink compares the
-// pathname only. "יומן" asks for the day (DAY_CHOSEN): from the week, CalendarPage would otherwise
+// pathname only. "Calendar" asks for the day (DAY_CHOSEN): from the week, CalendarPage would otherwise
 // take the move for one of the week's own and put ?view=week back (S31 decision 30). The progress
 // is a sprout, the leaf of the mockup's bottom bar (decision 29).
 const DESTINATIONS: readonly { to: string; label: string; icon: LucideIcon; state?: unknown }[] = [

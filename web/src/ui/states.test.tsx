@@ -20,7 +20,7 @@ describe('Skeleton', () => {
 })
 
 describe('LoadingState', () => {
-  it('is a status that says "טוען…" to screen readers only, over three list rows by default', () => {
+  it('is a status that says "Loading…" to screen readers only, over three list rows by default', () => {
     render(<LoadingState />)
     const status = screen.getByRole('status')
     expect(status).toHaveTextContent(en.common.loading)
@@ -63,8 +63,8 @@ describe('LoadingState', () => {
   })
 
   it('takes another label', () => {
-    render(<LoadingState label="שומרים…" />)
-    expect(screen.getByRole('status')).toHaveTextContent('שומרים…')
+    render(<LoadingState label="Saving…" />)
+    expect(screen.getByRole('status')).toHaveTextContent('Saving…')
   })
 })
 
@@ -73,10 +73,10 @@ describe('EmptyState', () => {
     const user = userEvent.setup()
     const onPress = vi.fn()
     const { container } = render(
-      <EmptyState icon={Inbox} title="עוד אין מבחנים" description="מוסיפים מבחן, ומקבלים לוח לימודים." action={<Button onPress={onPress}>הוספת מבחן</Button>} />,
+      <EmptyState icon={Inbox} title="No exams yet" description="Add an exam and get a study plan." action={<Button onPress={onPress}>Add an exam</Button>} />,
     )
-    expect(screen.getByText('עוד אין מבחנים')).toHaveClass('text-body', 'font-semibold', 'text-ink')
-    expect(screen.getByText('מוסיפים מבחן, ומקבלים לוח לימודים.')).toHaveClass('text-small', 'text-ink-muted', 'max-w-prose')
+    expect(screen.getByText('No exams yet')).toHaveClass('text-body', 'font-semibold', 'text-ink')
+    expect(screen.getByText('Add an exam and get a study plan.')).toHaveClass('text-small', 'text-ink-muted', 'max-w-prose')
     expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     // The icon sits in a soft brand circle, like the avatar of the prototype.
     expect(container.querySelector('svg')?.parentElement).toHaveClass('rounded-full', 'bg-brand-soft', 'text-brand-strong')
@@ -84,19 +84,19 @@ describe('EmptyState', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'הוספת מבחן' }))
+    await user.click(screen.getByRole('button', { name: 'Add an exam' }))
     expect(onPress).toHaveBeenCalledOnce()
   })
 
   it('works with a title alone', () => {
-    render(<EmptyState icon={Inbox} title="אין משימות להיום" />)
-    expect(screen.getByText('אין משימות להיום')).toBeInTheDocument()
+    render(<EmptyState icon={Inbox} title="No tasks today" />)
+    expect(screen.getByText('No tasks today')).toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
   it('draws no icon when none is given', () => {
-    const { container } = render(<EmptyState title="אין משימות להיום" description="אפשר לנוח." />)
-    expect(screen.getByText('אין משימות להיום')).toBeInTheDocument()
+    const { container } = render(<EmptyState title="No tasks today" description="You can rest." />)
+    expect(screen.getByText('No tasks today')).toBeInTheDocument()
     expect(container.querySelector('svg')).toBeNull()
   })
 })
@@ -127,7 +127,7 @@ describe('ErrorState', () => {
   })
 
   it('takes another retry label', () => {
-    render(<ErrorState onRetry={vi.fn()} retryLabel="לטעון מחדש" />)
-    expect(screen.getByRole('button', { name: 'לטעון מחדש' })).toBeInTheDocument()
+    render(<ErrorState onRetry={vi.fn()} retryLabel="Reload" />)
+    expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument()
   })
 })

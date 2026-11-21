@@ -22,7 +22,7 @@ export interface ReplanOfferProps {
 }
 
 // The offer to replan the board: POST /plan/replan {preview: true} when it opens, a summary of what
-// would change, and "אישור" that sends {preview: false, basis}. A board that changed in between
+// would change, and "Confirm" that sends {preview: false, basis}. A board that changed in between
 // (stale_plan) gets a fresh preview.
 // The buttons of ui/Dialog are a prop of it and not its children, and they depend on the preview,
 // so the preview cannot live in a child of the dialog. ReplanSession holds it, and gets a new key
@@ -92,7 +92,7 @@ function ReplanSession({
   }
 
   const applyFailed = apply.isError && apply.error.code !== 'stale_plan'
-  // Nothing to place, move or report: "אישור" would write nothing, so only closing is offered.
+  // Nothing to place, move or report: "Confirm" would write nothing, so only closing is offered.
   const empty = preview.isSuccess && isEmpty(preview.data)
 
   return (
@@ -179,7 +179,7 @@ function PreviewSummary({ preview }: { preview: ReplanPreview }) {
   const nothing = preview.added.length === 0 && preview.removed.length === 0
   return (
     <div className="flex flex-col gap-3">
-      {/* What "אישור" would do is the one thing to read here, so it alone is body text in semibold. */}
+      {/* What "Confirm" would do is the one thing to read here, so it alone is body text in semibold. */}
       {nothing ? (
         <p className="text-body text-ink">{en.replan.noChange}</p>
       ) : (

@@ -16,6 +16,7 @@ import { EmptyState, ErrorState, LoadingState } from '../ui/states'
 import { ICON_STROKE } from '../ui/styles'
 import { TextField } from '../ui/TextField'
 import { useToast } from '../ui/useToast'
+import { UserText } from '../ui/UserText'
 import { useCreateExam, useDeleteExam, useExams, useUndo, type Exam } from './api'
 import { OnboardingLayout } from './OnboardingLayout'
 import { STEP_PATHS } from './steps'
@@ -242,8 +243,8 @@ export function ExamsStep() {
             {visible.map((exam) => (
               <ListRow
                 key={exam.id}
-                // An exam name can be in any language: <bdi> isolates its direction.
-                title={<bdi>{exam.name}</bdi>}
+                // An exam name can be in any language: <UserText> isolates its direction.
+                title={<UserText>{exam.name}</UserText>}
                 subtitle={
                   <span className="tabular-nums">{t.details(longDate(exam.exam_date), difficultyLabel(exam.difficulty))}</span>
                 }

@@ -6,20 +6,20 @@ import { en } from '../i18n/en'
 import { Button } from './Button'
 import { Dialog, type DialogProps } from './Dialog'
 
-function setup({ children = <p>תוכן</p>, ...props }: Partial<DialogProps> = {}) {
+function setup({ children = <p>Content</p>, ...props }: Partial<DialogProps> = {}) {
   const onOpenChange = vi.fn()
   render(
     <>
-      <Button variant="secondary">מחוץ לדיאלוג</Button>
+      <Button variant="secondary">Outside the dialog</Button>
       <Dialog
-        title="מחיקת המבחן"
-        description="אי אפשר לבטל את המחיקה."
+        title="Delete the exam"
+        description="This cannot be undone."
         isOpen
         onOpenChange={onOpenChange}
         footer={
           <>
-            <Button className="flex-1">אישור</Button>
-            <Button variant="secondary">לא עכשיו</Button>
+            <Button className="flex-1">Confirm</Button>
+            <Button variant="secondary">Not now</Button>
           </>
         }
         {...props}
@@ -48,9 +48,9 @@ function Harness() {
           setOpen(true)
         }}
       >
-        פתיחה
+        Open
       </Button>
-      <Dialog title="כותרת" isOpen={isOpen} onOpenChange={setOpen} footer={<Button>אישור</Button>} />
+      <Dialog title="Title" isOpen={isOpen} onOpenChange={setOpen} footer={<Button>Confirm</Button>} />
     </>
   )
 }
@@ -59,15 +59,15 @@ describe('Dialog', () => {
   it('renders nothing while closed', () => {
     setup({ isOpen: false })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(screen.queryByText('תוכן')).not.toBeInTheDocument()
+    expect(screen.queryByText('Content')).not.toBeInTheDocument()
   })
 
   it('is a dialog named by its title and described by its description', () => {
     setup()
-    const dialog = screen.getByRole('dialog', { name: 'מחיקת המבחן' })
-    expect(dialog).toHaveAccessibleDescription('אי אפשר לבטל את המחיקה.')
-    expect(screen.getByRole('heading', { name: 'מחיקת המבחן' })).toBeInTheDocument()
-    expect(dialog).toHaveTextContent('תוכן')
+    const dialog = screen.getByRole('dialog', { name: 'Delete the exam' })
+    expect(dialog).toHaveAccessibleDescription('This cannot be undone.')
+    expect(screen.getByRole('heading', { name: 'Delete the exam' })).toBeInTheDocument()
+    expect(dialog).toHaveTextContent('Content')
   })
 
   it('has no description link when there is no description', () => {
@@ -83,7 +83,7 @@ describe('Dialog', () => {
       expect(dialog).toContainElement(document.activeElement as HTMLElement)
     })
     // The page behind is hidden from assistive technology, and Tab never reaches it.
-    const outside = screen.getByRole('button', { name: 'מחוץ לדיאלוג', hidden: true })
+    const outside = screen.getByRole('button', { name: 'Outside the dialog', hidden: true })
     const visited = new Set<Element | null>()
     // Three buttons inside (close, confirm, not now): five tabs go around more than once.
     for (let i = 0; i < 5; i++) {
@@ -92,8 +92,8 @@ describe('Dialog', () => {
       expect(outside).not.toHaveFocus()
       visited.add(document.activeElement)
     }
-    expect(visited).toContain(screen.getByRole('button', { name: 'אישור' }))
-    expect(visited).toContain(screen.getByRole('button', { name: 'לא עכשיו' }))
+    expect(visited).toContain(screen.getByRole('button', { name: 'Confirm' }))
+    expect(visited).toContain(screen.getByRole('button', { name: 'Not now' }))
     expect(visited).toContain(screen.getByRole('button', { name: en.common.close }))
   })
 
@@ -121,15 +121,15 @@ describe('Dialog', () => {
   it('a press inside does not ask to close', async () => {
     const user = userEvent.setup()
     const { onOpenChange } = setup()
-    await user.click(screen.getByText('תוכן'))
+    await user.click(screen.getByText('Content'))
     expect(onOpenChange).not.toHaveBeenCalled()
   })
 
   it('an alertdialog has no close button and ignores a press outside, but Escape still closes it', async () => {
     const user = userEvent.setup()
     const { onOpenChange } = setup({ role: 'alertdialog' })
-    const dialog = screen.getByRole('alertdialog', { name: 'מחיקת המבחן' })
-    expect(dialog).toHaveAccessibleDescription('אי אפשר לבטל את המחיקה.')
+    const dialog = screen.getByRole('alertdialog', { name: 'Delete the exam' })
+    expect(dialog).toHaveAccessibleDescription('This cannot be undone.')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: en.common.close })).not.toBeInTheDocument()
 
@@ -154,9 +154,9 @@ describe('Dialog', () => {
   it('gives the focus back to the button that opened it', async () => {
     const user = userEvent.setup()
     render(<Harness />)
-    const opener = screen.getByRole('button', { name: 'פתיחה' })
+    const opener = screen.getByRole('button', { name: 'Open' })
     await user.click(opener)
-    const dialog = await screen.findByRole('dialog', { name: 'כותרת' })
+    const dialog = await screen.findByRole('dialog', { name: 'Title' })
     await waitFor(() => {
       expect(dialog).toContainElement(document.activeElement as HTMLElement)
     })
@@ -167,7 +167,7 @@ describe('Dialog', () => {
     })
     // React Aria restores the focus on the next frame.
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'פתיחה' })).toHaveFocus()
+      expect(screen.getByRole('button', { name: 'Open' })).toHaveFocus()
     })
   })
 
@@ -226,13 +226,13 @@ describe('Dialog', () => {
     try {
       setup({
         onSubmit,
-        children: <input aria-label="שם המבחן" />,
+        children: <input aria-label="Exam name" />,
         footer: (
           <>
             <Button type="submit" className="flex-1">
-              שמירה
+              Save
             </Button>
-            <Button variant="secondary">לא עכשיו</Button>
+            <Button variant="secondary">Not now</Button>
           </>
         ),
       })
@@ -240,19 +240,19 @@ describe('Dialog', () => {
       const form = dialog.querySelector('form') as HTMLFormElement
       // The form carries the same column as the dialog, so the layout is the same with and without it.
       expect(form).toHaveClass('flex', 'flex-col', 'gap-4')
-      expect(form).toContainElement(screen.getByRole('textbox', { name: 'שם המבחן' }))
-      expect(form).toContainElement(screen.getByRole('button', { name: 'שמירה' }))
+      expect(form).toContainElement(screen.getByRole('textbox', { name: 'Exam name' }))
+      expect(form).toContainElement(screen.getByRole('button', { name: 'Save' }))
       // The title and the close button stay outside the form.
-      expect(form).not.toContainElement(screen.getByRole('heading', { name: 'מחיקת המבחן' }))
+      expect(form).not.toContainElement(screen.getByRole('heading', { name: 'Delete the exam' }))
 
-      await user.type(screen.getByRole('textbox', { name: 'שם המבחן' }), 'אלגוריתמים{Enter}')
+      await user.type(screen.getByRole('textbox', { name: 'Exam name' }), 'אלגוריתמים{Enter}')
       expect(onSubmit).toHaveBeenCalledTimes(1)
 
-      await user.click(screen.getByRole('button', { name: 'שמירה' }))
+      await user.click(screen.getByRole('button', { name: 'Save' }))
       expect(onSubmit).toHaveBeenCalledTimes(2)
 
       // A button that is not a submit does not submit.
-      await user.click(screen.getByRole('button', { name: 'לא עכשיו' }))
+      await user.click(screen.getByRole('button', { name: 'Not now' }))
       expect(onSubmit).toHaveBeenCalledTimes(2)
 
       expect(prevented).toEqual([true, true])

@@ -7,7 +7,7 @@ export interface CheckButtonProps {
   // Called with the state that was asked for (!isDone). The button is controlled: it shows
   // `isDone`, so the caller decides when the row turns (at once, or after the save).
   onChange: (isDone: boolean) => void
-  // The name carries the item, since the button repeats in a list: "בוצע: תרגול תוחלת".
+  // The name carries the item, since the button repeats in a list: "Done: Expectation practice".
   'aria-label': string
   isDisabled?: boolean | undefined
 }

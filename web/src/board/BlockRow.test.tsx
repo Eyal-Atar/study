@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it } from 'vitest'
+import { isolate } from '../i18n/bidi'
 import { en } from '../i18n/en'
 import { makeBlock, makeMe, makePlan, makeToday, renderBoard } from '../test/boardFixtures'
 import { createFakeApi } from '../test/fakeApi'
@@ -135,7 +136,7 @@ describe('BlockRow', () => {
     setupRow(makeBlock({ state: 'done', status: 'done' }))
     expect(names(rowEl())).toEqual([en.board.uncompleteLabel(TITLE)])
     expect(row().getByRole('button', { name: en.board.uncompleteLabel(TITLE) })).toHaveAttribute('aria-pressed', 'true')
-    expect(row().getByText(TITLE)).toHaveClass('line-through')
+    expect(row().getByText(TITLE).parentElement).toHaveClass('line-through')
     // The check and the line already say it (S27 decision 5).
     expect(row().queryByText(en.board.states.done)).not.toBeInTheDocument()
   })
@@ -145,7 +146,7 @@ describe('BlockRow', () => {
     expect(row().getByText(en.board.states.in_progress)).toBeInTheDocument()
     unmount()
     setupRow(planned('upcoming'))
-    expect(row().getByText(TITLE)).not.toHaveClass('line-through')
+    expect(row().getByText(TITLE).parentElement).not.toHaveClass('line-through')
     for (const text of Object.values(en.board.states)) {
       expect(row().queryByText(text)).not.toBeInTheDocument()
     }
@@ -154,16 +155,16 @@ describe('BlockRow', () => {
   it('shows the part when the task is split, and not otherwise', () => {
     const { unmount } = setupRow(makeBlock({ part_index: 2, part_count: 3 }))
     expect(row().getByText(new RegExp(en.board.part(2, 3)))).toBeInTheDocument()
-    expect(en.board.part(2, 3)).toBe('חלק 2 מתוך 3')
+    expect(en.board.part(2, 3)).toBe('Part 2 of 3')
     unmount()
     setupRow(makeBlock())
-    expect(row().queryByText(/מתוך/)).not.toBeInTheDocument()
+    expect(row().queryByText(/Part \d of \d/)).not.toBeInTheDocument()
   })
 
   it('a split block names the menu, the menu button and the check button with its part', async () => {
     const user = userEvent.setup()
     setupRow(makeBlock({ part_index: 1, part_count: 2 }))
-    const name = 'פרק 3: גרפים (חלק 1 מתוך 2)'
+    const name = en.board.partName(TITLE, en.board.part(1, 2))
     expect(blockName(makeBlock({ part_index: 1, part_count: 2 }))).toBe(name)
     expect(blockName(makeBlock())).toBe(TITLE)
     expect(names(rowEl())).toEqual([en.board.actionsLabel(name), en.board.completeLabel(name)])
@@ -199,7 +200,7 @@ describe('BlockRow', () => {
     expect(meta).toHaveTextContent(en.board.hour)
     expect(meta.textContent).toBe(en.board.meta('אלגוריתמים', en.board.kinds.learn, en.board.hour))
     // The exam's name is isolated, so a Latin name does not reorder the line.
-    expect(en.board.meta('הסתברות', 'תרגול', 'שעה').replace(/[⁨⁩]/g, '')).toBe('הסתברות, תרגול. שעה')
+    expect(en.board.meta('Probability', en.board.kinds.practice, en.board.hour)).toBe(`${isolate('Probability')}, Practice. 1 hour`)
     expect(rowOf(TITLE)).not.toHaveTextContent('·')
   })
 
@@ -332,12 +333,18 @@ describe('BlockRow', () => {
     answer.resolve({ blocks: [], version_id: null })
   })
 
+  it('shows the title as user content: it takes its own direction', () => {
+    setupRow(makeBlock())
+    expect(row().getByText(TITLE).closest('[dir="auto"]')).not.toBeNull()
+  })
+
   it('a long title without spaces wraps inside the row', () => {
     const title = 'א'.repeat(120)
     setupRow(makeBlock({ task_title: title }))
     const text = screen.getByText(title)
-    expect(text).toHaveClass('break-words')
-    expect(text.parentElement).toHaveClass('min-w-0')
+    // The title is inside <UserText>; the row's title element around it wraps.
+    expect(text.parentElement).toHaveClass('break-words')
+    expect(text.parentElement?.parentElement).toHaveClass('min-w-0')
   })
 })
 
@@ -408,7 +415,7 @@ describe('NextBlock', () => {
     expect(next().getByText(en.board.states.in_progress)).toBeInTheDocument()
     unmount()
     setupNext(planned('upcoming'))
-    // "בוצע" is also the complete button, so look only at what is not a button.
+    // "Done" is also the complete button, so look only at what is not a button.
     for (const text of Object.values(en.board.states)) {
       expect(next().queryByText(text, { ignore: 'button, button *' })).not.toBeInTheDocument()
     }
@@ -424,12 +431,12 @@ describe('NextBlock', () => {
     expect(next().getByText(new RegExp(en.board.part(2, 3)))).toBeInTheDocument()
     unmount()
     setupNext(makeBlock())
-    expect(next().queryByText(/מתוך/)).not.toBeInTheDocument()
+    expect(next().queryByText(/Part \d of \d/)).not.toBeInTheDocument()
   })
 
   it('a split block names every button with its part, and the heading keeps the title', () => {
     setupNext(makeBlock({ part_index: 2, part_count: 3 }))
-    const name = 'פרק 3: גרפים (חלק 2 מתוך 3)'
+    const name = en.board.partName(TITLE, en.board.part(2, 3))
     expect(names(nextEl())).toEqual([en.board.completeLabel(name), en.board.deferLabel(name), en.board.actionsLabel(name)])
     expect(next().getByRole('heading', { level: 3, name: TITLE })).toBeInTheDocument()
   })
@@ -439,7 +446,7 @@ describe('NextBlock', () => {
     const meta = next().getByText(/אלגוריתמים/)
     expect(meta).toHaveTextContent(en.board.kinds.learn)
     expect(meta).toHaveTextContent(en.board.hour)
-    expect(meta.textContent.replace(/[⁨⁩]/g, '')).toBe('14:00–15:00, שעה. אלגוריתמים, לימוד')
+    expect(meta.textContent).toBe(`14:00–15:00${en.board.nextMeta(en.board.hour, 'אלגוריתמים', en.board.kinds.learn)}`)
   })
 
   it('shows the times in the given timezone, left to right', () => {

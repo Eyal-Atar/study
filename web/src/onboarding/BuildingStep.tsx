@@ -16,6 +16,7 @@ import { Note } from '../ui/Note'
 import { ProgressBar } from '../ui/ProgressBar'
 import { SectionHeading } from '../ui/SectionHeading'
 import { ICON_STROKE } from '../ui/styles'
+import { UserText } from '../ui/UserText'
 import { forgetJob, rememberJob } from './activeJob'
 import { materialsKey, POLL_INTERVAL_MS, useExams, useGenerate, useJob } from './api'
 import { OnboardingLayout } from './OnboardingLayout'
@@ -153,7 +154,7 @@ export function BuildingStep() {
   )
 
   let body
-  // With the plan ready the step has one action, in the same place as the "המשך" of the other steps.
+  // With the plan ready the step has one action, in the same place as the "Continue" of the other steps.
   let actions: ReactNode
   if (generate.isError) {
     body = (
@@ -317,13 +318,13 @@ function Summary({ result, examName }: { result: GenerateResult; examName: (id: 
           {result.exams.map((exam) => (
             <ListRow
               key={exam.exam_id}
-              title={<bdi>{examName(exam.exam_id)}</bdi>}
+              title={<UserText>{examName(exam.exam_id)}</UserText>}
               subtitle={
                 <>
                   {exam.status === 'analyzed' ? <p className="tabular-nums">{en.building.examTasks(exam.tasks)}</p> : null}
                   {exam.status === 'skipped' ? <p>{en.building.examSkipped}</p> : null}
                   {exam.status === 'failed' ? (
-                    // The icon and the words "לא נותח" carry the state; the colour only repeats it.
+                    // The icon and the words "Not analysed" carry the state; the colour only repeats it.
                     <p className="text-danger">
                       <CircleAlert aria-hidden="true" size={14} strokeWidth={ICON_STROKE} className="me-1 inline-block align-[-0.125em]" />
                       {en.building.examFailed} {codeText(exam.error ?? '')}

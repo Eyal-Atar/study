@@ -62,7 +62,7 @@ export function useCreateExam(): UseMutationResult<ExamResponse, ApiError, ExamC
   })
 }
 
-// The answer's version_id is what useUndo takes back (the "בטל" of the toast).
+// The answer's version_id is what useUndo takes back (the "Undo" of the toast).
 export function useDeleteExam(): UseMutationResult<ExamDeleteResponse, ApiError, string> {
   const api = useApi()
   const userId = useUserId()
@@ -143,7 +143,7 @@ export function useMaterials(examId: string | null): UseQueryResult<Material[], 
   })
 }
 
-// DELETE /materials/{id}: a hard delete, so the screen delays it behind the toast's "בטל" (S13, 10 seconds).
+// DELETE /materials/{id}: a hard delete, so the screen delays it behind the toast's "Undo" (S13, 10 seconds).
 export function useDeleteMaterial(): UseMutationResult<undefined, ApiError, string> {
   const api = useApi()
   const userId = useUserId()

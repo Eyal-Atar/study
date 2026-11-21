@@ -13,7 +13,7 @@ export interface RegisterAnswer {
 export type LeadMinutes = 0 | 5 | 10 | 15
 
 // POST /push/subscriptions: an upsert by endpoint, so sending the same subscription again is safe.
-// The id is remembered for this user and endpoint, for the DELETE of "כיבוי".
+// The id is remembered for this user and endpoint, for the DELETE of "Turn off".
 export function useRegisterSubscription(): UseMutationResult<RegisterAnswer, ApiError, SubscriptionBody> {
   const api = useApi()
   const userId = useUserId()

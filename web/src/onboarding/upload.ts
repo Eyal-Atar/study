@@ -67,9 +67,11 @@ function isDuplicateObject(error: unknown): boolean {
 // so they are the default. The user can change it before the upload.
 export function guessKind(filename: string): MaterialKind {
   const name = filename.toLowerCase()
-  if (name.includes('פתרון') || name.includes('solution')) return 'solution'
-  if (name.includes('סילבוס') || name.includes('syllabus')) return 'syllabus'
-  if (name.includes('סיכום') || name.includes('summary')) return 'summary'
+  // The Hebrew words are written as escapes: the source holds no Hebrew letters, but students name files
+  // in Hebrew (solution, syllabus, summary).
+  if (name.includes('\u05E4\u05EA\u05E8\u05D5\u05DF') || name.includes('solution')) return 'solution'
+  if (name.includes('\u05E1\u05D9\u05DC\u05D1\u05D5\u05E1') || name.includes('syllabus')) return 'syllabus'
+  if (name.includes('\u05E1\u05D9\u05DB\u05D5\u05DD') || name.includes('summary')) return 'summary'
   return 'past_exam'
 }
 

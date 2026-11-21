@@ -95,6 +95,10 @@ function fileInput(container: HTMLElement): HTMLInputElement {
   return input
 }
 
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 afterEach(() => {
   vi.useRealTimers()
 })
@@ -105,8 +109,8 @@ describe('MaterialsStep', () => {
     setup({ fake })
 
     expect(await screen.findByRole('heading', { name: 'חדו"א' })).toBeInTheDocument()
-    expect(screen.getByText(/לא חובה/)).toBeInTheDocument()
-    expect(screen.getByText(/מבחני עבר עם פתרונות/)).toBeInTheDocument()
+    expect(screen.getByText(/optional/)).toBeInTheDocument()
+    expect(screen.getByText(/Past exams with solutions/)).toBeInTheDocument()
     expect(screen.getByText(/Anthropic/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: en.onboardingMaterials.addFilesFor('חדו"א') })).toBeInTheDocument()
     expect(fileInput(document.body)).toHaveAttribute('accept', expect.stringContaining('application/pdf') as string)
@@ -132,15 +136,15 @@ describe('MaterialsStep', () => {
     // The row shows the name without its extension; the type is in the subtitle, after the kind.
     const row = (await screen.findByText('פתרון מבחן 2024')).closest('li')
     if (row === null) throw new Error('no row')
-    expect(within(row).getByText('מעלה…')).toBeInTheDocument()
+    expect(within(row).getByText(en.onboardingMaterials.uploading)).toBeInTheDocument()
     // The kind guessed from the name (decision 11).
-    expect(within(row).getByText('פתרון, PDF.')).toBeInTheDocument()
+    expect(within(row).getByText(en.onboardingMaterials.fileLead(en.onboardingMaterials.kinds.solution, 'PDF'))).toBeInTheDocument()
 
     await act(async () => {
       finishUpload({ error: null })
       await Promise.resolve()
     })
-    expect(await screen.findByText('קוראים את הקובץ…')).toBeInTheDocument()
+    expect(await screen.findByText(en.onboardingMaterials.processing)).toBeInTheDocument()
     expect(fake.calls('POST', '/exams/e1/materials')).toHaveLength(1)
     expect(fake.calls('POST', '/exams/e1/materials')[0]?.body).toMatchObject({ kind: 'solution', filename: 'פתרון מבחן 2024.pdf' })
 
@@ -148,8 +152,8 @@ describe('MaterialsStep', () => {
     if (registered === undefined) throw new Error('not registered')
     state.list = [{ ...registered, ingest_status: 'ready', page_count: 12 }]
     await act(() => vi.advanceTimersByTimeAsync(2000))
-    expect(await screen.findByText('מוכן, 12 עמודים')).toBeInTheDocument()
-    expect(screen.queryByText('קוראים את הקובץ…')).not.toBeInTheDocument()
+    expect(await screen.findByText(en.onboardingMaterials.ready(12))).toBeInTheDocument()
+    expect(screen.queryByText(en.onboardingMaterials.processing)).not.toBeInTheDocument()
   })
 
   it('uploads several picked files at once, each with its own guessed kind', async () => {
@@ -160,26 +164,26 @@ describe('MaterialsStep', () => {
     await user.upload(fileInput(container), [pdf('syllabus.pdf'), pdf('מועד א.pdf')])
 
     await waitFor(() => {
-      expect(screen.getAllByText('קוראים את הקובץ…')).toHaveLength(2)
+      expect(screen.getAllByText(en.onboardingMaterials.processing)).toHaveLength(2)
     })
     expect(fake.calls('POST', '/exams/e1/materials').map((c) => (c.body as MaterialRegister).kind).sort()).toEqual(['past_exam', 'syllabus'])
-    expect(screen.getByRole('button', { name: 'המשך' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.onboarding.continue })).toBeInTheDocument()
   })
 
-  it('shows a failed material with its error in Hebrew and a delete button', async () => {
+  it('shows a failed material with its error in words and a delete button', async () => {
     const { fake } = server([material({ ingest_status: 'failed', ingest_error: 'pdf_unreadable' })])
     setup({ fake })
 
-    expect(await screen.findByText(/לא הצלחנו לקרוא את ה-PDF/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'מחיקה: מבחן 2024.pdf' })).toBeInTheDocument()
+    expect(await screen.findByText(en.codes.pdf_unreadable)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.onboardingMaterials.deleteNamed('מבחן 2024.pdf') })).toBeInTheDocument()
   })
 
   it('shows the pages_truncated warning of a ready material', async () => {
     const { fake } = server([material({ ingest_status: 'ready', page_count: 300, warnings: ['pages_truncated'] })])
     setup({ fake })
 
-    expect(await screen.findByText('מוכן, 300 עמודים')).toBeInTheDocument()
-    expect(screen.getByText(/קראנו רק את העמודים הראשונים/)).toBeInTheDocument()
+    expect(await screen.findByText(en.onboardingMaterials.ready(300))).toBeInTheDocument()
+    expect(screen.getByText(en.codes.pages_truncated)).toBeInTheDocument()
   })
 
   it('hides a deleted material at once and sends DELETE only when the undo toast expires', async () => {
@@ -187,10 +191,10 @@ describe('MaterialsStep', () => {
     const { fake } = server([material({ ingest_status: 'ready', page_count: 4 })])
     const { user } = setup({ fake })
 
-    await user.click(await screen.findByRole('button', { name: 'מחיקה: מבחן 2024.pdf' }))
+    await user.click(await screen.findByRole('button', { name: en.onboardingMaterials.deleteNamed('מבחן 2024.pdf') }))
 
-    expect(screen.queryByText('מוכן, 4 עמודים')).not.toBeInTheDocument()
-    expect(await screen.findByText('הקובץ "מבחן 2024.pdf" יימחק')).toBeInTheDocument()
+    expect(screen.queryByText(en.onboardingMaterials.ready(4))).not.toBeInTheDocument()
+    expect(await screen.findByText(en.onboardingMaterials.deleted('מבחן 2024.pdf'))).toBeInTheDocument()
     await act(() => vi.advanceTimersByTimeAsync(9000))
     expect(fake.calls('DELETE')).toHaveLength(0)
 
@@ -198,7 +202,7 @@ describe('MaterialsStep', () => {
     await waitFor(() => {
       expect(fake.calls('DELETE')).toEqual([{ method: 'DELETE', path: '/materials/m1', body: undefined }])
     })
-    expect(screen.queryByText('מוכן, 4 עמודים')).not.toBeInTheDocument()
+    expect(screen.queryByText(en.onboardingMaterials.ready(4))).not.toBeInTheDocument()
   })
 
   it('brings a deleted material back on undo and never sends DELETE', async () => {
@@ -206,15 +210,15 @@ describe('MaterialsStep', () => {
     const { fake } = server([material({ ingest_status: 'ready', page_count: 4 })])
     const { user } = setup({ fake })
 
-    await user.click(await screen.findByRole('button', { name: 'מחיקה: מבחן 2024.pdf' }))
-    await user.click(await screen.findByRole('button', { name: 'בטל' }))
+    await user.click(await screen.findByRole('button', { name: en.onboardingMaterials.deleteNamed('מבחן 2024.pdf') }))
+    await user.click(await screen.findByRole('button', { name: en.common.undo }))
 
-    expect(await screen.findByText('מוכן, 4 עמודים')).toBeInTheDocument()
+    expect(await screen.findByText(en.onboardingMaterials.ready(4))).toBeInTheDocument()
     await act(() => vi.advanceTimersByTimeAsync(11000))
     expect(fake.calls('DELETE')).toHaveLength(0)
   })
 
-  it('shows a Storage failure in Hebrew, and "לנסות שוב" uploads the file again', async () => {
+  it('shows a Storage failure in English, and "Try again" uploads the file again', async () => {
     const { fake } = server()
     const storage = createFakeStorage()
     storage.upload.mockResolvedValueOnce({ error: new Error('bucket down') })
@@ -223,19 +227,19 @@ describe('MaterialsStep', () => {
 
     await user.upload(fileInput(container), pdf())
 
-    expect(await screen.findByText('אחסון הקבצים לא זמין כרגע. נסו שוב בעוד רגע.')).toBeInTheDocument()
-    expect(screen.queryByText('מעלה…')).not.toBeInTheDocument()
+    expect(await screen.findByText(en.codes.storage_unavailable)).toBeInTheDocument()
+    expect(screen.queryByText(en.onboardingMaterials.uploading)).not.toBeInTheDocument()
     expect(fake.calls('POST', '/exams/e1/materials')).toHaveLength(0)
 
-    await user.click(screen.getByRole('button', { name: 'לנסות שוב: מבחן 2024.pdf' }))
+    await user.click(screen.getByRole('button', { name: en.onboardingMaterials.retryNamed('מבחן 2024.pdf') }))
 
-    expect(await screen.findByText('קוראים את הקובץ…')).toBeInTheDocument()
+    expect(await screen.findByText(en.onboardingMaterials.processing)).toBeInTheDocument()
     expect(storage.upload).toHaveBeenCalledTimes(2)
     expect(fake.calls('POST', '/exams/e1/materials')).toHaveLength(1)
-    expect(screen.queryByText(/אחסון הקבצים/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/File storage/)).not.toBeInTheDocument()
   })
 
-  it('drops a failed upload with "הסרה"', async () => {
+  it('drops a failed upload with "Remove"', async () => {
     const { fake } = server()
     const storage = createFakeStorage()
     storage.upload.mockResolvedValueOnce({ error: new Error('bucket down') })
@@ -243,10 +247,10 @@ describe('MaterialsStep', () => {
     await screen.findByRole('heading', { name: 'חדו"א' })
 
     await user.upload(fileInput(container), pdf())
-    await user.click(await screen.findByRole('button', { name: 'הסרה: מבחן 2024.pdf' }))
+    await user.click(await screen.findByRole('button', { name: en.onboardingMaterials.removeNamed('מבחן 2024.pdf') }))
 
     expect(screen.queryByText('מבחן 2024')).not.toBeInTheDocument()
-    expect(screen.getByText('עוד לא הוספתם קבצים למבחן הזה.')).toBeInTheDocument()
+    expect(screen.getByText(en.onboardingMaterials.empty)).toBeInTheDocument()
   })
 
   it('shows too_many_materials with the limit', async () => {
@@ -257,7 +261,7 @@ describe('MaterialsStep', () => {
 
     await user.upload(fileInput(container), pdf())
 
-    expect(await screen.findByText(/אפשר עד 15 קבצים למבחן/)).toBeInTheDocument()
+    expect(await screen.findByText(en.codes.too_many_materials(15))).toBeInTheDocument()
   })
 
   it('retries a failed register with the same id and without a second Storage upload', async () => {
@@ -278,9 +282,9 @@ describe('MaterialsStep', () => {
     await screen.findByRole('heading', { name: 'חדו"א' })
 
     await user.upload(fileInput(container), pdf())
-    await user.click(await screen.findByRole('button', { name: 'לנסות שוב: מבחן 2024.pdf' }))
+    await user.click(await screen.findByRole('button', { name: en.onboardingMaterials.retryNamed('מבחן 2024.pdf') }))
 
-    expect(await screen.findByText('קוראים את הקובץ…')).toBeInTheDocument()
+    expect(await screen.findByText(en.onboardingMaterials.processing)).toBeInTheDocument()
     expect(storage.upload).toHaveBeenCalledOnce()
     const ids = fake.calls('POST', '/exams/e1/materials').map((c) => (c.body as MaterialRegister).id)
     expect(ids).toHaveLength(2)
@@ -305,20 +309,20 @@ describe('MaterialsStep', () => {
     await screen.findByRole('heading', { name: 'חדו"א' })
 
     await user.upload(fileInput(container), pdf())
-    await user.click(await screen.findByRole('button', { name: 'לנסות שוב: מבחן 2024.pdf' }))
+    await user.click(await screen.findByRole('button', { name: en.onboardingMaterials.retryNamed('מבחן 2024.pdf') }))
 
     await waitFor(() => {
       expect(screen.getAllByText('מבחן 2024')).toHaveLength(1)
     })
-    expect(await screen.findByText('קוראים את הקובץ…')).toBeInTheDocument()
-    expect(screen.queryByText('הקובץ הזה כבר נרשם.')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /לנסות שוב/ })).not.toBeInTheDocument()
+    expect(await screen.findByText(en.onboardingMaterials.processing)).toBeInTheDocument()
+    expect(screen.queryByText(en.codes.already_exists)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Try again/ })).not.toBeInTheDocument()
   })
 
   it.each([
     ['too_many_materials', problem(422, 'too_many_materials', { limit: 15 })],
     ['not_found', problem(404, 'not_found')],
-  ])('offers only "הסרה" after %s', async (_code, error) => {
+  ])('offers only "Remove" after %s', async (_code, error) => {
     const { fake } = server()
     fake.on('POST /exams/e1/materials', error)
     const { container, user } = setup({ fake })
@@ -326,8 +330,8 @@ describe('MaterialsStep', () => {
 
     await user.upload(fileInput(container), pdf())
 
-    expect(await screen.findByRole('button', { name: 'הסרה: מבחן 2024.pdf' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'לנסות שוב: מבחן 2024.pdf' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: en.onboardingMaterials.removeNamed('מבחן 2024.pdf') })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: en.onboardingMaterials.retryNamed('מבחן 2024.pdf') })).not.toBeInTheDocument()
   })
 
   it('stops at 15 files per exam before the network when several are picked at once', async () => {
@@ -344,15 +348,15 @@ describe('MaterialsStep', () => {
       expect(fake.calls('POST', '/exams/e1/materials')).toHaveLength(1)
     })
     expect(storage.upload).toHaveBeenCalledOnce()
-    expect(await screen.findAllByText(/אפשר עד 15 קבצים למבחן/)).toHaveLength(2)
-    expect(screen.queryByRole('button', { name: /לנסות שוב/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'הסרה: ב.pdf' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'הסרה: ג.pdf' })).toBeInTheDocument()
+    expect(await screen.findAllByText(en.codes.too_many_materials(15))).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: /^Try again/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.onboardingMaterials.removeNamed('ב.pdf') })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.onboardingMaterials.removeNamed('ג.pdf') })).toBeInTheDocument()
   })
 
   it.each([
-    ['המשך בלי חומרים', '/onboarding/schedule'],
-    ['חזרה', '/onboarding/exams'],
+    [en.onboardingMaterials.continueWithout, '/onboarding/schedule'],
+    [en.common.back, '/onboarding/exams'],
   ])('sends a waiting delete before "%s" leaves the step', async (button, target) => {
     const { fake, state } = server([material({ ingest_status: 'ready', page_count: 4 })])
     let finishDelete: () => void = () => undefined
@@ -368,7 +372,7 @@ describe('MaterialsStep', () => {
     )
     const { router, user } = setup({ fake })
 
-    await user.click(await screen.findByRole('button', { name: 'מחיקה: מבחן 2024.pdf' }))
+    await user.click(await screen.findByRole('button', { name: en.onboardingMaterials.deleteNamed('מבחן 2024.pdf') }))
     await user.click(screen.getByRole('button', { name: button }))
 
     await waitFor(() => {
@@ -376,7 +380,7 @@ describe('MaterialsStep', () => {
     })
     // Not before the server took the delete: the next steps would still see the file.
     expect(router.state.location.pathname).toBe('/onboarding/materials')
-    expect(screen.queryByText('הקובץ "מבחן 2024.pdf" יימחק')).not.toBeInTheDocument()
+    expect(screen.queryByText(en.onboardingMaterials.deleted('מבחן 2024.pdf'))).not.toBeInTheDocument()
 
     await act(async () => {
       finishDelete()
@@ -387,12 +391,12 @@ describe('MaterialsStep', () => {
     })
   })
 
-  it('sends a waiting delete before "המשך" too', async () => {
+  it('sends a waiting delete before "Continue" too', async () => {
     const { fake } = server([material({ ingest_status: 'ready', page_count: 4 }), material({ id: 'm2', filename: 'b.pdf', ingest_status: 'ready' })])
     const { router, user } = setup({ fake })
 
-    await user.click(await screen.findByRole('button', { name: 'מחיקה: מבחן 2024.pdf' }))
-    await user.click(screen.getByRole('button', { name: 'המשך' }))
+    await user.click(await screen.findByRole('button', { name: en.onboardingMaterials.deleteNamed('מבחן 2024.pdf') }))
+    await user.click(screen.getByRole('button', { name: en.onboarding.continue }))
 
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/onboarding/schedule')
@@ -405,15 +409,15 @@ describe('MaterialsStep', () => {
     fake.on({ method: 'DELETE', path: /^\/materials\// }, problem(503, 'database_unavailable'))
     const { router, user } = setup({ fake })
 
-    await user.click(await screen.findByRole('button', { name: 'מחיקה: מבחן 2024.pdf' }))
+    await user.click(await screen.findByRole('button', { name: en.onboardingMaterials.deleteNamed('מבחן 2024.pdf') }))
     // The only file is hidden, so the button says that it goes on without materials.
-    await user.click(screen.getByRole('button', { name: 'המשך בלי חומרים' }))
+    await user.click(screen.getByRole('button', { name: en.onboardingMaterials.continueWithout }))
 
-    expect(await screen.findByText(/הקובץ "מבחן 2024.pdf" לא נמחק/)).toBeInTheDocument()
-    expect(screen.getByText('מוכן, 4 עמודים')).toBeInTheDocument()
+    expect(await screen.findByText(new RegExp(`^${escapeRegExp(en.onboardingMaterials.deleteFailed('מבחן 2024.pdf'))}`))).toBeInTheDocument()
+    expect(screen.getByText(en.onboardingMaterials.ready(4))).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/onboarding/materials')
     // The buttons work again.
-    expect(screen.getByRole('button', { name: 'המשך' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: en.onboarding.continue })).toBeEnabled()
   })
 
   it('brings back each file whose delete failed when two expire together', async () => {
@@ -435,8 +439,8 @@ describe('MaterialsStep', () => {
     )
     const { user } = setup({ fake })
 
-    await user.click(await screen.findByRole('button', { name: 'מחיקה: מבחן 2024.pdf' }))
-    await user.click(screen.getByRole('button', { name: 'מחיקה: b.pdf' }))
+    await user.click(await screen.findByRole('button', { name: en.onboardingMaterials.deleteNamed('מבחן 2024.pdf') }))
+    await user.click(screen.getByRole('button', { name: en.onboardingMaterials.deleteNamed('b.pdf') }))
     await act(() => vi.advanceTimersByTimeAsync(10500))
 
     await waitFor(() => {
@@ -448,17 +452,17 @@ describe('MaterialsStep', () => {
       })
       await Promise.resolve()
     })
-    expect(await screen.findByText('מוכן, 4 עמודים')).toBeInTheDocument()
-    expect(await screen.findByText('מוכן, 7 עמודים')).toBeInTheDocument()
-    expect(screen.getByText(/הקובץ "מבחן 2024.pdf" לא נמחק/)).toBeInTheDocument()
-    expect(screen.getByText(/הקובץ "b.pdf" לא נמחק/)).toBeInTheDocument()
+    expect(await screen.findByText(en.onboardingMaterials.ready(4))).toBeInTheDocument()
+    expect(await screen.findByText(en.onboardingMaterials.ready(7))).toBeInTheDocument()
+    expect(screen.getByText(new RegExp(`^${escapeRegExp(en.onboardingMaterials.deleteFailed('מבחן 2024.pdf'))}`))).toBeInTheDocument()
+    expect(screen.getByText(new RegExp(`^${escapeRegExp(en.onboardingMaterials.deleteFailed('b.pdf'))}`))).toBeInTheDocument()
   })
 
   it('still sends a waiting delete when the step goes away some other way', async () => {
     const { fake } = server([material({ ingest_status: 'ready', page_count: 4 })])
     const { router, user } = setup({ fake })
 
-    await user.click(await screen.findByRole('button', { name: 'מחיקה: מבחן 2024.pdf' }))
+    await user.click(await screen.findByRole('button', { name: en.onboardingMaterials.deleteNamed('מבחן 2024.pdf') }))
     await act(() => router.navigate('/onboarding/exams'))
 
     await waitFor(() => {
@@ -466,26 +470,26 @@ describe('MaterialsStep', () => {
     })
   })
 
-  it('without materials the one button says "המשך בלי חומרים", and goes to the schedule step', async () => {
+  it('without materials the one button says "Continue without materials", and goes to the schedule step', async () => {
     const { fake } = server()
     const { router, user } = setup({ fake })
     await screen.findByRole('heading', { name: 'חדו"א' })
 
-    expect(screen.queryByRole('button', { name: 'המשך' })).not.toBeInTheDocument()
-    // The primary button first, then "חזרה"; there is no third button to skip with.
-    const bar = screen.getByRole('button', { name: 'המשך בלי חומרים' }).parentElement
+    expect(screen.queryByRole('button', { name: en.onboarding.continue })).not.toBeInTheDocument()
+    // The primary button first, then "Back"; there is no third button to skip with.
+    const bar = screen.getByRole('button', { name: en.onboardingMaterials.continueWithout }).parentElement
     if (bar === null) throw new Error('no actions bar')
-    expect(within(bar).getAllByRole('button').map((button) => button.textContent)).toEqual(['המשך בלי חומרים', 'חזרה'])
-    await user.click(screen.getByRole('button', { name: 'המשך בלי חומרים' }))
+    expect(within(bar).getAllByRole('button').map((button) => button.textContent)).toEqual([en.onboardingMaterials.continueWithout, en.common.back])
+    await user.click(screen.getByRole('button', { name: en.onboardingMaterials.continueWithout }))
 
     expect(router.state.location.pathname).toBe('/onboarding/schedule')
   })
 
-  it('goes on to the schedule step with "המשך" when there are materials', async () => {
+  it('goes on to the schedule step with "Continue" when there are materials', async () => {
     const { fake } = server([material({ ingest_status: 'ready', page_count: 2 })])
     const { router, user } = setup({ fake })
 
-    await user.click(await screen.findByRole('button', { name: 'המשך' }))
+    await user.click(await screen.findByRole('button', { name: en.onboarding.continue }))
 
     expect(router.state.location.pathname).toBe('/onboarding/schedule')
   })
@@ -494,7 +498,7 @@ describe('MaterialsStep', () => {
     const { fake } = server([material({ ingest_status: 'failed', ingest_error: 'pdf_unreadable' })])
     setup({ fake })
 
-    const reason = await screen.findByText(/לא הצלחנו לקרוא את ה-PDF/)
+    const reason = await screen.findByText(en.codes.pdf_unreadable)
     expect(reason).toHaveClass('text-danger')
     expect(reason.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
   })
@@ -512,21 +516,30 @@ describe('MaterialsStep', () => {
     if (row === null) throw new Error('no row')
     expect(row.className).not.toMatch(/(^|\s)(w|min-w|basis)-\d/)
     // The accessible name keeps the full file name.
-    expect(within(row).getByRole('button', { name: `מחיקה: ${name}` })).toHaveClass('size-touch', 'shrink-0')
+    expect(within(row).getByRole('button', { name: en.onboardingMaterials.deleteNamed(name) })).toHaveClass('size-touch', 'shrink-0')
   })
 
   it.each([
-    ['סילבוס', 'סילבוס.'],
-    ['.pdf', 'מבחן עבר.'],
+    ['סילבוס', en.onboardingMaterials.fileLead(en.onboardingMaterials.kinds.syllabus, null)],
+    ['.pdf', en.onboardingMaterials.fileLead(en.onboardingMaterials.kinds.past_exam, null)],
   ])('a file named "%s" shows its full name, and no type in the subtitle', async (name, lead) => {
     const { fake } = server([material({ filename: name, kind: name === 'סילבוס' ? 'syllabus' : 'past_exam', ingest_status: 'ready', page_count: 2 })])
     setup({ fake })
 
-    const row = (await screen.findByRole('button', { name: `מחיקה: ${name}` })).closest('li')
+    const row = (await screen.findByRole('button', { name: en.onboardingMaterials.deleteNamed(name) })).closest('li')
     if (row === null) throw new Error('no row')
-    expect(within(row).getByText(name, { selector: 'bdi' })).toBeInTheDocument()
+    expect(within(row).getByText(name, { selector: 'bdi[dir="auto"]' })).toBeInTheDocument()
     expect(within(row).getByText(lead)).toBeInTheDocument()
-    expect(within(row).getByText('מוכן, 2 עמודים')).toBeInTheDocument()
+    expect(within(row).getByText(en.onboardingMaterials.ready(2))).toBeInTheDocument()
+  })
+
+  it('puts a Hebrew file name and the exam name in elements that decide their own direction', async () => {
+    const { fake } = server([material({ filename: 'פרק 3.pdf', ingest_status: 'ready', page_count: 2 })])
+    setup({ fake })
+
+    const heading = await screen.findByRole('heading', { name: /חדו"א/ })
+    expect((await screen.findByText('פרק 3')).closest('[dir="auto"]')).not.toBeNull()
+    expect(heading.querySelector('[dir="auto"]')).not.toBeNull()
   })
 
   it('a failed load of the exams shows the error with a retry, under the title', async () => {
@@ -545,7 +558,7 @@ describe('MaterialsStep', () => {
     const { router, user } = setup({ fake })
     await screen.findByRole('heading', { name: 'חדו"א' })
 
-    await user.click(screen.getByRole('button', { name: 'חזרה' }))
+    await user.click(screen.getByRole('button', { name: en.common.back }))
 
     expect(router.state.location.pathname).toBe('/onboarding/exams')
   })

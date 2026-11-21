@@ -1,6 +1,9 @@
 import { EXAM_COLOR_COUNT, examColor } from '../ui/examColor'
+import { CheckMarkIcon } from '../ui/icons'
 import { cx } from '../ui/styles'
+import { UserText } from '../ui/UserText'
 import { devText } from './devText'
+import { sample } from './sampleContent'
 import { Example, Section } from './Section'
 
 const t = devText
@@ -30,7 +33,7 @@ function SampleBlock({ index }: { index: number }) {
         />
         <div className="min-w-0 flex-1">
           <p data-part="text" className="font-semibold text-ink">
-            {t.palette.blockTitle}
+            <UserText>{sample.tasks.bayes}</UserText>
           </p>
           <p data-part="text" className="text-caption text-ink">
             <Time>{t.palette.blockTime}</Time>
@@ -49,13 +52,18 @@ function SampleNext({ index }: { index: number }) {
   return (
     <div data-part="next" className={cx('rounded-card p-4 text-on-brand', c.solid)}>
       <p className="text-caption">
-        {t.palette.nextWhen} · {t.palette.exams[index]}
+        {t.palette.nextWhen}, <UserText>{sample.exams[index]}</UserText>
       </p>
-      <p className="mt-1.5 mb-0.5 font-semibold">{t.palette.nextTitle}</p>
+      <p className="mt-1.5 mb-0.5 font-semibold">
+        <UserText>{sample.tasks.lecture5}</UserText>
+      </p>
       <p className="text-small">{t.palette.nextLength}</p>
       {/* The look of the actions only: no handlers on this page. */}
       <div aria-hidden="true" className="mt-3.5 flex gap-2 text-small font-semibold">
-        <span className="rounded-button bg-surface px-3.5 py-2 text-ink">{t.palette.nextDone}</span>
+        <span className="inline-flex items-center gap-1.5 rounded-button bg-surface px-3.5 py-2 text-ink">
+          <CheckMarkIcon size={16} />
+          {t.palette.nextDone}
+        </span>
         <span className="rounded-button border border-on-brand/70 px-3.5 py-2 text-on-brand">{t.palette.nextDefer}</span>
       </div>
     </div>
@@ -67,7 +75,9 @@ function SampleNext({ index }: { index: number }) {
 function SampleBusy() {
   return (
     <div data-part="busy" className="rounded-control border border-s-4 border-busy-line border-s-busy bg-busy-soft px-2 py-1.5 text-small">
-      <p className="font-semibold text-ink">{t.palette.busyTitle}</p>
+      <p className="font-semibold text-ink">
+        <UserText>{sample.busyTitle}</UserText>
+      </p>
       <p className="text-caption text-ink-muted">
         <Time>{t.palette.busyTime}</Time>
       </p>
@@ -85,7 +95,7 @@ export function ExamPaletteSection() {
             <p className="flex items-center gap-2 text-small font-medium">
               <span aria-hidden="true" className={cx('size-3 shrink-0 rounded-[4px]', examColor(n).solid)} />
               <span>
-                <span dir="ltr">{`exam-${String(n)}`}</span> · {t.palette.hues[n]} · {t.palette.exams[n]}
+                <span dir="ltr">{`exam-${String(n)}`}</span>, {t.palette.hues[n]}, <UserText>{sample.exams[n]}</UserText>
               </span>
             </p>
             <SampleBlock index={n} />

@@ -77,7 +77,7 @@ export function PlanReport() {
           </ul>
         </div>
         {target === null ? null : (
-          // Secondary: the one primary button of "today" is "בוצע" of the next task.
+          // Secondary: the one primary button of "today" is "Done" of the next task.
           <Button
             variant="secondary"
             className="self-start"

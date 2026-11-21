@@ -101,7 +101,7 @@ export function useBusyEvents(from?: string, to?: string): UseQueryResult<BusyEv
   })
 }
 
-// The answer's version_id is the "בטל" of the toast (POST /plan/undo).
+// The answer's version_id is the "Undo" of the toast (POST /plan/undo).
 export function useCreateBusyEvent(): UseMutationResult<BusyEventWriteResponse, ApiError, BusyEventInput> {
   const api = useApi()
   const refresh = useRefreshBoard()
@@ -135,7 +135,7 @@ export function useDeleteBusyEvent(): UseMutationResult<undefined, ApiError, str
   })
 }
 
-// "יש לי זמן עכשיו".
+// "I have time now".
 export function useFreeTime(): UseMutationResult<FreeTimeResponse, ApiError, number> {
   const api = useApi()
   const refresh = useRefreshBoard()
@@ -145,7 +145,7 @@ export function useFreeTime(): UseMutationResult<FreeTimeResponse, ApiError, num
   })
 }
 
-// "בחירת שעה": the free starts of one study day for the block (any day from today to the exam's
+// "Pick a time": the free starts of one study day for the block (any day from today to the exam's
 // last study day; a date outside → 422 with loc ["query","date"]).
 export function deferSlotsKey(userId: string | null, blockId: string, date: string) {
   return [...boardKey(userId), 'defer-slots', blockId, date] as const

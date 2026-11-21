@@ -3,6 +3,7 @@ import { en } from '../i18n/en'
 import { Badge } from '../ui/Badge'
 import { CheckButton } from '../ui/CheckButton'
 import { ListRow } from '../ui/List'
+import { UserText } from '../ui/UserText'
 import { isExtra, partSuffix, useBlockControls } from './blockControls'
 import { BlockMenu, PinnedMark, StateBadge } from './blockParts'
 import { useFocusRequest } from './focus'
@@ -31,7 +32,7 @@ export function BlockRow({ block, tz }: BlockRowProps) {
   return (
     <ListRow
       leading={<span dir="ltr">{formatTime(block.starts_at, tz)}</span>}
-      title={block.task_title}
+      title={<UserText>{block.task_title}</UserText>}
       done={done}
       subtitle={
         // min-w-0 on the words: a long exam name wraps instead of pushing the badge out.

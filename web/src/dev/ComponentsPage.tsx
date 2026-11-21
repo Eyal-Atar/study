@@ -28,11 +28,13 @@ import {
   TextFieldSection,
   TimeFieldSection,
 } from './fieldSections'
+import { IconsSection } from './iconSections'
 import { ColoursSection, ExamPaletteSection, ShapeSection, TypographySection } from './paletteSections'
 import { DialogSection, PageHeaderSection, ToastSection } from './overlaySections'
 import { NoteSection, OptionGridSection, SegmentedControlSection } from './s27Sections'
 import { CollapsibleSectionSection, CompactSelectSection, SwitchSection } from './s28Sections'
 import { ShellSection } from './shellSections'
+import { UserContentSection } from './userContentSections'
 
 // The table of contents: the sections of devText.ts, and Archie's entry from its own file.
 const TOC = [...SECTIONS, ...ARCHIE_SECTIONS]
@@ -47,7 +49,7 @@ const ANCHOR = cx(
 
 // The internal catalogue of the design language (S31: the exam palette, the colours, the type,
 // the corners and shadows, the pieces of the shell) and of the base components (ui/), each in
-// every state, in RTL. S27 and S28
+// every state, in English and left to right. S27 and S28
 // compose screens from it, and S29 runs its accessibility check on it.
 //
 // Only in the dev build: the route that loads it is behind import.meta.env.DEV (app/routes.tsx).
@@ -84,6 +86,9 @@ export function ComponentsPage() {
         <ShapeSection />
         <ShellSection />
         <ArchieSection />
+        {/* S39: the icon set and the rule for user content. */}
+        <IconsSection />
+        <UserContentSection />
         <ButtonSection />
         <IconButtonSection />
         <MenuSection />

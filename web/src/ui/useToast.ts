@@ -12,13 +12,13 @@ export interface ToastOptions {
   text: string
   tone?: 'info' | 'success' | 'error'
   action?: ToastAction
-  // Without a timeout a toast stays until closed. A destructive action: UNDO_TIMEOUT_MS with "בטל".
+  // Without a timeout a toast stays until closed. A destructive action: UNDO_TIMEOUT_MS with "Undo".
   timeoutMs?: number
   // Called once when the toast goes away by itself, without its action (the time to commit a delete).
   onExpire?: () => void
 }
 
-// Spec 7.9: a destructive action gets "בטל" for 10 seconds.
+// Spec 7.9: a destructive action gets "Undo" for 10 seconds.
 export const UNDO_TIMEOUT_MS = 10000
 export const DEFAULT_TIMEOUT_MS = 6000
 

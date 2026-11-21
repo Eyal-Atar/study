@@ -116,7 +116,7 @@ function moveKey(userId: string | null) {
 // The move is optimistic like pin (S14): the answer is known, the block's times and pinned, so every
 // board query shows it at once, and a failure puts the block back with the reason. Its undo is the
 // opposite PATCH, with the old start and the old pinned: a move writes no plan version (plan,
-// "למה הזזה לא יוצרת גרסה"). The key is under the block actions', so actions.pending(id) covers it.
+// "why a move does not create a version"). The key is under the block actions', so actions.pending(id) covers it.
 export function useMoveBlock(): MoveBlock {
   const api = useApi()
   const queryClient = useQueryClient()

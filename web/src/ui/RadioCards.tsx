@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { FieldError, Label, RadioButton, RadioField, RadioGroup, Text } from 'react-aria-components'
 import { FOCUS_RING } from './styles'
 import { FIELD_DESCRIPTION_CLASS, FIELD_ERROR_CLASS, FIELD_LABEL_CLASS } from './TextField'
@@ -6,6 +7,8 @@ export interface ChoiceOption {
   value: string
   label: string
   description?: string | undefined
+  // Shown before the label, as decoration: an icon of ui/icons (a time of day, a task kind).
+  icon?: ReactNode
 }
 
 export interface RadioCardsProps {
@@ -60,6 +63,7 @@ export function RadioCards({
         {options.map((option) => (
           <RadioField key={option.value} value={option.value} className="flex">
             <RadioButton className={OPTION_CLASS}>
+              {option.icon === undefined ? null : <span className="mb-0.5 flex">{option.icon}</span>}
               <span>{option.label}</span>
               {option.description === undefined ? null : (
                 <span className="text-caption font-normal text-ink-muted tabular-nums">{option.description}</span>

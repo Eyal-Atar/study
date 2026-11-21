@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { en } from '../i18n/en'
 import { CollapsibleSection } from '../ui/CollapsibleSection'
 import { CompactSelect } from '../ui/CompactSelect'
 import { Switch } from '../ui/Switch'
+import { sample } from './sampleContent'
 import { Example, FIELD_GRID, Section } from './Section'
 
 // The components S28 added (Switch, CompactSelect, CollapsibleSection; Note came from S27). Their texts are here
@@ -9,32 +11,26 @@ import { Example, FIELD_GRID, Section } from './Section'
 // devText.ts, this module is reached only through the import() of the dev route.
 const t = {
   switch: {
-    off: 'כבוי',
-    on: 'פועל, עם תיאור',
-    disabled: 'לא זמין: אפור, בלי שקיפות',
-    label: 'זמן לעצמי כל יום',
-    description: 'זמן קבוע ביום שבו לא נשבץ לימוד.',
+    off: 'Off',
+    on: 'On, with a description',
+    disabled: 'Disabled: grey, with no transparency',
+    label: 'Me time every day',
+    description: 'A fixed time every day when I won’t schedule study.',
   },
   compactSelect: {
-    chosen: 'בתוך שורה: רחב כמו הערך שלו, בלי תווית גלויה',
-    disabled: 'לא זמין',
-    label: 'סוג הקובץ סילבוס.pdf',
-    kinds: [
-      { value: 'syllabus', label: 'סילבוס' },
-      { value: 'summary', label: 'סיכום' },
-      { value: 'past_exam', label: 'מבחן עבר' },
-      { value: 'solution', label: 'פתרון' },
-      { value: 'notes', label: 'הערות' },
-      { value: 'other', label: 'אחר' },
-    ],
+    chosen: 'Inside a row: as wide as its value, with no visible label',
+    disabled: 'Disabled',
+    // The name of the control carries the file it is about (a file name is user content).
+    label: en.exam.materials.kindLabel(sample.fileName),
+    kinds: Object.entries(en.onboardingMaterials.kinds).map(([value, label]) => ({ value, label })),
   },
   collapsible: {
-    closed: 'סגור, עם שורת סיכום',
-    open: 'פתוח',
-    materials: 'חומרים',
-    materialsSummary: '3 קבצים',
-    analysis: 'ניתוח החומרים',
-    body: 'התוכן של הקטע: רשימה, טופס או כל דבר אחר.',
+    closed: 'Closed, with a summary line',
+    open: 'Open',
+    materials: en.exam.materials.title,
+    materialsSummary: en.exam.materials.count(3),
+    analysis: 'Analysis of the materials',
+    body: 'The content of the section: a list, a form or anything else.',
   },
 }
 

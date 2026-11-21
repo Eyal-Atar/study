@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { OptionGrid } from './OptionGrid'
 
-const NAME = 'שעה פנויה'
+const NAME = 'Free time'
 const OPTIONS = [
   { id: '09:00', label: '09:00' },
   { id: '09:30', label: '09:30' },

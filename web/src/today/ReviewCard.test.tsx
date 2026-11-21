@@ -323,8 +323,8 @@ describe('ReviewCard', () => {
     const part1 = makeBlock({ ...YESTERDAY, id: 'p1', part_index: 1, part_count: 2 })
     const part2 = makeBlock({ ...YESTERDAY, id: 'p2', part_index: 2, part_count: 2, starts_at: '2026-11-15T14:00:00Z', ends_at: '2026-11-15T15:00:00Z' })
     setup([part1, part2])
-    const name1 = `${YESTERDAY.task_title} (${en.board.part(1, 2)})`
-    const name2 = `${YESTERDAY.task_title} (${en.board.part(2, 2)})`
+    const name1 = en.board.partName(YESTERDAY.task_title, en.board.part(1, 2))
+    const name2 = en.board.partName(YESTERDAY.task_title, en.board.part(2, 2))
     for (const label of [en.review.completeLabel, en.review.moveTodayLabel, en.review.skipLabel]) {
       expect(await screen.findByRole('button', { name: label(name1) })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: label(name2) })).toBeInTheDocument()

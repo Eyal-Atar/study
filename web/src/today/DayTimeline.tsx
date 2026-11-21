@@ -11,6 +11,7 @@ import { PinnedMark } from '../board/blockParts'
 import { SectionHeading } from '../ui/SectionHeading'
 import { cx, ICON_STROKE } from '../ui/styles'
 import { useToast } from '../ui/useToast'
+import { UserText } from '../ui/UserText'
 
 // Today's waking hours as a vertical line of time (S18 decisions 11–12). Every block sits at its
 // time; an upcoming one has a handle that moves it in 15-minute steps, by pointer (mouse, touch,
@@ -329,9 +330,9 @@ export function DayTimeline({ today, tz, title = en.today.blocks, toolbar }: Day
                   )}
                 >
                   <div className={cx('flex min-w-0 flex-1', tall ? 'flex-col justify-center' : 'items-center gap-2')}>
-                    <p id={titleId} className={cx('truncate text-small', done ? 'font-normal line-through' : 'font-semibold')}>
+                    <UserText as="p" id={titleId} truncate className={cx('text-small', done ? 'font-normal line-through' : 'font-semibold')}>
                       {block.task_title}
-                    </p>
+                    </UserText>
                     <p className={cx('text-small whitespace-nowrap', tall ? 'truncate' : 'shrink-0', DETAILS_STYLE[block.state])}>
                       <span dir="ltr" className="tabular-nums">
                         {formatRange(block, tz)}

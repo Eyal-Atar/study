@@ -24,7 +24,7 @@ export interface ListRowProps {
   // A fixed column at the start, like the start hour of a block.
   leading?: ReactNode
   title: ReactNode
-  // Details under the title: "הסתברות, תרגול. שעה".
+  // Details under the title: "Probability, practice. 1 h".
   subtitle?: ReactNode
   // What sits at the end, in one line: a badge, the check button, a menu. More than one extra
   // action goes into a menu. It gets at most half of the row, and a badge in it is cut to fit.

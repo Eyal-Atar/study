@@ -1,5 +1,5 @@
 import type { Job } from '../onboarding/types'
-import type { AnalysisApply, ExamTaskItem, ExamTopics, ReanalyzeResult } from './analysis'
+import type { AnalysisApply, ExamTaskItem, ExamTopics, ReanalyzeResult } from '../exam/analysis'
 
 // Test data for the analysis and materials sections (only tests import this file).
 

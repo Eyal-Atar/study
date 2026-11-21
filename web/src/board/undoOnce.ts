@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 
-// A plan version is undone once (POST /plan/undo). A second press of the toast's "בטל" (a double
+// A plan version is undone once (POST /plan/undo). A second press of the toast's "Undo" (a double
 // click, before the toast is gone) would send it again, and the server would answer nothing_to_undo
 // after an undo that worked. So a version is claimed while its undo runs and after it succeeded;
 // a failure releases it.

@@ -29,7 +29,7 @@ export function meFixture(overrides: Partial<Me> = {}): Me {
 export const COMPLETED_AT = '2026-11-16T10:00:00Z'
 
 export function examFixture(overrides: Partial<Exam> = {}): Exam {
-  return { id: 'e1', name: 'חדו"א', exam_date: '2027-01-20', difficulty: 3, created_at: '2026-11-16T08:00:00Z', color_index: 0, ...overrides }
+  return { id: 'e1', name: '\u05D7\u05D3\u05D5"\u05D0' /* Hebrew sample name, escaped: this file is not a test file */, exam_date: '2027-01-20', difficulty: 3, created_at: '2026-11-16T08:00:00Z', color_index: 0, ...overrides }
 }
 
 export function jobFixture(overrides: Partial<Job<GenerateResult>> = {}): Job<GenerateResult> {

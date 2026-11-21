@@ -21,10 +21,10 @@ export interface MoveDialogProps {
   onClose: () => void
 }
 
-// "הזזה" without dragging (S18 decision 10, and spec 7.9: every gesture has a visible button): the
+// "Move" without dragging (S18 decision 10, and spec 7.9: every gesture has a visible button): the
 // times on the local 15-minute grid the block can move to on its own day, from the server, as a
 // grid to choose from. Works in "week" for any day.
-// The dialog is a form: "הזזה" submits it. The times and the buttons are two children of ui/Dialog,
+// The dialog is a form: "Move" submits it. The times and the buttons are two children of ui/Dialog,
 // which mounts them only while it is open, so every opening asks the server anew. Both read the
 // same query; the chosen time lives here, where the submit is.
 export function MoveDialog({ block, tz, isOpen, onClose }: MoveDialogProps) {
@@ -111,7 +111,7 @@ function MoveSlots({
           aria-label={en.move.slotsLabel}
           options={list.map((slot) => ({ id: slot, label: formatTime(slot, tz) }))}
           value={chosen}
-          // Pressing the chosen time again gives null: nothing is chosen, and "הזזה" is disabled.
+          // Pressing the chosen time again gives null: nothing is chosen, and "Move" is disabled.
           onChange={onChoose}
           ltr
         />
@@ -120,7 +120,7 @@ function MoveSlots({
   )
 }
 
-// "הזזה" exists only when there is a time to choose, and is disabled until one is chosen.
+// "Move" exists only when there is a time to choose, and is disabled until one is chosen.
 function MoveActions({ blockId, chosen, onCancel }: { blockId: string; chosen: string | null; onCancel: () => void }) {
   // The query of MoveSlots, read a second time: both mount together, so it is one request.
   const slots = useSlots(blockId)

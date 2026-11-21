@@ -9,6 +9,7 @@ import { List, ListRow } from '../ui/List'
 import { Note } from '../ui/Note'
 import { SectionHeading } from '../ui/SectionHeading'
 import { ErrorState, LoadingState } from '../ui/states'
+import { UserText } from '../ui/UserText'
 import { useAnalysisPreview, useApplyAnalysis, type AnalysisApply } from './analysis'
 
 const t = en.exam.analysis
@@ -19,14 +20,14 @@ export interface AnalysisPreviewProps {
   examId: string
   // Closes without writing: the draft stays, and the section's banner can open it again.
   onClose: () => void
-  // The draft was applied (before onClose). The answer's version_id is what "בטל" takes back.
+  // The draft was applied (before onClose). The answer's version_id is what "Undo" takes back.
   onApplied: (answer: AnalysisApply) => void
   // The draft is no longer current (applied, superseded or undone: 409 invalid_state).
   onGone: () => void
 }
 
 // The draft of a reanalysis before it replaces anything, mirroring ReplanOffer: POST
-// /analyses/{id}/apply {preview: true} when it opens, what is replaced, kept and added, and "אישור"
+// /analyses/{id}/apply {preview: true} when it opens, what is replaced, kept and added, and "Confirm"
 // that sends {preview: false, basis}.
 // The footer of ui/Dialog needs the state of the preview, so the component that owns that state
 // (PreviewDialog) renders the Dialog itself. It is keyed by the opening, so each opening previews
@@ -190,12 +191,16 @@ function Summary({ preview }: { preview: AnalysisApply }) {
             {preview.added.map((task) => (
               <ListRow
                 key={task.task_id}
-                title={<bdi>{task.title}</bdi>}
+                title={<UserText>{task.title}</UserText>}
                 subtitle={
                   <>
                     <p>{t.taskMeta(en.exam.tasks.kinds[task.kind], en.exam.tasks.minutes(task.minutes))}</p>
                     {/* Why the analysis added it: ink, so it reads as a sentence and not as a detail. */}
-                    {task.reason === null || task.reason === '' ? null : <p className="text-ink">{task.reason}</p>}
+                    {task.reason === null || task.reason === '' ? null : (
+                      <UserText prose className="text-ink">
+                        {task.reason}
+                      </UserText>
+                    )}
                   </>
                 }
               />
@@ -210,7 +215,7 @@ function Summary({ preview }: { preview: AnalysisApply }) {
           <ul aria-label={t.replacedListLabel} className="flex list-disc flex-col gap-1 ps-5 text-small break-words text-ink">
             {preview.replaced.map((task) => (
               <li key={task.id}>
-                <bdi>{task.title}</bdi>
+                <UserText>{task.title}</UserText>
               </li>
             ))}
           </ul>

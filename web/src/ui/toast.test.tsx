@@ -25,9 +25,9 @@ describe('toast', () => {
   it('shows the text in the notifications region', () => {
     const toast = setup()
     act(() => {
-      toast.show({ text: 'נשמר' })
+      toast.show({ text: 'Saved' })
     })
-    expect(screen.getByRole('region', { name: en.common.notifications })).toHaveTextContent('נשמר')
+    expect(screen.getByRole('region', { name: en.common.notifications })).toHaveTextContent('Saved')
   })
 
   it('the undo action runs once and closes the toast, without an expiry', async () => {
@@ -36,12 +36,12 @@ describe('toast', () => {
     const onAction = vi.fn()
     const onExpire = vi.fn()
     act(() => {
-      toast.show({ text: 'המבחן נמחק', action: { label: en.common.undo, onAction }, onExpire })
+      toast.show({ text: 'The exam was deleted', action: { label: en.common.undo, onAction }, onExpire })
     })
     await user.click(screen.getByRole('button', { name: en.common.undo }))
     expect(onAction).toHaveBeenCalledTimes(1)
     expect(onExpire).not.toHaveBeenCalled()
-    expect(screen.queryByText('המבחן נמחק')).not.toBeInTheDocument()
+    expect(screen.queryByText('The exam was deleted')).not.toBeInTheDocument()
   })
 
   it('an undo toast expires after 10 seconds and reports it', () => {
@@ -50,7 +50,7 @@ describe('toast', () => {
       const toast = setup()
       const onExpire = vi.fn()
       act(() => {
-        toast.show({ text: 'הקובץ יימחק', action: { label: en.common.undo, onAction: vi.fn() }, onExpire })
+        toast.show({ text: 'The file will be deleted', action: { label: en.common.undo, onAction: vi.fn() }, onExpire })
       })
       act(() => {
         vi.advanceTimersByTime(9999)
@@ -71,14 +71,14 @@ describe('toast', () => {
     const onAction = vi.fn()
     const onExpire = vi.fn()
     act(() => {
-      toast.show({ text: 'המבחן נמחק', action: { label: en.common.undo, onAction }, onExpire })
+      toast.show({ text: 'The exam was deleted', action: { label: en.common.undo, onAction }, onExpire })
     })
     const close = screen.getByRole('button', { name: en.common.close })
     // An icon, not the "×" character.
     expect(close).toHaveTextContent('')
     expect(close.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     await user.click(close)
-    expect(screen.queryByText('המבחן נמחק')).not.toBeInTheDocument()
+    expect(screen.queryByText('The exam was deleted')).not.toBeInTheDocument()
     // Closing is not undoing: the pending action is committed, as when the time runs out.
     expect(onAction).not.toHaveBeenCalled()
     expect(onExpire).toHaveBeenCalledTimes(1)
@@ -87,7 +87,7 @@ describe('toast', () => {
   it('an error toast says so with an icon, not with the colour of its text', () => {
     const toast = setup()
     act(() => {
-      toast.show({ text: 'השמירה נכשלה', tone: 'error' })
+      toast.show({ text: 'Saving failed', tone: 'error' })
     })
     const item = screen.getByRole('alertdialog')
     // Dark, like every toast of the prototype: the tone is the icon alone.
@@ -99,15 +99,15 @@ describe('toast', () => {
   it('a success toast has its own icon, and an info toast has none', () => {
     const toast = setup()
     act(() => {
-      toast.show({ text: 'נשמר', tone: 'success' })
+      toast.show({ text: 'Saved', tone: 'success' })
     })
     const success = screen.getByRole('alertdialog')
     expect(success).toHaveClass('bg-inverse', 'text-on-inverse')
     expect(success.querySelector('svg.text-inverse-success')).toBeInTheDocument()
     act(() => {
-      toast.show({ text: 'לידיעה' })
+      toast.show({ text: 'For your information' })
     })
-    const info = screen.getAllByRole('alertdialog').find((item) => item.textContent.includes('לידיעה'))
+    const info = screen.getAllByRole('alertdialog').find((item) => item.textContent.includes('For your information'))
     expect(info).toHaveClass('bg-inverse', 'text-on-inverse')
     // Only the icon of the close button.
     expect(info?.querySelectorAll('svg')).toHaveLength(1)
@@ -116,7 +116,7 @@ describe('toast', () => {
   it('its undo and its close are the inverse buttons, readable on the dark', () => {
     const toast = setup()
     act(() => {
-      toast.show({ text: 'המבחן נמחק', action: { label: en.common.undo, onAction: vi.fn() } })
+      toast.show({ text: 'The exam was deleted', action: { label: en.common.undo, onAction: vi.fn() } })
     })
     const undo = screen.getByRole('button', { name: en.common.undo })
     expect(undo).toHaveClass('text-inverse-action')
@@ -129,7 +129,7 @@ describe('toast', () => {
   it('floats with the one shadow and card corners, above the bottom bar of the phone', () => {
     const toast = setup()
     act(() => {
-      toast.show({ text: 'נשמר' })
+      toast.show({ text: 'Saved' })
     })
     const region = screen.getByRole('region', { name: en.common.notifications })
     const item = screen.getByRole('alertdialog')

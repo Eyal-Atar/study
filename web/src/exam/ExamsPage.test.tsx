@@ -6,7 +6,7 @@ import { examFixture } from '../onboarding/testFixtures'
 import type { ExamCreate } from '../onboarding/types'
 import { problem, type ApiCall } from '../test/fakeApi'
 import { addDays, longDate } from './dates'
-import { TODAY, examServer, openRoute } from './testFixtures'
+import { TODAY, examServer, openRoute } from '../test/examFixtures'
 
 const t = en.exam
 const f = en.onboardingExams
@@ -35,6 +35,8 @@ describe('ExamsPage', () => {
     expect(links.map((l) => l.getAttribute('href'))).toEqual(['/exams/e1', '/exams/e2'])
     // The link is the name alone, stretched over the row (ListRow); the date and the days left are in the row.
     expect(links[0]).toHaveTextContent('חדו"א')
+    // The exam name is user content: it takes its own direction.
+    expect(screen.getByText('חדו"א').closest('[dir="auto"]')).not.toBeNull()
     const rows = within(list).getAllByRole('listitem')
     expect(rows[0]).toHaveTextContent(t.inDays(7))
     expect(rows[0]).toHaveTextContent(longDate(addDays(TODAY, 7)))

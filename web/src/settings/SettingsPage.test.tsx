@@ -83,9 +83,9 @@ describe('SettingsPage preferences', () => {
         name: en.onboardingSchedule.hours(4),
       }),
     ).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: /בוקר/ })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: /צהריים/ })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: /ערב/ })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: new RegExp(en.onboardingSchedule.windows.morning.label) })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: new RegExp(en.onboardingSchedule.windows.afternoon.label) })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: new RegExp(en.onboardingSchedule.windows.evening.label) })).not.toBeChecked()
     expect(timeField(t.wakeTime)).toHaveTextContent('07:30')
     expect(timeField(t.sleepTime)).toHaveTextContent('23:30')
     expect(
@@ -120,7 +120,7 @@ describe('SettingsPage preferences', () => {
     expect(within(group(t.restQuestion)).getByRole('radio', { name: t.restDays(5) })).toBeChecked()
   })
 
-  it('nothing changed: "שמירה" is disabled and sends nothing', async () => {
+  it('nothing changed: "Save" is disabled and sends nothing', async () => {
     const user = userEvent.setup()
     const fake = server()
     open(fake)
@@ -141,7 +141,7 @@ describe('SettingsPage preferences', () => {
       }),
     )
     await setTime(user, t.wakeTime, '07:00')
-    await user.click(screen.getByRole('checkbox', { name: /ערב/ }))
+    await user.click(screen.getByRole('checkbox', { name: new RegExp(en.onboardingSchedule.windows.evening.label) }))
     await user.click(
       within(group(t.delayQuestion)).getByRole('radio', {
         name: en.settings.duration(15),
@@ -184,9 +184,9 @@ describe('SettingsPage preferences', () => {
     const fake = server()
     open(fake)
     await ready()
-    await user.click(screen.getByRole('checkbox', { name: /ערב/ }))
+    await user.click(screen.getByRole('checkbox', { name: new RegExp(en.onboardingSchedule.windows.evening.label) }))
     expect(saveButton()).toBeEnabled()
-    await user.click(screen.getByRole('checkbox', { name: /ערב/ }))
+    await user.click(screen.getByRole('checkbox', { name: new RegExp(en.onboardingSchedule.windows.evening.label) }))
     expect(saveButton()).toBeDisabled()
   })
 
@@ -206,7 +206,7 @@ describe('SettingsPage preferences', () => {
     expect(fake.calls('POST', '/plan/replan').filter((c) => (c.body as { preview: boolean }).preview)).toHaveLength(1)
   })
 
-  it('without plan_affected shows "נשמר", and the form has nothing left to save', async () => {
+  it('without plan_affected shows "Saved", and the form has nothing left to save', async () => {
     const user = userEvent.setup()
     const fake = server({}, false)
     open(fake)
@@ -319,7 +319,7 @@ describe('SettingsPage preferences', () => {
     const fake = server({ study_windows: ['morning'] })
     open(fake)
     await ready()
-    await user.click(screen.getByRole('checkbox', { name: /בוקר/ }))
+    await user.click(screen.getByRole('checkbox', { name: new RegExp(en.onboardingSchedule.windows.morning.label) }))
     await user.click(saveButton())
     expect(await screen.findByText(t.windowsRequired)).toBeInTheDocument()
     expect(patches(fake)).toHaveLength(0)
@@ -364,7 +364,7 @@ describe('SettingsPage preferences', () => {
   })
 
   // Review Focus 4: the button is pending (not disabled) while the request is out.
-  it('a double press on "שמירה" sends one request, and the button keeps its text', async () => {
+  it('a double press on "Save" sends one request, and the button keeps its text', async () => {
     const user = userEvent.setup()
     let release: (value: unknown) => void = () => undefined
     const me = meFixture({ onboarding_completed_at: COMPLETED_AT })

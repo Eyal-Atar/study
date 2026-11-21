@@ -6,7 +6,7 @@ import { en } from '../i18n/en'
 import { problem, type ApiCall } from '../test/fakeApi'
 import { momentIn } from './dates'
 import { BROWSER_ZONE } from '../onboarding/testFixtures'
-import { blockFixture, examServer, openRoute, taskFixture, topicFixture, topicsFixture } from './testFixtures'
+import { blockFixture, examServer, openRoute, taskFixture, topicFixture, topicsFixture } from '../test/examFixtures'
 import type { TaskWriteResponse } from './types'
 
 const t = en.exam.tasks
@@ -71,6 +71,20 @@ describe('TaskList', () => {
     expect(within(none).getByText('שאלות של המתרגל')).toBeInTheDocument()
   })
 
+  it('user content (task title, topic name, evidence, reason) takes its own direction', async () => {
+    const user = userEvent.setup()
+    await open()
+    const dirAuto = (el: HTMLElement) => {
+      expect(el.closest('[dir="auto"]')).not.toBeNull()
+    }
+    const item = row('גבולות')
+    dirAuto(within(item).getByText('גבולות'))
+    dirAuto(within(screen.getByRole('heading', { level: 3, name: 'גבולות ורציפות' })).getByText('גבולות ורציפות'))
+    await user.click(within(item).getByRole('button', { name: t.actionsNamed('גבולות') }))
+    await user.click(await screen.findByRole('menuitem', { name: t.reason }))
+    dirAuto(within(item).getByText('מופיע בכל מבחן עבר.'))
+  })
+
   it('shows a task with its kind, minutes, focus, next block and a collapsed reason', async () => {
     const user = userEvent.setup()
     await open()
@@ -102,7 +116,7 @@ describe('TaskList', () => {
     const item = row('כלל השרשרת')
     // Done is the pressed check and the struck-through title, not a colour alone.
     expect(within(item).getByRole('button', { name: t.markDoneNamed('כלל השרשרת') })).toHaveAttribute('aria-pressed', 'true')
-    expect(within(item).getByText('כלל השרשרת')).toHaveClass('line-through')
+    expect(within(item).getByText('כלל השרשרת').parentElement).toHaveClass('line-through')
     expect(within(row('גבולות')).getByRole('button', { name: t.markDoneNamed('גבולות') })).toHaveAttribute('aria-pressed', 'false')
     // A finished task says nothing about the board.
     expect(item).not.toHaveTextContent(t.notOnBoard)
@@ -121,7 +135,7 @@ describe('TaskList', () => {
     await screen.findByText('חזרה כללית')
     const item = row('חזרה כללית')
     expect(item).toHaveTextContent(t.skipped)
-    expect(within(item).getByText('חזרה כללית')).toHaveClass('line-through')
+    expect(within(item).getByText('חזרה כללית').parentElement).toHaveClass('line-through')
     expect(within(item).queryByRole('button', { name: t.markDoneNamed('חזרה כללית') })).not.toBeInTheDocument()
     await choose(user, 'חזרה כללית', t.backToTodo)
     await waitFor(() => {
@@ -255,8 +269,9 @@ describe('TaskList', () => {
   it('a long title without spaces wraps, and the check and the menu stay in the row', async () => {
     openRoute(examServer({ tasks: [taskFixture({ id: 't8', title: LONG_TITLE, reason: 'כי כך' })], topics: TOPICS }), '/exams/e1')
     const title = await screen.findByText(LONG_TITLE)
-    expect(title).toHaveClass('break-words')
-    expect(title.parentElement).toHaveClass('min-w-0', 'flex-1')
+    // The title is user text (a bdi); its parent carries the wrapping classes.
+    expect(title.parentElement).toHaveClass('break-words')
+    expect(title.parentElement?.parentElement).toHaveClass('min-w-0', 'flex-1')
     const item = row(LONG_TITLE)
     const check = within(item).getByRole('button', { name: t.markDoneNamed(LONG_TITLE) })
     const menu = within(item).getByRole('button', { name: t.actionsNamed(LONG_TITLE) })

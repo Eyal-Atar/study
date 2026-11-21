@@ -64,7 +64,7 @@ const PAIRS: [string, string][] = [
   ['ink', 'sky'],
   ['ink', 'sky-from'],
   ['ink', 'sky-to'],
-  // The bark toast (S31): its text, its quiet action ("בטל") and its state icons, all on `inverse`.
+  // The bark toast (S31): its text, its quiet action ("Undo") and its state icons, all on `inverse`.
   ['on-inverse', 'inverse'],
   ['inverse-action', 'inverse'],
   ['inverse-success', 'inverse'],

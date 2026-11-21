@@ -10,9 +10,9 @@ export interface SectionHeadingProps {
   className?: string | undefined
 }
 
-// The heading of a section of a screen ("עוד היום", "הקבצים"). A section heading is a label and
+// The heading of a section of a screen ("Later today", "Files"). A section heading is a label and
 // not a headline (design language 3): small, medium and muted at both levels, like the headings
-// of the prototype's side panel ("המשימות של היום"), so the names of
+// of the prototype's side panel ("Today's tasks"), so the names of
 // the items under it stay the strongest text. The title of the screen is the PageHeader, and the
 // heading of a card is the `title` of Card.
 export function SectionHeading({ children, id, level = 2, className }: SectionHeadingProps) {

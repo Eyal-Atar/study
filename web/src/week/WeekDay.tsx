@@ -17,7 +17,7 @@ export interface WeekDayProps {
 // One day of the week: a section heading on a line (the day, and its total at the end), and under
 // it the blocks as rows. There is no box around a day: seven boxes would compete with the rows.
 // A free day is the heading line alone, so the busy days stand out when the week is scanned.
-// Today is marked by the "היום" badge and aria-current, not by a fill (brand is not a background).
+// Today is marked by the "Today" badge and aria-current, not by a fill (brand is not a background).
 export function WeekDay({ date, blocks, tz, isToday }: WeekDayProps) {
   const headingId = `week-day-${date}`
   const total = blocks.reduce((sum, block) => sum + blockMinutes(block), 0)
@@ -27,7 +27,7 @@ export function WeekDay({ date, blocks, tz, isToday }: WeekDayProps) {
     <section aria-labelledby={headingId} aria-current={isToday ? 'date' : undefined}>
       {/* The line under the heading is the top line of the first row, as in every list. */}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-line pb-2">
-        {/* The badge is inside the heading: the region is named "יום רביעי 18.11 היום". */}
+        {/* The badge is inside the heading: the region is named "Wednesday, 18 Nov Today". */}
         <SectionHeading id={headingId} className="flex min-w-0 items-center gap-2">
           <span>{formatDay(date)}</span>
           {isToday ? <Badge tone="brand">{en.board.today}</Badge> : null}

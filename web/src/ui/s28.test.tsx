@@ -11,8 +11,8 @@ describe('Switch', () => {
     const [on, setOn] = useState(false)
     return (
       <Switch
-        label="זמן לעצמי כל יום"
-        description="זמן קבוע ביום שבו לא נשבץ לימוד."
+        label="Time for myself every day"
+        description="Fixed time each day when we do not schedule study."
         isSelected={on}
         onChange={(next) => {
           setOn(next)
@@ -25,9 +25,9 @@ describe('Switch', () => {
 
   it('is a switch named by its label and described by its description', () => {
     render(<Demo onChange={vi.fn()} />)
-    const control = screen.getByRole('switch', { name: 'זמן לעצמי כל יום' })
+    const control = screen.getByRole('switch', { name: 'Time for myself every day' })
     expect(control).not.toBeChecked()
-    expect(control).toHaveAccessibleDescription('זמן קבוע ביום שבו לא נשבץ לימוד.')
+    expect(control).toHaveAccessibleDescription('Fixed time each day when we do not schedule study.')
   })
 
   it('toggles with a click and with Space, and reports the new state', async () => {
@@ -78,31 +78,31 @@ describe('Switch', () => {
 describe('CompactSelect', () => {
   const OPTIONS = [
     { value: 'syllabus', label: 'סילבוס' },
-    { value: 'past_exam', label: 'מבחן עבר' },
+    { value: 'past_exam', label: 'Past exam' },
   ]
 
   it('is a button named by aria-label and the value, with no visible label', () => {
-    render(<CompactSelect aria-label="סוג הקובץ a.pdf" value="syllabus" options={OPTIONS} onChange={vi.fn()} />)
-    const trigger = screen.getByRole('button', { name: /סוג הקובץ a\.pdf/ })
+    render(<CompactSelect aria-label="File type a.pdf" value="syllabus" options={OPTIONS} onChange={vi.fn()} />)
+    const trigger = screen.getByRole('button', { name: /File type a\.pdf/ })
     expect(trigger).toHaveTextContent('סילבוס')
     expect(trigger).toHaveClass('min-h-touch')
-    expect(screen.queryByText('סוג הקובץ a.pdf')).toBeNull()
+    expect(screen.queryByText('File type a.pdf')).toBeNull()
   })
 
   it('opens with the keyboard and reports the chosen value', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
-    render(<CompactSelect aria-label="סוג הקובץ a.pdf" value="syllabus" options={OPTIONS} onChange={onChange} />)
+    render(<CompactSelect aria-label="File type a.pdf" value="syllabus" options={OPTIONS} onChange={onChange} />)
     await user.tab()
     await user.keyboard('{Enter}')
     expect(screen.getByRole('option', { name: 'סילבוס' })).toHaveAttribute('aria-selected', 'true')
-    await user.click(screen.getByRole('option', { name: 'מבחן עבר' }))
+    await user.click(screen.getByRole('option', { name: 'Past exam' }))
     expect(onChange).toHaveBeenCalledWith('past_exam')
   })
 
   it('does not open while disabled, and is muted, not transparent', async () => {
     const user = userEvent.setup()
-    render(<CompactSelect aria-label="סוג" value="syllabus" options={OPTIONS} onChange={vi.fn()} isDisabled />)
+    render(<CompactSelect aria-label="Type" value="syllabus" options={OPTIONS} onChange={vi.fn()} isDisabled />)
     const trigger = screen.getByRole('button')
     await user.click(trigger)
     expect(screen.queryByRole('listbox')).toBeNull()
@@ -115,7 +115,7 @@ describe('CollapsibleSection', () => {
   function Demo({ start = false }: { start?: boolean }) {
     const [open, setOpen] = useState(start)
     return (
-      <CollapsibleSection title="חומרים" summary="3 קבצים" isExpanded={open} onExpandedChange={setOpen}>
+      <CollapsibleSection title="Materials" summary="3 Files" isExpanded={open} onExpandedChange={setOpen}>
         <p>סילבוס</p>
       </CollapsibleSection>
     )
@@ -123,11 +123,11 @@ describe('CollapsibleSection', () => {
 
   it('is an h2 whose button says whether the section is open, with the summary beside it', () => {
     render(<Demo />)
-    const heading = screen.getByRole('heading', { level: 2, name: /חומרים/ })
-    const trigger = screen.getByRole('button', { name: /חומרים/ })
+    const heading = screen.getByRole('heading', { level: 2, name: /Materials/ })
+    const trigger = screen.getByRole('button', { name: /Materials/ })
     expect(heading).toContainElement(trigger)
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
-    expect(trigger).toHaveTextContent('3 קבצים')
+    expect(trigger).toHaveTextContent('3 Files')
     // Closed, the content is in the DOM and not visible.
     expect(screen.getByText('סילבוס')).not.toBeVisible()
   })
@@ -136,7 +136,7 @@ describe('CollapsibleSection', () => {
     const user = userEvent.setup()
     render(<Demo />)
     await user.tab()
-    const trigger = screen.getByRole('button', { name: /חומרים/ })
+    const trigger = screen.getByRole('button', { name: /Materials/ })
     expect(trigger).toHaveFocus()
     await user.keyboard('{Enter}')
     expect(trigger).toHaveAttribute('aria-expanded', 'true')

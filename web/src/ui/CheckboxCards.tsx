@@ -50,6 +50,7 @@ export function CheckboxCards({
         {options.map((option) => (
           <CheckboxField key={option.value} value={option.value} className="flex">
             <CheckboxButton className={OPTION_CLASS}>
+              {option.icon === undefined ? null : <span className="mb-0.5 flex">{option.icon}</span>}
               <span>{option.label}</span>
               {option.description === undefined ? null : (
                 <span className="text-caption font-normal text-ink-muted tabular-nums">{option.description}</span>

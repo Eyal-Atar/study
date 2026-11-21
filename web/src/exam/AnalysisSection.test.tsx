@@ -13,7 +13,7 @@ import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { createFakeStorage } from '../test/fakeStorage'
 import { ToastRegion } from '../ui/toast'
 import { AnalysisSection } from './AnalysisSection'
-import { applyFixture, reanalyzeJob, reanalyzeResult, taskItem, topicsFixture } from './analysisFixtures'
+import { applyFixture, reanalyzeJob, reanalyzeResult, taskItem, topicsFixture } from '../test/analysisFixtures'
 import type { AnalysisApply } from './analysis'
 
 const t = en.exam.analysis
@@ -200,6 +200,10 @@ describe('AnalysisSection with AI tasks', () => {
     const added = within(dialog).getByRole('list', { name: t.addedListLabel })
     expect(within(added).getByText('תרגול אינטגרלים')).toBeInTheDocument()
     expect(within(added).getByText('מופיע בשלושה מבחני עבר')).toBeInTheDocument()
+    // Titles and reasons from the analysis are user content: they take their own direction.
+    expect(within(added).getByText('תרגול אינטגרלים').closest('[dir="auto"]')).not.toBeNull()
+    expect(within(added).getByText('מופיע בשלושה מבחני עבר').closest('[dir="auto"]')).not.toBeNull()
+    expect(within(replaced).getByText('גבולות').closest('[dir="auto"]')).not.toBeNull()
     expect(
       within(added).getByText(t.taskMeta(en.exam.tasks.kinds.practice, en.exam.tasks.minutes(90))),
     ).toBeInTheDocument()

@@ -52,7 +52,7 @@ export interface CommitmentDeleteResponse {
   plan_affected: boolean
 }
 
-// A one-off busy event ("תפוס" on the calendar), UTC instants on whole minutes, at most 14 days.
+// A one-off busy event ("Busy" on the calendar), UTC instants on whole minutes, at most 14 days.
 export interface BusyEvent {
   id: string
   title: string | null
@@ -97,7 +97,7 @@ export interface BusyItem {
   ends_at: string
 }
 
-// POST /plan/free-time: "יש לי זמן עכשיו". 30–480 minutes from now; the next tasks move into it,
+// POST /plan/free-time: "I have time now". 30–480 minutes from now; the next tasks move into it,
 // pinned. Failure codes: nothing_to_place, no_free_time (409).
 export interface FreeTimeResponse {
   session_starts_at: string

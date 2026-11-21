@@ -7,9 +7,9 @@ describe('TextField', () => {
   it('is a textbox named by its visible label, and typing reports every change', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
-    render(<TextField label="שם המבחן" onChange={onChange} />)
+    render(<TextField label="Exam name" onChange={onChange} />)
 
-    const input = screen.getByRole('textbox', { name: 'שם המבחן' })
+    const input = screen.getByRole('textbox', { name: 'Exam name' })
     await user.type(input, 'אב')
     expect(onChange.mock.calls).toEqual([['א'], ['אב']])
     expect(input).toHaveValue('אב')
@@ -17,9 +17,9 @@ describe('TextField', () => {
 
   it('shows its focus: the brand border and ring hang on data-focused, and the text is 16px', async () => {
     const user = userEvent.setup()
-    render(<TextField label="שם" />)
+    render(<TextField label="Name" />)
 
-    const input = screen.getByRole('textbox', { name: 'שם' })
+    const input = screen.getByRole('textbox', { name: 'Name' })
     expect(input).not.toHaveAttribute('data-focused')
     await user.tab()
     expect(input).toHaveFocus()
@@ -34,32 +34,32 @@ describe('TextField', () => {
   })
 
   it('links its description to the field', () => {
-    render(<TextField label="דקות" description="בין 15 ל-240" />)
+    render(<TextField label="minutes" description="Between 15 and 240" />)
 
-    expect(screen.getByRole('textbox', { name: 'דקות' })).toHaveAccessibleDescription('בין 15 ל-240')
+    expect(screen.getByRole('textbox', { name: 'minutes' })).toHaveAccessibleDescription('Between 15 and 240')
   })
 
   it('an error message makes the field invalid and is linked to it', () => {
-    render(<TextField label="דקות" errorMessage="צריך מספר" />)
+    render(<TextField label="minutes" errorMessage="Enter a number" />)
 
-    const input = screen.getByRole('textbox', { name: 'דקות' })
+    const input = screen.getByRole('textbox', { name: 'minutes' })
     expect(input).toHaveAttribute('aria-invalid', 'true')
     expect(input).toHaveAttribute('data-invalid', 'true')
-    expect(input).toHaveAccessibleDescription('צריך מספר')
+    expect(input).toHaveAccessibleDescription('Enter a number')
     expect(input.className).toContain('data-[invalid]:border-danger')
-    expect(screen.getByText('צריך מספר').className).toContain('text-danger')
+    expect(screen.getByText('Enter a number').className).toContain('text-danger')
   })
 
   it('is valid without an error message', () => {
-    render(<TextField label="דקות" />)
+    render(<TextField label="minutes" />)
 
-    expect(screen.getByRole('textbox', { name: 'דקות' })).not.toHaveAttribute('aria-invalid')
+    expect(screen.getByRole('textbox', { name: 'minutes' })).not.toHaveAttribute('aria-invalid')
   })
 
   it('a disabled field stays readable: muted fill and text, no opacity', () => {
-    render(<TextField label="שם" isDisabled value="חדו״א" />)
+    render(<TextField label="Name" isDisabled value="חדו״א" />)
 
-    const input = screen.getByRole('textbox', { name: 'שם' })
+    const input = screen.getByRole('textbox', { name: 'Name' })
     expect(input).toBeDisabled()
     expect(input.className).toContain('data-[disabled]:bg-surface-muted')
     expect(input.className).toContain('data-[disabled]:text-ink-muted')

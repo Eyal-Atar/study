@@ -11,6 +11,7 @@ import { Menu, MenuItem } from '../ui/Menu'
 import { Note } from '../ui/Note'
 import { ICON_STROKE } from '../ui/styles'
 import { useToast } from '../ui/useToast'
+import { UserText } from '../ui/UserText'
 import { useUpdateTask } from './api'
 import { momentIn } from './dates'
 import { usePlacementFeedback } from './placement'
@@ -25,8 +26,8 @@ function kindLabel(kind: string): string {
 }
 
 // One task, as a row: its name, one line of details, why it is there, the check button and a menu
-// with the rest of the actions (design language 5.2). "עריכה" turns the row into a form; nothing is
-// sent before "שמירה", and only the changed fields.
+// with the rest of the actions (design language 5.2). "Edit" turns the row into a form; nothing is
+// sent before "Save", and only the changed fields.
 export function TaskRow({
   task,
   topics,
@@ -108,7 +109,7 @@ export function TaskRow({
   const hasReason = task.reason !== null && task.reason !== ''
   return (
     <ListRow
-      title={task.title}
+      title={<UserText>{task.title}</UserText>}
       done={finished}
       subtitle={
         <>
@@ -126,7 +127,9 @@ export function TaskRow({
           </p>
           {hasReason && showReason ? (
             <div className="mt-2">
-              <Note role="status">{task.reason}</Note>
+              <Note role="status">
+                <UserText prose>{task.reason}</UserText>
+              </Note>
             </div>
           ) : null}
         </>

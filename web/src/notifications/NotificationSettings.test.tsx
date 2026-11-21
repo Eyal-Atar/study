@@ -88,7 +88,8 @@ describe('NotificationSettings', () => {
         body: { endpoint: ENDPOINT, keys: { p256dh: P256DH, auth: AUTH }, user_agent: navigator.userAgent },
       },
     ])
-    expect(await screen.findByText(en.notifications.enabled)).toBeInTheDocument()
+    // The card's status line says the same words, so the toast makes two.
+    expect(await screen.findAllByText(en.notifications.enabled)).toHaveLength(2)
     expect(card.getByRole('button', { name: en.notifications.disable })).toBeInTheDocument()
   })
 
@@ -147,7 +148,8 @@ describe('NotificationSettings', () => {
     expect(server.calls('POST', '/push/subscriptions')).toHaveLength(1)
     expect(fake.log.at(-1)).toBe('unsubscribe')
     expect(fake.current()).toBeNull()
-    expect(await screen.findByText(en.notifications.disabled)).toBeInTheDocument()
+    // The card's status line says the same words, so the toast makes two.
+    expect(await screen.findAllByText(en.notifications.disabled)).toHaveLength(2)
   })
 
   it('turning off without a known id sends the subscription first to learn it', async () => {
@@ -189,7 +191,7 @@ describe('NotificationSettings', () => {
     expect(fake.current()).not.toBeNull()
   })
 
-  it('choosing "10 דקות לפני" saves notify_lead_minutes with PATCH /me and says so', async () => {
+  it('choosing "10 minutes before" saves notify_lead_minutes with PATCH /me and says so', async () => {
     const user = userEvent.setup()
     const { server } = open({}, { server: pushServer({ lead: 0 }) })
     const group = within(await screen.findByRole('radiogroup', { name: en.notifications.leadLabel }))

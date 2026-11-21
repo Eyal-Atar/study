@@ -159,21 +159,21 @@ describe('DatePicker', () => {
   })
 
   it('an error message makes the field invalid, and is shown and linked', () => {
-    const { group } = setup({ errorMessage: 'התאריך כבר עבר' })
+    const { group } = setup({ errorMessage: 'That date has passed' })
 
-    expect(screen.getByText('התאריך כבר עבר').className).toContain('text-danger')
+    expect(screen.getByText('That date has passed').className).toContain('text-danger')
     expect(group).toHaveAttribute('data-invalid', 'true')
-    expect(group).toHaveAccessibleDescription(/התאריך כבר עבר/)
+    expect(group).toHaveAccessibleDescription(/That date has passed/)
     const [day] = within(group).getAllByRole('spinbutton')
     expect(day).toHaveAttribute('aria-invalid', 'true')
-    expect(day).toHaveAccessibleDescription(/התאריך כבר עבר/)
+    expect(day).toHaveAccessibleDescription(/That date has passed/)
   })
 
   it('a description is shown under the field and linked to it', () => {
-    const { group } = setup({ description: 'אפשר לשנות אחר כך' })
+    const { group } = setup({ description: 'You can change this later' })
 
-    expect(screen.getByText('אפשר לשנות אחר כך').className).toContain('text-ink-muted')
-    expect(group).toHaveAccessibleDescription(/אפשר לשנות אחר כך/)
+    expect(screen.getByText('You can change this later').className).toContain('text-ink-muted')
+    expect(group).toHaveAccessibleDescription(/You can change this later/)
   })
 
   it('a focused placeholder segment stays readable: on-brand on the brand fill, by a stacked variant', async () => {

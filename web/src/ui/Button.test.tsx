@@ -9,10 +9,10 @@ describe('Button', () => {
   it('is a button with its text as the name, and presses with the keyboard', async () => {
     const user = userEvent.setup()
     const onPress = vi.fn()
-    render(<Button onPress={onPress}>שמירה</Button>)
+    render(<Button onPress={onPress}>Save</Button>)
 
     await user.tab()
-    const button = screen.getByRole('button', { name: 'שמירה' })
+    const button = screen.getByRole('button', { name: 'Save' })
     expect(button).toHaveFocus()
     // React Aria marks keyboard focus, and the ring hangs on that mark.
     expect(button).toHaveAttribute('data-focus-visible')
@@ -25,10 +25,10 @@ describe('Button', () => {
   it.each(['primary', 'secondary', 'quiet', 'danger'] as const)('a disabled %s button stays readable: muted colours, no opacity', (variant) => {
     render(
       <Button variant={variant} isDisabled>
-        שמירה
+        Save
       </Button>,
     )
-    const button = screen.getByRole('button', { name: 'שמירה' })
+    const button = screen.getByRole('button', { name: 'Save' })
     expect(button).toBeDisabled()
     expect(button.className).not.toMatch(/opacity/)
     expect(button.className).toContain('data-[disabled]:text-ink-muted')
@@ -39,10 +39,10 @@ describe('Button', () => {
     const onPress = vi.fn()
     render(
       <Button isPending onPress={onPress}>
-        שמירה
+        Save
       </Button>,
     )
-    const button = screen.getByRole('button', { name: /שמירה/ })
+    const button = screen.getByRole('button', { name: /Save/ })
     expect(button).toHaveAttribute('data-pending')
     expect(button.querySelector('svg')).not.toBeNull()
 
@@ -59,10 +59,10 @@ describe('Button variant inverse', () => {
     const onPress = vi.fn()
     render(
       <Button variant="inverse" onPress={onPress}>
-        בטל
+        Undo
       </Button>,
     )
-    const button = screen.getByRole('button', { name: 'בטל' })
+    const button = screen.getByRole('button', { name: 'Undo' })
     const classes = button.className.split(' ')
     expect(classes).toContain('text-inverse-action')
     expect(classes).toContain('border-transparent')
@@ -80,10 +80,10 @@ describe('Button variant inverse', () => {
   it('a disabled inverse button is muted, never transparent', () => {
     render(
       <Button variant="inverse" isDisabled>
-        בטל
+        Undo
       </Button>,
     )
-    const button = screen.getByRole('button', { name: 'בטל' })
+    const button = screen.getByRole('button', { name: 'Undo' })
     expect(button).toBeDisabled()
     expect(button.className).not.toMatch(/opacity/)
     expect(button.className).toContain('data-[disabled]:text-line-strong')
@@ -95,11 +95,11 @@ describe('IconButton', () => {
     const user = userEvent.setup()
     const onPress = vi.fn()
     render(
-      <IconButton aria-label="הגדרות" onPress={onPress}>
+      <IconButton aria-label="Settings" onPress={onPress}>
         <Settings aria-hidden="true" size={18} />
       </IconButton>,
     )
-    const button = screen.getByRole('button', { name: 'הגדרות' })
+    const button = screen.getByRole('button', { name: 'Settings' })
     expect(button.className).toContain('size-touch')
     await user.click(button)
     expect(onPress).toHaveBeenCalledOnce()
@@ -109,12 +109,12 @@ describe('IconButton', () => {
 describe('IconButton variants', () => {
   it('secondary carries one border colour and one text colour, not the quiet ones too', () => {
     render(
-      <IconButton aria-label="עוד" variant="secondary">
+      <IconButton aria-label="More" variant="secondary">
         <Settings aria-hidden="true" size={18} />
       </IconButton>,
     )
-    const classes = screen.getByRole('button', { name: 'עוד' }).className.split(' ')
-    // The border of a secondary Button (the "היום" of the prototype): the icon, not the line,
+    const classes = screen.getByRole('button', { name: 'More' }).className.split(' ')
+    // The border of a secondary Button (the "Today" of the prototype): the icon, not the line,
     // is what makes it a button.
     expect(classes).toContain('border-line')
     expect(classes).not.toContain('border-transparent')
@@ -126,11 +126,11 @@ describe('IconButton variants', () => {
     const user = userEvent.setup()
     const onPress = vi.fn()
     render(
-      <IconButton aria-label="סגירה" variant="inverse" onPress={onPress}>
+      <IconButton aria-label="Close" variant="inverse" onPress={onPress}>
         <Settings aria-hidden="true" size={18} />
       </IconButton>,
     )
-    const button = screen.getByRole('button', { name: 'סגירה' })
+    const button = screen.getByRole('button', { name: 'Close' })
     const classes = button.className.split(' ')
     expect(classes).toContain('text-on-inverse')
     expect(classes).toContain('border-transparent')
@@ -145,8 +145,8 @@ describe('IconButton variants', () => {
 
 describe('Button look', () => {
   it('a secondary button has the quiet line of the prototype, and every label is medium', () => {
-    render(<Button variant="secondary">היום</Button>)
-    const classes = screen.getByRole('button', { name: 'היום' }).className.split(' ')
+    render(<Button variant="secondary">Today</Button>)
+    const classes = screen.getByRole('button', { name: 'Today' }).className.split(' ')
     expect(classes).toContain('border-line')
     expect(classes).not.toContain('border-line-strong')
     // The 14px corners of the mockup's .btn (S31 decision 27); 12px is the corner of a field.
@@ -165,11 +165,11 @@ describe('ButtonLink', () => {
     render(
       <MemoryRouter>
         <ButtonLink to="/settings/delete-account" variant="danger">
-          מחיקת חשבון
+          Delete account
         </ButtonLink>
       </MemoryRouter>,
     )
-    const link = screen.getByRole('link', { name: 'מחיקת חשבון' })
+    const link = screen.getByRole('link', { name: 'Delete account' })
     expect(link).toHaveAttribute('href', '/settings/delete-account')
     expect(link.className).toContain('min-h-touch')
     expect(link.className).toContain('text-danger')
@@ -184,11 +184,11 @@ describe('ButtonLink', () => {
     render(
       <MemoryRouter>
         <ButtonLink to="/calendar" variant="inverse">
-          לפתוח
+          Open
         </ButtonLink>
       </MemoryRouter>,
     )
-    const classes = screen.getByRole('link', { name: 'לפתוח' }).className.split(' ')
+    const classes = screen.getByRole('link', { name: 'Open' }).className.split(' ')
     expect(classes).toContain('text-inverse-action')
     expect(classes).toContain('border-transparent')
     expect(classes).toContain('hover:text-on-inverse')

@@ -12,6 +12,7 @@ import { RadioCards } from '../ui/RadioCards'
 import { ICON_STROKE } from '../ui/styles'
 import { TextField } from '../ui/TextField'
 import { useToast } from '../ui/useToast'
+import { UserText } from '../ui/UserText'
 import { useUpdateTopic } from './api'
 import type { Gap, Topic, TopicPatch } from './types'
 
@@ -106,7 +107,7 @@ function TopicForm({ topic, onDone }: { topic: Topic; onDone: () => void }) {
   )
 }
 
-// The head of a topic group: name, weight and evidence, with "עריכה" for name and weight.
+// The head of a topic group: name, weight and evidence, with "Edit" for name and weight.
 export function TopicHeader({ topic, headingId }: { topic: Topic; headingId: string }) {
   const [editing, setEditing] = useState(false)
   // ui/IconButton takes no ref, so the ref is on the head and the button is found inside it.
@@ -136,7 +137,7 @@ export function TopicHeader({ topic, headingId }: { topic: Topic; headingId: str
       <div ref={head} className="flex items-start gap-2">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h3 id={headingId} className="text-body font-semibold break-words text-ink">
-            {topic.name}
+            <UserText>{topic.name}</UserText>
           </h3>
           <Weight weight={topic.weight} />
         </div>
@@ -149,7 +150,9 @@ export function TopicHeader({ topic, headingId }: { topic: Topic; headingId: str
           <Pencil aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
         </IconButton>
       </div>
-      {topic.evidence === null || topic.evidence === '' ? null : <Disclosure label={tp.evidence}>{topic.evidence}</Disclosure>}
+      {topic.evidence === null || topic.evidence === '' ? null : <Disclosure label={tp.evidence}>
+          <UserText prose>{topic.evidence}</UserText>
+        </Disclosure>}
     </div>
   )
 }

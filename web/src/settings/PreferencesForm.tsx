@@ -6,6 +6,7 @@ import { useUpdateMe } from '../onboarding/api'
 import { useReplanOffer } from '../plan/replanOfferContext'
 import { Button } from '../ui/Button'
 import { CheckboxCards } from '../ui/CheckboxCards'
+import { DAYPART_ICON } from '../ui/icons'
 import { Note } from '../ui/Note'
 import { RadioCards, type ChoiceOption } from '../ui/RadioCards'
 import { Switch } from '../ui/Switch'
@@ -25,11 +26,16 @@ const HOBBY_DEFAULT_START = '18:00'
 const HOBBY_DEFAULT_MINUTES = 60
 
 const WINDOWS: readonly StudyWindow[] = ['morning', 'afternoon', 'evening', 'night']
-const WINDOW_OPTIONS = WINDOWS.map((window) => ({
-  value: window,
-  label: en.onboardingSchedule.windows[window].label,
-  description: en.onboardingSchedule.windows[window].range,
-}))
+// Each time of day carries its icon (audit section 2: designed sun and moon icons, never emoji).
+const WINDOW_OPTIONS = WINDOWS.map((window) => {
+  const Icon = DAYPART_ICON[window]
+  return {
+    value: window,
+    label: en.onboardingSchedule.windows[window].label,
+    description: en.onboardingSchedule.windows[window].range,
+    icon: <Icon size={18} />,
+  }
+})
 
 type Field =
   | 'daily_study_minutes'
@@ -143,7 +149,7 @@ function serverFieldErrors(error: unknown): FieldErrors | null {
 // by a thin line and air (no card: the settings screen has one card, the danger zone). The name is
 // an h3 in the size and weight of a row title, one step above the labels of the fields, so the
 // screen reads section (quiet h2), group, field. `hiddenTitle`: the first control of the group
-// already says the name (the switch "זמן לעצמי כל יום"), so the heading is for the outline only.
+// already says the name (the switch "Time for myself every day"), so the heading is for the outline only.
 function Group({ title, hiddenTitle = false, children }: { title: string; hiddenTitle?: boolean; children: ReactNode }) {
   const headingId = useId()
   return (
@@ -156,7 +162,7 @@ function Group({ title, hiddenTitle = false, children }: { title: string; hidden
   )
 }
 
-// The study preferences of spec 7.9. One "שמירה" sends only what changed; a plan field that changed
+// The study preferences of spec 7.9. One "Save" sends only what changed; a plan field that changed
 // offers a replan (ReplanOffer), as plan_affected says.
 export function PreferencesForm({ me }: { me: Me }) {
   const updateMe = useUpdateMe()
