@@ -10,6 +10,12 @@ rest of a day goes by deadline: exam by exam in rank order, each exam's ready
 simulation reviews first, then its started multi-day tasks, then its other
 tasks. So on every day, a later exam takes time only after an earlier exam's
 ready work had its turn.
+
+A split task (Task.bite_minutes = B, S44) is multi-day once it holds at least
+B + MIN_PART_MINUTES, so it gets one part a day like any multi-day task, and
+that part aims at B. The bites so land on different days: a bite, not the same
+block with a break in it. A remainder shorter than B + MIN_PART_MINUTES goes in
+whole, since cutting a bite off it would leave a part under the minimum.
 """
 
 import datetime as dt
@@ -92,9 +98,15 @@ class _Day:
             and day_fits(self.windows, self.regular, minutes)
         )
 
-    def part(self, remainder: int) -> int:
-        """How much of a multi-day task's remainder goes in today; 0 for nothing."""
+    def part(self, remainder: int, bite: int | None = None) -> int:
+        """How much of a multi-day task's remainder goes in today; 0 for nothing.
+
+        A split task's part aims at its bite, or at the whole remainder once less
+        than a bite and a part is left; the day's budget and room still bound it.
+        """
         part = min(self.budget, room(self.windows, self.regular, self.simulation))
+        if bite is not None and remainder >= bite + MIN_PART_MINUTES:
+            part = min(part, bite)
         if part >= remainder:
             return remainder
         if remainder - part < MIN_PART_MINUTES:
@@ -426,9 +438,13 @@ def _phase(task: Task) -> int:
 
 
 def _is_multi_day(task: Task, eligible: Sequence[_Day]) -> bool:
-    """Only a task that no empty day of its exam holds whole is split over days."""
+    """Only a task that no empty day of its exam holds whole is split over days, and
+    a split task that holds at least a bite and a part: it gets one bite a day."""
     if task.kind is TaskKind.SIMULATION:
         return False
+    bite = task.bite_minutes
+    if bite is not None and task.estimated_minutes >= bite + MIN_PART_MINUTES:
+        return True
     return not any(
         min(day.limit, room(day.windows, [])) >= task.estimated_minutes for day in eligible
     )
@@ -479,7 +495,8 @@ def _next_part(
         return None
     for task in progress.started.values():
         if task.exam_id == exam_id and not day.holds(task.id):
-            minutes = day.part(task.estimated_minutes - progress.placed[task.id])
+            remainder = task.estimated_minutes - progress.placed[task.id]
+            minutes = day.part(remainder, task.bite_minutes)
             if minutes:
                 return task, minutes
     return None
@@ -517,7 +534,7 @@ def _is_after(context: _Context, task: Task, day: _Day) -> bool:
 def _fitting_minutes(context: _Context, day: _Day, task: Task) -> int:
     """All of a task that fits whole, the first part of a multi-day task, or 0."""
     if task.id in context.multi_day:
-        return day.part(task.estimated_minutes)
+        return day.part(task.estimated_minutes, task.bite_minutes)
     return task.estimated_minutes if day.fits(task.estimated_minutes) else 0
 
 
