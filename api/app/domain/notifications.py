@@ -76,7 +76,7 @@ def reminder_text(
     now: datetime,
     timezone: str,
 ) -> ReminderText:
-    """The fixed English template, for example "In 10 min · 09:00-10:30 · הסתברות".
+    """The fixed English template, for example "In 10 min. 09:00-10:30, הסתברות".
 
     The hours (joined by an en dash) are wall-clock times in the profile's timezone:
     starts_at is an absolute instant, so a block on a DST night shows the offset it really
@@ -94,7 +94,7 @@ def reminder_text(
     exam = _truncate(exam_name, EXAM_NAME_MAX_CHARS)
     return ReminderText(
         title=_truncate(task_title, TITLE_MAX_CHARS),
-        body=f"{_lead(seconds_left)} · {hours} · {exam}",
+        body=f"{_lead(seconds_left)}. {hours}, {exam}",
     )
 
 

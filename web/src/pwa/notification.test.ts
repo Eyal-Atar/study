@@ -9,13 +9,13 @@ describe('readPushPayload', () => {
   it('shows a valid reminder as English LTR, with the icon, the tag and the url', () => {
     const view = readPushPayload({
       title: 'Chapter 3',
-      body: 'In 10 min · 09:00–10:30 · אלגוריתמים',
+      body: 'In 10 min. 09:00–10:30, אלגוריתמים',
       url: '/today',
       tag: 'block:1',
     })
     expect(view.title).toBe('Chapter 3')
     expect(view.options).toMatchObject({
-      body: 'In 10 min · 09:00–10:30 · אלגוריתמים',
+      body: 'In 10 min. 09:00–10:30, אלגוריתמים',
       tag: 'block:1',
       lang: 'en',
       dir: 'ltr',
