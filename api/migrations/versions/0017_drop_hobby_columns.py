@@ -17,8 +17,8 @@ is 0; a non-zero count is a hobby that was not moved and would be lost.
 
 from alembic import op
 
-revision = "0015"
-down_revision = "0013"
+revision = "0017"
+down_revision = "0016"
 branch_labels = None
 depends_on = None
 

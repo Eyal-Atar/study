@@ -1,6 +1,6 @@
-"""Migration 0015: the S15 hobby columns leave app.profiles (S34).
+"""Migration 0017: the S15 hobby columns leave app.profiles (S34).
 
-0014 already moved every hobby into app.commitments and nulled the columns, so 0015 only
+0014 already moved every hobby into app.commitments and nulled the columns, so 0017 only
 drops them. Its downgrade brings them back empty, with the three CHECKs of 0009; 0014's own
 downgrade is what refills them from the commitments.
 """
@@ -45,18 +45,18 @@ def test_head_has_no_hobby_columns(db: psycopg.Connection) -> None:
 
 def test_downgrade_brings_the_columns_back_empty_with_their_checks() -> None:
     admin_url = admin_database_url()
-    name = f"{os.environ.get('STUDYFLOW_TEST_DB', 'studyflow_test')}_0015"
+    name = f"{os.environ.get('STUDYFLOW_TEST_DB', 'studyflow_test')}_0017"
     url = create_database(admin_url, name)
     try:
         config = alembic_config(url)
-        command.upgrade(config, "0015")
+        command.upgrade(config, "0017")
         user_id = uuid4()
         with psycopg.connect(url, autocommit=True) as conn:
             assert _hobby_columns(conn) == []
             conn.execute("INSERT INTO auth.users (id) VALUES (%s)", (user_id,))
             conn.execute("INSERT INTO app.profiles (id) VALUES (%s)", (user_id,))
 
-        command.downgrade(config, "0013")
+        command.downgrade(config, "0016")
         with psycopg.connect(url, autocommit=True) as conn:
             assert _hobby_columns(conn) == list(_COLUMNS)
             assert _hobby_checks(conn) == list(_CHECKS)
@@ -85,12 +85,12 @@ def test_downgrade_brings_the_columns_back_empty_with_their_checks() -> None:
                 (user_id,),
             )
 
-        command.upgrade(config, "0015")
+        command.upgrade(config, "0017")
         with psycopg.connect(url, autocommit=True) as conn:
             assert _hobby_columns(conn) == []
             assert _hobby_checks(conn) == []
             assert conn.execute("SELECT version_num FROM app.alembic_version").fetchall() == [
-                ("0015",)
+                ("0017",)
             ]
     finally:
         drop_database(admin_url, name)
