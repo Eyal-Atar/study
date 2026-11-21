@@ -456,7 +456,7 @@ const sections=[
    ${recap(`3 exams: ${u(EX[1])}, ${u(EX[2])}, ${u(EX[3])}`)}
    <div class="answer" style="padding-top:6px;padding-bottom:6px"><div class="rows">
      <div style="padding:4px 0 2px"><div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:3px;background:var(--e1);flex:none"></span>${ut(EX[1],'font-weight:600;flex:1')}<span class="btn quiet s">${icon('plus',16)}Add files</span></div>
-       ${fileRow('מועד א׳ 2025 כולל פתרון מלא.pdf','Past exam, PDF. Ready, 12 pages',icon('trash',17))}${fileRow('סילבוס הסתברות.pdf','Syllabus, PDF. Ready, 3 pages',icon('trash',17))}${fileRow('Lecture notes, weeks 1-6.pdf','Notes, PDF. Reading the file…',icon('trash',17))}</div>
+       ${fileRow('מועד א׳ 2025 כולל פתרון מלא','Past exam, PDF. Ready, 12 pages',icon('trash',17))}${fileRow('סילבוס הסתברות','Syllabus, PDF. Ready, 3 pages',icon('trash',17))}${fileRow('Lecture notes, weeks 1-6','Notes, PDF. Reading the file…',icon('trash',17))}</div>
      <div style="padding:4px 0"><div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:3px;background:var(--e2);flex:none"></span><div style="flex:1;min-width:0">${ut(EX[2],'font-weight:600')}<div class="mut sm">No files for this exam yet.</div></div><span class="btn quiet s">${icon('plus',16)}Add files</span></div></div>
      <div style="padding:4px 0"><div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:3px;background:var(--e3);flex:none"></span><div style="flex:1;min-width:0">${ut(EX[3],'font-weight:600')}<div class="mut sm">No files for this exam yet.</div></div><span class="btn quiet s">${icon('plus',16)}Add files</span></div></div>
    </div></div>
@@ -516,7 +516,7 @@ const sections=[
     ${blk(BL[7],PH,{wide:1,style:'transform:translateX(-118px)'})}
     ${blk([2,1065,90,3,'practice','תרגול: malloc ו-free',0],PH,{wide:1,cls:'lift',lock:1})}
     <span class="num" style="position:absolute;top:${(17.75-S)*PH-22}px;left:6px;background:var(--ink);color:#fff;font-size:12px;font-weight:600;padding:2px 7px;border-radius:6px;z-index:8">17:45–19:15</span>`})}
-   <div class="toast">${icon('lock',18)}<span class="num">Moved to 17:45 and locked</span><b>Undo</b></div>${tabbar(0)}`,
+   <div class="toast">${icon('lock',18)}<span class="num">I moved it to 17:45 and locked it.</span><b>Undo</b></div>${tabbar(0)}`,
    'Drag and swipe','A drag moves in steps of 15 minutes with a time label, lifts the block and locks it at the new time. A swipe to the left uncovers Defer and Skip.'),
 
  ph(`${todayHead()}${strip(TODAY)}${dayView(TODAY,44)}<div class="scrim"></div><div class="sheet"><div class="grab"></div>
@@ -558,13 +558,13 @@ const sections=[
    'Exams list','One list on one surface. Each exam keeps its colour everywhere. Hebrew and English names start at the same left edge.'),
 
  ph(`<div class="pad" style="padding-top:4px"><span class="btn quiet s" style="display:inline-flex;margin-left:-10px">${icon('left',17)}All exams</span>
-   <div style="display:flex;gap:12px;align-items:center;margin:2px 0 14px"><span class="tile" style="background:var(--e1b);color:var(--e1);width:46px;height:46px;font-size:19px">${u('ה')}</span><div style="flex:1;min-width:0"><h2 class="h1">${ut(EX[1])}</h2><div class="mut num" style="font-size:13px">16 December 2026, <b class="b6" style="color:var(--ink)">in 22 days</b>. Hard</div></div><span class="btn sec s" style="padding:0;width:40px" title="Edit exam details">${icon('pencil',17)}</span></div>
+   <div style="display:flex;gap:12px;align-items:center;margin:2px 0 14px"><span class="tile" style="background:var(--e1b);color:var(--e1);width:46px;height:46px;font-size:19px">${u('ה')}</span><div style="flex:1;min-width:0"><h2 class="h1">${ut(EX[1])}</h2><div class="mut num" style="font-size:13px">16 December 2026, <b class="b6" style="color:var(--ink)">in 22 days</b>. Difficulty: hard</div></div><span class="btn sec s" style="padding:0;width:40px" title="Edit exam details">${icon('pencil',17)}</span></div>
    <div class="card" style="padding:14px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px"><b class="b6">Until the exam</b><span class="mut sm num">42% done</span></div>
      <div class="tl">${[3,5,4,6,2,0,5,4,6,5,3,0,4,6,5,4,2,0,3,4,0].map((v,i)=>v?`<div class="${i<8?'dn':'pl'}" style="height:${v*10}px"></div>`:`<div class="rs">${icon('tea',12)}</div>`).join('')}<div class="xd">${icon('flag',15)}</div></div>
      <div class="legend"><span><i style="background:var(--brand-ink)"></i>Done</span><span><i style="background:var(--e1b);border:1.5px solid var(--e1l)"></i>Planned</span><span>${icon('tea',13)}Rest</span><span>${icon('flag',13,'color:var(--e1)')}Exam</span></div></div>
    <h3 class="mut" style="font-size:14px;font-weight:500;margin:18px 0 8px">Topics and tasks</h3>
    <div class="card" style="padding:12px 14px 2px"><div style="display:flex;align-items:center;gap:10px">${ut('משתנים מקריים רציפים','font-weight:600;font-size:15px;flex:1')}<span class="pips" title="Importance 5 of 5">${'<i class="on"></i>'.repeat(5)}</span>${icon('up',18,'color:var(--muted)')}</div><div class="mut sm num">1 of 3 tasks done</div>
-     <div class="rows" style="margin-top:6px;border-top:1px solid var(--line)">${[['learn','למידה: משתנים מקריים רציפים','Learning, 90 min. Focus 7/10',1],['practice','תרגול: פונקציית צפיפות, התפלגות מצטברת ושאלות ממבחני עבר','Practice, 60 min. Thu, 26 Nov, 10:00',0],['review','חזרה: משתנים מקריים','Review, 45 min. Not on the calendar yet',0]].map(([k,t,s,d])=>`<div class="r" style="min-height:50px;padding:9px 0">${icon(k,18,'color:var(--e1)')}<div class="tx">${ut(t,d?'color:var(--muted);text-decoration:line-through':'font-weight:500')}<small class="num">${s}</small></div><span class="check${d?' on':''}">${d?icon('check',14,'stroke-width:2.75'):''}</span></div>`).join('')}</div></div>
+     <div class="rows" style="margin-top:6px;border-top:1px solid var(--line)">${[['learn','למידה: משתנים מקריים רציפים','Learning, 90 min. Focus 7/10',1],['practice','תרגול: פונקציית צפיפות, התפלגות מצטברת ושאלות ממבחני עבר','Practice, 60 min. Focus 6/10',0],['review','חזרה: משתנים מקריים','Review, 45 min. Not on the calendar yet',0]].map(([k,t,s,d])=>`<div class="r" style="min-height:50px;padding:9px 0">${icon(k,18,'color:var(--e1)')}<div class="tx">${ut(t,d?'color:var(--muted);text-decoration:line-through':'font-weight:500')}<small class="num">${s}</small></div><span class="check${d?' on':''}">${d?icon('check',14,'stroke-width:2.75'):''}</span></div>`).join('')}</div></div>
    ${[['התפלגות נורמלית',4,'1 of 3 tasks done'],['תוחלת ושונות',5,'3 of 3 tasks done']].map(([t,w,s])=>`<div class="card" style="padding:12px 14px;margin-top:8px"><div style="display:flex;align-items:center;gap:10px">${ut(t,'font-weight:600;font-size:15px;flex:1')}<span class="pips" title="Importance ${w} of 5">${'<i class="on"></i>'.repeat(w)}${'<i></i>'.repeat(5-w)}</span>${icon('down',18,'color:var(--muted)')}</div><div class="mut sm num">${s}</div></div>`).join('')}
    </div><div class="grow"></div>${tabbar(1)}`,
    'Exam screen','The timeline until the exam: done days in green, planned days in the exam\'s colour, a tea cup for a rest day and a flag for the exam. Topics show their importance as five pips; each task carries the icon of its kind. A long Hebrew task name keeps its beginning and ends in an ellipsis.'),
@@ -576,9 +576,9 @@ const sections=[
        <span class="btn quiet s" style="display:inline-flex;margin:2px 0 -8px -8px;min-height:36px">Hide the reason</span></div></div>
    <div class="card" style="padding:12px 14px 4px;margin-top:10px"><div style="display:flex;align-items:center;gap:10px"><b class="b6" style="flex:1">Materials</b><span class="mut sm">3 files</span>${icon('up',18,'color:var(--muted)')}</div>
      <div class="rows" style="margin-top:6px;border-top:1px solid var(--line)">
-       ${fileRow('מועד א׳ 2025 כולל פתרון מלא.pdf','Ready, 12 pages',`<span class="chip plain">Past exam${icon('down',14)}</span>`)}
-       ${fileRow('סילבוס הסתברות.pdf','Ready, 3 pages',`<span class="chip plain">Syllabus${icon('down',14)}</span>`)}
-       ${fileRow('Lecture notes, weeks 1-6.pdf','Ready, 48 pages',`<span class="chip plain">Notes${icon('down',14)}</span>`)}
+       ${fileRow('מועד א׳ 2025 כולל פתרון מלא','PDF. Ready, 12 pages',`<span class="chip plain">Past exam${icon('down',14)}</span>`)}
+       ${fileRow('סילבוס הסתברות','PDF. Ready, 3 pages',`<span class="chip plain">Syllabus${icon('down',14)}</span>`)}
+       ${fileRow('Lecture notes, weeks 1-6','PDF. Ready, 48 pages',`<span class="chip plain">Notes${icon('down',14)}</span>`)}
        <div class="r" style="min-height:44px;padding:4px 0"><span class="btn quiet s" style="margin-left:-8px">${icon('plus',16)}Add files</span></div></div></div>
    <div class="card" style="margin-top:10px;padding:14px"><b class="b6">Materials analysis</b><p class="mut sm" style="margin:4px 0 12px">Your materials changed. If you analyse again, I'll use them to build the tasks. You'll see what changes before you confirm.</p><div class="btn sec full">Analyse again</div></div>
    <div class="btn sec full" style="margin-top:10px">${icon('practiceexam',18,'color:var(--brand-ink)')}Create a practice exam</div>
