@@ -5,7 +5,7 @@ import { unscheduledText } from '../i18n/codes'
 import { en } from '../i18n/en'
 import { problem, type ApiCall } from '../test/fakeApi'
 import { momentIn } from './dates'
-import { BROWSER_ZONE } from '../onboarding/testFixtures'
+import { BROWSER_ZONE } from '../test/onboardingFixtures'
 import { blockFixture, examServer, openRoute, taskFixture, topicFixture, topicsFixture } from '../test/examFixtures'
 import type { TaskWriteResponse } from './types'
 
@@ -150,7 +150,10 @@ describe('TaskList', () => {
     expect(screen.getByText(tp.weight(5))).not.toHaveClass('sr-only')
     expect(screen.getByRole('region', { name: tp.gapsTitle })).toBeInTheDocument()
     const gaps = screen.getByRole('list', { name: tp.gapsTitle })
-    expect(gaps).toHaveTextContent(tp.gap('אינטגרלים', 'אין עליהם חומר'))
+    expect(gaps).toHaveTextContent('אינטגרלים')
+    // The topic and the note are user content: each takes its own direction.
+    expect(screen.getByText('אינטגרלים').closest('[dir="auto"]')).not.toBeNull()
+    expect(screen.getByText('אין עליהם חומר').closest('[dir="auto"]')).not.toBeNull()
   })
 
   it('edits a task in place: PATCH with only the changed fields, and a placed answer toasts with בטל that undoes', async () => {

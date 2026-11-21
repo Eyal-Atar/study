@@ -31,7 +31,13 @@ export interface RadioCardsProps {
 // never transparent, so its text stays readable, and a chosen one keeps its weight and a stronger
 // border (the stacked variant wins by specificity), so the choice still shows.
 // (One string and not cx(): fast refresh allows a component file to export only constants.)
-export const OPTION_CLASS = `flex min-h-touch flex-1 cursor-pointer flex-col items-center justify-center rounded-control border border-line bg-field px-2 py-2 text-center text-small text-ink transition-colors duration-(--duration-fast) ${FOCUS_RING} data-[hovered]:bg-surface-muted data-[selected]:border-brand data-[selected]:bg-brand-soft data-[selected]:font-semibold data-[selected]:text-brand-strong data-[disabled]:cursor-not-allowed data-[disabled]:border-line data-[disabled]:bg-surface-muted data-[disabled]:text-ink-muted data-[disabled]:data-[selected]:border-line-strong data-[disabled]:data-[selected]:bg-surface-muted data-[disabled]:data-[selected]:text-ink-muted`
+export const OPTION_CLASS = `flex min-h-touch min-w-0 flex-1 cursor-pointer flex-col items-center justify-center rounded-control border border-line bg-field px-2 py-2 text-center text-small [overflow-wrap:anywhere] text-ink transition-colors duration-(--duration-fast) ${FOCUS_RING} data-[hovered]:bg-surface-muted data-[selected]:border-brand data-[selected]:bg-brand-soft data-[selected]:font-semibold data-[selected]:text-brand-strong data-[disabled]:cursor-not-allowed data-[disabled]:border-line data-[disabled]:bg-surface-muted data-[disabled]:text-ink-muted data-[disabled]:data-[selected]:border-line-strong data-[disabled]:data-[selected]:bg-surface-muted data-[disabled]:data-[selected]:text-ink-muted`
+
+// Five or more columns on a phone: each cell is about 58px wide, so the option gets less padding and the
+// caption size (the chosen, semibold label still fits), and a longer label wraps to two centred lines
+// inside equal-height cells. From sm up nothing changes.
+const DENSE_COLUMNS = /(^|\s)grid-cols-([5-9]|1\d)(\s|$)/
+const DENSE_CLASS = 'max-sm:px-1 max-sm:text-caption'
 
 // A single choice from a few options, each a visible box (faster to tap on a phone than a select).
 export function RadioCards({
@@ -44,6 +50,7 @@ export function RadioCards({
   isDisabled,
   errorMessage,
 }: RadioCardsProps) {
+  const dense = DENSE_COLUMNS.test(columns)
   return (
     <RadioGroup
       value={value}
@@ -61,8 +68,8 @@ export function RadioCards({
       )}
       <div className={`grid gap-2 ${columns}`}>
         {options.map((option) => (
-          <RadioField key={option.value} value={option.value} className="flex">
-            <RadioButton className={OPTION_CLASS}>
+          <RadioField key={option.value} value={option.value} className="flex min-w-0">
+            <RadioButton className={dense ? `${OPTION_CLASS} ${DENSE_CLASS}` : OPTION_CLASS}>
               {option.icon === undefined ? null : <span className="mb-0.5 flex">{option.icon}</span>}
               <span>{option.label}</span>
               {option.description === undefined ? null : (

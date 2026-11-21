@@ -22,7 +22,7 @@ export const FOCUS_RING_INVERSE =
 export const FOCUS_RING_INVERSE_NATIVE =
   'outline-none focus-visible:ring-2 focus-visible:ring-inverse-action focus-visible:ring-offset-2 focus-visible:ring-offset-inverse'
 
-// Every lucide icon in the app is drawn with this stroke (section 5.7).
+// Every icon in the app, lucide glyph or Archi's own, is drawn with this stroke (section 5.7).
 export const ICON_STROKE = 1.75
 
 // The look of a button, shared by Button (React Aria: data-hovered, data-pressed, data-disabled)
@@ -50,7 +50,7 @@ export const BUTTON_REST: Record<ButtonVariant, string> = {
 }
 
 // The look of a button that is only an icon (IconButton, and the slotted buttons of the
-// DatePicker, which keep React Aria's own Hebrew labels and so cannot be an IconButton): a 44px
+// DatePicker, which keep React Aria's own labels and so cannot be an IconButton): a 44px
 // square with the corners of a control, like the .iconbtn of the prototype.
 // The shape holds no colour and no ring: two colour classes of the same property on one element
 // are settled by the order of the stylesheet, not of the class list, so each variant brings all of

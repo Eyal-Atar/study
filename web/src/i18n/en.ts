@@ -15,7 +15,7 @@ const plural = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` :
 const dayCount = (n: number) => plural(n, 'day', 'days')
 
 // "Today", "Tomorrow" and "Yesterday" are titles on their own and lower case inside a sentence
-// ("Moved to tomorrow at 14:00"); a date ("Sunday, 22 Nov") stays as it is.
+// ("I moved it to tomorrow at 14:00."); a date ("Sun, 22 Nov") stays as it is.
 const inSentence = (day: string) => (/^(Today|Tomorrow|Yesterday)$/.test(day) ? day.toLowerCase() : day)
 
 export const en = {
@@ -32,7 +32,7 @@ export const en = {
     save: 'Save',
     cancel: 'Cancel',
     delete: 'Delete',
-    notifications: 'Notifications',
+    notifications: 'Messages',
     // S26
     choose: 'Choose',
   },
@@ -132,7 +132,7 @@ export const en = {
     ai_quota_exceeded: (resetsAt: string | null) =>
       resetsAt === null
         ? 'You’ve reached today’s limit for building plans. You can try again tomorrow.'
-        : `You’ve reached today’s limit for building plans. You can try again from ${resetsAt}.`,
+        : `You’ve reached today’s limit for building plans. You can try again after ${resetsAt}.`,
     nothing_to_analyze: 'I’ve already analysed all your exams. You can ask me to replan your calendar.',
     materials_processing: 'I’m still reading the files you uploaded.',
     // Planner reasons: why a task is not on the calendar (S06–S08)
@@ -277,7 +277,6 @@ export const en = {
     examFailed: 'Not analysed:',
     someFailed: 'I couldn’t analyse some of your exams. I built the plan from the rest, and you can try again later.',
     gapsTitle: 'Topics with no material',
-    gap: (topic: string, note: string) => `${isolate(topic)}: ${isolate(note)}`,
     blocks: (count: number) => `${plural(count, 'study block', 'study blocks')} on your calendar.`,
     unscheduled: (count: number) => (count === 1 ? '1 task didn’t fit.' : `${String(count)} tasks didn’t fit.`),
     toToday: 'Go to my calendar',
@@ -300,7 +299,7 @@ export const en = {
     // has that name, and two buttons must not share one.
     understood: 'Got it',
     applied: 'Calendar updated',
-    timezoneChanged: 'I updated your time zone to match this device. It’s worth replanning your calendar for the local hours.',
+    timezoneChanged: 'I updated your time zone to match this device. It’s worth replanning your calendar so your blocks match local time.',
     timezoneReason: 'Your device’s time zone changed, so your study windows moved.',
     showChange: 'Show the change',
   },
@@ -354,8 +353,8 @@ export const en = {
     badgeEarned: (names: string) => `New badge: ${names}`,
     pinnedDone: 'Locked in place',
     unpinnedDone: 'Unlocked',
-    deferred: (day: string, time: string) => `I moved it to ${inSentence(day)} at ${time}`,
-    deferredSomewhere: 'I deferred the task',
+    deferred: (day: string, time: string) => `I moved it to ${inSentence(day)} at ${time}.`,
+    deferredSomewhere: 'I deferred the task.',
     deferUndone: 'Deferral undone',
     today: 'Today',
     tomorrow: 'Tomorrow',
@@ -384,7 +383,7 @@ export const en = {
   today: {
     title: 'Today',
     progressLabel: 'Today’s progress',
-    progress: (done: number, total: number) => `${String(done)} of ${String(total)} minutes`,
+    progress: (done: number, total: number) => `${String(done)} of ${plural(total, 'minute', 'minutes')}`,
     next: 'Up next',
     // The next block when it is on a later day: "Tomorrow, 09:00".
     nextAt: (day: string, time: string) => `${day}, ${time}`,
@@ -399,7 +398,7 @@ export const en = {
     toExams: 'Go to exams',
     // Nothing is planned from now on: the title of an empty state with no action.
     noMoreTasks: 'Nothing else is planned',
-    noMoreTasksHint: 'There are no tasks planned for the coming week.',
+    noMoreTasksHint: 'There are no blocks planned for the coming week.',
     planFailed: 'I couldn’t check the coming days.',
     stale: 'I couldn’t refresh, so your calendar may be out of date.',
   },
@@ -424,8 +423,8 @@ export const en = {
     completeLabel: (name: string) => `Done: ${isolate(name)}`,
     moveTodayLabel: (name: string) => `Move to today: ${isolate(name)}`,
     skipLabel: (name: string) => `Skip: ${isolate(name)}`,
-    moved: (day: string, time: string) => `I moved it to ${inSentence(day)} at ${time}`,
-    movedSomewhere: 'I moved the task',
+    moved: (day: string, time: string) => `I moved it to ${inSentence(day)} at ${time}.`,
+    movedSomewhere: 'I moved the task.',
     moveUndone: 'Move undone',
     // The action of the no_time_today toast: POST reschedule {today_only: false}.
     moveNext: 'Next free spot',
@@ -437,7 +436,7 @@ export const en = {
     // The action on a block (its menu), next to "Defer" and "Lock".
     move: 'Move',
     moveLabel: (name: string) => `Move: ${isolate(name)}`,
-    moved: (time: string) => `Moved to ${time} and locked`,
+    moved: (time: string) => `I moved it to ${time} and locked it.`,
     undone: 'Move undone',
     // MoveDialog: the times on the 15-minute grid the block can move to (GET /blocks/{id}/slots).
     dialogTitle: (name: string) => `Move ${isolate(name)}`,
@@ -478,7 +477,7 @@ export const en = {
     thisWeek: 'This week',
     next: 'Next week',
     free: 'Free day',
-    empty: 'No tasks this week',
+    empty: 'No blocks this week',
     total: (duration: string) => `${duration} in total`,
     stale: 'I couldn’t refresh your calendar, so it may be out of date. I’ll try again in a minute.',
   },
@@ -521,10 +520,10 @@ export const en = {
     timeline: {
       title: 'Until the exam',
       listLabel: 'The days until the exam',
-      // "Tue 17/11": the short weekday, then dayMonth.
-      day: (weekday: string, dayMonth: string) => `${weekday} ${dayMonth}`,
-      planned: (minutes: number) => (minutes === 0 ? 'No study planned' : `${String(minutes)} minutes planned`),
-      done: (minutes: number) => `${String(minutes)} minutes done`,
+      // "Tue, 17 Nov": the short weekday, then dayMonth. Used in the aria-label of a timeline column; the visible column shows the two as separate lines.
+      day: (weekday: string, dayMonth: string) => `${weekday}, ${dayMonth}`,
+      planned: (minutes: number) => (minutes === 0 ? 'No study planned' : `${plural(minutes, 'minute', 'minutes')} planned`),
+      done: (minutes: number) => `${plural(minutes, 'minute', 'minutes')} done`,
       today: 'Today',
       restDay: 'Rest day',
       examDay: 'Exam day',
@@ -548,8 +547,7 @@ export const en = {
       nameRequired: 'Give the topic a name.',
       saved: 'Topic saved',
       gapsTitle: 'Topics with no material',
-      gap: (topic: string, note: string) => `${isolate(topic)}: ${isolate(note)}`,
-    },
+      },
     tasks: {
       kinds: {
         learn: 'Learning',
@@ -557,7 +555,7 @@ export const en = {
         review: 'Review',
         simulation: 'Simulation',
         simulation_review: 'Simulation review',
-        custom: 'Other',
+        custom: 'Task',
       },
       // The badge of a skipped task. A done task is the filled check and the struck-through title.
       skipped: 'Skipped',
@@ -570,7 +568,7 @@ export const en = {
       reason: 'Why this task?',
       hideReason: 'Hide the reason',
       skip: 'Skip',
-      backToTodo: 'Back to to-do',
+      backToTodo: 'Undo skip',
       edit: 'Edit',
       delete: 'Delete',
       // The two controls of a row name the task, so a screen reader user knows which row they act
@@ -587,7 +585,7 @@ export const en = {
       focusRange: 'Between 1 and 10.',
       topic: 'Topic',
       saved: 'Saved',
-      placed: 'Saved. I placed the task on your calendar again',
+      placed: 'Saved. I placed the task on your calendar again.',
       notPlaced: (reason: string) => `Saved, but the task didn’t fit on your calendar: ${reason}`,
       notPlacedNoReason: 'Saved, but the task didn’t fit on your calendar.',
       deleted: 'Task deleted',
@@ -638,7 +636,7 @@ export const en = {
     // The materials part of the exam screen (Task 7): the S13 list and upload, and the kind of each file.
     materials: {
       title: 'Materials',
-      kindLabel: (name: string) => `Type of the file ${isolate(name)}`,
+      kindLabel: (name: string) => `File type: ${isolate(name)}`,
       kindSaved: 'File type saved',
       // S28: the summary of the collapsed section.
       count: (count: number) => (count === 0 ? 'No files' : plural(count, 'file', 'files')),
@@ -663,7 +661,7 @@ export const en = {
         hobby: 'Me time',
         rest: 'Before an exam',
       },
-      hoursQuestion: 'How many hours a day can you study?',
+      hoursQuestion: 'How many hours a day feels realistic for you?',
       windowsQuestion: 'When do you like to study?',
       windowsHint: 'You can pick more than one.',
       windowsRequired: 'Pick at least one time of day.',
@@ -711,7 +709,7 @@ export const en = {
       exportFirst: 'Want to keep a copy? Download your data first.',
       exportLink: 'Export your data',
       confirmWord: 'delete',
-      confirmLabel: 'To confirm, type the word "delete"',
+      confirmLabel: 'To confirm, type the word “delete”',
       submit: 'Delete my account for good',
       back: 'Back to settings',
     },
@@ -731,13 +729,13 @@ export const en = {
     iosTitle: 'On iPhone and iPad, reminders work only when you open the app from your Home Screen.',
     iosSteps: [
       'In Safari, tap the Share button (a square with an arrow pointing up).',
-      'Choose "Add to Home Screen", then tap "Add".',
-      `Open ${PRODUCT_NAME} from its icon on your Home Screen.`,
+      'Choose “Add to Home Screen”, then tap “Add”.',
+      `Open the app from the ${PRODUCT_NAME} icon on your Home Screen.`,
       'Come back to this screen and turn reminders on.',
     ],
     blockedTitle: 'Notifications are blocked in this browser.',
-    blockedBrowser: 'In the browser: click the lock or settings icon next to the address, allow "Notifications", and reload the page.',
-    blockedApp: `In the app installed on your phone: open your phone’s Settings, then ${PRODUCT_NAME}, then "Notifications".`,
+    blockedBrowser: 'In the browser: click the lock or settings icon next to the address, allow “Notifications”, and reload the page.',
+    blockedApp: `In the app installed on your phone: open your phone’s Settings, then ${PRODUCT_NAME}, then “Notifications”.`,
     checking: 'Checking your reminders…',
     off: 'Reminders are off on this device.',
     on: 'Reminders are on for this device.',
@@ -754,7 +752,7 @@ export const en = {
     lead5: '5 minutes before',
     lead10: '10 minutes before',
     lead15: '15 minutes before',
-    leadSaved: 'Reminder time saved.',
+    leadSaved: 'Reminder time saved',
     installTitle: 'Want a reminder before each block?',
     installText: 'On iPhone, reminders work only after you add the app to your Home Screen.',
     installHow: 'Show me how',
@@ -822,11 +820,11 @@ export const en = {
         iron_will_14: { name: 'Two weeks straight', description: 'A 14-day study streak' },
         iron_will_30: { name: '30 days straight', description: 'A 30-day study streak' },
         iron_will_100: { name: '100 days straight', description: 'A 100-day study streak' },
-        knowledge_seeker_5: { name: 'Level 5', description: 'Reach level 5' },
-        knowledge_seeker_10: { name: 'Level 10', description: 'Reach level 10' },
-        knowledge_seeker_20: { name: 'Level 20', description: 'Reach level 20' },
-        knowledge_seeker_25: { name: 'Level 25', description: 'Reach level 25' },
-        knowledge_seeker_50: { name: 'Level 50', description: 'Reach the highest level' },
+        knowledge_seeker_5: { name: 'Level 5', description: 'Level 5 reached' },
+        knowledge_seeker_10: { name: 'Level 10', description: 'Level 10 reached' },
+        knowledge_seeker_20: { name: 'Level 20', description: 'Level 20 reached' },
+        knowledge_seeker_25: { name: 'Level 25', description: 'Level 25 reached' },
+        knowledge_seeker_50: { name: 'Level 50', description: 'The highest level reached' },
         xp_1000: { name: '1,000 XP', description: '1,000 XP in total' },
         xp_5000: { name: '5,000 XP', description: '5,000 XP in total' },
         xp_10000: { name: '10,000 XP', description: '10,000 XP in total' },

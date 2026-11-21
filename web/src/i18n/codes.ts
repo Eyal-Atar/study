@@ -19,7 +19,7 @@ function numberParam(params: CodeParams, key: string): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
-// "HH:MM" in Jerusalem (24-hour, h23: never 24:30), with the date ("00:00 (17/11)") when it is not today there.
+// "HH:MM" in Jerusalem (24-hour, h23: never 24:30), with the date ("00:00 (17 Nov)") when it is not today there.
 function resetTime(params: CodeParams, now: Date): string | null {
   const raw = params.resets_at
   if (typeof raw !== 'string') return null
@@ -28,7 +28,7 @@ function resetTime(params: CodeParams, now: Date): string | null {
   const time = new Intl.DateTimeFormat(LOCALE, { timeZone: QUOTA_TIMEZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(at)
   const day = (date: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: QUOTA_TIMEZONE }).format(date)
   if (day(at) === day(now)) return time
-  const date = new Intl.DateTimeFormat(LOCALE, { timeZone: QUOTA_TIMEZONE, day: 'numeric', month: 'numeric' }).format(at)
+  const date = new Intl.DateTimeFormat(LOCALE, { timeZone: QUOTA_TIMEZONE, day: 'numeric', month: 'short' }).format(at)
   return `${time} (${date})`
 }
 

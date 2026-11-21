@@ -1,4 +1,4 @@
-import { BROWSER_ZONE, COMPLETED_AT, examFixture, meFixture, previewFixture } from '../onboarding/testFixtures'
+import { BROWSER_ZONE, COMPLETED_AT, examFixture, meFixture, previewFixture } from './onboardingFixtures'
 import type { Block, Exam } from '../onboarding/types'
 import { createFakeApi, type FakeApi } from './fakeApi'
 import { createFakeAuth, fakeSession } from './fakeAuth'

@@ -269,3 +269,26 @@ describe('an option with an icon', () => {
     expect(screen.getByRole('radio', { name: 'Morning' })).toBeInTheDocument()
   })
 })
+
+describe('RadioCards in five columns (390px layout)', () => {
+  const FIVE: readonly ChoiceOption[] = ['Very easy', 'Easy', 'Medium', 'Hard', 'Very hard'].map((label) => ({ value: label, label }))
+
+  it('keeps each option inside its grid cell: cells and options can shrink, none has a fixed width', () => {
+    const { container } = render(<RadioCards label="Difficulty" options={FIVE} value="Medium" onChange={() => undefined} columns="grid-cols-5" />)
+    const grid = container.querySelector('.grid')
+    expect(grid).toHaveClass('grid-cols-5')
+    const cells = Array.from(grid?.children ?? [])
+    expect(cells).toHaveLength(5)
+    for (const cell of cells) {
+      expect(cell).toHaveClass('min-w-0')
+      const option = cell.firstElementChild
+      expect(option).toHaveClass('min-w-0', 'flex-1', 'text-center', 'max-sm:px-1', 'max-sm:text-caption')
+      expect(option?.className ?? '').not.toMatch(/(^|\s)(min-w-(?!0(\s|$))\S|w-\d|w-\[)/)
+    }
+  })
+
+  it('leaves the three-column grids with their normal padding and size', () => {
+    const { container } = render(<RadioCards label="Difficulty" options={FIVE.slice(0, 3)} value="Easy" onChange={() => undefined} />)
+    expect(container.querySelector('.grid')?.firstElementChild?.firstElementChild).not.toHaveClass('max-sm:text-caption')
+  })
+})

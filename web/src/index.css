@@ -4,7 +4,7 @@
   The design language of the app, as Tailwind theme variables. S25 set it ("paper"); S31 redesigned
   it around a calendar, after the approved prototype docs/design/prototype/calendar-prototype.html
   (Rubik, soft corners, a palette of eight exam colours), in the colours of Archie: bark browns, a
-  leaf green brand on a linen page, and a dawn sky.
+  leaf green brand on a linen page, and a dawn sky for the garden and the celebration sheet.
   Every variable here is also a class: --color-surface gives bg-surface, --radius-card gives
   rounded-card, --text-title gives text-title, --spacing-touch gives min-h-touch, --color-exam-3
   gives bg-exam-3 and fill-exam-3. Components use only these names, so a change of look is a change
@@ -58,7 +58,7 @@
 @theme {
   /* ---- Colour ---- */
   /* Archie's palette (docs/superpowers/specs/2026-11-18-archie-look-and-gamification.md, section 2):
-     bark browns for text, a leaf green for the brand, and a dawn sky behind Archie. */
+     bark browns for text, a leaf green for the brand, and a dawn sky for the garden and the celebration sheet. */
   /* The page itself: a greenish linen. Only <body> and bars that sit on the page use it. */
   --color-canvas: #eef0e4;
   /* Cards, fields, menus, the top bar: anything that sits on the page. */
@@ -102,7 +102,8 @@
   --color-gold-soft: #f6e7c6;
   --color-gold-ink: #6b4a12;
   --color-gold-track: #eadfc4;
-  /* The dawn sky behind Archie, the celebration sheet and the garden: a gradient from sky-from to
+  /* The dawn sky of the celebration sheet and the garden (Archi has no background; S33 decides whether
+     the sky tokens stay): a gradient from sky-from to
      sky-to. Text on it is ink, measured on both ends and on sky, the tone between them. */
   --color-sky-from: #96c6e8;
   --color-sky-to: #d6ecf8;

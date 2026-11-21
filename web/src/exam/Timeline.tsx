@@ -1,4 +1,4 @@
-import { Coffee, Flag } from '../ui/icons'
+import { Flag, TeaCupIcon } from '../ui/icons'
 import { useId } from 'react'
 import { errorMessage, type ApiError } from '../api/client'
 import { en } from '../i18n/en'
@@ -58,7 +58,9 @@ function Day({ info, max }: { info: DayInfo; max: number }) {
           // An icon and no words: "Exam day" does not fit a narrow column, and used to wrap.
           <Flag aria-hidden="true" data-mark="exam" size={18} strokeWidth={ICON_STROKE} className="text-brand-strong" />
         ) : info.isRest ? (
-          <Coffee aria-hidden="true" data-mark="rest" size={18} strokeWidth={ICON_STROKE} className="text-ink-muted" />
+          <span data-mark="rest" className="text-ink-muted">
+            <TeaCupIcon size={18} />
+          </span>
         ) : plannedPx > 0 ? (
           <span data-mark="planned" className={cx('flex w-5 flex-col justify-end overflow-hidden rounded-badge', PLANNED)} style={{ height: plannedPx }}>
             {donePx > 0 ? <span data-mark="done" className={cx('w-full', DONE)} style={{ height: donePx }} /> : null}
@@ -89,7 +91,7 @@ function Legend() {
         {t.legendDone}
       </span>
       <span className={item}>
-        <Coffee aria-hidden="true" size={14} strokeWidth={ICON_STROKE} />
+        <TeaCupIcon aria-hidden="true" size={14} strokeWidth={ICON_STROKE} />
         {t.legendRest}
       </span>
       <span className={item}>

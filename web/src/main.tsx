@@ -41,7 +41,7 @@ if (root === null) {
   throw new Error('index.html has no #root element')
 }
 
-// AppErrorBoundary above every provider: an error while rendering shows a Hebrew message with a
+// AppErrorBoundary above every provider: an error while rendering shows an English message with a
 // reload button, not a white page. The boot fallback in index.html covers a failure before this runs.
 createRoot(root).render(
   <StrictMode>

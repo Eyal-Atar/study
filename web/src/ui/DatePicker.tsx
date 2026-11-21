@@ -40,7 +40,7 @@ export interface DatePickerProps extends Omit<AriaDatePickerProps<DateValue>, 'c
 
 // The calendar button and the month arrows wear ICON_BUTTON_CLASS, the look of an IconButton. The
 // component itself cannot be used here: it requires an aria-label, and a label passed here would
-// replace the Hebrew one React Aria gives them.
+// replace the one React Aria gives them (in the locale, English).
 
 // The box of a TextField around the segments and the calendar button. The focus is inside it, on a
 // segment or on the button, so the box shows it with data-focus-within.

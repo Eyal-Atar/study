@@ -11,7 +11,7 @@ import {
   Text,
 } from 'react-aria-components'
 import { en } from '../i18n/en'
-import { ICON_STROKE } from './styles'
+import { cx, ICON_STROKE } from './styles'
 import { UserText } from './UserText'
 import { FIELD_BOX_CLASS, FIELD_CLASS, FIELD_DESCRIPTION_CLASS, FIELD_ERROR_CLASS, FIELD_LABEL_CLASS } from './TextField'
 
@@ -73,6 +73,7 @@ export function Select({
   placeholder = en.common.choose,
 }: SelectProps) {
   const chosen = options.findIndex((option) => option.value === value)
+  const chosenOption = options[chosen]
   return (
     <AriaSelect
       value={chosen === -1 ? null : keyOf(chosen)}
@@ -87,7 +88,12 @@ export function Select({
     >
       <Label className={FIELD_LABEL_CLASS}>{label}</Label>
       <Button className={TRIGGER_CLASS}>
-        <SelectValue className="min-w-0 flex-1 truncate data-[placeholder]:text-ink-muted" />
+        {/* A user-content value is cut at the END of its text by UserText, so SelectValue does not truncate it too. */}
+        <SelectValue className={cx('min-w-0 flex-1 data-[placeholder]:text-ink-muted', chosenOption?.userContent !== true && 'truncate')}>
+          {({ isPlaceholder, defaultChildren }) =>
+            !isPlaceholder && chosenOption?.userContent === true ? <UserText truncate>{chosenOption.label}</UserText> : defaultChildren
+          }
+        </SelectValue>
         <ChevronDown aria-hidden="true" size={18} strokeWidth={ICON_STROKE} className="shrink-0 text-ink-muted" />
       </Button>
       {description === undefined ? null : (

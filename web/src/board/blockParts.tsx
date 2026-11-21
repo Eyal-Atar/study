@@ -1,4 +1,4 @@
-import { CalendarClock, Ellipsis, Lock, LockOpen, MoveVertical, type LucideIcon } from '../ui/icons'
+import { CalendarClock, Ellipsis, Lock, LockOpen, MoveVertical, type IconType } from '../ui/icons'
 import { en } from '../i18n/en'
 import { Badge } from '../ui/Badge'
 import { IconButton } from '../ui/IconButton'
@@ -11,7 +11,7 @@ import type { Block } from './types'
 // "⋯" menu, the state badge and the pinned mark. What they share that is not a component (running
 // an action, the words and the names) is in blockControls.ts.
 
-const MENU_ICONS: Record<ExtraAction, LucideIcon> = {
+const MENU_ICONS: Record<ExtraAction, IconType> = {
   defer: CalendarClock,
   move: MoveVertical,
   pin: Lock,

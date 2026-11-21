@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { LogOut, Settings } from './icons'
+import { LogOut, Settings, TeaCupIcon } from './icons'
 import { describe, expect, it, vi } from 'vitest'
 import { Button } from './Button'
 import { IconButton } from './IconButton'
@@ -76,6 +76,19 @@ describe('Menu', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Actions' })).toHaveFocus()
     })
+  })
+
+  it('an item can carry one of Archi’s icons', async () => {
+    const user = userEvent.setup()
+    render(
+      <Menu trigger={<Button variant="secondary">Actions</Button>}>
+        <MenuItem icon={TeaCupIcon}>Rest</MenuItem>
+      </Menu>,
+    )
+    await user.click(screen.getByRole('button', { name: 'Actions' }))
+    const svg = screen.getByRole('menuitem', { name: 'Rest' }).querySelector('svg')
+    expect(svg).toHaveAttribute('aria-hidden', 'true')
+    expect(svg).toHaveAttribute('width', '18')
   })
 
   it('a trigger that is only an icon names the menu by its aria-label', async () => {

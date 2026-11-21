@@ -41,7 +41,8 @@ export function readPushPayload(data: unknown): PushView {
       // The same tag replaces the earlier reminder of a block instead of stacking another one.
       ...(tag === undefined ? {} : { tag }),
       lang: 'en',
-      dir: 'ltr',
+      // 'auto': the title is the task title, user content that is often Hebrew; the browser picks the direction from it.
+      dir: 'auto',
       icon: ICON,
       badge: BADGE,
       data: { url: safePath(field(data, 'url')) },

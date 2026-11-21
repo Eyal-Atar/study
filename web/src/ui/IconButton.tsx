@@ -27,7 +27,7 @@ const INVERSE = cx(
 
 const VARIANTS = { quiet: ICON_BUTTON_CLASS, secondary: SECONDARY, inverse: INVERSE } as const
 
-// A button that is only an icon: a 44px square. The child is a lucide icon of 18px with
+// A button that is only an icon: a 44px square. The child is an icon of 18px with
 // aria-hidden; the drawing may be small, the touch target is not.
 export function IconButton({ variant = 'quiet', className, ...props }: IconButtonProps) {
   return <AriaButton {...props} className={composeRenderProps(className, (custom) => cx(VARIANTS[variant], custom))} />

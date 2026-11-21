@@ -6,7 +6,7 @@ import { clickTarget, readPushPayload } from './notification'
 const ORIGIN = 'https://app.example.com'
 
 describe('readPushPayload', () => {
-  it('shows a valid reminder as English LTR, with the icon, the tag and the url', () => {
+  it('shows a valid reminder as English, auto direction, with the icon, the tag and the url', () => {
     const view = readPushPayload({
       title: 'Chapter 3',
       body: 'In 10 min. 09:00–10:30, אלגוריתמים',
@@ -18,7 +18,7 @@ describe('readPushPayload', () => {
       body: 'In 10 min. 09:00–10:30, אלגוריתמים',
       tag: 'block:1',
       lang: 'en',
-      dir: 'ltr',
+      dir: 'auto',
       icon: '/icons/icon-192.png',
       badge: '/icons/badge-96.png',
       data: { url: '/today' },
@@ -31,7 +31,7 @@ describe('readPushPayload', () => {
       const view = readPushPayload(data)
       expect(view.title).toBe(PRODUCT_NAME)
       expect(view.options.body).toBe(en.pwa.pushFallbackBody)
-      expect(view.options).toMatchObject({ lang: 'en', dir: 'ltr', data: { url: '/today' } })
+      expect(view.options).toMatchObject({ lang: 'en', dir: 'auto', data: { url: '/today' } })
       expect(view.options.tag).toBeUndefined()
     },
   )

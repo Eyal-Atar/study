@@ -1,4 +1,4 @@
-import { CircleAlert, type LucideIcon } from './icons'
+import { CircleAlert, type IconType } from './icons'
 import type { ReactNode } from 'react'
 import { en } from '../i18n/en'
 import { Button } from './Button'
@@ -80,7 +80,7 @@ export function LoadingState({ shape = 'list', rows = 3, label = en.common.loadi
 
 export interface EmptyStateProps {
   // Optional: a small empty place (a list inside a card) reads better with the words alone.
-  icon?: LucideIcon | undefined
+  icon?: IconType | undefined
   // One sentence that says what is missing: "No exams yet".
   title: string
   // What to do about it, when the title is not enough.

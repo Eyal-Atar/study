@@ -25,7 +25,9 @@ const EMPTY_DRAFT: ExamDraft = { name: '', date: null, difficulty: '3' }
 // The days left: brand-tinted while the exam is within a week, quiet otherwise (and when it passed).
 function Countdown({ days }: { days: number }) {
   const near = days >= 0 && days <= 7
-  return <Badge tone={near ? 'brand' : 'neutral'}>{t.inDays(days)}</Badge>
+  // inDays is lower case because it sits mid-sentence in the exam header; alone in a badge it starts a capital.
+  const text = t.inDays(days)
+  return <Badge tone={near ? 'brand' : 'neutral'}>{text.charAt(0).toUpperCase() + text.slice(1)}</Badge>
 }
 
 function NewExamForm({ today, onCancel }: { today: string; onCancel: () => void }) {

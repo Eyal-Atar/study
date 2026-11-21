@@ -1,10 +1,11 @@
 import type { Session } from '@supabase/auth-js'
-import { screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { en } from '../i18n/en'
-import { COMPLETED_AT, examFixture, meFixture } from '../onboarding/testFixtures'
+import { COMPLETED_AT, examFixture, meFixture } from '../test/onboardingFixtures'
 import { makeProgress } from '../progress/testFixtures'
+import { SproutIcon } from '../ui/icons'
 import { createFakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
@@ -72,7 +73,9 @@ describe('AppShell', () => {
     // The icons are decoration: the name of a link is its label alone.
     for (const link of links) expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     // The icons of the mockup's bottom bar: the progress is a sprout (S31 decision 29).
-    expect(links.map((link) => link.querySelector('svg')?.classList.contains('lucide-sprout'))).toEqual([false, false, true])
+    const sprout = render(<SproutIcon />).container.querySelector('svg')?.innerHTML
+    expect(sprout).toBeTruthy()
+    expect(links.map((link) => link.querySelector('svg')?.innerHTML === sprout)).toEqual([false, false, true])
     expect(nav.queryByRole('link', { name: en.shell.progress })?.querySelector('.lucide-trending-up')).toBeNull()
   })
 

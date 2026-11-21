@@ -2,13 +2,16 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent, type UserEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { en } from '../i18n/en'
-import { examFixture } from '../onboarding/testFixtures'
+import { examFixture } from '../test/onboardingFixtures'
 import type { ExamCreate } from '../onboarding/types'
 import { problem, type ApiCall } from '../test/fakeApi'
 import { addDays, longDate } from './dates'
 import { TODAY, examServer, openRoute } from '../test/examFixtures'
 
 const t = en.exam
+
+// The badge shows inDays with a capital: alone in a badge it is not mid-sentence.
+const badgeText = (days: number) => t.inDays(days).charAt(0).toUpperCase() + t.inDays(days).slice(1)
 const f = en.onboardingExams
 
 async function typeDate(user: UserEvent, iso: string) {
@@ -38,7 +41,7 @@ describe('ExamsPage', () => {
     // The exam name is user content: it takes its own direction.
     expect(screen.getByText('חדו"א').closest('[dir="auto"]')).not.toBeNull()
     const rows = within(list).getAllByRole('listitem')
-    expect(rows[0]).toHaveTextContent(t.inDays(7))
+    expect(rows[0]).toHaveTextContent(badgeText(7))
     expect(rows[0]).toHaveTextContent(longDate(addDays(TODAY, 7)))
     expect(screen.getByText(t.list.count(2))).toBeInTheDocument()
   })
@@ -53,9 +56,10 @@ describe('ExamsPage', () => {
     })
     openRoute(fake, '/exams')
     const list = await screen.findByRole('list', { name: t.list.listTitle })
-    expect(within(list).getByText(t.inDays(-2))).toHaveClass('bg-surface-muted', 'text-ink-muted')
-    expect(within(list).getByText(t.inDays(7))).toHaveClass('bg-brand-soft', 'text-brand-strong')
-    expect(within(list).getByText(t.inDays(8))).toHaveClass('bg-surface-muted', 'text-ink-muted')
+    expect(within(list).getByText('In 7 days')).toBeInTheDocument()
+    expect(within(list).getByText(badgeText(-2))).toHaveClass('bg-surface-muted', 'text-ink-muted')
+    expect(within(list).getByText(badgeText(7))).toHaveClass('bg-brand-soft', 'text-brand-strong')
+    expect(within(list).getByText(badgeText(8))).toHaveClass('bg-surface-muted', 'text-ink-muted')
   })
 
   // Review Focus 1: nothing in the row has a fixed width, the name can break, and the badge sits
@@ -66,7 +70,7 @@ describe('ExamsPage', () => {
     const link = await screen.findByRole('link', { name })
     expect(link).toHaveClass('break-words')
     expect(link.parentElement).toHaveClass('min-w-0', 'flex-1')
-    const badge = screen.getByText(t.inDays(3))
+    const badge = screen.getByText(badgeText(3))
     expect(badge).toHaveClass('truncate', 'max-w-full')
     expect(badge.parentElement).toHaveClass('max-w-[50%]', 'min-w-0', 'shrink-0')
     const row = link.closest('li')

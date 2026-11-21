@@ -1,4 +1,4 @@
-import type { LucideIcon } from './icons'
+import type { IconType } from './icons'
 import type { ReactElement, ReactNode } from 'react'
 import {
   Menu as AriaMenu,
@@ -38,7 +38,7 @@ export function Menu({ trigger, placement = 'bottom end', children }: MenuProps)
 }
 
 export interface MenuItemProps extends Omit<AriaMenuItemProps, 'children' | 'className'> {
-  icon?: LucideIcon
+  icon?: IconType
   // danger: an action that cannot be undone.
   tone?: 'default' | 'danger'
   children: ReactNode

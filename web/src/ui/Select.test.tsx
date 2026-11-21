@@ -234,4 +234,14 @@ describe('Select', () => {
     expect(within(items[0] as HTMLElement).getByText('הסתברות').closest('[dir="auto"]')).not.toBeNull()
     expect(items[1]?.querySelector('[dir]')).toBeNull()
   })
+
+  it('a chosen user-content value is cut at the end of the text by UserText, not by a second truncate', () => {
+    const options: readonly SelectOption[] = [{ value: 'a', label: 'הסתברות '.repeat(20), userContent: true }]
+    setup({ options, value: 'a' })
+    const trigger = screen.getByRole('button', { name: /Type/ })
+    const text = trigger.querySelector('[data-user-text]')
+    expect(text).toHaveAttribute('dir', 'auto')
+    expect(text).toHaveClass('user-text-truncate')
+    expect(text?.parentElement).not.toHaveClass('truncate')
+  })
 })

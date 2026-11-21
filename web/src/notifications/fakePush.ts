@@ -1,5 +1,5 @@
 import { vi, type Mock } from 'vitest'
-import { COMPLETED_AT, meFixture } from '../onboarding/testFixtures'
+import { COMPLETED_AT, meFixture } from '../test/onboardingFixtures'
 import { createFakeApi, type ApiCall, type FakeApi } from '../test/fakeApi'
 
 // Test helper: a browser with (or without) the Push API, installed on the real jsdom navigator and

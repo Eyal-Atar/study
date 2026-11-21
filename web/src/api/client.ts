@@ -217,7 +217,7 @@ export function createApiClient({
   }
 }
 
-// The text to show the user: our own Hebrew text for a code we know, else the server's Hebrew title.
+// The text to show the user: our own English text for a code we know, else the server's title.
 export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.code !== null && isKnownCode(error.code)) return codeText(error.code, error.details)

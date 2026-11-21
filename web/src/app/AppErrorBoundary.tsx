@@ -55,7 +55,7 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, { error
 }
 
 // The router catches an error thrown inside a screen itself, and would show its own English page:
-// the root route's ErrorBoundary shows the same Hebrew screen instead.
+// the root route's ErrorBoundary shows the same crash screen instead.
 export function RouteCrash() {
   return <CrashScreen error={useRouteError()} />
 }

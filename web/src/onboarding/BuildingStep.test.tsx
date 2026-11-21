@@ -14,7 +14,7 @@ import {
   meFixture,
   previewFixture,
   resultFixture,
-} from './testFixtures'
+} from '../test/onboardingFixtures'
 import type { Job, GenerateResult, Material } from './types'
 
 // The poll is every 2 seconds, so a test that waits for a second answer waits a little longer.
@@ -132,7 +132,10 @@ describe('BuildingStep', () => {
     expect(exams).toContainElement(physics)
     expect(calculus).toHaveTextContent(en.building.examTasks(12))
     expect(calculus).toHaveTextContent(codeText('under_budget'))
-    expect(calculus).toHaveTextContent(en.building.gap('אינטגרלים', 'אין מבחני עבר'))
+    expect(calculus).toHaveTextContent('אינטגרלים')
+    // The note is user content, in a block that takes its own direction.
+    expect(screen.getByText('אין מבחני עבר').closest('[dir="auto"]')).not.toBeNull()
+    expect(screen.getByText('אינטגרלים').closest('[dir="auto"]')).not.toBeNull()
     expect(physics).toHaveTextContent(codeText('analysis_invalid'))
     // The failed exam is marked by an icon and the words, not only by the red.
     expect(physics).toHaveTextContent(en.building.examFailed)

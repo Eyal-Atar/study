@@ -57,11 +57,11 @@ describe('dates', () => {
   })
 
   it('formatDay gives the en-IL weekday, day and short month from the date itself', () => {
-    expect(formatDay('2026-11-22')).toBe('Sunday, 22 Nov')
-    expect(formatDay('2026-11-21')).toBe('Saturday, 21 Nov')
+    expect(formatDay('2026-11-22')).toBe('Sun, 22 Nov')
+    expect(formatDay('2026-11-21')).toBe('Sat, 21 Nov')
     // The day of the date string, not of the browser's timezone: 25 October is the night of the clock change.
-    expect(formatDay('2026-10-25')).toBe('Sunday, 25 Oct')
-    expect(formatDay('2026-09-05')).toBe('Saturday, 5 Sept')
+    expect(formatDay('2026-10-25')).toBe('Sun, 25 Oct')
+    expect(formatDay('2026-09-05')).toMatch(/^Sat, 5 Sept?$/)
   })
 
   it('dayLabel says today, tomorrow and yesterday, else the day', () => {

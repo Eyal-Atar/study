@@ -1,6 +1,5 @@
 import { CalendarDate } from '@internationalized/date'
 import { useId, useState } from 'react'
-import { isolate } from '../i18n/bidi'
 import { CheckboxCards } from '../ui/CheckboxCards'
 import { DatePicker } from '../ui/DatePicker'
 import { RadioCards } from '../ui/RadioCards'
@@ -60,8 +59,8 @@ function DemoSelect({
   return <Select {...props} value={value} onChange={setValue} errorMessage={value === '' ? errorWhenEmpty : undefined} />
 }
 
-// The topics are user content, and an option label is a plain string, so each is isolated.
-const TOPIC_OPTIONS = sample.topics.map((topic, index) => ({ value: `t${String(index + 1)}`, label: isolate(topic) }))
+// The topics are user content: the option is marked, and Select renders it through UserText.
+const TOPIC_OPTIONS = sample.topics.map((topic, index) => ({ value: `t${String(index + 1)}`, label: topic, userContent: true }))
 
 export function SelectSection() {
   return (

@@ -51,7 +51,8 @@ export function daysBetween(from: string, to: string): number {
 }
 
 const WEEKDAY = new Intl.DateTimeFormat(LOCALE, { weekday: 'short', timeZone: 'UTC' })
-const DAY_MONTH = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'numeric', timeZone: 'UTC' })
+const DAY_MONTH = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short', timeZone: 'UTC' })
+const WEEKDAY_DAY_MONTH = new Intl.DateTimeFormat(LOCALE, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
 const LONG_DATE = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
 
 // "Tue"
@@ -59,7 +60,7 @@ export function weekdayShort(day: string): string {
   return WEEKDAY.format(utc(day))
 }
 
-// "17/11"
+// "17 Nov"
 export function dayMonth(day: string): string {
   return DAY_MONTH.format(utc(day))
 }
@@ -69,7 +70,7 @@ export function longDate(day: string): string {
   return LONG_DATE.format(utc(day))
 }
 
-// A moment as "Tue 17/11, 09:00" in `timeZone`. hourCycle h23: just after midnight is 00:30, never 24:30.
+// A moment as "Tue, 17 Nov, 09:00" in `timeZone`. hourCycle h23: just after midnight is 00:30, never 24:30.
 export function momentIn(at: string, timeZone: string): string {
   const date = new Date(at)
   const day = todayIn(timeZone, date)
@@ -79,5 +80,5 @@ export function momentIn(at: string, timeZone: string): string {
   } catch {
     time = new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date)
   }
-  return `${weekdayShort(day)} ${dayMonth(day)}, ${time}`
+  return `${WEEKDAY_DAY_MONTH.format(utc(day))}, ${time}`
 }

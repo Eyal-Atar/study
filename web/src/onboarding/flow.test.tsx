@@ -5,7 +5,7 @@ import { en } from '../i18n/en'
 import { createFakeApi, type ApiCall } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
-import { COMPLETED_AT, examResult, jobFixture, meFixture, resultFixture } from './testFixtures'
+import { COMPLETED_AT, examResult, jobFixture, meFixture, resultFixture } from '../test/onboardingFixtures'
 import type { MePatch } from '../api/me'
 import type { Exam, ExamCreate } from './types'
 

@@ -21,7 +21,7 @@ import {
 } from './kinds'
 
 export { createIcon } from './Icon'
-export type { IconComponent, IconProps } from './Icon'
+export type { IconComponent, IconProps, IconType } from './Icon'
 export * from './actions'
 export * from './archi'
 export * from './dayparts'

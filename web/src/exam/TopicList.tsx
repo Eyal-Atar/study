@@ -165,7 +165,10 @@ export function GapList({ gaps }: { gaps: readonly Gap[] }) {
     <Card tone="warning" title={tp.gapsTitle} titleLevel={3} role="region">
       <List aria-label={tp.gapsTitle} className="flex list-disc flex-col gap-1 ps-5 text-small break-words text-ink">
         {gaps.map((gap) => (
-          <li key={gap.topic}>{tp.gap(gap.topic, gap.note)}</li>
+          <li key={gap.topic}>
+            <UserText className="font-medium">{gap.topic}</UserText>
+            {gap.note === '' ? null : <UserText prose>{gap.note}</UserText>}
+          </li>
         ))}
       </List>
     </Card>

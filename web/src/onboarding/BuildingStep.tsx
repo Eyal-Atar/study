@@ -341,7 +341,10 @@ function Summary({ result, examName }: { result: GenerateResult; examName: (id: 
                       <ul role="list" className="flex flex-col gap-1">
                         {exam.gaps.map((gap, index) => (
                           // Gaps have no id, and a topic may repeat with another note.
-                          <li key={index}>{en.building.gap(gap.topic, gap.note)}</li>
+                          <li key={index}>
+                            <UserText className="font-medium">{gap.topic}</UserText>
+                            {gap.note === '' ? null : <UserText prose>{gap.note}</UserText>}
+                          </li>
                         ))}
                       </ul>
                     </Disclosure>

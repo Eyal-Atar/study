@@ -1,4 +1,4 @@
-import { CircleAlert, CircleCheck, X, type LucideIcon } from './icons'
+import { CircleAlert, CircleCheck, X, type IconType } from './icons'
 import { useMemo, useState, type ReactNode } from 'react'
 import {
   UNSTABLE_Toast as AriaToast,
@@ -43,7 +43,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 // tone. The state is carried by an icon in a light colour of the state (inverse-success,
 // inverse-danger, both checked pairs on inverse), never by colour alone (design language 2); an
 // info toast has no icon.
-const TONES: Record<NonNullable<Content['options']['tone']>, { icon: LucideIcon | null; iconColor: string }> = {
+const TONES: Record<NonNullable<Content['options']['tone']>, { icon: IconType | null; iconColor: string }> = {
   info: { icon: null, iconColor: '' },
   success: { icon: CircleCheck, iconColor: 'text-inverse-success' },
   error: { icon: CircleAlert, iconColor: 'text-inverse-danger' },

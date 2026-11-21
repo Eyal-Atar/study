@@ -37,6 +37,7 @@ function keyOf(index: number): string {
 // (S29: fold this into Select as an option of an aria-label instead of a label.)
 export function CompactSelect({ 'aria-label': label, value, options, onChange, isDisabled }: CompactSelectProps) {
   const chosen = options.findIndex((option) => option.value === value)
+  const chosenOption = options[chosen]
   return (
     <AriaSelect
       aria-label={label}
@@ -49,7 +50,11 @@ export function CompactSelect({ 'aria-label': label, value, options, onChange, i
       className="inline-flex max-w-full"
     >
       <Button className={TRIGGER}>
-        <SelectValue className="min-w-0 truncate" />
+        <SelectValue className={cx('min-w-0', chosenOption?.userContent !== true && 'truncate')}>
+          {({ isPlaceholder, defaultChildren }) =>
+            !isPlaceholder && chosenOption?.userContent === true ? <UserText truncate>{chosenOption.label}</UserText> : defaultChildren
+          }
+        </SelectValue>
         <ChevronDown aria-hidden="true" size={18} strokeWidth={ICON_STROKE} className="shrink-0 text-ink-muted" />
       </Button>
       <Popover

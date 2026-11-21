@@ -88,9 +88,9 @@ export function weekStart(date: string): string {
 }
 
 // The date is a calendar day, so it is formatted in UTC on its own UTC midnight: no timezone moves it.
-const DAY_FORMAT = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' })
+const DAY_FORMAT = new Intl.DateTimeFormat(LOCALE, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
 
-// "Sunday, 22 Nov"
+// "Sun, 22 Nov" (the one short date form of the product)
 export function formatDay(date: string): string {
   return DAY_FORMAT.format(utcDay(date))
 }

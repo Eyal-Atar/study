@@ -92,7 +92,7 @@ describe('Timeline', () => {
     expect(exam.className).not.toMatch(/bg-brand/)
 
     const rest = dayItem(addDays(TODAY, 4))
-    expect(rest.querySelector('svg[data-mark="rest"]')).toHaveClass('text-ink-muted')
+    expect(rest.querySelector('[data-mark="rest"]')).toHaveClass('text-ink-muted')
     expect(rest).not.toHaveTextContent(t.restDay)
   })
 

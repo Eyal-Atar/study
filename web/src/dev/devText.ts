@@ -77,8 +77,8 @@ export const devText = {
   colours: {
     caption:
       'Every general colour with its name, in Archi’s palette. The rules: text at least 4.5:1 and parts of controls 3:1 (theme.test.ts). brand is never used for text: green text is brand-strong. field is the white of a field and of a choice card; gold-soft and gold-ink are the gold XP chip, and gold-track is the track of the level ring.',
-    skyCaption: 'Archi’s sky: from sky-from at the top to sky-to at the bottom',
-    sky: 'Dawn: the background of Archi, of the celebration sheet and of the garden. The text on it is ink.',
+    skyCaption: 'The sky tokens: from sky-from at the top to sky-to at the bottom',
+    sky: 'Dawn: the background of the celebration sheet and of the garden (Archi has no background). The text on it is ink.',
   },
   typography: {
     weights: 'Four weights of Rubik',

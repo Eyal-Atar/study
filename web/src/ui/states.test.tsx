@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { Inbox } from './icons'
+import { Inbox, TeaCupIcon } from './icons'
 import { describe, expect, it, vi } from 'vitest'
 import { en } from '../i18n/en'
 import { Button } from './Button'
@@ -86,6 +86,18 @@ describe('EmptyState', () => {
 
     await user.click(screen.getByRole('button', { name: 'Add an exam' }))
     expect(onPress).toHaveBeenCalledOnce()
+  })
+
+  it('takes an icon of either family: a lucide glyph or one of Archi’s own', () => {
+    const { container, rerender } = render(<EmptyState icon={Inbox} title="No tasks today" />)
+    const lucide = container.querySelector('[data-empty-icon] svg')
+    expect(lucide).toHaveAttribute('aria-hidden', 'true')
+    expect(lucide).toHaveAttribute('width', '28')
+    rerender(<EmptyState icon={TeaCupIcon} title="No tasks today" />)
+    const archi = container.querySelector('[data-empty-icon] svg')
+    expect(archi).toHaveAttribute('aria-hidden', 'true')
+    expect(archi).toHaveAttribute('width', '28')
+    expect(archi).toHaveAttribute('stroke-width', '1.75')
   })
 
   it('works with a title alone', () => {

@@ -1,4 +1,4 @@
-import type { JSX, ReactNode } from 'react'
+import type { ComponentType, JSX, ReactNode } from 'react'
 
 /*
   The base of Archi's own icons. One line for the whole set: a 24 grid, a 1.75 stroke with round
@@ -13,7 +13,22 @@ export interface IconProps {
   /** The accessible name. With it the icon is an image; without it the icon is decoration. */
   label?: string
   className?: string
+  /** Stroke width of the drawing; the line of the whole set is 1.75. */
+  strokeWidth?: number
+  /** Accepted so one call site can render a lucide glyph or one of Archi's icons; an icon without `label` is aria-hidden anyway. */
+  'aria-hidden'?: boolean | 'true' | 'false'
 }
+
+/**
+  The type of an icon slot (a menu item, an empty state, a toast, a nav item): any component that
+  takes these props, so a lucide glyph and an Archi icon both fit with no cast.
+*/
+export type IconType = ComponentType<{
+  size?: number
+  className?: string
+  strokeWidth?: number
+  'aria-hidden'?: boolean | 'true' | 'false'
+}>
 
 export type IconComponent = (props: IconProps) => JSX.Element
 
@@ -27,7 +42,7 @@ export const PAPER_ONLY = { ...PAPER, stroke: 'none' } as const
 export const SOLID = { fill: 'currentColor' } as const
 
 export function createIcon(displayName: string, children: ReactNode): IconComponent {
-  function Icon({ size = 20, label, className }: IconProps): JSX.Element {
+  function Icon({ size = 20, label, className, strokeWidth = 1.75 }: IconProps): JSX.Element {
     const a11y =
       label === undefined
         ? ({ 'aria-hidden': true } as const)
@@ -40,7 +55,7 @@ export function createIcon(displayName: string, children: ReactNode): IconCompon
         height={size}
         fill="none"
         stroke="currentColor"
-        strokeWidth={1.75}
+        strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
         focusable="false"

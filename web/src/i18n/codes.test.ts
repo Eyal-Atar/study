@@ -42,8 +42,8 @@ describe('codeText', () => {
   it('the quota text names the date when the reset is not today', () => {
     const text = codeText('ai_quota_exceeded', { resets_at: '2026-11-16T22:00:00Z' }, new Date('2026-11-16T10:00:00Z'))
     expect(text).toContain('00:00')
-    // en-IL: day before month.
-    expect(text).toContain('00:00 (17/11)')
+    // en-IL: day before month, short month name.
+    expect(text).toContain('00:00 (17 Nov)')
   })
 
   it('the quota reset time is 24-hour: just after midnight is 00:30, never 24:30', () => {

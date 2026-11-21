@@ -46,7 +46,7 @@ const devRoutes: RouteObject[] = import.meta.env.DEV
 // main.tsx passes these to createBrowserRouter, and the tests to createMemoryRouter.
 export const routes: RouteObject[] = [
   // A pathless root route, only for its ErrorBoundary: an error thrown inside any screen shows the
-  // Hebrew crash screen (S16) instead of the router's English one.
+  // crash screen (S16) instead of the router's English one.
   {
     ErrorBoundary: RouteCrash,
     children: [

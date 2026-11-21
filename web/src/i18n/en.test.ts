@@ -94,8 +94,6 @@ describe('en: counts', () => {
 
 describe('en: user content in a sentence', () => {
   it.each([
-    ['building.gap', en.building.gap(NAME, NAME)],
-    ['exam.topics.gap', en.exam.topics.gap(NAME, NAME)],
   ])('%s isolates both the topic and the note', (_name, text) => {
     expect(text).toBe(`${ISOLATED}: ${ISOLATED}`)
   })
@@ -175,16 +173,16 @@ describe('en: user content in a sentence', () => {
   it('the function table above covers every isolate() call of en.ts', () => {
     const source = readFileSync(new URL('./en.ts', import.meta.url), 'utf8')
     const calls = source.split('\n').filter((line) => line.includes('${isolate(')).length
-    // The gaps (two names on one line) and the shortfall (two lines, one function) are tested apart.
-    const covered = NAMED.length + 2 /* the two gap functions */ + 2 /* the two shortfall lines */
+    // The shortfall (two lines, one function) are tested apart.
+    const covered = NAMED.length + 2 /* the two shortfall lines */
     expect(calls).toBe(covered)
   })
 })
 
 describe('en: a day inside a sentence', () => {
   it('"Tomorrow" is lower case, a date keeps its capital', () => {
-    expect(en.board.deferred('Tomorrow', '14:00')).toBe('I moved it to tomorrow at 14:00')
-    expect(en.board.deferred('Today', '09:00')).toBe('I moved it to today at 09:00')
-    expect(en.board.deferred('Sunday, 22 Nov', '14:00')).toBe('I moved it to Sunday, 22 Nov at 14:00')
+    expect(en.board.deferred('Tomorrow', '14:00')).toBe('I moved it to tomorrow at 14:00.')
+    expect(en.board.deferred('Today', '09:00')).toBe('I moved it to today at 09:00.')
+    expect(en.board.deferred('Sun, 22 Nov', '14:00')).toBe('I moved it to Sun, 22 Nov at 14:00.')
   })
 })
