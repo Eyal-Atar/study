@@ -320,7 +320,7 @@ def test_downgrade_and_upgrade() -> None:
             task = _task(conn, user, exam)
             assert _sitting(conn, task) == 2
 
-            command.downgrade(config, "0013")
+            command.downgrade(config, "0015")
             assert _columns(conn, "exams", _EXAM_COLUMNS) == []
             assert _columns(conn, "tasks", ["sitting"]) == []
             assert _columns(conn, "plan_versions", ["exam_before"]) == []
@@ -334,7 +334,7 @@ def test_downgrade_and_upgrade() -> None:
                 "WHERE table_schema = 'app' AND table_name = 'plan_versions' "
                 "AND grantee = 'authenticated' AND privilege_type = 'INSERT'",
             )
-            assert _one(conn, "SELECT version_num FROM app.alembic_version") == "0013"
+            assert _one(conn, "SELECT version_num FROM app.alembic_version") == "0015"
             # The exam and its task survive, as a plain exam.
             assert _one(conn, "SELECT count(*) FROM app.tasks WHERE id = %s", (task,)) == 1
 

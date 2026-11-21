@@ -55,8 +55,7 @@ sitting 2 would be plannable again.
 from alembic import op
 
 revision = "0016"
-# S44's 0015 comes before this; re-point down_revision to "0015" when it lands.
-down_revision = "0013"
+down_revision = "0015"
 branch_labels = None
 depends_on = None
 
