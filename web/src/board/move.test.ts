@@ -94,4 +94,26 @@ describe('canMoveTo', () => {
   it('without day bounds, nothing is allowed', () => {
     expect(moveProblem(block, at('2026-11-16T15:00:00Z'), { ...day, dayStart: null, dayEnd: null })).toBe('outside_day')
   })
+
+  // Busy time (S35): 16:00–17:00 local = 14:00–15:00Z.
+  const busy = [{ starts_at: '2026-11-16T14:00:00Z', ends_at: '2026-11-16T15:00:00Z' }]
+
+  it('refuses an overlap with busy time', () => {
+    expect(moveProblem(block, at('2026-11-16T14:30:00Z'), { ...day, busy })).toBe('slot_busy')
+    expect(moveProblem(block, at('2026-11-16T13:15:00Z'), { ...day, busy })).toBe('slot_busy')
+  })
+
+  it('allows touching busy time on either side', () => {
+    expect(moveProblem(block, at('2026-11-16T13:00:00Z'), { ...day, busy })).toBeNull()
+    expect(moveProblem(block, at('2026-11-16T15:00:00Z'), { ...day, busy })).toBeNull()
+  })
+
+  it('an overlap with a block and with busy time is slot_taken, as the server checks blocks first', () => {
+    const busyOnOther = [{ starts_at: '2026-11-16T10:30:00Z', ends_at: '2026-11-16T11:30:00Z' }]
+    expect(moveProblem(block, at('2026-11-16T10:30:00Z'), { ...day, busy: busyOnOther })).toBe('slot_taken')
+  })
+
+  it('a day without busy is as before', () => {
+    expect(moveProblem(block, at('2026-11-16T14:30:00Z'), day)).toBeNull()
+  })
 })

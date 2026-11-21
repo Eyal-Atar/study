@@ -1,13 +1,21 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
-import { errorMessage } from '../api/client'
+import { useEffect, useState } from 'react'
+import type { UNSTABLE_ToastQueue as ToastQueue } from 'react-aria-components'
+import { describe, expect, it, vi } from 'vitest'
+import { ApiError, errorMessage } from '../api/client'
+import type { DeferRequest } from '../availability/types'
+import { onCompleted } from '../calendar/xpEvents'
 import { codeText, unscheduledText } from '../i18n/codes'
 import { en } from '../i18n/en'
 import { makeBlock, makeMe, makePlan, makeToday, renderBoard, USER_ID } from '../test/boardFixtures'
 import { createFakeApi, problem } from '../test/fakeApi'
+import { progressKey } from '../progress/api'
+import type { Progress } from '../progress/types'
+import { useToastContext, type Content } from '../ui/useToast'
 import { useBlockActions } from './actions'
 import { planKey, todayKey, usePlan, useToday } from './api'
+import { blockName } from './blockName'
 import { dayLabel, useProfileTimezone } from './time'
 import type { Block, Today } from './types'
 
@@ -374,5 +382,359 @@ describe('useBlockActions', () => {
     await user.click(screen.getByRole('button', { name: 'pin' }))
     expect(await (await toasts()).findByText(codeText('invalid_state'))).toBeInTheDocument()
     await ready()
+  })
+})
+
+// S32: defer with a choice, skip, and the XP of a complete.
+//
+// A probe that can be hidden: the toast region stays, so a test can press a toast's undo after the
+// component that started the action is gone (Review Focus 4).
+interface CallProbeProps {
+  request?: DeferRequest
+  onSuccess?: () => void
+  onError?: (error: ApiError) => boolean
+}
+
+// The toast queue of the rendered app, so a callback can see what shows at the moment it runs.
+let toastQueue: ToastQueue<Content> | null = null
+
+function CallProbe({ request, onSuccess, onError }: CallProbeProps) {
+  const today = useToday()
+  const actions = useBlockActions()
+  const { queue } = useToastContext()
+  useEffect(() => {
+    toastQueue = queue
+  }, [queue])
+  const block = today.data?.blocks[0]
+  if (block === undefined) return <p data-testid="loading">loading</p>
+  return (
+    <div>
+      <p data-testid="skipping">{String(actions.skipping(block.id))}</p>
+      <p data-testid="pending">{String(actions.pending(block.id))}</p>
+      <button
+        onClick={() => {
+          actions.defer(block, request, onSuccess === undefined && onError === undefined ? undefined : { onSuccess, onError })
+        }}
+      >
+        defer
+      </button>
+      <button onClick={() => { actions.skip(block) }}>skip</button>
+      <button onClick={() => { actions.complete(block) }}>complete</button>
+      <button onClick={() => { actions.uncomplete(block) }}>uncomplete</button>
+    </div>
+  )
+}
+
+function Hideable(props: CallProbeProps) {
+  const [shown, setShown] = useState(true)
+  return (
+    <>
+      <button onClick={() => { setShown(false) }}>hide</button>
+      {shown ? <CallProbe {...props} /> : null}
+    </>
+  )
+}
+
+function setupCalls(props: CallProbeProps & { block?: Block } = {}) {
+  const { block = makeBlock(), ...probe } = props
+  const fake = createFakeApi()
+    .on('GET /me', makeMe())
+    .on('GET /today', () => makeToday([block]))
+    .on({ method: 'GET', path: /^\/plan/ }, () => makePlan([block]))
+  const rendered = renderBoard(<Hideable {...probe} />, { api: fake.api })
+  return { fake, ...rendered }
+}
+
+async function loaded() {
+  await screen.findByRole('button', { name: 'defer' })
+}
+
+const MOVED = makeBlock({ id: 'block-2', starts_at: '2026-11-17T07:00:00Z', ends_at: '2026-11-17T08:00:00Z', study_date: '2026-11-17' })
+const UNDONE = { restored: 1, deleted: 1, replaced: [], unplaced: [] }
+// A block that ends in the future (upcoming) and one that already ended.
+const UPCOMING = makeBlock({ starts_at: '2099-01-01T10:00:00Z', ends_at: '2099-01-01T11:00:00Z', study_date: '2099-01-01' })
+const ENDED = makeBlock({ starts_at: '2020-01-01T10:00:00Z', ends_at: '2020-01-01T11:00:00Z', study_date: '2020-01-01', state: 'overdue' })
+
+function progressOf(totalXp: number, level: number): Progress {
+  return {
+    total_xp: totalXp,
+    level,
+    level_start_xp: 1000,
+    next_level_xp: 1500,
+    max_level: 10,
+    blocks_done: 30,
+    streak: { current: 3, longest: 5, studied_today: true, today: '2026-11-16' },
+    days: [],
+    badges: [],
+  }
+}
+
+describe('useBlockActions: defer with a choice', () => {
+  it('sends the request as the body, says where the task went, and undo sends POST /plan/undo', async () => {
+    const user = userEvent.setup()
+    const { fake } = setupCalls({ request: { to: 'tomorrow' } })
+    await loaded()
+    fake.on('POST /blocks/block-1/defer', { blocks: [MOVED], version_id: 'v1' })
+    fake.on('POST /plan/undo', UNDONE)
+
+    await user.click(screen.getByRole('button', { name: 'defer' }))
+    expect(await (await toasts()).findByText(en.board.deferred(dayLabel('2026-11-17', '2026-11-16'), '09:00'))).toBeInTheDocument()
+    expect(fake.calls('POST', '/blocks/block-1/defer').map((c) => c.body)).toEqual([{ to: 'tomorrow' }])
+
+    await user.click((await toasts()).getByRole('button', { name: en.common.undo }))
+    expect(fake.calls('POST', '/plan/undo').map((c) => c.body)).toEqual([{ version_id: 'v1' }])
+    expect(await (await toasts()).findByText(en.board.deferUndone)).toBeInTheDocument()
+  })
+
+  it('without a request it sends no body', async () => {
+    const user = userEvent.setup()
+    const { fake } = setupCalls()
+    await loaded()
+    fake.on('POST /blocks/block-1/defer', { blocks: [MOVED], version_id: null })
+
+    await user.click(screen.getByRole('button', { name: 'defer' }))
+    await (await toasts()).findByText(en.board.deferred(dayLabel('2026-11-17', '2026-11-16'), '09:00'))
+    expect(fake.calls('POST', '/blocks/block-1/defer').map((c) => c.body)).toEqual([undefined])
+  })
+
+  it('calls onSuccess after the toast', async () => {
+    const user = userEvent.setup()
+    let toastShown: boolean | null = null
+    const onSuccess = vi.fn(() => {
+      toastShown = toastQueue?.visibleToasts.some((t) => t.content.options.text === en.board.deferredSomewhere) ?? null
+    })
+    const { fake } = setupCalls({ request: { to: 'next' }, onSuccess })
+    await loaded()
+    fake.on('POST /blocks/block-1/defer', { blocks: [], version_id: null })
+
+    await user.click(screen.getByRole('button', { name: 'defer' }))
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledOnce()
+    })
+    expect(toastShown).toBe(true)
+  })
+
+  it('an error that onError takes (returns true) shows no toast', async () => {
+    const user = userEvent.setup()
+    const onError = vi.fn((error: ApiError) => error.code === 'slot_busy')
+    const { fake } = setupCalls({ request: { to: 'at', starts_at: '2026-11-17T07:00:00Z' }, onError })
+    await loaded()
+    fake.on('POST /blocks/block-1/defer', problem(409, 'slot_busy'))
+
+    await user.click(screen.getByRole('button', { name: 'defer' }))
+    await waitFor(() => {
+      expect(onError).toHaveBeenCalledOnce()
+    })
+    expect(onError.mock.calls[0]?.[0].code).toBe('slot_busy')
+    await waitFor(() => {
+      expect(screen.getByTestId('pending')).toHaveTextContent('false')
+    })
+    expect(screen.queryByRole('region', { name: en.common.notifications })).not.toBeInTheDocument()
+  })
+
+  it('an error that onError leaves (returns false) shows the toast as before', async () => {
+    const user = userEvent.setup()
+    const onError = vi.fn(() => false)
+    const { fake } = setupCalls({ request: { to: 'at', starts_at: '2026-11-17T07:00:00Z' }, onError })
+    await loaded()
+    const failure = problem(409, 'slot_busy')
+    fake.on('POST /blocks/block-1/defer', failure)
+
+    await user.click(screen.getByRole('button', { name: 'defer' }))
+    expect(await (await toasts()).findByText(errorMessage(failure))).toBeInTheDocument()
+    expect(onError).toHaveBeenCalledOnce()
+  })
+
+  it('placement_failed offers a replan and then calls onError', async () => {
+    const user = userEvent.setup()
+    const onError = vi.fn<(error: ApiError) => boolean>(() => true)
+    const { fake } = setupCalls({ request: { to: 'tomorrow' }, onError })
+    await loaded()
+    fake.on('POST /blocks/block-1/defer', problem(409, 'placement_failed', { reason: 'not_enough_time', blocked_by: null }))
+
+    await user.click(screen.getByRole('button', { name: 'defer' }))
+    const dialog = within(await screen.findByRole('dialog', { name: en.replan.title }))
+    expect(dialog.getByText(`${codeText('placement_failed')} ${unscheduledText('not_enough_time')}`)).toBeInTheDocument()
+    expect(onError).toHaveBeenCalledOnce()
+    expect(onError.mock.calls[0]?.[0]).toMatchObject({ code: 'placement_failed' })
+  })
+
+  it('the undo of a defer still works after the component that deferred is gone', async () => {
+    const user = userEvent.setup()
+    const onSuccess = vi.fn()
+    const { fake } = setupCalls({ request: { to: 'tomorrow' }, onSuccess })
+    await loaded()
+    const answer = deferred<unknown>()
+    fake.on('POST /blocks/block-1/defer', () => answer.promise)
+    fake.on('POST /plan/undo', UNDONE)
+
+    await user.click(screen.getByRole('button', { name: 'defer' }))
+    // The user moves to another day before the answer comes.
+    await user.click(screen.getByRole('button', { name: 'hide' }))
+    expect(screen.queryByRole('button', { name: 'defer' })).not.toBeInTheDocument()
+    answer.resolve({ blocks: [MOVED], version_id: 'v1' })
+
+    await user.click(await (await toasts()).findByRole('button', { name: en.common.undo }))
+    expect(fake.calls('POST', '/plan/undo').map((c) => c.body)).toEqual([{ version_id: 'v1' }])
+    expect(await (await toasts()).findByText(en.board.deferUndone)).toBeInTheDocument()
+    expect(onSuccess).toHaveBeenCalledOnce()
+  })
+})
+
+describe('useBlockActions: skip', () => {
+  it('an upcoming block skips its task with PATCH /tasks/{id}, and undo sends POST /plan/undo', async () => {
+    const user = userEvent.setup()
+    const { fake } = setupCalls({ block: UPCOMING })
+    await loaded()
+    const answer = deferred<unknown>()
+    fake.on('PATCH /tasks/task-1', () => answer.promise)
+    fake.on('POST /plan/undo', UNDONE)
+
+    await user.click(screen.getByRole('button', { name: 'skip' }))
+    expect(screen.getByTestId('skipping')).toHaveTextContent('true')
+    expect(screen.getByTestId('pending')).toHaveTextContent('true')
+    expect(fake.calls('PATCH', '/tasks/task-1').map((c) => c.body)).toEqual([{ status: 'skipped' }])
+    expect(fake.calls('POST', /\/skip$/)).toHaveLength(0)
+
+    answer.resolve({ task: {}, placement: null, version_id: 'v2' })
+    expect(await (await toasts()).findByText(en.calendar.sheets.defer.skipped(blockName(UPCOMING)))).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByTestId('skipping')).toHaveTextContent('false')
+    })
+
+    await user.click((await toasts()).getByRole('button', { name: en.common.undo }))
+    expect(fake.calls('POST', '/plan/undo').map((c) => c.body)).toEqual([{ version_id: 'v2' }])
+    expect(await (await toasts()).findByText(en.calendar.sheets.defer.skipUndone)).toBeInTheDocument()
+  })
+
+  it('a block that ended is skipped with POST /blocks/{id}/skip', async () => {
+    const user = userEvent.setup()
+    const { fake } = setupCalls({ block: ENDED })
+    await loaded()
+    fake.on('POST /blocks/block-1/skip', { task_status: 'skipped', version_id: 'v3' })
+
+    await user.click(screen.getByRole('button', { name: 'skip' }))
+    expect(await (await toasts()).findByText(en.calendar.sheets.defer.skipped(blockName(ENDED)))).toBeInTheDocument()
+    expect(fake.calls('POST', '/blocks/block-1/skip')).toHaveLength(1)
+    expect(fake.calls('PATCH', /^\/tasks/)).toHaveLength(0)
+  })
+
+  it('names a split block with its part', async () => {
+    const user = userEvent.setup()
+    const split = { ...UPCOMING, part_index: 2, part_count: 3 }
+    const { fake } = setupCalls({ block: split })
+    await loaded()
+    fake.on('PATCH /tasks/task-1', { task: {}, placement: null, version_id: null })
+
+    await user.click(screen.getByRole('button', { name: 'skip' }))
+    expect(await (await toasts()).findByText(en.calendar.sheets.defer.skipped(blockName(split)))).toBeInTheDocument()
+  })
+
+  it('without a version there is no undo', async () => {
+    const user = userEvent.setup()
+    const { fake } = setupCalls({ block: UPCOMING })
+    await loaded()
+    fake.on('PATCH /tasks/task-1', { task: {}, placement: null, version_id: null })
+
+    await user.click(screen.getByRole('button', { name: 'skip' }))
+    await (await toasts()).findByText(en.calendar.sheets.defer.skipped(blockName(UPCOMING)))
+    expect((await toasts()).queryByRole('button', { name: en.common.undo })).not.toBeInTheDocument()
+  })
+
+  it('a failed skip says why and refreshes the board', async () => {
+    const user = userEvent.setup()
+    const { fake } = setupCalls({ block: UPCOMING })
+    await loaded()
+    const failure = problem(409, 'invalid_state')
+    fake.on('PATCH /tasks/task-1', failure)
+    const before = fake.calls('GET', '/today').length
+
+    await user.click(screen.getByRole('button', { name: 'skip' }))
+    expect(await (await toasts()).findByText(errorMessage(failure))).toBeInTheDocument()
+    await waitFor(() => {
+      expect(fake.calls('GET', '/today').length).toBeGreaterThan(before)
+    })
+  })
+})
+
+describe('useBlockActions: the XP of a complete', () => {
+  const change = { xp_change: 20, total_xp: 1240, level: 4, level_up: false, badges_earned: [], badges_lost: [] }
+
+  it('writes the new total and level into the progress cache and tells the listeners once', async () => {
+    const user = userEvent.setup()
+    const { fake, queryClient } = setupCalls()
+    await loaded()
+    queryClient.setQueryData(progressKey(USER_ID), progressOf(1220, 3))
+    const listener = vi.fn()
+    const off = onCompleted(listener)
+    // Nothing answers the progress refetch, so what the cache holds is what complete wrote.
+    fake.on('GET /progress', () => new Promise<never>(() => undefined))
+    fake.on('POST /blocks/block-1/complete', {
+      block: makeBlock({ status: 'done', state: 'done' }),
+      task_status: 'done',
+      progress: change,
+    })
+
+    await user.click(screen.getByRole('button', { name: 'complete' }))
+    await (await toasts()).findByText(`${en.board.completed}. ${en.board.xpGained(20)}`)
+    expect(queryClient.getQueryData(progressKey(USER_ID))).toEqual({ ...progressOf(1220, 3), total_xp: 1240, level: 4 })
+    expect(listener).toHaveBeenCalledExactlyOnceWith({ blockId: 'block-1', xp: 20 })
+    off()
+  })
+
+  it('no XP gained, no event', async () => {
+    const user = userEvent.setup()
+    const { fake } = setupCalls()
+    await loaded()
+    const listener = vi.fn()
+    const off = onCompleted(listener)
+    fake.on('POST /blocks/block-1/complete', {
+      block: makeBlock({ status: 'done', state: 'done' }),
+      task_status: 'done',
+      progress: { ...change, xp_change: 0 },
+    })
+
+    await user.click(screen.getByRole('button', { name: 'complete' }))
+    await (await toasts()).findByText(en.board.completed)
+    expect(listener).not.toHaveBeenCalled()
+    off()
+  })
+
+  it('uncomplete sends no event', async () => {
+    const user = userEvent.setup()
+    const done = makeBlock({ status: 'done', state: 'done' })
+    const { fake } = setupCalls({ block: done })
+    await loaded()
+    const listener = vi.fn()
+    const off = onCompleted(listener)
+    fake.on('POST /blocks/block-1/uncomplete', {
+      block: makeBlock(),
+      task_status: 'todo',
+      progress: { ...change, xp_change: -20, total_xp: 1220 },
+    })
+
+    await user.click(screen.getByRole('button', { name: 'uncomplete' }))
+    await (await toasts()).findByText(`${en.board.uncompleted}. ${en.board.xpLost(20)}`)
+    expect(listener).not.toHaveBeenCalled()
+    off()
+  })
+
+  it('an empty progress cache stays empty', async () => {
+    const user = userEvent.setup()
+    const { fake, queryClient } = setupCalls()
+    await loaded()
+    const listener = vi.fn()
+    const off = onCompleted(listener)
+    fake.on('POST /blocks/block-1/complete', {
+      block: makeBlock({ status: 'done', state: 'done' }),
+      task_status: 'done',
+      progress: change,
+    })
+
+    await user.click(screen.getByRole('button', { name: 'complete' }))
+    await (await toasts()).findByText(`${en.board.completed}. ${en.board.xpGained(20)}`)
+    expect(queryClient.getQueryData(progressKey(USER_ID))).toBeUndefined()
+    expect(listener).toHaveBeenCalledOnce()
+    off()
   })
 })

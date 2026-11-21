@@ -61,13 +61,16 @@ export interface MoveDay {
   // The other blocks of the day (the block itself may be among them).
   blocks: Block[]
   now: number
+  // S35: the day's commitment occurrences and busy events (Today.busy, Plan.busy). Absent: none known.
+  busy?: { starts_at: string; ends_at: string }[]
 }
 
-export type MoveProblem = 'invalid_state' | 'outside_day' | 'slot_taken'
+export type MoveProblem = 'invalid_state' | 'outside_day' | 'slot_taken' | 'slot_busy'
 
-// What the server would refuse (decision 7), or null: the block is planned and did not start; the
-// new start is a whole minute, not before now; the whole block is inside the waking hours; it does
-// not overlap another planned or done block (touching one is fine, decision 9).
+// What the server would refuse (decision 7, api/app/services/moves.py), or null, in the server's
+// order: the block is planned and did not start; the new start is a whole minute, not before now;
+// the whole block is inside the waking hours; it does not overlap another planned or done block
+// (slot_taken), nor busy time (slot_busy, S35). Touching either is fine (decision 9).
 export function moveProblem(block: Block, startMs: number, day: MoveDay): MoveProblem | null {
   if (block.status !== 'planned' || Date.parse(block.starts_at) <= day.now) return 'invalid_state'
   const endMs = startMs + blockMinutes(block) * MINUTE_MS
@@ -80,7 +83,9 @@ export function moveProblem(block: Block, startMs: number, day: MoveDay): MovePr
       startMs < Date.parse(other.ends_at) &&
       Date.parse(other.starts_at) < endMs,
   )
-  return taken ? 'slot_taken' : null
+  if (taken) return 'slot_taken'
+  const busy = (day.busy ?? []).some((item) => startMs < Date.parse(item.ends_at) && Date.parse(item.starts_at) < endMs)
+  return busy ? 'slot_busy' : null
 }
 
 export function canMoveTo(block: Block, startMs: number, day: MoveDay): boolean {
