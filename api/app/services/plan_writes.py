@@ -70,6 +70,8 @@ class VersionReason(StrEnum):
     BUSY_CHANGED = "busy_changed"
     FREE_TIME = "free_time"
     DEFER_AT = "defer_at"
+    # S44: the user split a task they kept putting off; task_before holds its bite_minutes.
+    TASK_SPLIT = "task_split"
 
 
 # The morning review's versions: block_id is the past block they marked missed or skipped,
@@ -440,6 +442,26 @@ def _restore_task(conn: Conn, user_id: UUID, task_id: UUID, before: Any) -> None
     )
 
 
+def _restore_bite(conn: Conn, user_id: UUID, task_id: UUID, before: Any) -> None:
+    """Put a split task's bite_minutes back (task_before of a task_split version).
+
+    `before` must be exactly {"bite_minutes": null or an int 30-300}; anything else is
+    invalid.
+    """
+    try:
+        if not isinstance(before, Mapping) or set(before) != {"bite_minutes"}:
+            raise ValueError("task_before must be exactly {bite_minutes}")
+        bite = before["bite_minutes"]
+        if bite is not None and (type(bite) is not int or not 30 <= bite <= 300):
+            raise ValueError("bite_minutes must be null or an int 30-300")
+    except ValueError as error:
+        raise SnapshotError(f"invalid task_before: {error}") from error
+    conn.execute(
+        "UPDATE app.tasks SET bite_minutes = %s WHERE user_id = %s AND id = %s",
+        (bite, user_id, task_id),
+    )
+
+
 def _parse_instant(value: Any) -> dt.datetime:
     """An aware ISO datetime on a whole minute, in UTC; anything else is a ValueError."""
     if not isinstance(value, str):
@@ -532,6 +554,9 @@ def _undo_side_effect(conn: Conn, user_id: UUID, version: VersionRow, now: dt.da
     the event's title and time back from busy_event_before. Both run before undo_version
     loads the board, so the restored blocks are checked against the event as it is after.
 
+    A task_split version puts the task's bite_minutes back (task_before), before the board
+    is loaded, so a task the undo places again is placed as it was before the split.
+
     A review version sets its past block back to planned if it is still missed or skipped
     (one marked done since stays done), so it returns to the review; a review_skipped
     version also puts the task's status back (task_before).
@@ -549,6 +574,9 @@ def _undo_side_effect(conn: Conn, user_id: UUID, version: VersionRow, now: dt.da
             and version.task_before is not None
         ):
             _restore_task(conn, user_id, version.task_id, version.task_before)
+        return
+    if version.reason == VersionReason.TASK_SPLIT and version.task_id is not None:
+        _restore_bite(conn, user_id, version.task_id, version.task_before)
         return
     if version.reason == VersionReason.BUSY_ADDED and version.busy_event_id is not None:
         conn.execute(

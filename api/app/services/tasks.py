@@ -22,7 +22,7 @@ from app.services.profiles import Conn
 
 TASK_COLUMNS: Final = (
     "id, exam_id, title, kind, estimated_minutes, focus, depends_on_task_id, status, "
-    "source, created_at, topic_id, material_id, position"
+    "source, created_at, topic_id, material_id, position, bite_minutes"
 )
 _UPDATABLE: Final = frozenset(
     {"title", "kind", "estimated_minutes", "focus", "depends_on_task_id", "status", "topic_id"}

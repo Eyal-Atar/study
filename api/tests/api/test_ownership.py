@@ -983,3 +983,75 @@ def test_availability_lists_show_only_own_rows(
     )
     assert path == f"{b.id}/timetables/{upload}"
     assert dump(db, a.id) == a_rows
+
+
+# S44: the split offer. A puts its task off three times, so A has a live offer; B calls split
+# and dismiss with A's task (404, nothing changes), and B's own GET /split-offers shows none of
+# A's rows. The routes join CASES and WITHOUT_ID here, at the end, for
+# test_every_route_is_covered.
+SPLIT_CASES: tuple[Case, ...] = (
+    Case(
+        "split_task",
+        "POST",
+        "/tasks/{task_id}/split",
+        lambda i: {"task_id": i.a_task},
+        lambda _: {"basis": "0" * 64},
+    ),
+    Case(
+        "dismiss_split",
+        "POST",
+        "/tasks/{task_id}/split/dismiss",
+        lambda i: {"task_id": i.a_task},
+        _none,
+    ),
+)
+CASES = (*CASES, *SPLIT_CASES)
+WITHOUT_ID = WITHOUT_ID | {("GET", "/split-offers")}
+
+
+def _a_has_an_offer(api: TestClient, db: psycopg.Connection, a: ApiUser, task: UUID) -> str:
+    """Defer A's task three times; A's offer's basis."""
+    for _ in range(3):
+        block = scalar(
+            db,
+            "SELECT id FROM app.blocks WHERE task_id = %s AND status = 'planned' "
+            "ORDER BY starts_at LIMIT 1",
+            task,
+        )
+        response = api.post(f"/blocks/{block}/defer", json={}, headers=a.headers)
+        assert response.status_code == 200, response.text
+    offers = api.get("/split-offers", headers=a.headers).json()["offers"]
+    assert [offer["task_id"] for offer in offers] == [str(task)]
+    basis: str = offers[0]["basis"]
+    return basis
+
+
+@pytest.mark.parametrize("case", SPLIT_CASES, ids=[case.name for case in SPLIT_CASES])
+def test_the_split_of_another_user_is_404(
+    api: TestClient,
+    db: psycopg.Connection,
+    world: tuple[ApiUser, ApiUser, Ids],
+    case: Case,
+) -> None:
+    a, b, ids = world
+    db.execute("UPDATE app.tasks SET estimated_minutes = 90 WHERE id = %s", (ids.a_task,))
+    db.execute(
+        "UPDATE app.blocks SET ends_at = starts_at + interval '90 minutes' "
+        "WHERE task_id = %s AND status = 'planned'",
+        (ids.a_task,),
+    )
+    basis = _a_has_an_offer(api, db, a, ids.a_task)
+    before = dump(db, a.id)
+    b_before = dump(db, b.id)
+    body = {"basis": basis} if case.name == "split_task" else None
+    response = api.request(case.method, case.url(ids), headers=b.headers, json=body)
+    assert response.status_code == 404, response.text
+    assert response.json()["code"] == "not_found"
+    assert dump(db, a.id) == before
+    assert dump(db, b.id) == b_before
+    offers = api.get("/split-offers", headers=b.headers)
+    assert offers.status_code == 200
+    assert offers.json() == {"offers": []}
+    assert str(ids.a_task) not in offers.text
+    # A's offer is still there.
+    assert len(api.get("/split-offers", headers=a.headers).json()["offers"]) == 1

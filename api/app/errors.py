@@ -87,6 +87,7 @@ PROBLEMS: Mapping[str, Problem] = MappingProxyType(
         "already_applied": Problem(409, "That timetable has already been saved."),
         "job_not_ready": Problem(409, "I haven't finished reading that yet."),
         "push_endpoint_invalid": Problem(422, "Reminders can't be turned on in this browser."),
+        "no_split_offer": Problem(409, "I don't have a split to offer for this task right now."),
         "internal_error": Problem(500, "Something went wrong on my side. Please try again later."),
     }
 )

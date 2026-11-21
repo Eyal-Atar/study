@@ -16,6 +16,7 @@ from app.routers import (
     commitments,
     exams,
     free_time,
+    friction,
     generation,
     health,
     jobs,
@@ -78,6 +79,8 @@ def create_app(
     app.include_router(health.router)
     app.include_router(me.router)
     app.include_router(exams.router)
+    # Before tasks: /tasks/{task_id}/split is its own route, not a task path.
+    app.include_router(friction.router)
     app.include_router(tasks.router)
     app.include_router(blocks.router)
     app.include_router(plan.router)

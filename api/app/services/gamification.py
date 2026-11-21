@@ -177,16 +177,39 @@ def record_completion(
     block: BlockRow,
     focus: int,
     now: dt.datetime,
+    *,
+    split: bool = False,
 ) -> ProgressChange:
-    """The block just became done: its XP (once), then the badges."""
+    """The block just became done: its XP (once), then the badges.
+
+    For a block of a split task (S44, `split`) the XP is what the task's done minutes earn
+    as one block, less what its other done blocks already earned (never below 0), so the
+    bites of a split task never earn more than the task would in one block: block_xp rounds
+    each block, and a rounding up per bite would otherwise add up.
+    """
     before = _totals(conn, user_id)
     minutes = int((block.ends_at - block.starts_at).total_seconds() // 60)
+    xp = _split_xp(conn, user_id, block, focus, minutes) if split else block_xp(focus, minutes)
     row = conn.execute(
         "INSERT INTO app.xp_events (user_id, block_id, xp, study_date) "
         "VALUES (%s, %s, %s, %s) ON CONFLICT (block_id) DO NOTHING RETURNING xp",
-        (user_id, block.id, block_xp(focus, minutes), completion_day(profile, block, now)),
+        (user_id, block.id, xp, completion_day(profile, block, now)),
     ).fetchone()
     return _change(conn, user_id, before, 0 if row is None else row["xp"], sync=True)
+
+
+def _split_xp(conn: Conn, user_id: UUID, block: BlockRow, focus: int, minutes: int) -> int:
+    row = conn.execute(
+        "SELECT coalesce(sum(x.xp), 0)::int AS xp, "
+        "coalesce(sum(extract(epoch FROM b.ends_at - b.starts_at) / 60), 0)::int AS minutes "
+        "FROM app.xp_events x JOIN app.blocks b ON b.id = x.block_id AND b.user_id = x.user_id "
+        "WHERE x.user_id = %s AND b.task_id = %s AND b.id <> %s",
+        (user_id, block.task_id, block.id),
+    ).fetchone()
+    if row is None:
+        raise RuntimeError("an aggregate query returned no row")
+    earned: int = row["xp"]
+    return max(0, block_xp(focus, minutes + int(row["minutes"])) - earned)
 
 
 def revoke_completion(conn: Conn, user_id: UUID, block_id: UUID) -> ProgressChange:

@@ -32,6 +32,8 @@ class TaskOut(BaseModel):
     topic_id: UUID | None
     material_id: UUID | None
     position: int | None
+    # The bite of a task the user split (S44): the planner gives it one part this long a day.
+    bite_minutes: int | None
 
 
 class TaskListItem(TaskOut):

@@ -60,7 +60,7 @@ def _find(conn: Conn, user_id: UUID, block_id: UUID) -> _Target:
         "SELECT "
         + ", ".join(f"b.{column.strip()}" for column in BLOCK_COLUMNS.split(","))
         + ", t.exam_id, t.kind, t.estimated_minutes, t.focus, t.depends_on_task_id, "
-        "t.status AS task_status, e.exam_date, e.difficulty "
+        "t.status AS task_status, t.bite_minutes, e.exam_date, e.difficulty "
         "FROM app.blocks b "
         "JOIN app.tasks t ON t.id = b.task_id AND t.user_id = b.user_id "
         "JOIN app.exams e ON e.id = t.exam_id AND e.user_id = t.user_id "
@@ -78,6 +78,7 @@ def _find(conn: Conn, user_id: UUID, block_id: UUID) -> _Target:
         focus=row["focus"],
         depends_on=row["depends_on_task_id"],
         status=TaskStatus(row["task_status"]),
+        bite_minutes=row["bite_minutes"],
     )
     exam = Exam(id=row["exam_id"], exam_date=row["exam_date"], difficulty=row["difficulty"])
     return _Target(block, task, exam)
@@ -128,7 +129,13 @@ def complete_block(conn: Conn, user_id: UUID, block_id: UUID, now: dt.datetime) 
             _set_task_status(conn, user_id, task.id, status)
         renumber(conn, user_id, now)
         progress = gamification.record_completion(
-            conn, user_id, to_planner_profile(profile_row), target.block, task.focus, now
+            conn,
+            user_id,
+            to_planner_profile(profile_row),
+            target.block,
+            task.focus,
+            now,
+            split=task.bite_minutes is not None,
         )
     return CompleteOutcome(_view(conn, user_id, block_id, profile_row, now), status, progress)
 
