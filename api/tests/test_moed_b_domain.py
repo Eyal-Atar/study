@@ -283,3 +283,37 @@ def test_the_default_practice_exam_fits_in_a_study_day() -> None:
     assert [(t.kind, t.minutes) for t in plan.tasks[:1]] == [(TaskKind.SIMULATION, 120)]
     roomy = build_moed_b_tasks([], [], [], None, None, max_simulation_minutes=240)
     assert roomy.tasks[0].minutes == 150
+
+
+def test_a_short_name_never_matches_inside_a_longer_word() -> None:
+    c, ab = topic("C", 1), topic("AB", 2)
+    plan = build([c, ab], [], notes="C and AB were fine, but recursion was hard")
+    assert plan.weak_topic_ids == ()
+
+
+def test_a_name_matches_only_as_a_whole_word_in_any_occurrence() -> None:
+    graphs, trees = topic("Graphs", 1), topic("Trees", 2)
+    plan = build(
+        [graphs, trees], [], notes="the graphs part was hard, subgraphsx no; forest of Trees2"
+    )
+    assert plan.weak_topic_ids == (graphs.id,)
+    # The first occurrence is inside a word, a later one stands alone.
+    plan = build([graphs], [], notes="subgraphs are fine, the graphs part is not")
+    assert plan.weak_topic_ids == (graphs.id,)
+
+
+def test_a_hebrew_name_matches_next_to_punctuation() -> None:
+    graphs = topic("גרפים", 1)
+    plan = build([graphs], [], notes="היה קשה: גרפים, ועצים")
+    assert plan.weak_topic_ids == (graphs.id,)
+
+
+def test_weak_topics_are_capped_at_50_selected_first_then_notes() -> None:
+    topics = [topic(f"Topic number {i:03d}", i) for i in range(1, 53)]
+    selected = [t.id for t in topics[1:51]]  # 2..51
+    plan = build(topics, [], weak=selected, notes="Topic number 001 and Topic number 052")
+    assert len(plan.weak_topic_ids) == 50
+    assert set(plan.weak_topic_ids) == set(selected)
+    plan = build(topics, [], weak=selected[:49], notes="Topic number 001 and Topic number 052")
+    assert len(plan.weak_topic_ids) == 50
+    assert topics[0].id in plan.weak_topic_ids and topics[51].id not in plan.weak_topic_ids

@@ -43,6 +43,7 @@ from app.services.plan_writes import (
     write_changes,
 )
 from app.services.profiles import Conn, ensure_profile, to_planner_profile
+from app.services.topics import current_topic_rows
 
 type Row = Mapping[str, Any]
 
@@ -115,11 +116,7 @@ class CloseOutcome:
 
 def _topics(conn: Conn, user_id: UUID, exam_ids: Sequence[UUID]) -> dict[UUID, list[TopicItem]]:
     topics: dict[UUID, list[TopicItem]] = {}
-    for row in conn.execute(
-        "SELECT id, exam_id, name FROM app.topics WHERE user_id = %s AND exam_id = ANY(%s) "
-        "ORDER BY position, id",
-        (user_id, list(exam_ids)),
-    ).fetchall():
+    for row in current_topic_rows(conn, user_id, exam_ids, "tp.id, tp.exam_id, tp.name"):
         topics.setdefault(row["exam_id"], []).append(TopicItem(id=row["id"], name=row["name"]))
     return topics
 

@@ -47,6 +47,9 @@ downgrade restores 0014's list.
 Grants on `exams` and `tasks` are table-wide (0002), so the new columns need no GRANT. Account
 deletion is unchanged: `app.delete_account_data()` already deletes exams, tasks and
 plan_versions.
+
+Downgrade drops `tasks.sitting`, so the Moed A tasks (todo ones included) of an exam that is at
+sitting 2 would be plannable again.
 """
 
 from alembic import op

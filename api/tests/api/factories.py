@@ -195,3 +195,17 @@ def insert_material(
             ),
         ).fetchone()
     )
+
+
+def insert_analysis(
+    db: psycopg.Connection, user_id: UUID, exam_id: UUID, status: str = "applied"
+) -> UUID:
+    """An analysis row of the exam; an applied one is dated now, so a later one is the latest."""
+    return _id(
+        db.execute(
+            "INSERT INTO app.analyses (user_id, exam_id, status, output, applied_at) "
+            "VALUES (%s, %s, %s, '{}', CASE WHEN %s = 'applied' THEN clock_timestamp() END) "
+            "RETURNING id",
+            (user_id, exam_id, status, status),
+        ).fetchone()
+    )

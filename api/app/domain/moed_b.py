@@ -30,6 +30,8 @@ DEFAULT_SIMULATION_MINUTES: Final = 150
 DEFAULT_REVIEW_TITLE: Final = "Practice exam review"
 DEFAULT_REVIEW_MINUTES: Final = 60
 MAX_SIMULATIONS: Final = 2
+MAX_WEAK_TOPICS: Final = 50
+MIN_MATCH_NAME: Final = 3
 
 WEAK_FOCUS: Final = 8
 GENERAL_FOCUS: Final = 5
@@ -115,17 +117,45 @@ def _by_position(tasks: Iterable[SourceTask]) -> list[SourceTask]:
     return sorted(tasks, key=lambda t: (t.position is None, t.position or 0))
 
 
+def _mentioned(name: str, text: str) -> bool:
+    """Whether the topic's full name stands in the notes as its own word(s).
+
+    The name (casefolded, stripped) needs at least MIN_MATCH_NAME characters, so "C" does not
+    match "recursion". Every occurrence is checked: the characters just before and after must
+    not be letters or digits, so "Graph" does not match "Graphs" but "Graphs" matches "the
+    graphs part". Known limit: Hebrew prefixes ("בגרפים") are attached to the word and do not
+    match; the user then picks the topic in the list.
+    """
+    if len(name) < MIN_MATCH_NAME:
+        return False
+    start = text.find(name)
+    while start != -1:
+        end = start + len(name)
+        before_ok = start == 0 or not text[start - 1].isalnum()
+        after_ok = end == len(text) or not text[end].isalnum()
+        if before_ok and after_ok:
+            return True
+        start = text.find(name, start + 1)
+    return False
+
+
 def _weak_topics(
     topics: Sequence[SourceTopic], selected: Collection[UUID], notes: str | None
 ) -> list[SourceTopic]:
+    """The weak topics, at most MAX_WEAK_TOPICS (the exams_moed_b_topic_ids_shape CHECK).
+
+    The selected topics come first, then those the notes mention, each group in topic position
+    order; when there are more than the cap, the later ones are left out. The result is
+    returned in topic position order.
+    """
     text = (notes or "").casefold()
     wanted = set(selected)
-    weak = []
-    for topic in topics:
-        name = topic.name.strip().casefold()
-        if topic.id in wanted or (name and name in text):
-            weak.append(topic)
-    return weak
+    chosen = [t for t in topics if t.id in wanted]
+    mentioned = [
+        t for t in topics if t.id not in wanted and _mentioned(t.name.strip().casefold(), text)
+    ]
+    keep = {t.id for t in [*chosen, *mentioned][:MAX_WEAK_TOPICS]}
+    return [t for t in topics if t.id in keep]
 
 
 def _simulations(tasks: Sequence[SourceTask], max_minutes: int | None) -> list[_Draft]:

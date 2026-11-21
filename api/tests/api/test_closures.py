@@ -23,6 +23,7 @@ from tests.api.factories import (
     NOW,
     TEST_PROFILE,
     Z,
+    insert_analysis,
     insert_block,
     insert_exam,
     insert_task,
@@ -135,19 +136,22 @@ def test_a_past_exam_is_pending_with_its_stats_and_topics(
     insert_task(db, user.id, exam, minutes=30)
     insert_task(db, user.id, exam, minutes=60, status="skipped")
     insert_block(db, user.id, done, Z(2026, 11, 13, 9), Z(2026, 11, 13, 10, 30), status="done")
+    analysis = insert_analysis(db, user.id, exam)
     second = scalar(
         db,
-        "INSERT INTO app.topics (user_id, exam_id, name, weight, position) "
-        "VALUES (%s, %s, 'Integrals', 3, 2) RETURNING id",
+        "INSERT INTO app.topics (user_id, exam_id, name, weight, position, analysis_id) "
+        "VALUES (%s, %s, 'Integrals', 3, 2, %s) RETURNING id",
         user.id,
         exam,
+        analysis,
     )
     first = scalar(
         db,
-        "INSERT INTO app.topics (user_id, exam_id, name, weight, position) "
-        "VALUES (%s, %s, 'Limits', 2, 1) RETURNING id",
+        "INSERT INTO app.topics (user_id, exam_id, name, weight, position, analysis_id) "
+        "VALUES (%s, %s, 'Limits', 2, 1, %s) RETURNING id",
         user.id,
         exam,
+        analysis,
     )
 
     body = _closures(api, user)
@@ -536,3 +540,21 @@ def test_exam_before_is_json_safe() -> None:
         "closure": None,
         "closed_at": "2026-11-10T19:30:15+00:00",
     }
+
+
+def test_only_the_current_topic_generation_is_listed(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, name="Calculus", exam_date="2026-11-15")
+    old = insert_analysis(db, user.id, exam, "superseded")
+    new = insert_analysis(db, user.id, exam)
+    for name, position, analysis in (("Limits", 1, old), ("Limits", 1, new), ("Series", 2, new)):
+        db.execute(
+            "INSERT INTO app.topics (user_id, exam_id, name, weight, position, analysis_id) "
+            "VALUES (%s, %s, %s, 3, %s, %s)",
+            (user.id, exam, name, position, analysis),
+        )
+
+    (item,) = _closures(api, user)["pending"]
+
+    assert [t["name"] for t in item["topics"]] == ["Limits", "Series"]

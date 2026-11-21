@@ -875,6 +875,19 @@ def test_deleted_exam_is_missing(analyze: Analyze, db: psycopg.Connection, exam:
     assert client.calls == []
 
 
+def test_closed_exam_is_missing_and_costs_no_call(
+    analyze: Analyze, db: psycopg.Connection, exam: UUID
+) -> None:
+    db.execute("UPDATE app.exams SET closure = 'done', closed_at = now() WHERE id = %s", (exam,))
+    client = FakeAnalysisClient([valid()])
+
+    with pytest.raises(AnalysisFailed) as info:
+        analyze(client)
+
+    assert info.value.code == "exam_missing"
+    assert client.calls == []
+
+
 def test_materials_not_ready_are_skipped_with_a_warning(
     analyze: Analyze, add_material: AddMaterial, user: CurrentUser, exam: UUID
 ) -> None:

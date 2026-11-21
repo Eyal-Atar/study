@@ -156,6 +156,20 @@ def test_a_closed_or_deleted_exam_is_not_sent(
     assert sender.calls == []
 
 
+def test_stale_candidates_do_not_starve_a_due_exam_under_a_small_limit(
+    db: psycopg.Connection, owner_db: Conn, make_user: MakeUser
+) -> None:
+    # Yesterday's exam is a candidate (inside the date window) but not due; it sorts first.
+    _, stale = make_exam(db, make_user, exam_date="2026-11-19")
+    _, due = make_exam(db, make_user)
+    sender = FakeSender()
+
+    assert send_closure_notifications(owner_db, sender, now=utc(20), limit=1) == ONE
+
+    assert notified(db, stale) is None
+    assert notified(db, due) == utc(20)
+
+
 def test_a_gone_subscription_is_deleted_and_a_sent_one_records_success(
     db: psycopg.Connection, owner_db: Conn, make_user: MakeUser
 ) -> None:

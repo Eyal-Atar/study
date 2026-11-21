@@ -16,6 +16,7 @@ from tests.api.factories import (
     NOW,
     TEST_PROFILE,
     Z,
+    insert_analysis,
     insert_block,
     insert_exam,
     insert_task,
@@ -64,19 +65,34 @@ def waiting_exam(
 
 
 def insert_topic(
-    db: psycopg.Connection, user_id: UUID, exam_id: UUID, name: str, position: int, weight: int = 3
+    db: psycopg.Connection,
+    user_id: UUID,
+    exam_id: UUID,
+    name: str,
+    position: int,
+    weight: int = 3,
+    analysis: UUID | None = None,
 ) -> UUID:
+    """A topic of the exam's current analysis (made applied on first use), or of `analysis`."""
+    if analysis is None:
+        found = db.execute(
+            "SELECT id FROM app.analyses WHERE exam_id = %s AND status = 'applied' "
+            "ORDER BY applied_at DESC LIMIT 1",
+            (exam_id,),
+        ).fetchone()
+        analysis = insert_analysis(db, user_id, exam_id) if found is None else found[0]
     return UUID(
         str(
             scalar(
                 db,
-                "INSERT INTO app.topics (user_id, exam_id, name, weight, position) "
-                "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                "INSERT INTO app.topics (user_id, exam_id, name, weight, position, analysis_id) "
+                "VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
                 user_id,
                 exam_id,
                 name,
                 weight,
                 position,
+                analysis,
             )
         )
     )
@@ -461,3 +477,45 @@ def test_undo_of_moed_b_brings_the_waiting_exam_back(
     refused = api.post("/plan/undo", json={"version_id": again["version_id"]}, headers=user.headers)
     assert refused.status_code == 409
     assert refused.json()["code"] == "invalid_state"
+
+
+def test_moed_b_uses_only_the_current_topic_generation(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = waiting_exam(db, user.id)
+    old = insert_analysis(db, user.id, exam, "superseded")
+    insert_topic(db, user.id, exam, "Graphs", 1, analysis=old)
+    insert_topic(db, user.id, exam, "Trees", 2, analysis=old)
+    current = insert_analysis(db, user.id, exam)
+    insert_topic(db, user.id, exam, "Graphs", 1, analysis=current)
+    insert_topic(db, user.id, exam, "Trees", 2, analysis=current)
+
+    status, body = open_moed_b(api, user, exam)
+
+    assert status == 200, body
+    titles = rows(
+        db,
+        "SELECT title FROM app.tasks WHERE exam_id = %s AND sitting = 2 AND kind = 'review' "
+        "AND source = 'ai' AND deleted_at IS NULL ORDER BY position",
+        exam,
+    )
+    assert sorted(r["title"] for r in titles) == ["Graphs", "Trees"]
+
+
+def test_weak_topics_are_capped_at_50_selected_first_then_notes(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = waiting_exam(db, user.id)
+    ids = [insert_topic(db, user.id, exam, f"Topic number {i:03d}", i) for i in range(1, 52)]
+
+    status, body = open_moed_b(
+        api,
+        user,
+        exam,
+        hard_topic_ids=[str(i) for i in ids[:50]],
+        hard_notes="also Topic number 051 was hard",
+    )
+
+    assert status == 200, body
+    assert len(body["weak_topics"]) == 50
+    assert str(ids[50]) not in [t["id"] for t in body["weak_topics"]]

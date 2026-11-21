@@ -78,6 +78,17 @@ def _live_task(conn: Conn, user_id: UUID, task_id: UUID) -> Row:
     return row
 
 
+def _refuse_closed(conn: Conn, user_id: UUID, task_id: UUID) -> None:
+    """A task of a closed exam, or of a past sitting, is history: exam_in_past (as create_task)."""
+    row = conn.execute(
+        "SELECT 1 FROM app.tasks t JOIN app.exams e ON e.id = t.exam_id AND e.user_id = t.user_id "
+        "WHERE t.user_id = %s AND t.id = %s AND e.closure IS NULL AND e.sitting = t.sitting",
+        (user_id, task_id),
+    ).fetchone()
+    if row is None:
+        raise ApiError("exam_in_past")
+
+
 def _check_topic(conn: Conn, user_id: UUID, exam_id: UUID, topic_id: UUID) -> None:
     """The topic must belong to the same user and exam (the FK would say so, as a 500)."""
     row = conn.execute(
@@ -193,6 +204,7 @@ def update_task(
         raise ValueError(f"Not updatable: {sorted(unknown)}")
     board = load_board(conn, user_id, now, lock=True)
     before = _live_task(conn, user_id, task_id)
+    _refuse_closed(conn, user_id, task_id)
     target = changes.get("depends_on_task_id")
     if target is not None:
         _live_task(conn, user_id, target)
@@ -237,6 +249,7 @@ def update_task(
 def delete_task(conn: Conn, user_id: UUID, now: dt.datetime, task_id: UUID) -> UUID | None:
     board = load_board(conn, user_id, now, lock=True)
     _live_task(conn, user_id, task_id)
+    _refuse_closed(conn, user_id, task_id)
     conn.execute(
         "UPDATE app.tasks SET deleted_at = %s WHERE user_id = %s AND id = %s",
         (now, user_id, task_id),

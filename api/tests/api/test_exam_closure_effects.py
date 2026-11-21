@@ -144,6 +144,23 @@ def test_a_pending_exam_moved_to_a_future_date_is_active_again(
     assert response.json()["exam"]["exam_date"] == "2026-11-27"
 
 
+def test_moving_the_date_clears_the_closure_push_mark(
+    api: TestClient, db: psycopg.Connection, user: ApiUser, clock: FrozenClock
+) -> None:
+    exam = insert_exam(db, user.id, name="e", exam_date="2026-11-20")
+    db.execute("UPDATE app.exams SET closure_notified_at = now() WHERE id = %s", (exam,))
+    clock.set(Z(2026, 11, 20, 20))
+
+    renamed = api.patch(f"/exams/{exam}", json={"name": "f"}, headers=user.headers)
+    assert renamed.status_code == 200, renamed.text
+    marked = "SELECT closure_notified_at IS NOT NULL FROM app.exams WHERE id = %s"
+    assert scalar(db, marked, exam) is True
+
+    moved = api.patch(f"/exams/{exam}", json={"exam_date": "2026-11-27"}, headers=user.headers)
+    assert moved.status_code == 200, moved.text
+    assert scalar(db, marked, exam) is False
+
+
 # --- tasks ----------------------------------------------------------------------------------
 
 
@@ -378,3 +395,28 @@ def test_closing_an_exam_does_not_change_the_xp(
     after = api.get("/progress", headers=user.headers).json()
     assert after["total_xp"] == xp
     assert [item["exam_id"] for item in after["archive"]] == [str(exam)]
+
+
+def test_a_task_of_a_closed_exam_or_a_past_sitting_cannot_be_changed_or_deleted(
+    api: TestClient, db: psycopg.Connection, user: ApiUser
+) -> None:
+    closed = insert_exam(db, user.id, name="closed", exam_date="2026-11-30")
+    in_closed = insert_task(db, user.id, closed)
+    _close(db, closed, "moed_b")
+    second = insert_exam(db, user.id, name="second", exam_date="2026-11-14")
+    old = insert_task(db, user.id, second, title="old")
+    _sitting_two(db, second, "2026-12-20")
+    current = insert_task(db, user.id, second, title="current")
+
+    for task in (in_closed, old):
+        patched = api.patch(f"/tasks/{task}", json={"status": "done"}, headers=user.headers)
+        assert patched.status_code == 422, patched.text
+        assert patched.json()["code"] == "exam_in_past"
+        deleted = api.delete(f"/tasks/{task}", headers=user.headers)
+        assert deleted.status_code == 422, deleted.text
+        assert deleted.json()["code"] == "exam_in_past"
+        assert scalar(db, "SELECT deleted_at IS NULL FROM app.tasks WHERE id = %s", task) is True
+
+    ok = api.patch(f"/tasks/{current}", json={"title": "renamed"}, headers=user.headers)
+    assert ok.status_code == 200, ok.text
+    assert api.delete(f"/tasks/{current}", headers=user.headers).status_code in (200, 204)

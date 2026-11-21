@@ -36,6 +36,7 @@ from app.services.plan_writes import (
     write_changes,
 )
 from app.services.profiles import Conn
+from app.services.topics import current_topic_rows
 
 type Row = Mapping[str, Any]
 
@@ -77,11 +78,9 @@ def _exam(conn: Conn, user_id: UUID, exam_id: UUID) -> Row:
 def _topics(conn: Conn, user_id: UUID, exam_id: UUID) -> list[SourceTopic]:
     return [
         SourceTopic(id=r["id"], name=r["name"], weight=r["weight"], position=r["position"])
-        for r in conn.execute(
-            "SELECT id, name, weight, position FROM app.topics "
-            "WHERE user_id = %s AND exam_id = %s ORDER BY position, id",
-            (user_id, exam_id),
-        ).fetchall()
+        for r in current_topic_rows(
+            conn, user_id, [exam_id], "tp.id, tp.name, tp.weight, tp.position"
+        )
     ]
 
 

@@ -146,7 +146,7 @@ class _Prepared:
 def _exam_is_live(conn: Conn, user_id: UUID, exam_id: UUID) -> dict[str, Any] | None:
     row = conn.execute(
         "SELECT name, exam_date, difficulty FROM app.exams "
-        "WHERE user_id = %s AND id = %s AND deleted_at IS NULL",
+        "WHERE user_id = %s AND id = %s AND deleted_at IS NULL AND closure IS NULL",
         (user_id, exam_id),
     ).fetchone()
     return dict(row) if row is not None else None

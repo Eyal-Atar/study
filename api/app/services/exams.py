@@ -107,6 +107,9 @@ def update_exam(
     assignments = sql.SQL(", ").join(
         sql.SQL("{} = {}").format(sql.Identifier(column), sql.Placeholder()) for column in changes
     )
+    if "exam_date" in changes and changes["exam_date"] != before["exam_date"]:
+        # A new date is a new exam evening: the closure push may go out again on it.
+        assignments = sql.SQL("{}, closure_notified_at = NULL").format(assignments)
     row = conn.execute(
         sql.SQL("UPDATE app.exams SET {} WHERE user_id = %s AND id = %s RETURNING {}").format(
             assignments, sql.SQL(EXAM_COLUMNS)

@@ -45,7 +45,6 @@ _CANDIDATES: Final = """
       AND e.exam_date BETWEEN %(lo)s AND %(hi)s
       AND EXISTS (SELECT 1 FROM app.push_subscriptions s WHERE s.user_id = e.user_id)
     ORDER BY e.exam_date, e.id
-    LIMIT %(limit)s
 """
 
 _CLAIM: Final = """
@@ -81,11 +80,15 @@ def send_closure_notifications(
     today: date = now.date()
     candidates = conn.execute(
         _CANDIDATES,
-        {"lo": today - timedelta(days=1), "hi": today + timedelta(days=1), "limit": limit},
+        {"lo": today - timedelta(days=1), "hi": today + timedelta(days=1)},
     ).fetchall()
 
+    # No LIMIT in the query: stale rows (not due yet, or already past) must not crowd out
+    # today's. The 3-day window and the partial index bound it; `limit` caps what is claimed.
     ttls: dict[UUID, int] = {}
     for row in candidates:
+        if len(ttls) >= limit:
+            break
         try:
             tz = parse_timezone(row["timezone"])
         except InvalidTimezoneError:

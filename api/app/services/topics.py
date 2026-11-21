@@ -38,6 +38,29 @@ def _latest(conn: Conn, user_id: UUID, exam_id: UUID, status: str, order: str) -
     ).fetchone()
 
 
+def current_topic_rows(
+    conn: Conn, user_id: UUID, exam_ids: Sequence[UUID], columns: str = "tp.id, tp.exam_id, tp.name"
+) -> Sequence[Row]:
+    """The topics of these exams that are current: those of the exam's latest applied analysis,
+    plus those a live task references (the same filter as `exam_topics`). Older generations
+    that a re-analysis superseded are left out. Ordered by exam, position, creation, id."""
+    return conn.execute(
+        f"SELECT {columns} FROM app.topics tp "  # noqa: S608 - a constant column list
+        "WHERE tp.user_id = %(user_id)s AND tp.exam_id = ANY(%(exam_ids)s) "
+        "AND (tp.analysis_id = ("
+        "    SELECT a.id FROM app.analyses a "
+        "    WHERE a.user_id = tp.user_id AND a.exam_id = tp.exam_id AND a.status = 'applied' "
+        "    ORDER BY a.applied_at DESC NULLS LAST, a.created_at DESC, a.id DESC LIMIT 1"
+        ") OR EXISTS ("
+        "    SELECT 1 FROM app.tasks t "
+        "    WHERE t.user_id = tp.user_id AND t.exam_id = tp.exam_id "
+        "      AND t.topic_id = tp.id AND t.deleted_at IS NULL"
+        ")) "
+        "ORDER BY tp.exam_id, tp.position NULLS LAST, tp.created_at, tp.id",
+        {"user_id": user_id, "exam_ids": list(exam_ids)},
+    ).fetchall()
+
+
 def exam_topics(conn: Conn, user_id: UUID, exam_id: UUID) -> ExamTopics:
     exam = conn.execute(
         "SELECT 1 FROM app.exams WHERE user_id = %s AND id = %s AND deleted_at IS NULL",

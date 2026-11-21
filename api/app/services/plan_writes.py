@@ -808,6 +808,8 @@ def _undo_side_effect(conn: Conn, user_id: UUID, version: VersionRow, now: dt.da
             return
         if version.reason == VersionReason.MOED_B_OPENED:
             _check_no_moed_b_progress(conn, user_id, version.exam_id, now)
+            # All live sitting-2 tasks go, manual ones too: they belong to the round being
+            # undone, and the exam returns to its waiting state without them.
             conn.execute(
                 "UPDATE app.tasks SET deleted_at = %s "
                 "WHERE user_id = %s AND exam_id = %s AND sitting = 2 AND deleted_at IS NULL",
