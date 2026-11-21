@@ -59,6 +59,7 @@ export const SECTIONS = [
   { id: 'archi-lead', title: 'Archi lead' },
   { id: 'recap-line', title: 'Recap line' },
   { id: 'week-painter', title: 'Week painter' },
+  { id: 'weekday-picker', title: 'Weekday picker' },
   { id: 'commitment-dialog', title: 'Commitment dialog' },
 ] as const
 
@@ -550,6 +551,14 @@ export const devText = {
       marked: 'Marked:',
       nothing: 'nothing yet',
       late: 'A day that ends after midnight: the hours after it sit at the bottom of the day before',
+    },
+    weekdayPicker: {
+      caption: 'Seven day boxes in one row: the short name shows, a screen reader says the full name. Each box is at least 44px wide and high.',
+      error: 'With an error',
+      chosen: 'Chosen:',
+      nothing: 'no day yet',
+      label: 'Which days?',
+      errorText: 'Pick at least one day.',
     },
     // The dialog that adds or edits a group of busy times (Task 6). Both buttons use the draft mode,
     // which sends nothing, so the page never writes.

@@ -19,6 +19,7 @@ import { Stepper } from '../ui/Stepper'
 import { ClassIcon, Ellipsis, EveningIcon, MorningIcon, NightIcon, NoonIcon, WorkIcon } from '../ui/icons'
 import { ICON_STROKE } from '../ui/styles'
 import { TileList, TileRow } from '../ui/TileList'
+import { WeekdayPicker } from '../ui/WeekdayPicker'
 import { UserText } from '../ui/UserText'
 import { devText } from './devText'
 import { Example, FIELD_GRID, ROW, Section } from './Section'
@@ -353,6 +354,27 @@ export function WeekPainterSection() {
   )
 }
 
+export function WeekdayPickerSection() {
+  const [days, setDays] = useState<string[]>(['1', '2', '3'])
+  const [none, setNone] = useState<string[]>([])
+  const w = t.weekdayPicker
+  return (
+    <Section id="weekday-picker">
+      <div className={FIELD_GRID}>
+        <Example caption={w.caption} className={PHONE}>
+          <WeekdayPicker label={w.label} value={days} onChange={setDays} />
+          <p className="text-small text-ink-muted tabular-nums">
+            {w.chosen} {days.length > 0 ? days.map((d) => en.commitments.weekdayShort[Number(d)]).join(', ') : w.nothing}
+          </p>
+        </Example>
+        <Example caption={w.error} className={PHONE}>
+          <WeekdayPicker label={w.label} value={none} onChange={setNone} errorMessage={w.errorText} />
+        </Example>
+      </div>
+    </Section>
+  )
+}
+
 const SAMPLE_GROUP: CommitmentGroup = {
   key: 'sample',
   title: WORK,
@@ -427,6 +449,7 @@ export function S34Sections() {
       <ArchiLeadSection />
       <RecapLineSection />
       <WeekPainterSection />
+      <WeekdayPickerSection />
       <CommitmentDialogSection />
     </>
   )

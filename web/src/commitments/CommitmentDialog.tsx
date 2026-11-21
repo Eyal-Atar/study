@@ -13,14 +13,14 @@ import { useBoardUserId } from '../board/api'
 import { en } from '../i18n/en'
 import { codeText, isKnownCode } from '../i18n/codes'
 import { Button } from '../ui/Button'
-import { CheckboxButton, CheckboxField, CheckboxGroup, FieldError, Label } from 'react-aria-components'
 import { DatePicker } from '../ui/DatePicker'
 import { Dialog } from '../ui/Dialog'
 import { ICON_STROKE } from '../ui/styles'
 import { Note } from '../ui/Note'
-import { OPTION_CLASS, RadioCards } from '../ui/RadioCards'
-import { FIELD_ERROR_CLASS, FIELD_LABEL_CLASS, TextField } from '../ui/TextField'
+import { RadioCards } from '../ui/RadioCards'
+import { TextField } from '../ui/TextField'
 import { TimeField } from '../ui/TimeField'
+import { WeekdayPicker } from '../ui/WeekdayPicker'
 import { kindIcon } from './kindIcon'
 import { groupWrites, type CommitmentGroup } from './model'
 
@@ -99,34 +99,6 @@ function withoutRow(base: CommitmentGroup, id: string): CommitmentGroup {
   return { ...base, weekdays: keep.map((r) => r.w), ids: keep.map((r) => r.rowId) }
 }
 
-// The seven days as boxes: the short name is what shows, the full name is what a screen reader says.
-// (CheckboxCards has a label only, and ui/ is not changed from here.)
-function WeekdayChecks({
-  value,
-  onChange,
-  errorMessage,
-}: {
-  value: string[]
-  onChange: (value: string[]) => void
-  errorMessage: string | undefined
-}) {
-  return (
-    <CheckboxGroup value={value} onChange={onChange} isInvalid={errorMessage !== undefined} className="flex flex-col gap-2">
-      <Label className={FIELD_LABEL_CLASS}>{t.days}</Label>
-      <div className="grid grid-cols-7 gap-1.5">
-        {WEEKDAYS.map((d) => (
-          <CheckboxField key={d} value={String(d)} aria-label={en.commitments.weekdayLong[d]} className="flex">
-            <CheckboxButton className={`${OPTION_CLASS} max-sm:px-1 max-sm:text-caption`}>
-              <span aria-hidden="true">{en.commitments.weekdayShort[d]}</span>
-            </CheckboxButton>
-          </CheckboxField>
-        ))}
-      </div>
-      <FieldError className={FIELD_ERROR_CLASS}>{errorMessage}</FieldError>
-    </CheckboxGroup>
-  )
-}
-
 // The form is mounted only while the dialog is open, so every opening starts from the group again.
 export function CommitmentDialog(props: CommitmentDialogProps) {
   return props.isOpen ? <CommitmentForm {...props} /> : null
@@ -144,6 +116,10 @@ function CommitmentForm({ onOpenChange, group, onSaved, onDeleted, mode = 'save'
   const [pending, setPending] = useState(false)
   // What the database holds of the group; it moves on as the writes of a save go through.
   const base = useRef<CommitmentGroup | null>(group)
+  // Whether any write went through, and the OR of their plan_affected. Kept for the whole life of
+  // the form: a retry or a cancel after a partial failure still tells the caller the list changed.
+  const wrote = useRef(false)
+  const affected = useRef(false)
 
   const queryClient = useQueryClient()
   const userId = useBoardUserId()
@@ -161,13 +137,27 @@ function CommitmentForm({ onOpenChange, group, onSaved, onDeleted, mode = 'save'
     return found
   }
 
+  // Every way out of the form. Writes that went through are reported once, whatever closes it.
+  function finish() {
+    if (wrote.current) {
+      wrote.current = false
+      onSaved(affected.current)
+    }
+    onOpenChange(false)
+  }
+
+  function written(planAffected: boolean) {
+    wrote.current = true
+    affected.current = planAffected || affected.current
+  }
+
   async function failed(error: unknown, generic: string, partial: boolean) {
     // Some of the writes may have gone through: the list shows what is really there.
     await queryClient.invalidateQueries({ queryKey: commitmentsKey(userId) })
     const fields = error instanceof ApiError ? serverFieldErrors(error) : null
     if (fields !== null) {
       setErrors(fields)
-      setNote(null)
+      setNote(partial ? generic : null)
     } else {
       // After some writes went through, the one message that says the list was refreshed is the useful one.
       setNote(partial ? generic : (problemText(error) ?? generic))
@@ -197,52 +187,45 @@ function CommitmentForm({ onOpenChange, group, onSaved, onDeleted, mode = 'save'
       return
     }
     setPending(true)
-    let planAffected = false
-    let partial = false
     try {
       const writes = groupWrites(base.current, draft)
       for (const input of writes.create) {
         const done = await create.mutateAsync(input)
-        planAffected = done.plan_affected || planAffected
-        partial = true
+        written(done.plan_affected)
         base.current = withRow(base.current, draft, input.weekday, done.commitment.id)
       }
       for (const item of writes.update) {
-        planAffected = (await update.mutateAsync(item)).plan_affected || planAffected
-        partial = true
+        written((await update.mutateAsync(item)).plan_affected)
       }
       for (const id of writes.remove) {
-        planAffected = (await remove.mutateAsync(id)).plan_affected || planAffected
-        partial = true
+        written((await remove.mutateAsync(id)).plan_affected)
         if (base.current) base.current = withoutRow(base.current, id)
       }
     } catch (error) {
-      await failed(error, t.saveFailed, partial)
+      await failed(error, t.saveFailed, wrote.current)
       return
     }
-    onSaved(planAffected)
-    onOpenChange(false)
+    finish()
   }
 
   async function deleteGroup() {
     if (!group) return
     setPending(true)
     setNote(null)
-    let planAffected = false
-    let partial = false
     try {
       for (const id of base.current?.ids ?? group.ids) {
-        planAffected = (await remove.mutateAsync(id)).plan_affected || planAffected
-        partial = true
+        written((await remove.mutateAsync(id)).plan_affected)
         if (base.current) base.current = withoutRow(base.current, id)
       }
     } catch (error) {
-      await failed(error, t.deleteFailed, partial)
+      await failed(error, t.deleteFailed, wrote.current)
       return
     }
-    if (onDeleted) onDeleted(group)
-    else onSaved(planAffected)
-    onOpenChange(false)
+    if (onDeleted) {
+      wrote.current = false
+      onDeleted(group)
+    }
+    finish()
   }
 
   const KindIcon = (k: CommitmentKind) => {
@@ -254,7 +237,10 @@ function CommitmentForm({ onOpenChange, group, onSaved, onDeleted, mode = 'save'
     <Dialog
       title={editing ? t.titleEdit : t.titleAdd}
       isOpen
-      onOpenChange={onOpenChange}
+      onOpenChange={(next) => {
+        if (next) onOpenChange(true)
+        else finish()
+      }}
       isKeyboardDismissDisabled={pending}
       onSubmit={() => {
         void submit()
@@ -267,9 +253,7 @@ function CommitmentForm({ onOpenChange, group, onSaved, onDeleted, mode = 'save'
           <Button
             variant="secondary"
             isDisabled={pending}
-            onPress={() => {
-              onOpenChange(false)
-            }}
+            onPress={finish}
           >
             {en.common.cancel}
           </Button>
@@ -299,7 +283,7 @@ function CommitmentForm({ onOpenChange, group, onSaved, onDeleted, mode = 'save'
         }}
         options={KINDS.map((k) => ({ value: k, label: en.commitments.kinds[k], icon: KindIcon(k) }))}
       />
-      <WeekdayChecks value={days} onChange={setDays} errorMessage={errors.days} />
+      <WeekdayPicker label={t.days} value={days} onChange={setDays} errorMessage={errors.days} />
       <div className="grid grid-cols-2 gap-3">
         <TimeField label={t.from} value={start} onChange={setStart} errorMessage={errors.times === undefined || errors.times === t.timesRequired ? errors.times : undefined} />
         <TimeField label={t.to} value={end} onChange={setEnd} errorMessage={errors.times} />

@@ -208,6 +208,56 @@ describe('CommitmentDialog', () => {
     expect(fake.calls('POST').map((c) => (c.body as { weekday: number }).weekday)).toEqual([1, 3, 3])
   })
 
+  // Day 1 is created (plan_affected true), day 2 fails.
+  async function partialFailure(replyFirst: boolean) {
+    const ctx = setup()
+    let n = 0
+    ctx.fake.on('POST /commitments', ({ body }: { body: { weekday: Commitment['weekday'] } }) => {
+      n += 1
+      return n === 1 ? { commitment: row('n1', body.weekday), plan_affected: replyFirst } : problem(500, 'internal_error')
+    })
+    await ctx.user.type(screen.getByRole('textbox', { name: t.name }), 'Shift')
+    await ctx.user.click(day(en.commitments.weekdayLong[1]))
+    await ctx.user.click(day(en.commitments.weekdayLong[3]))
+    await typeTime(ctx.user, t.from, '0900', '00')
+    await typeTime(ctx.user, t.to, '1200', '00')
+    await ctx.user.click(save())
+    await screen.findByText(t.saveFailed)
+    return ctx
+  }
+
+  it('a retry after a partial failure still reports the plan_affected of the first write', async () => {
+    const { fake, onSaved, user } = await partialFailure(true)
+    fake.on('POST /commitments', written('n2', 3))
+    await user.click(save())
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalledWith(true)
+    })
+    expect(onSaved).toHaveBeenCalledTimes(1)
+  })
+
+  it('Cancel after a partial failure reports that the list changed', async () => {
+    const { onSaved, onOpenChange, user } = await partialFailure(true)
+    await user.click(screen.getByRole('button', { name: en.common.cancel }))
+    expect(onSaved).toHaveBeenCalledWith(true)
+    expect(onSaved).toHaveBeenCalledTimes(1)
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('Cancel with nothing written reports nothing', async () => {
+    const { onSaved, user } = setup()
+    await user.click(screen.getByRole('button', { name: en.common.cancel }))
+    expect(onSaved).not.toHaveBeenCalled()
+  })
+
+  it('a 422 field error after a partial write also says the list was refreshed', async () => {
+    const { fake, user } = await partialFailure(false)
+    fake.on('POST /commitments', problem(422, 'validation_error', { errors: [{ loc: ['body', 'end_time'], type: 'too_short' }] }))
+    await user.click(save())
+    expect(await screen.findByText(t.tooShort)).toBeInTheDocument()
+    expect(screen.getByText(t.saveFailed)).toBeInTheDocument()
+  })
+
   it('Delete removes every row and hands the group to onDeleted', async () => {
     const onDeleted = vi.fn()
     const g = group([1, 2])
