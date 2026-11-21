@@ -301,29 +301,16 @@ export function RecapLineSection() {
     <Section id="recap-line">
       <div className={FIELD_GRID}>
         <Example caption={recap.caption} className={PHONE}>
-          <RecapLine>
-            {recap.count(names.length)}
-            {names.map((name, index) => (
-              <span key={name}>
-                {index === 0 ? null : recap.separator}
-                <UserText>{name}</UserText>
-              </span>
-            ))}
-          </RecapLine>
+          <RecapLine label={recap.count(names.length)} value={names.join(recap.separator)} />
         </Example>
         <Example caption={recap.plain} className={PHONE}>
-          <RecapLine>{recap.plainText}</RecapLine>
+          <RecapLine label={recap.plainText} />
         </Example>
         <Example caption={recap.long} className={PHONE}>
-          <RecapLine>
-            {recap.count(sample.exams.length)}
-            {sample.exams.map((name, index) => (
-              <span key={name}>
-                {index === 0 ? null : recap.separator}
-                <UserText>{name}</UserText>
-              </span>
-            ))}
-          </RecapLine>
+          <RecapLine label={recap.count(sample.exams.length)} value={sample.exams.join(recap.separator)} />
+        </Example>
+        <Example caption={recap.longName} className={PHONE}>
+          <RecapLine label={recap.count(1)} value={sample.longExamName} />
         </Example>
       </div>
     </Section>

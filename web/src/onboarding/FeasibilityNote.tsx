@@ -40,17 +40,21 @@ function sentence(estimate: FeasibilityEstimate): string {
 // screen reader announces a sentence that changes inside it, and would miss a region that
 // arrives together with its text.
 export function FeasibilityNote({ estimate }: { estimate: FeasibilityEstimate | null }) {
-  const look = estimate === null ? null : LOOKS[estimate.level]
   return (
     <div role="status" aria-live="polite">
-      {estimate === null || look === null ? null : (
-        <Note tone={look.tone}>
-          <span className="flex items-start gap-2">
-            <look.icon aria-hidden="true" size={16} strokeWidth={ICON_STROKE} className={`mt-0.5 shrink-0 ${look.color}`} />
-            <span className="min-w-0">{sentence(estimate)}</span>
-          </span>
-        </Note>
-      )}
+      {estimate === null ? null : <Feedback estimate={estimate} />}
     </div>
+  )
+}
+
+function Feedback({ estimate }: { estimate: FeasibilityEstimate }) {
+  const { tone, icon: Icon, color } = LOOKS[estimate.level]
+  return (
+    <Note tone={tone}>
+      <span className="flex items-start gap-2">
+        <Icon aria-hidden="true" size={16} strokeWidth={ICON_STROKE} className={`mt-0.5 shrink-0 ${color}`} />
+        <span className="min-w-0">{sentence(estimate)}</span>
+      </span>
+    </Note>
   )
 }

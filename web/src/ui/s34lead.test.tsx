@@ -2,10 +2,8 @@ import { render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ARCHIE_MOODS } from '../archie/moods'
 import { en } from '../i18n/en'
-import { isolate } from '../i18n/bidi'
 import { ArchiLead } from './ArchiLead'
 import { RecapLine } from './RecapLine'
-import { UserText } from './UserText'
 
 const QUESTION = 'What exams are we preparing for?'
 const CONTEXT = 'You can change all of this later.'
@@ -130,10 +128,10 @@ describe('ArchiLead', () => {
 
 describe('RecapLine', () => {
   it('is one quiet line: a small check that is decoration, and the text muted', () => {
-    const { container } = render(<RecapLine>3 exams</RecapLine>)
-    const text = screen.getByText('3 exams')
+    const { container } = render(<RecapLine label="4 hours a day" />)
+    const text = screen.getByText('4 hours a day')
     expect(text).toHaveClass('truncate', 'min-w-0')
-    const line = text.parentElement
+    const line = text.closest('p')
     expect(line).toHaveClass('flex', 'items-center', 'text-small', 'text-ink-muted')
     const icon = container.querySelector('svg')
     expect(icon).toHaveAttribute('aria-hidden', 'true')
@@ -141,21 +139,32 @@ describe('RecapLine', () => {
     expect(icon).toHaveClass('text-brand-strong', 'shrink-0')
     // The icon comes first, then the answer.
     expect(line?.firstElementChild).toBe(icon)
+    expect(container.querySelector('[data-user-text]')).toBeNull()
   })
 
-  it('shows user content through UserText, or a string built with isolate()', () => {
-    const { unmount } = render(
-      <RecapLine>
-        2 exams: <UserText>הסתברות</UserText>, <UserText>שפת C</UserText>
-      </RecapLine>,
-    )
-    const name = screen.getByText('הסתברות')
-    expect(name).toHaveAttribute('dir', 'auto')
-    expect(name.closest('.truncate')).not.toBeNull()
-    unmount()
+  it('user content is cut at its own end: the label never shrinks, the value is a UserText that truncates', () => {
+    render(<RecapLine label="1 exam:" value="הסתברות" />)
+    const label = screen.getByText('1 exam:')
+    const value = screen.getByText('הסתברות')
+    // A Hebrew name cut by an LTR line would lose its beginning; .user-text-truncate takes the
+    // direction of the name, so the ellipsis lands at its logical end.
+    expect(value).toHaveClass('user-text-truncate')
+    expect(value).toHaveAttribute('dir', 'auto')
+    expect(value).toHaveAttribute('data-user-text')
+    expect(label).toHaveClass('shrink-0')
+    expect(label).not.toHaveClass('truncate')
+    // Both share one row that may shrink inside the line.
+    expect(label.parentElement).toBe(value.parentElement)
+    expect(label.parentElement).toHaveClass('flex', 'min-w-0')
+    expect(label.compareDocumentPosition(value) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // Only the user content is cut: nothing around it carries a second ellipsis.
+    expect(value.closest('.truncate')).toBeNull()
+  })
 
-    const text = `1 exam: ${isolate('אלגוריתמים')}`
-    render(<RecapLine>{text}</RecapLine>)
-    expect(screen.getByText(text)).toBeInTheDocument()
+  it('a list of names is one value, so the cut falls at the end of the list', () => {
+    const names = ['הסתברות', 'אלגוריתמים', 'שפת C'].join(', ')
+    render(<RecapLine label="3 exams:" value={names} />)
+    expect(screen.getByText(names)).toHaveClass('user-text-truncate')
+    expect(screen.getByRole('paragraph')).toHaveTextContent(`3 exams: ${names}`)
   })
 })

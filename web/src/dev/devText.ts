@@ -534,11 +534,12 @@ export const devText = {
     },
     recapLine: {
       caption: 'An earlier answer of the conversation, as one quiet line',
-      count: (n: number) => (n === 1 ? '1 exam: ' : `${String(n)} exams: `),
+      count: (n: number) => (n === 1 ? '1 exam:' : `${String(n)} exams:`),
       separator: ', ',
       plain: 'A plain answer',
       plainText: '4 hours a day, in the morning and the evening',
-      long: 'A long list is cut at its end: the first names stay',
+      long: 'A long list of names is one value: the cut falls at the end of the list, in the direction of its text',
+      longName: 'One long name is cut at its own end: its beginning stays',
     },
   },
   optionGrid: {
