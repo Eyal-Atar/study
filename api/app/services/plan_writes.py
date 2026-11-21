@@ -17,6 +17,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
+import psycopg
 from psycopg import sql
 from psycopg.types.json import Jsonb
 
@@ -72,6 +73,11 @@ class VersionReason(StrEnum):
     DEFER_AT = "defer_at"
     # S44: the user split a task they kept putting off; task_before holds its bite_minutes.
     TASK_SPLIT = "task_split"
+    # S45: an exam closed done, closed to wait for Moed B, and a Moed B opened. Each keeps
+    # the exam's fields it changed in exam_before, which undo puts back.
+    EXAM_CLOSED = "exam_closed"
+    EXAM_MOED_B = "exam_moed_b"
+    MOED_B_OPENED = "moed_b_opened"
 
 
 # The morning review's versions: block_id is the past block they marked missed or skipped,
@@ -97,10 +103,56 @@ class VersionRow:
     # The event of a busy_added or busy_changed version, and (busy_changed) its fields before.
     busy_event_id: UUID | None = None
     busy_event_before: Any = None
+    # The exam's fields before a closure or a Moed B opening (S45).
+    exam_before: Any = None
 
 
 # The fields a busy_changed version keeps in busy_event_before, as they were.
 BUSY_EVENT_BEFORE_FIELDS = ("title", "starts_at", "ends_at")
+
+
+# The exam fields a closure or Moed B version may keep in exam_before (S45): a closure keeps
+# closure and closed_at, a Moed B opening keeps them all.
+EXAM_BEFORE_FIELDS = (
+    "exam_date",
+    "sitting",
+    "closure",
+    "closed_at",
+    "closure_notified_at",
+    "first_exam_date",
+    "first_grade",
+    "moed_b_notes",
+    "moed_b_topic_ids",
+)
+
+# The versions whose undo puts the exam's fields back from exam_before.
+EXAM_BEFORE_REASONS = frozenset(
+    {VersionReason.EXAM_CLOSED, VersionReason.EXAM_MOED_B, VersionReason.MOED_B_OPENED}
+)
+
+
+def _exam_json(value: Any) -> Any:
+    if isinstance(value, dt.datetime):
+        return value.astimezone(dt.UTC).isoformat()
+    if isinstance(value, dt.date):
+        return value.isoformat()
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, list | tuple):
+        return [_exam_json(item) for item in value]
+    return value
+
+
+def exam_before(row: Mapping[str, Any], fields: Sequence[str]) -> dict[str, Any]:
+    """The given fields of an exam row (EXAM_BEFORE_FIELDS or a subset) as JSON values.
+
+    Dates and instants become ISO strings (instants in UTC, with their offset), UUIDs
+    strings, so the result can be written as plan_versions.exam_before.
+    """
+    unknown = set(fields) - set(EXAM_BEFORE_FIELDS)
+    if unknown:
+        raise ValueError(f"Not exam_before fields: {sorted(unknown)}")
+    return {field: _exam_json(row[field]) for field in fields}
 
 
 # The task fields a task_changed version keeps, as they were before the change.
@@ -185,11 +237,12 @@ def create_version(
     block_id: UUID | None = None,
     busy_event_id: UUID | None = None,
     busy_event_before: Mapping[str, Any] | None = None,
+    exam_before: Mapping[str, Any] | None = None,
 ) -> UUID:
     row = conn.execute(
         "INSERT INTO app.plan_versions (user_id, reason, snapshot, exam_id, task_id, "
-        "task_before, analysis_id, block_id, busy_event_id, busy_event_before) "
-        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
+        "task_before, analysis_id, block_id, busy_event_id, busy_event_before, exam_before) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
         (
             user_id,
             reason.value,
@@ -201,6 +254,7 @@ def create_version(
             block_id,
             busy_event_id,
             None if busy_event_before is None else Jsonb(dict(busy_event_before)),
+            None if exam_before is None else Jsonb(dict(exam_before)),
         ),
     ).fetchone()
     if row is None:
@@ -266,6 +320,7 @@ def apply_result(
     block_id: UUID | None = None,
     busy_event_id: UUID | None = None,
     busy_event_before: Mapping[str, Any] | None = None,
+    exam_before: Mapping[str, Any] | None = None,
     always_version: bool = False,
 ) -> UUID | None:
     """Write a planner result computed from `board`, with a version; None if it changes nothing.
@@ -293,6 +348,7 @@ def apply_result(
         block_id=block_id,
         busy_event_id=busy_event_id,
         busy_event_before=busy_event_before,
+        exam_before=exam_before,
     )
     write_changes(conn, user_id, diff, version_id)
     return version_id
@@ -375,6 +431,7 @@ def _version_row(row: Mapping[str, Any]) -> VersionRow:
         block_id=row["block_id"],
         busy_event_id=row["busy_event_id"],
         busy_event_before=row["busy_event_before"],
+        exam_before=row["exam_before"],
     )
 
 
@@ -382,7 +439,7 @@ def latest_version(conn: Conn, user_id: UUID) -> VersionRow | None:
     """The newest version that was not undone."""
     row = conn.execute(
         "SELECT id, reason, created_at, exam_id, task_id, snapshot, task_before, analysis_id, "
-        "block_id, busy_event_id, busy_event_before FROM app.plan_versions "
+        "block_id, busy_event_id, busy_event_before, exam_before FROM app.plan_versions "
         "WHERE user_id = %s AND undone_at IS NULL "
         "ORDER BY created_at DESC, id DESC LIMIT 1",
         (user_id,),
@@ -540,6 +597,131 @@ def _restore_event(conn: Conn, user_id: UUID, event_id: UUID, before: Any) -> No
     )
 
 
+def _parse_date(value: Any) -> dt.date:
+    """A date as an ISO string (YYYY-MM-DD); anything else is a TypeError or ValueError."""
+    if not isinstance(value, str) or len(value) != len("2026-11-16"):
+        raise TypeError("a date must be an ISO string YYYY-MM-DD")
+    return dt.date.fromisoformat(value)
+
+
+def _parse_stamp(value: Any) -> dt.datetime | None:
+    """Null, or an aware ISO datetime (any second), in UTC."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise TypeError("an instant must be an ISO string or null")
+    instant = dt.datetime.fromisoformat(value)
+    if instant.tzinfo is None or instant.utcoffset() is None:
+        raise ValueError("an instant must carry its offset")
+    return instant.astimezone(dt.UTC)
+
+
+def _parse_int(value: Any, low: int, high: int) -> int:
+    # bool is an int in Python, but true is no sitting or grade.
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise TypeError("must be an integer")
+    if not low <= value <= high:
+        raise ValueError(f"must be between {low} and {high}")
+    return value
+
+
+def _parse_exam_field(field: str, value: Any) -> Any:
+    if field == "exam_date":
+        return _parse_date(value)
+    if field == "first_exam_date":
+        return None if value is None else _parse_date(value)
+    if field == "sitting":
+        return _parse_int(value, 1, 2)
+    if field == "closure":
+        if value is not None and value not in ("done", "moed_b"):
+            raise ValueError("closure must be done, moed_b or null")
+        return value
+    if field in ("closed_at", "closure_notified_at"):
+        return _parse_stamp(value)
+    if field == "first_grade":
+        return None if value is None else _parse_int(value, 0, 100)
+    if field == "moed_b_notes":
+        if value is not None and not isinstance(value, str):
+            raise TypeError("moed_b_notes must be a string or null")
+        return value
+    if field == "moed_b_topic_ids":
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            raise TypeError("moed_b_topic_ids must be a list of UUID strings")
+        return [UUID(item) for item in value]
+    raise ValueError(f"unknown field {field!r}")
+
+
+def _restore_exam(conn: Conn, user_id: UUID, exam_id: UUID, before: Any) -> None:
+    """Put an exam's fields back from exam_before (S45), if the exam is still live.
+
+    `before` holds a non-empty subset of EXAM_BEFORE_FIELDS, each in its JSON form; any
+    other key, a malformed value, or values that break the exam's CHECKs together with the
+    fields it does not hold, is invalid (SnapshotError, like _restore_event). One UPDATE
+    sets them all, so the CHECKs see only the final row.
+    """
+    try:
+        if not isinstance(before, Mapping):
+            raise TypeError("exam_before must be an object")
+        if not before or not set(before) <= set(EXAM_BEFORE_FIELDS):
+            raise ValueError(f"fields must be a non-empty subset of {EXAM_BEFORE_FIELDS}")
+        values = {field: _parse_exam_field(field, before[field]) for field in before}
+    except (KeyError, TypeError, ValueError) as error:
+        raise SnapshotError(f"invalid exam_before: {error}") from error
+    fields = [field for field in EXAM_BEFORE_FIELDS if field in values]
+    assignments = sql.SQL(", ").join(
+        sql.SQL("{} = {}").format(sql.Identifier(field), sql.Placeholder()) for field in fields
+    )
+    try:
+        # A savepoint, so a CHECK that fails leaves the transaction usable for the 409.
+        with conn.transaction():
+            conn.execute(
+                sql.SQL(
+                    "UPDATE app.exams SET {} WHERE user_id = %s AND id = %s AND deleted_at IS NULL"
+                ).format(assignments),
+                [*(values[field] for field in fields), user_id, exam_id],
+            )
+    except psycopg.errors.CheckViolation as error:
+        raise SnapshotError(f"exam_before breaks the exam's checks: {error}") from error
+
+
+def _check_no_moed_b_progress(conn: Conn, user_id: UUID, exam_id: UUID, now: dt.datetime) -> None:
+    """Refuse to undo a Moed B opening once a task of the second sitting has progress.
+
+    Progress as in _check_no_progress: a task that is not todo, a done block, or a planned
+    block running now. Undoing would delete that work (plan S45, decision 7).
+    """
+    row = conn.execute(
+        """
+        SELECT EXISTS (
+            SELECT 1 FROM app.tasks AS t
+            WHERE t.user_id = %(user_id)s
+              AND t.exam_id = %(exam_id)s
+              AND t.sitting = 2
+              AND t.deleted_at IS NULL
+              AND (
+                  t.status <> 'todo'
+                  OR EXISTS (
+                      SELECT 1 FROM app.blocks AS b
+                      WHERE b.user_id = %(user_id)s
+                        AND b.task_id = t.id
+                        AND (
+                            b.status = 'done'
+                            OR (
+                                b.status = 'planned'
+                                AND b.starts_at < %(now)s
+                                AND b.ends_at > %(now)s
+                            )
+                        )
+                  )
+              )
+        ) AS found
+        """,
+        {"user_id": user_id, "exam_id": exam_id, "now": now},
+    ).fetchone()
+    if row is not None and row["found"]:
+        raise ApiError("invalid_state")
+
+
 def _check_no_progress(conn: Conn, user_id: UUID, analysis_id: UUID, now: dt.datetime) -> None:
     """Refuse to undo an analysis once any of its tasks has progress (invalid_state).
 
@@ -597,6 +779,11 @@ def _undo_side_effect(conn: Conn, user_id: UUID, version: VersionRow, now: dt.da
     A review version sets its past block back to planned if it is still missed or skipped
     (one marked done since stays done), so it returns to the review; a review_skipped
     version also puts the task's status back (task_before).
+
+    An exam_closed or exam_moed_b version puts the exam's closure back from exam_before
+    (S45). A moed_b_opened version is refused (invalid_state) once a task of the second
+    sitting has progress; otherwise it deletes (soft) the second sitting's live tasks and
+    puts the exam back from exam_before (sitting 1, its first date, waiting for Moed B).
     """
     if version.reason in REVIEW_REASONS:
         if version.block_id is not None:
@@ -615,6 +802,18 @@ def _undo_side_effect(conn: Conn, user_id: UUID, version: VersionRow, now: dt.da
     if version.reason == VersionReason.TASK_SPLIT and version.task_id is not None:
         _check_no_bite_progress(conn, user_id, version, now)
         _restore_bite(conn, user_id, version.task_id, version.task_before)
+        return
+    if version.reason in EXAM_BEFORE_REASONS:
+        if version.exam_id is None or version.exam_before is None:
+            return
+        if version.reason == VersionReason.MOED_B_OPENED:
+            _check_no_moed_b_progress(conn, user_id, version.exam_id, now)
+            conn.execute(
+                "UPDATE app.tasks SET deleted_at = %s "
+                "WHERE user_id = %s AND exam_id = %s AND sitting = 2 AND deleted_at IS NULL",
+                (now, user_id, version.exam_id),
+            )
+        _restore_exam(conn, user_id, version.exam_id, version.exam_before)
         return
     if version.reason == VersionReason.BUSY_ADDED and version.busy_event_id is not None:
         conn.execute(
