@@ -248,6 +248,33 @@ describe('Me time', () => {
     expect(groupCommitments(meTimeRows('Me time', { end_time: '00:00' }))[0]?.isMeTime).toBe(true)
   })
 
+  it('recognises the set when one row has another valid_from, and marks every group of it', () => {
+    const rows = meTimeRows('Me time')
+    rows[3] = { ...(rows[3] as Commitment), valid_from: '2026-11-15' }
+    const groups = groupCommitments(rows)
+    expect(groups.length).toBeGreaterThan(1)
+    expect(groups.every((g) => g.isMeTime)).toBe(true)
+  })
+
+  it('recognises the set when the English and Hebrew titles are mixed', () => {
+    const rows = meTimeRows('Me time')
+    rows[0] = { ...(rows[0] as Commitment), title: ME_TIME_TITLES[1] ?? '' }
+    rows[5] = { ...(rows[5] as Commitment), title: ME_TIME_TITLES[1] ?? '' }
+    const groups = groupCommitments(rows)
+    expect(groups.length).toBeGreaterThan(1)
+    expect(groups.every((g) => g.isMeTime)).toBe(true)
+  })
+
+  it('breaks a created_at tie by start time, like the server', () => {
+    const late = meTimeRows('Me time', { start_time: '21:00', end_time: '22:00' })
+    const early = meTimeRows('Me time', { start_time: '18:00', end_time: '19:00' })
+    const groups = groupCommitments([...late, ...early])
+    expect(groups.map((g) => [g.start_time, g.isMeTime])).toEqual([
+      ['18:00', true],
+      ['21:00', false],
+    ])
+  })
+
   it('writes the start and the length', () => {
     expect(meTimeText('20:00', 60)).toBe('20:00, 1 hour')
     expect(meTimeText('18:30', 45)).toBe('18:30, 45 minutes')

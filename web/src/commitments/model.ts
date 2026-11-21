@@ -1,5 +1,6 @@
 import type { Commitment, CommitmentInput, CommitmentKind, CommitmentPatch, Weekday } from '../availability/types'
 import { en } from '../i18n/en'
+import { LOCALE } from '../i18n/locale'
 
 // The Me time rule mirrors _SETS_SQL of api/app/services/hobby.py: HOBBY_TITLE and the legacy title
 // (a Hebrew one, written with escapes because product code holds no Hebrew letters).
@@ -32,7 +33,6 @@ const lengthOf = (start: string, end: string) => (toMinutes(end) - toMinutes(sta
 interface Draft {
   group: CommitmentGroup
   rows: { weekday: Weekday; id: string }[]
-  created: string
 }
 
 // Rows with the same title, kind, times and validity, on different days, are one group (S34,
@@ -59,39 +59,53 @@ export function groupCommitments(list: Commitment[]): CommitmentGroup[] {
           isMeTime: false,
         },
         rows: [],
-        created: c.created_at,
       }
       candidates.push(draft)
       open.set(bucket, candidates)
       drafts.push(draft)
     }
     draft.rows.push({ weekday: c.weekday, id: c.id })
-    if (c.created_at < draft.created) draft.created = c.created_at
   }
   for (const d of drafts) {
     d.rows.sort((a, b) => a.weekday - b.weekday)
     d.group.weekdays = d.rows.map((r) => r.weekday)
     d.group.ids = d.rows.map((r) => r.id)
   }
-  const meTime = drafts
-    .filter((d) => isMeTimeShape(d.group))
-    .reduce<Draft | null>((oldest, d) => (oldest === null || d.created < oldest.created ? d : oldest), null)
-  if (meTime) meTime.group.isMeTime = true
+  const meTimeIds = new Set(meTimeSetIds(list))
+  for (const d of drafts) d.group.isMeTime = d.group.ids.some((id) => meTimeIds.has(id))
   return drafts
     .map((d) => d.group)
     .sort((a, b) => (a.weekdays[0] ?? 0) - (b.weekdays[0] ?? 0) || a.start_time.localeCompare(b.start_time))
 }
 
-function isMeTimeShape(g: CommitmentGroup): boolean {
-  const minutes = lengthOf(g.start_time, g.end_time)
-  return (
-    g.kind === 'other' &&
-    ME_TIME_TITLES.includes(g.title) &&
-    g.weekdays.length === 7 &&
-    g.valid_until === null &&
-    minutes >= ME_TIME_MIN_MINUTES &&
-    minutes <= ME_TIME_MAX_MINUTES
-  )
+// The ids of the rows of the Me time set, decided like _SETS_SQL of hobby.py and apart from the
+// display groups: rows of kind other, no end date, either title, bucketed by (start, end) only,
+// seven distinct days, 15 to 240 minutes; of several such sets the oldest (min created_at, then
+// start, then end).
+function meTimeSetIds(list: Commitment[]): string[] {
+  const sets = new Map<string, Commitment[]>()
+  for (const c of list) {
+    if (c.kind !== 'other' || c.valid_until !== null || !ME_TIME_TITLES.includes(c.title)) continue
+    const key = `${c.start_time}|${c.end_time}`
+    sets.set(key, [...(sets.get(key) ?? []), c])
+  }
+  const candidates = [...sets.values()]
+    .filter((rows) => {
+      const first = rows[0]
+      if (!first || new Set(rows.map((r) => r.weekday)).size !== 7) return false
+      const minutes = lengthOf(first.start_time, first.end_time)
+      return minutes >= ME_TIME_MIN_MINUTES && minutes <= ME_TIME_MAX_MINUTES
+    })
+    .map((rows) => ({ rows, created: rows.reduce((m, r) => (r.created_at < m ? r.created_at : m), rows[0]?.created_at ?? '') }))
+    .sort((a, b) => {
+      const [x, y] = [a.rows[0], b.rows[0]]
+      return (
+        a.created.localeCompare(b.created) ||
+        (x?.start_time ?? '').localeCompare(y?.start_time ?? '') ||
+        (x?.end_time ?? '').localeCompare(y?.end_time ?? '')
+      )
+    })
+  return (candidates[0]?.rows ?? []).map((r) => r.id)
 }
 
 export function weekdaysText(days: Weekday[]): string {
@@ -102,9 +116,10 @@ export function weekdaysText(days: Weekday[]): string {
   return days.map((d) => short[d]).join(', ')
 }
 
+const dayMonth = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'long', timeZone: 'UTC' })
+
 function dateText(date: string): string {
-  const month = en.commitments.months[Number(date.slice(5, 7)) - 1] ?? ''
-  return `${String(Number(date.slice(8, 10)))} ${month}`
+  return dayMonth.format(new Date(`${date}T00:00:00Z`))
 }
 
 export function groupSubtitle(g: CommitmentGroup): string {

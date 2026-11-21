@@ -5,7 +5,6 @@ export const enCommitments = {
   kinds: { work: 'Work', class: 'Class', other: 'Other' },
   weekdayShort: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
   weekdayLong: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-  months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
   everyDay: 'Every day',
   until: (date: string) => `until ${date}`,
 } as const
