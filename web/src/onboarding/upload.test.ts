@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ApiError } from '../api/client'
 import { createFakeApi, problem } from '../test/fakeApi'
 import { createFakeStorage } from '../test/fakeStorage'
-import { guessKind, MAX_MATERIAL_BYTES, newMaterialId, uploadMaterial, UploadError } from './upload'
+import { guessKind, MAX_MATERIAL_BYTES, newMaterialId, storeObject, uploadMaterial, UploadError } from './upload'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
@@ -186,6 +186,29 @@ describe('uploadMaterial', () => {
 
     expect(fake.calls('POST', '/exams/e1/materials')).toHaveLength(1)
     expect(result?.material.id).toBe(ID)
+  })
+})
+
+describe('storeObject', () => {
+  it('puts the blob at the path without upsert', async () => {
+    const storage = createFakeStorage()
+    const blob = new Blob([new Uint8Array(3)], { type: 'image/jpeg' })
+
+    await storeObject(storage.client, 'u1/timetables/t1', blob, 'image/jpeg')
+
+    expect(storage.upload).toHaveBeenCalledWith('u1/timetables/t1', blob, { contentType: 'image/jpeg', upsert: false })
+  })
+
+  it('turns a failure into storage_unavailable, and an existing object into success', async () => {
+    const storage = createFakeStorage()
+    storage.upload.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    await expect(storeObject(storage.client, 'p', new Blob([]), 'application/pdf')).rejects.toMatchObject({
+      name: 'UploadError',
+      code: 'storage_unavailable',
+    })
+
+    storage.upload.mockResolvedValueOnce({ error: Object.assign(new Error('exists'), { statusCode: '409' }) })
+    await expect(storeObject(storage.client, 'p', new Blob([]), 'application/pdf')).resolves.toBeUndefined()
   })
 })
 

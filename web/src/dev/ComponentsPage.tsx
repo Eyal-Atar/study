@@ -33,6 +33,7 @@ import { ColoursSection, ExamPaletteSection, ShapeSection, TypographySection } f
 import { DialogSection, PageHeaderSection, ToastSection } from './overlaySections'
 import { NoteSection, OptionGridSection, SegmentedControlSection } from './s27Sections'
 import { CollapsibleSectionSection, CompactSelectSection, SwitchSection } from './s28Sections'
+import { S34Sections } from './s34Sections'
 import { ShellSection } from './shellSections'
 import { UserContentSection } from './userContentSections'
 
@@ -119,6 +120,7 @@ export function ComponentsPage() {
         <SwitchSection />
         <CompactSelectSection />
         <CollapsibleSectionSection />
+        <S34Sections />
       </div>
       <ToastRegion />
     </StandalonePage>

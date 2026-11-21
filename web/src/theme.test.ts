@@ -323,3 +323,14 @@ describe('the brand green as text', () => {
     expect(offenders.map((file) => file.pathname.slice(src.pathname.length))).toEqual([])
   })
 })
+
+// S34: large text (WCAG: 18.66px bold and up, 3:1). The only one is the initial of an exam
+// (ui/ExamMark.tsx, ExamInitial): exam-N on exam-N-soft, in text-title (20px) and font-bold, and
+// nowhere smaller or lighter (S34 decision 10).
+const LARGE_TEXT_PAIRS: [string, string][] = EXAM.map((n): [string, string] => [`exam-${n}`, `exam-${n}-soft`])
+
+describe('large text pairs (S34)', () => {
+  it.each(LARGE_TEXT_PAIRS)('%s on %s passes 3:1 for large text', (fg, bg) => {
+    expect(contrast(color(fg), color(bg))).toBeGreaterThanOrEqual(3)
+  })
+})

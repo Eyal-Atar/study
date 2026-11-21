@@ -6,6 +6,7 @@ import { ExamsPage } from '../exam/ExamsPage'
 import { ProgressPage } from '../progress/ProgressPage'
 import { CalendarPage } from '../calendar/CalendarPage'
 import { AuthCallbackPage } from '../pages/AuthCallbackPage'
+import { LegalPage } from '../pages/LegalPage'
 import { LoginPage } from '../pages/LoginPage'
 import { onboardingRoutes } from '../onboarding/routes'
 import { NotFoundPage } from '../pages/NotFoundPage'
@@ -51,6 +52,9 @@ export const routes: RouteObject[] = [
     ErrorBoundary: RouteCrash,
     children: [
       { path: '/login', Component: LoginPage },
+      // S34: linked from the login screen, so outside RequireAuth.
+      { path: '/terms', element: <LegalPage kind="terms" /> },
+      { path: '/privacy', element: <LegalPage kind="privacy" /> },
       { path: AUTH_CALLBACK_PATH, Component: AuthCallbackPage },
       { path: GOODBYE_PATH, Component: GoodbyePage },
       // Every child of this layout route needs a signed-in user, and renders inside the app shell.

@@ -63,6 +63,20 @@ function isDuplicateObject(error: unknown): boolean {
   return String(statusCode) === '409' || status === 409
 }
 
+// Puts `body` at `path` in the materials bucket, never replacing an object. A failure is an
+// UploadError (storage_unavailable); an object already at the path counts as uploaded, which holds
+// only when the path names a fresh id, as every caller's does (an earlier try of the same upload).
+export async function storeObject(storage: StorageClient, path: string, body: Blob, contentType: string): Promise<void> {
+  let failure: unknown
+  try {
+    const { error } = await storage.upload(path, body, { contentType, upsert: false })
+    failure = error
+  } catch (error) {
+    failure = error
+  }
+  if (failure !== null && !isDuplicateObject(failure)) throw new UploadError('storage_unavailable', { cause: failure })
+}
+
 // The default kind of a file by its name (S13 decision 11). Past exams are the input that matters most,
 // so they are the default. The user can change it before the upload.
 export function guessKind(filename: string): MaterialKind {
@@ -107,16 +121,7 @@ export async function uploadMaterial({
   if (problem !== null) throw problem
   const mime = materialMime(file) as MaterialMime
 
-  if (!stored) {
-    let failure: unknown
-    try {
-      const { error } = await storage.upload(`${userId}/${examId}/${id}`, file, { contentType: mime, upsert: false })
-      failure = error
-    } catch (error) {
-      failure = error
-    }
-    if (failure !== null && !isDuplicateObject(failure)) throw new UploadError('storage_unavailable', { cause: failure })
-  }
+  if (!stored) await storeObject(storage, `${userId}/${examId}/${id}`, file, mime)
 
   const body: MaterialRegister = { id, filename: file.name, kind, mime, size_bytes: file.size }
   try {
