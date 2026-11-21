@@ -392,3 +392,72 @@ def test_a_tight_new_date_trims_general_review(
         )
     ]
     assert kinds[:4] == ["simulation", "simulation_review", "review", "practice"]
+
+
+def test_undo_of_moed_b_brings_the_waiting_exam_back(
+    api: TestClient, user: ApiUser, db: psycopg.Connection, clock: FrozenClock
+) -> None:
+    exam = waiting_exam(db, user.id)
+    algebra = insert_topic(db, user.id, exam, "Trees", 1)
+    status, body = open_moed_b(api, user, exam, grade=48, hard_topic_ids=[str(algebra)])
+    assert status == 200, body
+    assert (
+        scalar(
+            db,
+            "SELECT count(*) FROM app.blocks b JOIN app.tasks t ON t.id = b.task_id "
+            "WHERE t.exam_id = %s AND t.sitting = 2",
+            exam,
+        )
+        > 0
+    )
+
+    undone = api.post("/plan/undo", json={"version_id": body["version_id"]}, headers=user.headers)
+    assert undone.status_code == 200, undone.text
+    exam_row = rows(
+        db,
+        "SELECT sitting, exam_date::text, closure, first_exam_date, first_grade, "
+        "moed_b_topic_ids FROM app.exams WHERE id = %s",
+        exam,
+    )[0]
+    assert exam_row == {
+        "sitting": 1,
+        "exam_date": FIRST_DATE,
+        "closure": "moed_b",
+        "first_exam_date": None,
+        "first_grade": None,
+        "moed_b_topic_ids": [],
+    }
+    assert (
+        scalar(
+            db,
+            "SELECT count(*) FROM app.tasks WHERE exam_id = %s AND sitting = 2 "
+            "AND deleted_at IS NULL",
+            exam,
+        )
+        == 0
+    )
+    assert (
+        scalar(
+            db,
+            "SELECT count(*) FROM app.blocks b JOIN app.tasks t ON t.id = b.task_id "
+            "WHERE t.exam_id = %s AND b.status = 'planned'",
+            exam,
+        )
+        == 0
+    )
+    listed = api.get("/closures", headers=user.headers).json()
+    assert [item["exam_id"] for item in listed["waiting"]] == [str(exam)]
+
+    # Opening again works, and once a Moed B block is done, undo is refused.
+    status, again = open_moed_b(api, user, exam)
+    assert status == 200, again
+    block = scalar(
+        db,
+        "SELECT b.id FROM app.blocks b JOIN app.tasks t ON t.id = b.task_id "
+        "WHERE t.exam_id = %s AND t.sitting = 2 ORDER BY b.starts_at LIMIT 1",
+        exam,
+    )
+    db.execute("UPDATE app.blocks SET status = 'done' WHERE id = %s", (block,))
+    refused = api.post("/plan/undo", json={"version_id": again["version_id"]}, headers=user.headers)
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "invalid_state"

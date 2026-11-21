@@ -116,6 +116,13 @@ CASES: tuple[Case, ...] = (
         lambda i: {"exam_id": i.a_exam},
         lambda _: {"exam_date": "2026-12-20"},
     ),
+    Case(
+        "close_a_exam",
+        "POST",
+        "/exams/{exam_id}/close",
+        lambda i: {"exam_id": i.a_exam},
+        lambda _: {"outcome": "done"},
+    ),
     Case("create_task_in_a_exam", "POST", "/tasks", _no_params, lambda i: _new_task(i.a_exam)),
     Case(
         "create_task_depending_on_a_task",
@@ -734,7 +741,7 @@ REVIEW_CASES: tuple[Case, ...] = (
     Case("skip_block", "POST", "/blocks/{block_id}/skip", lambda i: {"block_id": i.a_block}, _none),
 )
 CASES = (*CASES, *REVIEW_CASES)
-WITHOUT_ID = WITHOUT_ID | {("GET", "/review")}
+WITHOUT_ID = WITHOUT_ID | {("GET", "/review"), ("GET", "/closures")}
 
 
 @pytest.mark.parametrize("case", REVIEW_CASES, ids=[case.name for case in REVIEW_CASES])

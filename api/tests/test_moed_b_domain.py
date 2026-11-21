@@ -276,3 +276,10 @@ def test_long_topic_names_are_truncated_to_200() -> None:
     a = SourceTopic(id=uuid4(), name="n" * 300, weight=1, position=1)
     plan = build([a], [], weak=[a.id])
     assert plan.tasks[2].title == "n" * 200
+
+
+def test_the_default_practice_exam_fits_in_a_study_day() -> None:
+    plan = build_moed_b_tasks([], [], [], None, None, max_simulation_minutes=120)
+    assert [(t.kind, t.minutes) for t in plan.tasks[:1]] == [(TaskKind.SIMULATION, 120)]
+    roomy = build_moed_b_tasks([], [], [], None, None, max_simulation_minutes=240)
+    assert roomy.tasks[0].minutes == 150

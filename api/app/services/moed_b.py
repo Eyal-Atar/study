@@ -172,7 +172,12 @@ def open_moed_b(
         now,
     ).get(exam_id)
     plan = build_moed_b_tasks(
-        topics, _source_tasks(conn, user_id, exam_id, row["sitting"]), selected, notes, budget
+        topics,
+        _source_tasks(conn, user_id, exam_id, row["sitting"]),
+        selected,
+        notes,
+        budget,
+        max_simulation_minutes=board.profile.daily_study_minutes,
     )
 
     version_id = create_version(

@@ -128,7 +128,7 @@ def _weak_topics(
     return weak
 
 
-def _simulations(tasks: Sequence[SourceTask]) -> list[_Draft]:
+def _simulations(tasks: Sequence[SourceTask], max_minutes: int | None) -> list[_Draft]:
     ordered = _by_position(tasks)
     simulations = [t for t in ordered if t.kind is TaskKind.SIMULATION][:MAX_SIMULATIONS]
     drafts: list[_Draft] = []
@@ -137,7 +137,10 @@ def _simulations(tasks: Sequence[SourceTask]) -> list[_Draft]:
             _Draft(
                 DEFAULT_SIMULATION_TITLE,
                 TaskKind.SIMULATION,
-                DEFAULT_SIMULATION_MINUTES,
+                # A simulation never splits, so the default one must fit in a study day.
+                DEFAULT_SIMULATION_MINUTES
+                if max_minutes is None
+                else max(MIN_MINUTES, min(DEFAULT_SIMULATION_MINUTES, max_minutes)),
                 WEAK_FOCUS,
                 None,
             )
@@ -208,17 +211,20 @@ def build_moed_b_tasks(
     weak_topic_ids: Collection[UUID],
     notes: str | None,
     budget_minutes: int | None,
+    *,
+    max_simulation_minutes: int | None = None,
 ) -> MoedBPlan:
     """The new tasks of a Moed B round, in position order (see the module docstring).
 
     `tasks` are Moed A's live tasks, any status. Ids in weak_topic_ids that are not one of
-    `topics` are ignored (the caller rejects them first).
+    `topics` are ignored (the caller rejects them first). `max_simulation_minutes` (the
+    user's daily study minutes) caps the default practice exam, which never splits.
     """
     ordered_topics = sorted(topics, key=lambda t: t.position)
     weak = _weak_topics(ordered_topics, weak_topic_ids, notes)
     weak_ids = {t.id for t in weak}
 
-    drafts = _simulations(tasks)
+    drafts = _simulations(tasks, max_simulation_minutes)
     for topic in weak:
         drafts.extend(_weak_drafts(topic, tasks))
     last_weak = len(drafts) - 1 if weak else None
