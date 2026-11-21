@@ -11,6 +11,7 @@ import { ToastRegion } from '../ui/toast'
 import { Logo } from './Logo'
 import { ProfileMenu } from './ProfileMenu'
 import { ProgressChip } from './ProgressChip'
+import { PLAIN_FRAME, ShellFrameRequest, type ShellFrame } from './shellFrame'
 import { ShellToolbarSlot } from './ShellToolbar'
 import { TimezoneSync } from './TimezoneSync'
 import { useRouteFocus } from './useRouteFocus'
@@ -64,6 +65,8 @@ export function AppShell() {
   const main = useRef<HTMLElement>(null)
   // The place for ShellToolbar: a state and not a ref, so the screens render again once it exists.
   const [toolbar, setToolbar] = useState<HTMLElement | null>(null)
+  // What the screen asked of the frame (useShellFrame): only the calendar asks (S32).
+  const [frame, setFrame] = useState<ShellFrame>(PLAIN_FRAME)
   useRouteFocus(main)
 
   // The link is a real anchor to #main, so it reads and behaves as a link. The move itself is done
@@ -78,64 +81,84 @@ export function AppShell() {
     <ReplanOfferProvider>
       <TimezoneSync />
       <PushSync />
-      <ShellToolbarSlot element={toolbar}>
-        <div className="min-h-dvh">
-          {/* The first Tab stop of every screen. Out of sight above the screen until it has the focus. */}
-          <a
-            href="#main"
-            onClick={skipToContent}
-            className={cx(
-              'absolute start-gutter top-2 z-50 -translate-y-[200%] rounded-control border border-line bg-surface px-4 py-2 text-small font-semibold text-ink focus:translate-y-0',
-              FOCUS_RING_NATIVE,
-            )}
-          >
-            {en.shell.skipToContent}
-          </a>
-          {/* pt: the notch of a phone in landscape and of an installed app; the height is below it. */}
-          <header className="border-b border-line bg-surface pt-[env(safe-area-inset-top)]">
-            <div className="flex h-14 items-center gap-3 px-page lg:h-topbar lg:gap-3.5 lg:px-gutter">
-              <Logo />
-              {/* During the onboarding there is no board yet, and the gate sends every screen back:
-                  the header has only the logo. */}
-              {onboarding ? null : (
-                <>
-                  {/* Before <main> in the DOM at both widths, so the Tab order is the same on a
-                      phone and on a computer. */}
-                  <nav aria-label={en.shell.mainNav} className={NAV}>
-                    {DESTINATIONS.map(({ to, label, icon: Icon, state }) => (
-                      <NavLink key={to} to={to} state={state} className={destinationClass}>
-                        {/* In the bar only: the tabs of the top bar are words, as in the prototype. */}
-                        <Icon aria-hidden="true" strokeWidth={ICON_STROKE} className="size-[22px] shrink-0 lg:hidden" />
-                        <span className="max-w-full truncate">{label}</span>
-                      </NavLink>
-                    ))}
-                  </nav>
-                  {/* The place of ShellToolbar. flex-1 pushes the chip and the profile to the end;
-                      min-w-0 lets a long control shrink instead of pushing them off the bar. */}
-                  <div ref={setToolbar} className="hidden min-w-0 flex-1 items-center justify-end gap-2 lg:flex" />
-                  <div className="ms-auto flex shrink-0 items-center gap-2">
-                    <ProgressChip />
-                    <ProfileMenu />
-                  </div>
-                </>
+      <ShellFrameRequest value={setFrame}>
+        <ShellToolbarSlot element={toolbar}>
+          <div className="min-h-dvh">
+            {/* The first Tab stop of every screen. Out of sight above the screen until it has the focus. */}
+            <a
+              href="#main"
+              onClick={skipToContent}
+              className={cx(
+                'absolute start-gutter top-2 z-50 -translate-y-[200%] rounded-control border border-line bg-surface px-4 py-2 text-small font-semibold text-ink focus:translate-y-0',
+                FOCUS_RING_NATIVE,
               )}
-            </div>
-          </header>
-          {/* tabIndex -1: the target of the skip link, and of the focus after a navigation to a
-              screen without an h1. Not a control, so no ring. Below lg the bottom padding clears
-              the fixed bar (and the onboarding's own fixed bar of actions) and the home indicator. */}
-          <main
-            id="main"
-            ref={main}
-            tabIndex={-1}
-            className="mx-auto w-full max-w-3xl px-page py-section pb-[calc(7rem+env(safe-area-inset-bottom))] outline-none lg:pb-12"
-          >
-            {onboarding ? null : <InstallHint />}
-            <Outlet />
-          </main>
-          <ToastRegion />
-        </div>
-      </ShellToolbarSlot>
+            >
+              {en.shell.skipToContent}
+            </a>
+            {/* pt: the notch of a phone in landscape and of an installed app; the height is below it. */}
+            {/* The calendar draws its own header below lg (S32 decision 2), so the phone shows one:
+                there the bar folds to nothing, and only the navigation, fixed at the bottom, stays. */}
+            <header
+              className={cx(
+                'border-b border-line bg-surface pt-[env(safe-area-inset-top)]',
+                frame.ownPhoneHeader && 'max-lg:border-b-0 max-lg:pt-0',
+              )}
+            >
+              <div
+                className={cx(
+                  'flex h-14 items-center gap-3 px-page lg:h-topbar lg:gap-3.5 lg:px-gutter',
+                  frame.ownPhoneHeader && 'max-lg:h-0',
+                )}
+              >
+                <div className={cx('contents', frame.ownPhoneHeader && 'max-lg:hidden')}>
+                  <Logo />
+                </div>
+                {/* During the onboarding there is no board yet, and the gate sends every screen back:
+                    the header has only the logo. */}
+                {onboarding ? null : (
+                  <>
+                    {/* Before <main> in the DOM at both widths, so the Tab order is the same on a
+                        phone and on a computer. */}
+                    <nav aria-label={en.shell.mainNav} className={NAV}>
+                      {DESTINATIONS.map(({ to, label, icon: Icon, state }) => (
+                        <NavLink key={to} to={to} state={state} className={destinationClass}>
+                          {/* In the bar only: the tabs of the top bar are words, as in the prototype. */}
+                          <Icon aria-hidden="true" strokeWidth={ICON_STROKE} className="size-[22px] shrink-0 lg:hidden" />
+                          <span className="max-w-full truncate">{label}</span>
+                        </NavLink>
+                      ))}
+                    </nav>
+                    {/* The place of ShellToolbar. flex-1 pushes the chip and the profile to the end;
+                        min-w-0 lets a long control shrink instead of pushing them off the bar. */}
+                    <div ref={setToolbar} className="hidden min-w-0 flex-1 items-center justify-end gap-2 lg:flex" />
+                    <div className={cx('ms-auto flex shrink-0 items-center gap-2', frame.ownPhoneHeader && 'max-lg:hidden')}>
+                      <ProgressChip />
+                      <ProfileMenu />
+                    </div>
+                  </>
+                )}
+              </div>
+            </header>
+            {/* tabIndex -1: the target of the skip link, and of the focus after a navigation to a
+                screen without an h1. Not a control, so no ring. Below lg the bottom padding clears
+                the fixed bar (and the onboarding's own fixed bar of actions) and the home indicator. */}
+            <main
+              id="main"
+              ref={main}
+              tabIndex={-1}
+              className={cx(
+                'w-full pb-[calc(7rem+env(safe-area-inset-bottom))] outline-none',
+                // The calendar uses the whole width, and from lg the whole height under the top bar.
+                frame.fullBleed ? 'lg:pb-0' : 'mx-auto max-w-3xl px-page py-section lg:pb-12',
+              )}
+            >
+              {onboarding ? null : <InstallHint />}
+              <Outlet />
+            </main>
+            <ToastRegion />
+          </div>
+        </ShellToolbarSlot>
+      </ShellFrameRequest>
     </ReplanOfferProvider>
   )
 }

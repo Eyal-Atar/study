@@ -1,3 +1,7 @@
+// The home of the app (S31), the same as routes.tsx's CALENDAR_PATH. A copy here, because the
+// onboarding's last step is imported by routes.tsx and must not import it back (S32 plan, found 6).
+export const CALENDAR_PATH = '/calendar'
+
 // The history state of a move to the day of the calendar that the user asked for: the "Day" of the
 // switch, and "Calendar" in the navigation (S31 decision 30). CalendarPage keeps the week on screen
 // after a forward move that lost ?view=week (a move of the week screen itself), unless the move

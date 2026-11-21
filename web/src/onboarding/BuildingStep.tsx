@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useNavigate, useSearchParams } from 'react-router'
 import { useApi } from '../api/ApiContext'
 import { errorMessage, type ApiError } from '../api/client'
+import { CALENDAR_PATH } from '../calendar/calendarState'
 import { meKey, useUserId } from '../api/me'
 import { codeText, shortfallText } from '../i18n/codes'
 import { en } from '../i18n/en'
@@ -137,7 +138,7 @@ export function BuildingStep() {
 
   async function toToday() {
     await queryClient.refetchQueries({ queryKey: meKey(userId) })
-    await navigate('/today')
+    await navigate(CALENDAR_PATH)
   }
 
   const replan = (

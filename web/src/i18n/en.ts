@@ -1,5 +1,10 @@
 import { PRODUCT_NAME } from '../product'
 import { isolate } from './bidi'
+import { enCalendarArchi } from './enCalendarArchi'
+import { enCalendarGrid } from './enCalendarGrid'
+import { enCalendarPage } from './enCalendarPage'
+import { enCalendarSheets } from './enCalendarSheets'
+import { enCalendarSide } from './enCalendarSide'
 import { enCrash } from './enCrash'
 import { enPwa } from './enPwa'
 
@@ -60,6 +65,12 @@ export const en = {
     view: 'View',
     day: 'Day',
     week: 'Week',
+    // S32: one file for each part of the calendar, so its parts are written side by side.
+    grid: enCalendarGrid,
+    sheets: enCalendarSheets,
+    side: enCalendarSide,
+    archi: enCalendarArchi,
+    page: enCalendarPage,
   },
   login: {
     google: 'Continue with Google',
@@ -147,6 +158,14 @@ export const en = {
     no_time_today: 'There’s no free spot today that fits the whole task.',
     slot_taken: 'Another block already has that time.',
     outside_day: 'A block can only move to a free time later the same day.',
+    // S35 through the calendar (S32): busy time, "I have time now" and a defer to a chosen time
+    slot_busy: 'That time falls on busy time in your calendar.',
+    event_in_past: 'Busy time can only be marked from now on.',
+    too_many_events: 'You have too many upcoming events. Delete one to add another.',
+    not_after_starts_at: 'The end time needs to come after the start time.',
+    too_long: 'Busy time can be up to 14 days long.',
+    nothing_to_place: 'I don’t have a task I can bring forward right now.',
+    no_free_time: 'That time is already taken in your calendar.',
     // Push reminders (S16)
     push_endpoint_invalid: 'This browser gave me a reminder address I can’t use. Try a different browser.',
   },

@@ -47,12 +47,13 @@ export function makeToday(blocks: Block[] = [makeBlock()], overrides: Partial<To
     // 07:00–23:00 in Jerusalem (UTC+2 in November)
     day_starts_at: '2026-11-16T05:00:00Z',
     day_ends_at: '2026-11-16T21:00:00Z',
+    busy: [],
     ...overrides,
   }
 }
 
 export function makePlan(blocks: Block[] = [makeBlock()], overrides: Partial<Plan> = {}): Plan {
-  return { from: '2026-11-16', to: '2026-11-22', blocks, unplaced: [], undo: null, ...overrides }
+  return { from: '2026-11-16', to: '2026-11-22', blocks, unplaced: [], undo: null, busy: [], ...overrides }
 }
 
 export function makePreview(overrides: Partial<ReplanPreview> = {}): ReplanPreview {
