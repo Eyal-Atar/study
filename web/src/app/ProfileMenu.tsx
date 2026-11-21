@@ -1,7 +1,7 @@
-import { LogOut, Settings, User } from 'lucide-react'
+import { LogOut, Settings, User } from '../ui/icons'
 import { useNavigate } from 'react-router'
 import { useAuth } from '../auth/AuthContext'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { unsubscribeThisDevice, withTimeout } from '../notifications/push'
 import { IconButton } from '../ui/IconButton'
 import { Menu, MenuItem } from '../ui/Menu'
@@ -42,7 +42,7 @@ export function ProfileMenu() {
   return (
     <Menu
       trigger={
-        <IconButton aria-label={he.shell.profile} className="rounded-full">
+        <IconButton aria-label={en.shell.profile} className="rounded-full">
           {/* A 36px circle inside the 44px touch target, as the prototype's .avatar. */}
           <span className="flex size-9 items-center justify-center rounded-full bg-brand-soft text-small font-semibold text-brand-strong">
             {initial ?? <User aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />}
@@ -56,7 +56,7 @@ export function ProfileMenu() {
           void navigate(SETTINGS_PATH)
         }}
       >
-        {he.shell.settings}
+        {en.shell.settings}
       </MenuItem>
       <MenuItem
         icon={LogOut}
@@ -69,7 +69,7 @@ export function ProfileMenu() {
             .then(() => auth.signOut())
         }}
       >
-        {he.shell.signOut}
+        {en.shell.signOut}
       </MenuItem>
     </Menu>
   )

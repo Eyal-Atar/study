@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { errorMessage } from '../api/client'
 import { useMe } from '../api/me'
 import { codeText, shortfallText, unscheduledText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { useExams, useReplanApply, useReplanPreview } from '../onboarding/api'
 import type { ReplanPreview } from '../onboarding/types'
 import { Button } from '../ui/Button'
@@ -54,7 +54,7 @@ function ReplanSession({
   const toast = useToast()
   const apply = useReplanApply({
     onApplied: () => {
-      toast.show({ text: he.replan.applied, tone: 'success' })
+      toast.show({ text: en.replan.applied, tone: 'success' })
       onApplied?.()
       onClose()
     },
@@ -97,7 +97,7 @@ function ReplanSession({
 
   return (
     <Dialog
-      title={he.replan.title}
+      title={en.replan.title}
       description={reasonText}
       isOpen={isOpen}
       onOpenChange={(open) => {
@@ -106,7 +106,7 @@ function ReplanSession({
       footer={
         empty ? (
           <Button variant="secondary" onPress={onClose}>
-            {he.replan.understood}
+            {en.replan.understood}
           </Button>
         ) : (
           <>
@@ -120,10 +120,10 @@ function ReplanSession({
                 if (preview.data !== undefined) confirm(preview.data.basis)
               }}
             >
-              {he.replan.confirm}
+              {en.replan.confirm}
             </Button>
             <Button variant="secondary" onPress={onClose}>
-              {he.replan.notNow}
+              {en.replan.notNow}
             </Button>
           </>
         )
@@ -134,7 +134,7 @@ function ReplanSession({
           {note}
         </Note>
       )}
-      {preview.isPending || preview.isIdle ? <LoadingState shape="text" rows={2} label={he.replan.loading} /> : null}
+      {preview.isPending || preview.isIdle ? <LoadingState shape="text" rows={2} label={en.replan.loading} /> : null}
       {preview.isError ? (
         <ErrorState
           message={errorMessage(preview.error)}
@@ -161,13 +161,13 @@ function isEmpty(preview: ReplanPreview): boolean {
 // to end the onboarding); after it, the board simply needs no change.
 function EmptyBoard() {
   const me = useMe()
-  return <p className="text-body text-ink">{me.data?.onboarding_completed_at === null ? he.replan.nothingToSchedule : he.replan.noChange}</p>
+  return <p className="text-body text-ink">{me.data?.onboarding_completed_at === null ? en.replan.nothingToSchedule : en.replan.noChange}</p>
 }
 
 function PreviewSummary({ preview }: { preview: ReplanPreview }) {
   const exams = useExams()
   const names = useMemo(() => new Map((exams.data ?? []).map((exam) => [exam.id, exam.name])), [exams.data])
-  const examName = (id: string) => names.get(id) ?? he.building.unknownExam
+  const examName = (id: string) => names.get(id) ?? en.building.unknownExam
 
   // The unscheduled tasks have no titles here, so they are counted by reason.
   const byReason = useMemo(() => {
@@ -181,18 +181,18 @@ function PreviewSummary({ preview }: { preview: ReplanPreview }) {
     <div className="flex flex-col gap-3">
       {/* What "אישור" would do is the one thing to read here, so it alone is body text in semibold. */}
       {nothing ? (
-        <p className="text-body text-ink">{he.replan.noChange}</p>
+        <p className="text-body text-ink">{en.replan.noChange}</p>
       ) : (
         <ul className="flex flex-col gap-1 text-body font-semibold text-ink">
-          {preview.added.length > 0 ? <li>{he.replan.added(preview.added.length)}</li> : null}
-          {preview.removed.length > 0 ? <li>{he.replan.removed(preview.removed.length)}</li> : null}
+          {preview.added.length > 0 ? <li>{en.replan.added(preview.added.length)}</li> : null}
+          {preview.removed.length > 0 ? <li>{en.replan.removed(preview.removed.length)}</li> : null}
         </ul>
       )}
       {byReason.length > 0 || preview.shortfalls.length > 0 ? (
-        <Note tone="warning" title={he.replan.unscheduledTitle}>
+        <Note tone="warning" title={en.replan.unscheduledTitle}>
           <ul className="mt-1 flex flex-col gap-1">
             {byReason.map(([reason, count]) => (
-              <li key={reason}>{he.replan.unscheduledGroup(count, unscheduledText(reason))}</li>
+              <li key={reason}>{en.replan.unscheduledGroup(count, unscheduledText(reason))}</li>
             ))}
             {preview.shortfalls.map((s) => (
               <li key={s.exam_id}>{shortfallText(examName(s.exam_id), s.minutes, s.daily_minutes)}</li>

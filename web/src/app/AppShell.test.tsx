@@ -2,7 +2,7 @@ import type { Session } from '@supabase/auth-js'
 import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { COMPLETED_AT, examFixture, meFixture } from '../onboarding/testFixtures'
 import { makeProgress } from '../progress/testFixtures'
 import { createFakeApi } from '../test/fakeApi'
@@ -26,7 +26,7 @@ function sessionOf({ fullName, email }: { fullName?: string; email?: string }): 
 }
 
 async function profileButton() {
-  return screen.findByRole('button', { name: he.shell.profile })
+  return screen.findByRole('button', { name: en.shell.profile })
 }
 
 beforeEach(() => {
@@ -40,7 +40,7 @@ describe('AppShell', () => {
     await profileButton()
 
     await user.tab()
-    const skip = screen.getByRole('link', { name: he.shell.skipToContent })
+    const skip = screen.getByRole('link', { name: en.shell.skipToContent })
     expect(skip).toHaveFocus()
     expect(skip).toHaveAttribute('href', '#main')
 
@@ -56,26 +56,26 @@ describe('AppShell', () => {
   it('has one main navigation with the three destinations in order, and only the current one is marked', async () => {
     open('/exams')
 
-    const navs = await screen.findAllByRole('navigation', { name: he.shell.mainNav })
+    const navs = await screen.findAllByRole('navigation', { name: en.shell.mainNav })
     expect(navs).toHaveLength(1)
     expect(screen.getAllByRole('navigation')).toHaveLength(1)
-    const nav = within(screen.getByRole('navigation', { name: he.shell.mainNav }))
+    const nav = within(screen.getByRole('navigation', { name: en.shell.mainNav }))
     const links = nav.getAllByRole('link')
-    expect(links.map((link) => link.textContent)).toEqual([he.shell.calendar, he.shell.exams, he.shell.progress])
+    expect(links.map((link) => link.textContent)).toEqual([en.shell.calendar, en.shell.exams, en.shell.progress])
     expect(links.map((link) => link.getAttribute('href'))).toEqual(['/calendar', '/exams', '/progress'])
     expect(links.map((link) => link.getAttribute('aria-current'))).toEqual([null, 'page', null])
-    expect(nav.queryByRole('link', { name: he.shell.settings })).not.toBeInTheDocument()
+    expect(nav.queryByRole('link', { name: en.shell.settings })).not.toBeInTheDocument()
     // The icons are decoration: the name of a link is its label alone.
     for (const link of links) expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     // The icons of the mockup's bottom bar: the progress is a sprout (S31 decision 29).
     expect(links.map((link) => link.querySelector('svg')?.classList.contains('lucide-sprout'))).toEqual([false, false, true])
-    expect(nav.queryByRole('link', { name: he.shell.progress })?.querySelector('.lucide-trending-up')).toBeNull()
+    expect(nav.queryByRole('link', { name: en.shell.progress })?.querySelector('.lucide-trending-up')).toBeNull()
   })
 
   it('on the week of the calendar the calendar is the current destination', async () => {
     open('/calendar?view=week')
 
-    const nav = within(await screen.findByRole('navigation', { name: he.shell.mainNav }))
+    const nav = within(await screen.findByRole('navigation', { name: en.shell.mainNav }))
     expect(nav.getAllByRole('link').map((link) => link.getAttribute('aria-current'))).toEqual(['page', null, null])
   })
 
@@ -88,34 +88,34 @@ describe('AppShell', () => {
 
     const banner = within(await screen.findByRole('banner'))
     expect(screen.getAllByRole('banner')).toHaveLength(1)
-    expect(banner.getByText(he.appName)).toBeInTheDocument()
+    expect(banner.getByText(en.appName)).toBeInTheDocument()
     // The logo of the mockup (S31 decision 29): Archie's joy as a 34px avatar, decoration beside
     // the name, and the name in the display font.
-    const logo = screen.getByText(he.appName).parentElement
+    const logo = screen.getByText(en.appName).parentElement
     const archie = logo?.querySelector('[data-size="avatar"]')
     expect(archie).toHaveAttribute('data-mood', 'joy')
     expect(archie).toHaveClass('size-[34px]')
     expect(archie?.querySelector('img')).toHaveAttribute('alt', '')
-    expect(screen.getByText(he.appName)).toHaveClass('font-display', 'font-bold')
-    expect(await banner.findByRole('button', { name: he.shell.profile })).toBeInTheDocument()
-    expect(await banner.findByRole('link', { name: he.shell.progressChip(5, 3) })).toHaveAttribute('href', '/progress')
+    expect(screen.getByText(en.appName)).toHaveClass('font-display', 'font-bold')
+    expect(await banner.findByRole('button', { name: en.shell.profile })).toBeInTheDocument()
+    expect(await banner.findByRole('link', { name: en.shell.progressChip(5, 3) })).toHaveAttribute('href', '/progress')
   })
 
   it('without an answer from GET /progress the shell has no chip and no error', async () => {
     open('/settings')
 
-    expect(await screen.findByRole('heading', { level: 1, name: he.settings.title })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: en.settings.title })).toBeInTheDocument()
     await new Promise((resolve) => setTimeout(resolve, 50))
     const banner = within(screen.getByRole('banner'))
     expect(banner.queryByRole('link', { name: /רצף/ })).not.toBeInTheDocument()
     expect(banner.queryByRole('alert')).not.toBeInTheDocument()
-    expect(banner.getByRole('button', { name: he.shell.profile })).toBeInTheDocument()
+    expect(banner.getByRole('button', { name: en.shell.profile })).toBeInTheDocument()
   })
 
   it('on the settings screen no destination is marked', async () => {
     open('/settings')
 
-    const nav = within(await screen.findByRole('navigation', { name: he.shell.mainNav }))
+    const nav = within(await screen.findByRole('navigation', { name: en.shell.mainNav }))
     for (const link of nav.getAllByRole('link')) expect(link).not.toHaveAttribute('aria-current')
   })
 
@@ -127,7 +127,7 @@ describe('AppShell', () => {
     expect(button).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     await user.click(button)
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([he.shell.settings, he.shell.signOut])
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([en.shell.settings, en.shell.signOut])
   })
 
   it('"settings" in the profile menu opens the settings screen', async () => {
@@ -135,11 +135,11 @@ describe('AppShell', () => {
     const { router } = open('/today')
 
     await user.click(await profileButton())
-    await user.click(screen.getByRole('menuitem', { name: he.shell.settings }))
+    await user.click(screen.getByRole('menuitem', { name: en.shell.settings }))
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/settings')
     })
-    expect(await screen.findByRole('heading', { level: 1, name: he.settings.title })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: en.settings.title })).toBeInTheDocument()
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
@@ -148,7 +148,7 @@ describe('AppShell', () => {
     const { auth, router } = open('/today')
 
     await user.click(await profileButton())
-    await user.click(screen.getByRole('menuitem', { name: he.shell.signOut }))
+    await user.click(screen.getByRole('menuitem', { name: en.shell.signOut }))
     // After the push subscription of this device is dropped (S16), so not in the same tick.
     await waitFor(() => {
       expect(auth.signOut).toHaveBeenCalledExactlyOnceWith({ scope: 'local' })
@@ -189,14 +189,14 @@ describe('AppShell', () => {
 
     expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/onboarding/exams')
-    expect(screen.getByRole('banner')).toHaveTextContent(he.appName)
+    expect(screen.getByRole('banner')).toHaveTextContent(en.appName)
     // The onboarding has a navigation of its own, the steps: the shell's is the one that is gone.
-    expect(screen.queryByRole('navigation', { name: he.shell.mainNav })).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: en.shell.mainNav })).not.toBeInTheDocument()
     // No link at all in the banner: neither a destination nor the progress chip.
     expect(within(screen.getByRole('banner')).queryByRole('link')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: he.shell.profile })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: en.shell.profile })).not.toBeInTheDocument()
     // The skip link is part of every screen.
-    expect(screen.getByRole('link', { name: he.shell.skipToContent })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: en.shell.skipToContent })).toBeInTheDocument()
   })
 })
 
@@ -205,9 +205,9 @@ describe('focus after a navigation', () => {
     const user = userEvent.setup()
     open('/calendar')
 
-    const nav = within(await screen.findByRole('navigation', { name: he.shell.mainNav }))
-    await user.click(nav.getByRole('link', { name: he.shell.exams }))
-    const heading = await screen.findByRole('heading', { level: 1, name: he.exam.list.title })
+    const nav = within(await screen.findByRole('navigation', { name: en.shell.mainNav }))
+    await user.click(nav.getByRole('link', { name: en.shell.exams }))
+    const heading = await screen.findByRole('heading', { level: 1, name: en.exam.list.title })
     await waitFor(() => {
       expect(heading).toHaveFocus()
     })
@@ -220,8 +220,8 @@ describe('focus after a navigation', () => {
     open('/today')
 
     await user.click(await profileButton())
-    await user.click(screen.getByRole('menuitem', { name: he.shell.settings }))
-    const heading = await screen.findByRole('heading', { level: 1, name: he.settings.title })
+    await user.click(screen.getByRole('menuitem', { name: en.shell.settings }))
+    const heading = await screen.findByRole('heading', { level: 1, name: en.settings.title })
     await waitFor(() => {
       expect(heading).toHaveFocus()
     })
@@ -233,7 +233,7 @@ describe('focus after a navigation', () => {
   it('the first screen and the redirect from / do not take the focus', async () => {
     const { router } = open('/')
 
-    const heading = await screen.findByRole('heading', { level: 1, name: he.today.title })
+    const heading = await screen.findByRole('heading', { level: 1, name: en.today.title })
     expect(router.state.location.pathname).toBe('/calendar')
     expect(heading).not.toHaveFocus()
     expect(screen.getByRole('main')).not.toHaveFocus()
@@ -243,7 +243,7 @@ describe('focus after a navigation', () => {
   it('a change of the search params alone does not move the focus', async () => {
     const { router } = open('/calendar?view=week')
 
-    const heading = await screen.findByRole('heading', { level: 1, name: he.week.title })
+    const heading = await screen.findByRole('heading', { level: 1, name: en.week.title })
     await router.navigate('/calendar?view=week&from=2026-11-22')
     await waitFor(() => {
       expect(router.state.location.search).toBe('?view=week&from=2026-11-22')
@@ -260,7 +260,7 @@ describe('the letter on the profile button', () => {
     const button = await profileButton()
     expect(button).toHaveTextContent(/^א$/)
     expect(button.querySelector('svg')).not.toBeInTheDocument()
-    expect(button).toHaveAccessibleName(he.shell.profile)
+    expect(button).toHaveAccessibleName(en.shell.profile)
   })
 
   it('without a name it is the first letter of the email, in upper case', async () => {

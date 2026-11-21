@@ -1,6 +1,6 @@
-import { Leaf } from 'lucide-react'
+import { Leaf } from '../ui/icons'
 import { Link } from 'react-router'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { useProgress } from '../progress/api'
 import type { Progress, Streak } from '../progress/types'
 import { cx, FOCUS_RING_NATIVE, ICON_STROKE } from '../ui/styles'
@@ -54,7 +54,7 @@ export function ProgressChipView({ progress }: { progress: ChipProgress }) {
   return (
     <Link
       to={PROGRESS_PATH}
-      aria-label={he.shell.progressChip(streak.current, level)}
+      aria-label={en.shell.progressChip(streak.current, level)}
       className={cx(
         'inline-flex min-h-touch shrink-0 items-center gap-2 rounded-full px-1 text-ink hover:bg-surface-muted',
         FOCUS_RING_NATIVE,

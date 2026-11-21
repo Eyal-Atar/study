@@ -1,6 +1,6 @@
-import { Check, CircleAlert } from 'lucide-react'
+import { Check, CircleAlert } from '../ui/icons'
 import type { ReactNode } from 'react'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { ListRow } from '../ui/List'
 import { Note } from '../ui/Note'
 import { cx, ICON_STROKE } from '../ui/styles'
@@ -9,7 +9,7 @@ import type { MaterialKind } from './types'
 
 export type MaterialTone = 'muted' | 'success' | 'danger'
 
-const t = he.onboardingMaterials
+const t = en.onboardingMaterials
 
 export interface MaterialItemProps {
   filename: string

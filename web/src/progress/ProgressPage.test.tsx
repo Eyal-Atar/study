@@ -1,14 +1,14 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { createFakeApi, problem } from '../test/fakeApi'
 import { USER_ID, makeMe, renderBoard } from '../test/boardFixtures'
 import { ProgressPage } from './ProgressPage'
 import { makeBadges, makeProgress, newUserProgress } from './testFixtures'
 import type { Progress } from './types'
 
-const t = he.progress
+const t = en.progress
 
 // Jerusalem, so 2026-11-12T22:30Z is the 13th there.
 function setup(progress: Progress | Error) {
@@ -127,7 +127,7 @@ describe('the progress board', () => {
     const { fake } = setup(problem(503, 'unavailable'))
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     fake.on('GET /progress', makeProgress())
-    await user.click(screen.getByRole('button', { name: he.common.retry }))
+    await user.click(screen.getByRole('button', { name: en.common.retry }))
     expect(await screen.findByText(t.level.level(2))).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
@@ -135,7 +135,7 @@ describe('the progress board', () => {
   it('shows loading until the answer arrives', () => {
     const fake = createFakeApi().on('GET /me', makeMe()).on('GET /progress', new Promise(() => undefined))
     renderBoard(<ProgressPage />, { api: fake.api })
-    expect(screen.getByRole('status')).toHaveTextContent(he.common.loading)
+    expect(screen.getByRole('status')).toHaveTextContent(en.common.loading)
   })
 
   it('the title of the screen is there while loading, for the focus after a navigation', () => {

@@ -1,4 +1,4 @@
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Card } from '../ui/Card'
 import { StandalonePage } from '../ui/PageContainer'
 import { PageHeader } from '../ui/PageHeader'
@@ -10,8 +10,8 @@ export function ConfigErrorScreen({ problems }: { problems: readonly string[] })
   return (
     <StandalonePage>
       <div className="space-y-section">
-        <PageHeader title={he.config.title} />
-        <p className="max-w-prose text-body text-ink">{he.config.body}</p>
+        <PageHeader title={en.config.title} />
+        <p className="max-w-prose text-body text-ink">{en.config.body}</p>
         <Card>
           {/* break-words: a problem holds a long URL or a variable name, with nowhere to wrap. */}
           <ul dir="ltr" className="list-disc space-y-2 ps-5 text-small break-words">

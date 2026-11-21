@@ -1,8 +1,8 @@
-import { CalendarDays, FileText, Sprout, type LucideIcon } from 'lucide-react'
+import { CalendarDays, FileText, Sprout, type LucideIcon } from '../ui/icons'
 import { useRef, useState, type MouseEvent } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { DAY_CHOSEN } from '../calendar/calendarState'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { InstallHint } from '../notifications/InstallHint'
 import { PushSync } from '../notifications/PushSync'
 import { ReplanOfferProvider } from '../plan/ReplanOffer'
@@ -22,9 +22,9 @@ import { useRouteFocus } from './useRouteFocus'
 // take the move for one of the week's own and put ?view=week back (S31 decision 30). The progress
 // is a sprout, the leaf of the mockup's bottom bar (decision 29).
 const DESTINATIONS: readonly { to: string; label: string; icon: LucideIcon; state?: unknown }[] = [
-  { to: '/calendar', label: he.shell.calendar, icon: CalendarDays, state: DAY_CHOSEN },
-  { to: '/exams', label: he.shell.exams, icon: FileText },
-  { to: '/progress', label: he.shell.progress, icon: Sprout },
+  { to: '/calendar', label: en.shell.calendar, icon: CalendarDays, state: DAY_CHOSEN },
+  { to: '/exams', label: en.shell.exams, icon: FileText },
+  { to: '/progress', label: en.shell.progress, icon: Sprout },
 ]
 
 // One <nav> serves both widths, so a screen reader meets one navigation and the Tab order is the
@@ -89,7 +89,7 @@ export function AppShell() {
               FOCUS_RING_NATIVE,
             )}
           >
-            {he.shell.skipToContent}
+            {en.shell.skipToContent}
           </a>
           {/* pt: the notch of a phone in landscape and of an installed app; the height is below it. */}
           <header className="border-b border-line bg-surface pt-[env(safe-area-inset-top)]">
@@ -101,7 +101,7 @@ export function AppShell() {
                 <>
                   {/* Before <main> in the DOM at both widths, so the Tab order is the same on a
                       phone and on a computer. */}
-                  <nav aria-label={he.shell.mainNav} className={NAV}>
+                  <nav aria-label={en.shell.mainNav} className={NAV}>
                     {DESTINATIONS.map(({ to, label, icon: Icon, state }) => (
                       <NavLink key={to} to={to} state={state} className={destinationClass}>
                         {/* In the bar only: the tabs of the top bar are words, as in the prototype. */}

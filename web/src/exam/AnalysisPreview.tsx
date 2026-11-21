@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { errorMessage } from '../api/client'
 import { codeText, shortfallText, unscheduledText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { useExams } from '../onboarding/api'
 import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
@@ -11,7 +11,7 @@ import { SectionHeading } from '../ui/SectionHeading'
 import { ErrorState, LoadingState } from '../ui/states'
 import { useAnalysisPreview, useApplyAnalysis, type AnalysisApply } from './analysis'
 
-const t = he.exam.analysis
+const t = en.exam.analysis
 
 export interface AnalysisPreviewProps {
   // The draft to preview; null keeps the dialog closed.
@@ -142,10 +142,10 @@ function PreviewDialog({
               if (preview.data !== undefined) confirm(preview.data.basis)
             }}
           >
-            {he.replan.confirm}
+            {en.replan.confirm}
           </Button>
           <Button variant="secondary" onPress={onClose}>
-            {he.replan.notNow}
+            {en.replan.notNow}
           </Button>
         </>
       }
@@ -171,7 +171,7 @@ function PreviewDialog({
 
 function Summary({ preview }: { preview: AnalysisApply }) {
   const exams = useExams()
-  const examName = (id: string) => exams.data?.find((exam) => exam.id === id)?.name ?? he.building.unknownExam
+  const examName = (id: string) => exams.data?.find((exam) => exam.id === id)?.name ?? en.building.unknownExam
 
   // Like ReplanOffer: the tasks that do not fit are counted by reason.
   const byReason = useMemo(() => {
@@ -193,7 +193,7 @@ function Summary({ preview }: { preview: AnalysisApply }) {
                 title={<bdi>{task.title}</bdi>}
                 subtitle={
                   <>
-                    <p>{t.taskMeta(he.exam.tasks.kinds[task.kind], he.exam.tasks.minutes(task.minutes))}</p>
+                    <p>{t.taskMeta(en.exam.tasks.kinds[task.kind], en.exam.tasks.minutes(task.minutes))}</p>
                     {/* Why the analysis added it: ink, so it reads as a sentence and not as a detail. */}
                     {task.reason === null || task.reason === '' ? null : <p className="text-ink">{task.reason}</p>}
                   </>
@@ -222,8 +222,8 @@ function Summary({ preview }: { preview: AnalysisApply }) {
         <SectionHeading level={3}>{t.boardTitle}</SectionHeading>
         {blocksChange ? (
           <ul className="flex flex-col gap-1 text-small text-ink">
-            {preview.added_blocks.length > 0 ? <li>{he.replan.added(preview.added_blocks.length)}</li> : null}
-            {preview.removed_blocks.length > 0 ? <li>{he.replan.removed(preview.removed_blocks.length)}</li> : null}
+            {preview.added_blocks.length > 0 ? <li>{en.replan.added(preview.added_blocks.length)}</li> : null}
+            {preview.removed_blocks.length > 0 ? <li>{en.replan.removed(preview.removed_blocks.length)}</li> : null}
           </ul>
         ) : (
           <p className="text-small text-ink-muted">{t.noBoardChange}</p>
@@ -232,10 +232,10 @@ function Summary({ preview }: { preview: AnalysisApply }) {
 
       {byReason.length > 0 || preview.shortfalls.length > 0 ? (
         <Note tone="warning">
-          <h3 className="font-semibold">{he.replan.unscheduledTitle}</h3>
+          <h3 className="font-semibold">{en.replan.unscheduledTitle}</h3>
           <ul className="mt-1 flex flex-col gap-1">
             {byReason.map(([reason, count]) => (
-              <li key={reason}>{he.replan.unscheduledGroup(count, unscheduledText(reason))}</li>
+              <li key={reason}>{en.replan.unscheduledGroup(count, unscheduledText(reason))}</li>
             ))}
             {preview.shortfalls.map((s) => (
               <li key={s.exam_id}>{shortfallText(examName(s.exam_id), s.minutes, s.daily_minutes)}</li>

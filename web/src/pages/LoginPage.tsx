@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router'
 import { useAuth } from '../auth/AuthContext'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { StandalonePage } from '../ui/PageContainer'
 
@@ -17,8 +17,8 @@ export function LoginPage() {
   return (
     <StandalonePage>
       {/* Written here and not with PageHeader, which would name the tab "ארצ׳י · ארצ׳י". */}
-      <h1 className="text-display font-semibold break-words text-ink">{he.appName}</h1>
-      <p className="mt-3 max-w-prose text-body text-ink-muted">{he.tagline}</p>
+      <h1 className="text-display font-semibold break-words text-ink">{en.appName}</h1>
+      <p className="mt-3 max-w-prose text-body text-ink-muted">{en.tagline}</p>
       {/* Full width on a phone, where the thumb is; the width of its text from md. */}
       <div className="mt-10 flex flex-col gap-3 md:items-start">
         <Button
@@ -39,11 +39,11 @@ export function LoginPage() {
               })
           }}
         >
-          {he.login.google}
+          {en.login.google}
         </Button>
         {failed && (
           <p role="alert" className="text-small text-danger">
-            {he.login.failed}
+            {en.login.failed}
           </p>
         )}
       </div>

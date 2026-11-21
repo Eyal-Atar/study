@@ -1,9 +1,9 @@
-import { Trash2 } from 'lucide-react'
+import { Trash2 } from '../ui/icons'
 import { useId, useState } from 'react'
 import { Form } from 'react-aria-components'
 import { useNavigate } from 'react-router'
 import { errorMessage } from '../api/client'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { DatePicker, type DateValue } from '../ui/DatePicker'
@@ -19,7 +19,7 @@ import { useCreateExam, useDeleteExam, useExams, useUndo, type Exam } from './ap
 import { OnboardingLayout } from './OnboardingLayout'
 import { STEP_PATHS } from './steps'
 
-const t = he.onboardingExams
+const t = en.onboardingExams
 
 // The API's limits (ExamCreate in api/app/schemas): a name of up to 200 characters, a date from
 // tomorrow up to two years ahead, difficulty 1–5.
@@ -131,7 +131,7 @@ export function ExamsStep() {
             ? {}
             : {
                 action: {
-                  label: he.common.undo,
+                  label: en.common.undo,
                   onAction: () => {
                     undo.mutateAsync(versionId).then(
                       () => toast.show({ text: t.restored(exam.name), tone: 'success' }),
@@ -162,7 +162,7 @@ export function ExamsStep() {
         void navigate(STEP_PATHS.materials)
       }}
     >
-      {he.onboarding.continue}
+      {en.onboarding.continue}
     </Button>
   )
 

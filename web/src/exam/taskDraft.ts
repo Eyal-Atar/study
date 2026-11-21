@@ -1,7 +1,7 @@
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import type { Task, TaskKind, TaskPatch } from './types'
 
-const t = he.exam.tasks
+const t = en.exam.tasks
 
 // The API's limits (TaskCreate / TaskPatch in api/app/schemas/tasks.py).
 const TITLE_MAX = 200

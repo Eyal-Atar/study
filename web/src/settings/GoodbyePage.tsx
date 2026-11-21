@@ -1,9 +1,9 @@
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { ButtonLink } from '../ui/ButtonLink'
 import { StandalonePage } from '../ui/PageContainer'
 import { PageHeader } from '../ui/PageHeader'
 
-const t = he.settings.goodbye
+const t = en.settings.goodbye
 
 // /goodbye, outside RequireAuth: where a deleted account lands, already signed out.
 export function GoodbyePage() {

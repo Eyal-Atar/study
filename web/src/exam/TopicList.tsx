@@ -1,8 +1,8 @@
-import { Pencil } from 'lucide-react'
+import { Pencil } from '../ui/icons'
 import { useEffect, useRef, useState } from 'react'
 import { Form } from 'react-aria-components'
 import { errorMessage } from '../api/client'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { Disclosure } from '../ui/Disclosure'
@@ -15,7 +15,7 @@ import { useToast } from '../ui/useToast'
 import { useUpdateTopic } from './api'
 import type { Gap, Topic, TopicPatch } from './types'
 
-const tp = he.exam.topics
+const tp = en.exam.topics
 
 const NAME_MAX = 120
 const WEIGHT_OPTIONS = [1, 2, 3, 4, 5].map((w) => ({ value: String(w), label: String(w) }))
@@ -96,10 +96,10 @@ function TopicForm({ topic, onDone }: { topic: Topic; onDone: () => void }) {
       <RadioCards label={tp.weightLabel} options={WEIGHT_OPTIONS} value={weight} onChange={setWeight} columns="grid-cols-5" />
       <div className="flex gap-2">
         <Button type="submit" isPending={update.isPending} className="flex-1 sm:flex-none">
-          {he.common.save}
+          {en.common.save}
         </Button>
         <Button variant="secondary" onPress={onDone}>
-          {he.common.cancel}
+          {en.common.cancel}
         </Button>
       </div>
     </Form>

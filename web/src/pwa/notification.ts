@@ -1,4 +1,4 @@
-import { hePwa } from '../i18n/hePwa'
+import { enPwa } from '../i18n/enPwa'
 import { PRODUCT_NAME } from '../product'
 
 // The pure part of the service worker (src/sw.ts): what a push shows, and where a click goes.
@@ -37,11 +37,11 @@ export function readPushPayload(data: unknown): PushView {
   return {
     title: nonEmptyString(field(data, 'title')) ?? PRODUCT_NAME,
     options: {
-      body: nonEmptyString(field(data, 'body')) ?? hePwa.pushFallbackBody,
+      body: nonEmptyString(field(data, 'body')) ?? enPwa.pushFallbackBody,
       // The same tag replaces the earlier reminder of a block instead of stacking another one.
       ...(tag === undefined ? {} : { tag }),
-      lang: 'he',
-      dir: 'rtl',
+      lang: 'en',
+      dir: 'ltr',
       icon: ICON,
       badge: BADGE,
       data: { url: safePath(field(data, 'url')) },

@@ -1,7 +1,7 @@
-import { CircleSlash, Ellipsis, Info, Pencil, RotateCcw, Trash2 } from 'lucide-react'
+import { CircleSlash, Ellipsis, Info, Pencil, RotateCcw, Trash2 } from '../ui/icons'
 import { useEffect, useRef, useState } from 'react'
 import { errorMessage } from '../api/client'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import type { Block } from '../onboarding/types'
 import { Badge } from '../ui/Badge'
 import { CheckButton } from '../ui/CheckButton'
@@ -18,7 +18,7 @@ import { draftOfTask, taskPatch, type TaskValues } from './taskDraft'
 import { TaskForm } from './TaskForm'
 import type { ExamTask, TaskPatch, Topic } from './types'
 
-const t = he.exam.tasks
+const t = en.exam.tasks
 
 function kindLabel(kind: string): string {
   return Object.hasOwn(t.kinds, kind) ? t.kinds[kind as keyof typeof t.kinds] : kind
@@ -94,7 +94,7 @@ export function TaskRow({
             initial={draftOfTask(task)}
             topics={topics}
             withFocus
-            submitLabel={he.common.save}
+            submitLabel={en.common.save}
             isPending={update.isPending}
             onSubmit={save}
             onCancel={closeForm}

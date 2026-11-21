@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { LogOut, Settings } from 'lucide-react'
+import { LogOut, Settings } from './icons'
 import { describe, expect, it, vi } from 'vitest'
 import { Button } from './Button'
 import { IconButton } from './IconButton'

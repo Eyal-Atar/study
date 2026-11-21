@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { errorMessage } from '../api/client'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { EmptyState, ErrorState, LoadingState } from '../ui/states'
 import { useExams } from './api'
@@ -10,7 +10,7 @@ import { OnboardingLayout } from './OnboardingLayout'
 import { flushDeletes } from './pendingDeletes'
 import { STEP_PATHS } from './steps'
 
-const t = he.onboardingMaterials
+const t = en.onboardingMaterials
 
 // Step 2 of the onboarding (/onboarding/materials): files for each exam, all optional. The files live on the
 // server, so leaving the step (or refreshing) loses only uploads still on their way.
@@ -55,10 +55,10 @@ export function MaterialsStep() {
           {/* One way forward. Without files the same button says that it skips them, so nobody
               has to look for a second button. */}
           <Button className="flex-1 md:flex-none" isDisabled={leaving} onPress={() => { leave(STEP_PATHS.schedule); }}>
-            {hasFiles ? he.onboarding.continue : t.continueWithout}
+            {hasFiles ? en.onboarding.continue : t.continueWithout}
           </Button>
           <Button variant="secondary" isDisabled={leaving} onPress={() => { leave(STEP_PATHS.exams); }}>
-            {he.common.back}
+            {en.common.back}
           </Button>
         </>
       }

@@ -1,5 +1,5 @@
 import { shortfallText, unscheduledText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { Note } from '../ui/Note'
@@ -31,9 +31,9 @@ export function PlanReport() {
   const target = daily.length > 0 ? Math.max(...daily) : null
 
   return (
-    <Card id="report" role="region" tone="warning" title={he.board.report.title}>
+    <Card id="report" role="region" tone="warning" title={en.board.report.title}>
       <div className="flex flex-col gap-3 text-small">
-        {report.isPending ? <p role="status">{he.board.report.loading}</p> : null}
+        {report.isPending ? <p role="status">{en.board.report.loading}</p> : null}
         {report.isError ? (
           // The neutral fill: a warning note would not show on the warning card.
           <Note
@@ -45,11 +45,11 @@ export function PlanReport() {
                   void report.refetch()
                 }}
               >
-                {he.common.retry}
+                {en.common.retry}
               </Button>
             }
           >
-            {he.board.report.failed}
+            {en.board.report.failed}
           </Note>
         ) : null}
         {shortfalls.length > 0 ? (
@@ -63,14 +63,14 @@ export function PlanReport() {
         ) : null}
         <div>
           {/* Alone under the title of the card the list needs no heading of its own: it would say the title again. */}
-          {shortfalls.length > 0 ? <h3 className="mb-1 font-semibold">{he.board.report.tasks}</h3> : null}
+          {shortfalls.length > 0 ? <h3 className="mb-1 font-semibold">{en.board.report.tasks}</h3> : null}
           <ul className="flex flex-col gap-1">
             {unplaced.map((task) => {
               const reason = reasons.get(task.task_id)
               return (
                 <li key={task.task_id} className="break-words">
-                  <span className="font-semibold">{he.board.report.task(task.title, durationText(task.minutes))}</span>
-                  {reason === undefined ? null : he.board.report.reason(unscheduledText(reason))}
+                  <span className="font-semibold">{en.board.report.task(task.title, durationText(task.minutes))}</span>
+                  {reason === undefined ? null : en.board.report.reason(unscheduledText(reason))}
                 </li>
               )
             })}
@@ -85,12 +85,12 @@ export function PlanReport() {
             onPress={() => {
               raise.mutate(target, {
                 onSuccess: () => {
-                  offerReplan(he.board.report.raised(durationText(target)))
+                  offerReplan(en.board.report.raised(durationText(target)))
                 },
               })
             }}
           >
-            {he.board.report.raise(durationText(target))}
+            {en.board.report.raise(durationText(target))}
           </Button>
         )}
       </div>

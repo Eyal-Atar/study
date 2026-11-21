@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { errorMessage } from '../api/client'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { useExams, useMaterials, type Material, type MaterialKind } from '../onboarding/api'
 import { ExamMaterials } from '../onboarding/ExamMaterials'
 import { CollapsibleSection } from '../ui/CollapsibleSection'
@@ -9,9 +9,9 @@ import { Note } from '../ui/Note'
 import { useToast } from '../ui/useToast'
 import { hasAiTasks, useExamTasks, useUpdateMaterialKind } from './analysis'
 
-const t = he.exam.materials
-const KINDS = Object.keys(he.onboardingMaterials.kinds) as MaterialKind[]
-const KIND_OPTIONS = KINDS.map((kind) => ({ value: kind, label: he.onboardingMaterials.kinds[kind] }))
+const t = en.exam.materials
+const KINDS = Object.keys(en.onboardingMaterials.kinds) as MaterialKind[]
+const KIND_OPTIONS = KINDS.map((kind) => ({ value: kind, label: en.onboardingMaterials.kinds[kind] }))
 
 export interface MaterialsSectionProps {
   examId: string

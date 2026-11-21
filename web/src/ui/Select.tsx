@@ -1,4 +1,4 @@
-import { Check, ChevronDown } from 'lucide-react'
+import { Check, ChevronDown } from './icons'
 import {
   Button,
   FieldError,
@@ -10,7 +10,7 @@ import {
   SelectValue,
   Text,
 } from 'react-aria-components'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { ICON_STROKE } from './styles'
 import { FIELD_BOX_CLASS, FIELD_CLASS, FIELD_DESCRIPTION_CLASS, FIELD_ERROR_CLASS, FIELD_LABEL_CLASS } from './TextField'
 
@@ -66,7 +66,7 @@ export function Select({
   description,
   errorMessage,
   isDisabled,
-  placeholder = he.common.choose,
+  placeholder = en.common.choose,
 }: SelectProps) {
   const chosen = options.findIndex((option) => option.value === value)
   return (

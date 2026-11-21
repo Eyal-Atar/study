@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { useBlockActions, type BlockActions } from './actions'
 import { actionsFor, type BlockAction } from './actionsFor'
 import { blockName } from './blockName'
@@ -39,18 +39,18 @@ function run(actions: BlockActions, block: Block, action: Exclude<BlockAction, '
 
 // The plain word of an action: the text of a button or of a menu item.
 export function actionLabel(action: BlockAction): string {
-  return action === 'move' ? he.move.move : he.board[action]
+  return action === 'move' ? en.move.move : en.board[action]
 }
 
 // The name of a button: the action with the block's name, since the button repeats on the screen.
 export function actionAriaLabel(action: BlockAction, name: string): string {
   const labels = {
-    complete: he.board.completeLabel,
-    uncomplete: he.board.uncompleteLabel,
-    defer: he.board.deferLabel,
-    move: he.move.moveLabel,
-    pin: he.board.pinLabel,
-    unpin: he.board.unpinLabel,
+    complete: en.board.completeLabel,
+    uncomplete: en.board.uncompleteLabel,
+    defer: en.board.deferLabel,
+    move: en.move.moveLabel,
+    pin: en.board.pinLabel,
+    unpin: en.board.unpinLabel,
   } as const
   return labels[action](name)
 }
@@ -99,5 +99,5 @@ export function useBlockControls(block: Block, tz: string): BlockControls {
 
 // ". חלק 1 מתוך 2" after the details of a split task, else nothing.
 export function partSuffix(block: Pick<Block, 'part_index' | 'part_count'>): string {
-  return block.part_count > 1 ? he.board.metaPart(he.board.part(block.part_index, block.part_count)) : ''
+  return block.part_count > 1 ? en.board.metaPart(en.board.part(block.part_index, block.part_count)) : ''
 }

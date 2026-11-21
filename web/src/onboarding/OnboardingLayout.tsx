@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { PageHeader } from '../ui/PageHeader'
 import { cx } from '../ui/styles'
 import { STEP_COUNT } from './steps'
@@ -21,12 +21,12 @@ export function OnboardingLayout({ step, title, intro, children, actions }: Onbo
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <p className="text-small text-ink-muted tabular-nums">{he.onboarding.stepOf(step, STEP_COUNT)}</p>
+        <p className="text-small text-ink-muted tabular-nums">{en.onboarding.stepOf(step, STEP_COUNT)}</p>
         {/* The steps bar is the onboarding's own: four thin segments, the done and the current in
             brand ("you are here"), the rest in the colour of a line. */}
-        <nav aria-label={he.onboarding.stepsLabel}>
+        <nav aria-label={en.onboarding.stepsLabel}>
           <ol className="flex gap-1">
-            {he.onboarding.steps.map((name, index) => (
+            {en.onboarding.steps.map((name, index) => (
               <li
                 key={name}
                 aria-current={index + 1 === step ? 'step' : undefined}

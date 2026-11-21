@@ -1,6 +1,6 @@
 import { act, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Archie, type ArchieMood, type ArchieSize } from './Archie'
 
 const MOODS: ArchieMood[] = ['intentions', 'eureka', 'wisdom', 'flow', 'rest', 'joy']
@@ -76,10 +76,10 @@ afterEach(() => {
 
 describe('Archie', () => {
   describe.each(SIZES)('size %s', (size) => {
-    it.each(MOODS)('%s shows the illustration named by he.archie.alt', (mood) => {
+    it.each(MOODS)('%s shows the illustration named by en.archie.alt', (mood) => {
       render(<Archie mood={mood} size={size} />)
 
-      expect(screen.getByRole('img', { name: he.archie.alt[mood] })).toBeInTheDocument()
+      expect(screen.getByRole('img', { name: en.archie.alt[mood] })).toBeInTheDocument()
     })
   })
 
@@ -93,19 +93,19 @@ describe('Archie', () => {
   it('eager loads at once, for an Archie that is always above the fold (the logo)', () => {
     render(<Archie mood="joy" size="avatar" eager />)
 
-    expect(screen.getByRole('img', { name: he.archie.alt.joy })).toHaveAttribute('loading', 'eager')
+    expect(screen.getByRole('img', { name: en.archie.alt.joy })).toHaveAttribute('loading', 'eager')
   })
 
   it('the avatar asks for a width close to what it shows, so a phone takes the small file', () => {
     render(<Archie mood="joy" size="avatar" />)
 
-    expect(screen.getByRole('img', { name: he.archie.alt.joy })).toHaveAttribute('sizes', '104px')
+    expect(screen.getByRole('img', { name: en.archie.alt.joy })).toHaveAttribute('sizes', '104px')
   })
 
   it('loads lazily and asynchronously, from webp in two widths', () => {
     render(<Archie mood="rest" />)
 
-    const img = screen.getByRole('img', { name: he.archie.alt.rest })
+    const img = screen.getByRole('img', { name: en.archie.alt.rest })
     expect(img).toHaveAttribute('loading', 'lazy')
     expect(img).toHaveAttribute('decoding', 'async')
     const widths = (img.getAttribute('srcset') ?? '').split(',').map((part) => part.trim().split(/\s+/))

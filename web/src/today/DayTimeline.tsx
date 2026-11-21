@@ -5,8 +5,8 @@ import { GRID_MINUTES, moveProblem, snapToGrid, useMoveBlock, type MoveDay } fro
 import { blockMinutes, formatRange, formatTime } from '../board/time'
 import type { Block, BlockState, Today } from '../board/types'
 import { codeText } from '../i18n/codes'
-import { he } from '../i18n/he'
-import { GripVertical } from 'lucide-react'
+import { en } from '../i18n/en'
+import { GripVertical } from '../ui/icons'
 import { PinnedMark } from '../board/blockParts'
 import { SectionHeading } from '../ui/SectionHeading'
 import { cx, ICON_STROKE } from '../ui/styles'
@@ -87,7 +87,7 @@ function rangeOf(startMs: number, minutes: number, tz: string): string {
   )
 }
 
-export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: DayTimelineProps) {
+export function DayTimeline({ today, tz, title = en.today.blocks, toolbar }: DayTimelineProps) {
   const dayStart = today.day_starts_at === null ? null : Date.parse(today.day_starts_at)
   const dayEnd = today.day_ends_at === null ? null : Date.parse(today.day_ends_at)
   const { move, moving: isMoving } = useMoveBlock()
@@ -121,7 +121,7 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
     if (draggable || dragRef.current === null) return
     dragRef.current = null
     setDragState(null)
-    setAnnouncement(he.move.cancelled)
+    setAnnouncement(en.move.cancelled)
   }, [draggable])
 
   useLayoutEffect(() => {
@@ -169,13 +169,13 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
   function propose(block: Block, current: Drag, candidate: number) {
     if (candidate === current.candidate) return
     setDrag({ ...current, candidate })
-    setAnnouncement(he.move.candidate(rangeOf(candidate, blockMinutes(block), tz), free(block, candidate)))
+    setAnnouncement(en.move.candidate(rangeOf(candidate, blockMinutes(block), tz), free(block, candidate)))
   }
 
   function cancel() {
     if (dragRef.current === null) return
     setDrag(null)
-    setAnnouncement(he.move.cancelled)
+    setAnnouncement(en.move.cancelled)
   }
 
   function finish(block: Block) {
@@ -183,13 +183,13 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
     if (current?.id !== block.id) return
     setDrag(null)
     if (current.candidate === current.origin) {
-      if (current.mode === 'keyboard') setAnnouncement(he.move.cancelled)
+      if (current.mode === 'keyboard') setAnnouncement(en.move.cancelled)
       return
     }
     const problem = moveProblem(block, current.candidate, day)
     if (problem !== null) {
       toast.show({ text: codeText(problem), tone: 'error' })
-      setAnnouncement(he.move.refused)
+      setAnnouncement(en.move.refused)
       return
     }
     if (current.mode === 'keyboard') refocus.current = { id: block.id, seen: false }
@@ -201,7 +201,7 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
   function begin(block: Block, mode: Drag['mode'], extra: Partial<Drag> = {}) {
     const origin = Date.parse(block.starts_at)
     setDrag({ id: block.id, origin, candidate: origin, mode, ...extra })
-    if (mode === 'keyboard') setAnnouncement(he.move.candidate(formatRange(block, tz), true))
+    if (mode === 'keyboard') setAnnouncement(en.move.candidate(formatRange(block, tz), true))
   }
 
   function onKeyDown(block: Block, event: KeyboardEvent<HTMLButtonElement>) {
@@ -278,7 +278,7 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
         {toolbar}
       </div>
       <p id="timeline-instructions" className="sr-only">
-        {he.move.instructions}
+        {en.move.instructions}
       </p>
       <p role="status" className="sr-only">
         {announcement}
@@ -303,7 +303,7 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
           </div>
         ) : null}
 
-        <ol ref={listRef} aria-label={he.move.timelineLabel} className="absolute inset-y-0 start-14 end-2">
+        <ol ref={listRef} aria-label={en.move.timelineLabel} className="absolute inset-y-0 start-14 end-2">
           {blocks.map((block) => {
             const minutes = blockMinutes(block)
             const blockTop = top(Date.parse(block.starts_at))
@@ -338,13 +338,13 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
                       </span>
                       {block.state === 'upcoming' ? null : (
                         <>
-                          {he.move.detailsJoiner}
-                          <span>{he.board.states[block.state]}</span>
+                          {en.move.detailsJoiner}
+                          <span>{en.board.states[block.state]}</span>
                         </>
                       )}
                       {block.pinned ? (
                         <>
-                          {he.move.detailsJoiner}
+                          {en.move.detailsJoiner}
                           <PinnedMark />
                         </>
                       ) : null}
@@ -355,7 +355,7 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
                     <button
                       type="button"
                       data-handle={block.id}
-                      aria-label={he.move.handleLabel(blockName(block))}
+                      aria-label={en.move.handleLabel(blockName(block))}
                       aria-describedby="timeline-instructions"
                       aria-disabled={actions.pending(block.id) || undefined}
                       className="flex w-touch shrink-0 cursor-grab touch-none items-center justify-center text-ink-muted outline-none select-none hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset active:cursor-grabbing aria-disabled:cursor-not-allowed aria-disabled:text-line-strong aria-disabled:hover:bg-surface"
@@ -409,8 +409,8 @@ export function DayTimeline({ today, tz, title = he.today.blocks, toolbar }: Day
             <span dir="ltr" className="tabular-nums">
               {rangeOf(ghost.start, blockMinutes(ghost.block), tz)}
             </span>
-            {he.move.candidateJoiner}
-            {he.move.candidateState(ghost.ok)}
+            {en.move.candidateJoiner}
+            {en.move.candidateState(ghost.ok)}
           </div>
         )}
       </div>

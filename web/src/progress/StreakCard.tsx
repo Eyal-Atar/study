@@ -1,11 +1,11 @@
 import { useId } from 'react'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Card } from '../ui/Card'
 import { SectionHeading } from '../ui/SectionHeading'
 import { DayStrip } from './DayStrip'
 import type { Progress } from './types'
 
-const t = he.progress.streak
+const t = en.progress.streak
 
 // The streak in study days. Zero is an invitation, and a streak not yet extended today is still
 // alive until the day ends (plan decision 6), so the line under it only says what keeps it going.

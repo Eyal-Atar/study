@@ -2,13 +2,13 @@ import { screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { codeText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { COMPLETED_AT, meFixture } from '../onboarding/testFixtures'
 import { createFakeApi, problem, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
 
-const t = he.settings.deleteAccount
+const t = en.settings.deleteAccount
 
 function server() {
   return createFakeApi()
@@ -64,14 +64,14 @@ describe('DeleteAccountPage', () => {
     expect(
       await screen.findByRole('heading', {
         level: 1,
-        name: he.settings.goodbye.title,
+        name: en.settings.goodbye.title,
       }),
     ).toBeInTheDocument()
     expect(fake.calls('DELETE', '/me')).toHaveLength(1)
     expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' })
     expect(router.state.location.pathname).toBe('/goodbye')
     expect(visited).not.toContain('/login')
-    expect(screen.getByRole('link', { name: he.settings.goodbye.login })).toHaveAttribute('href', '/login')
+    expect(screen.getByRole('link', { name: en.settings.goodbye.login })).toHaveAttribute('href', '/login')
   })
 
   it('a failed delete shows the message, keeps the user signed in and enables the button again', async () => {
@@ -103,7 +103,7 @@ describe('DeleteAccountPage', () => {
     release({ job_id: 'j9' })
     await screen.findByRole('heading', {
       level: 1,
-      name: he.settings.goodbye.title,
+      name: en.settings.goodbye.title,
     })
   })
 })
@@ -114,9 +114,9 @@ describe('GoodbyePage', () => {
     expect(
       await screen.findByRole('heading', {
         level: 1,
-        name: he.settings.goodbye.title,
+        name: en.settings.goodbye.title,
       }),
     ).toBeInTheDocument()
-    expect(screen.getByText(he.settings.goodbye.body)).toBeInTheDocument()
+    expect(screen.getByText(en.settings.goodbye.body)).toBeInTheDocument()
   })
 })

@@ -1,4 +1,4 @@
-import { CalendarCheck, CircleCheck } from 'lucide-react'
+import { CalendarCheck, CircleCheck } from '../ui/icons'
 import { useEffect, useRef } from 'react'
 import { useLocation } from 'react-router'
 import { errorMessage } from '../api/client'
@@ -6,7 +6,7 @@ import { usePlan, useToday } from '../board/api'
 import { REPORT_HASH } from '../board/offerReplan'
 import { PlanReport } from '../board/PlanReport'
 import { dayLabel, formatDay, formatTime, useProfileTimezone } from '../board/time'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { DayProgress } from '../today/DayProgress'
 import { DayTimeline } from '../today/DayTimeline'
 import { NextBlock } from '../today/NextBlock'
@@ -46,7 +46,7 @@ export function TodayPage() {
   useScrollToReport((plan.data?.unplaced.length ?? 0) > 0)
 
   // Outside every condition: the h1 takes the focus after a navigation, before the data arrives.
-  const heading = <PageHeader title={he.today.title} subtitle={today.data === undefined ? undefined : formatDay(today.data.date)} />
+  const heading = <PageHeader title={en.today.title} subtitle={today.data === undefined ? undefined : formatDay(today.data.date)} />
 
   if (today.data === undefined) {
     return (
@@ -101,11 +101,11 @@ export function TodayPage() {
                 void today.refetch()
               }}
             >
-              {he.common.retry}
+              {en.common.retry}
             </Button>
           }
         >
-          {he.today.stale}
+          {en.today.stale}
         </Note>
       ) : null}
 
@@ -114,12 +114,12 @@ export function TodayPage() {
       {/* What to do now, in one place: the card, or what stands in for it while the week is unknown. */}
       {next !== undefined || planUnknown ? (
         <div className="space-y-2">
-          {todays.length === 0 ? <p className="text-small text-ink-muted">{he.today.noBlocksToday}</p> : null}
+          {todays.length === 0 ? <p className="text-small text-ink-muted">{en.today.noBlocksToday}</p> : null}
           {next !== undefined ? (
             <NextBlock
               block={next}
               tz={tz}
-              when={laterBlock === undefined ? undefined : he.today.nextAt(dayLabel(laterBlock.study_date, date), formatTime(laterBlock.starts_at, tz))}
+              when={laterBlock === undefined ? undefined : en.today.nextAt(dayLabel(laterBlock.study_date, date), formatTime(laterBlock.starts_at, tz))}
             />
           ) : null}
           {planUnknown && plan.isPending ? <LoadingState shape="card" /> : null}
@@ -132,11 +132,11 @@ export function TodayPage() {
                     void plan.refetch()
                   }}
                 >
-                  {he.common.retry}
+                  {en.common.retry}
                 </Button>
               }
             >
-              {he.today.planFailed}
+              {en.today.planFailed}
             </Note>
           ) : null}
         </div>
@@ -144,16 +144,16 @@ export function TodayPage() {
         // Nothing on the board at all: the way to a plan starts at the exams (S27 decision 11).
         <EmptyState
           icon={CalendarCheck}
-          title={he.today.noTasks}
-          description={he.today.noTasksHint}
+          title={en.today.noTasks}
+          description={en.today.noTasksHint}
           action={
             <ButtonLink to="/exams" variant="primary">
-              {he.today.toExams}
+              {en.today.toExams}
             </ButtonLink>
           }
         />
       ) : (
-        <EmptyState icon={CircleCheck} title={he.today.noMoreTasks} description={he.today.noMoreTasksHint} />
+        <EmptyState icon={CircleCheck} title={en.today.noMoreTasks} description={en.today.noMoreTasksHint} />
       )}
 
       <ReviewCard />
@@ -161,7 +161,7 @@ export function TodayPage() {
       {shown === 'timeline' ? (
         <DayTimeline today={today.data} tz={tz} toolbar={toolbar} />
       ) : (
-        <TodayBlocks title={nowBlock === undefined ? he.today.blocks : he.today.moreBlocks} blocks={rest} tz={tz} toolbar={toolbar} />
+        <TodayBlocks title={nowBlock === undefined ? en.today.blocks : en.today.moreBlocks} blocks={rest} tz={tz} toolbar={toolbar} />
       )}
 
       <PlanReport />

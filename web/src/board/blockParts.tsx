@@ -1,5 +1,5 @@
-import { CalendarClock, Ellipsis, Lock, LockOpen, MoveVertical, type LucideIcon } from 'lucide-react'
-import { he } from '../i18n/he'
+import { CalendarClock, Ellipsis, Lock, LockOpen, MoveVertical, type LucideIcon } from '../ui/icons'
+import { en } from '../i18n/en'
 import { Badge } from '../ui/Badge'
 import { IconButton } from '../ui/IconButton'
 import { Menu, MenuItem } from '../ui/Menu'
@@ -32,7 +32,7 @@ export function BlockMenu({ name, actions, onAction, isDisabled, variant = 'quie
   return (
     <Menu
       trigger={
-        <IconButton aria-label={he.board.actionsLabel(name)} variant={variant} isDisabled={isDisabled}>
+        <IconButton aria-label={en.board.actionsLabel(name)} variant={variant} isDisabled={isDisabled}>
           <Ellipsis aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
         </IconButton>
       }
@@ -64,7 +64,7 @@ const STATE_TONE = {
 // check and the struck title already say it (S27 decision 5).
 export function StateBadge({ block }: { block: Block }) {
   if (block.state === 'upcoming' || block.state === 'done') return null
-  return <Badge tone={STATE_TONE[block.state]}>{he.board.states[block.state]}</Badge>
+  return <Badge tone={STATE_TONE[block.state]}>{en.board.states[block.state]}</Badge>
 }
 
 // "Pinned" is not a state, so it is no badge: a small lock and the word, in the line of details
@@ -73,7 +73,7 @@ export function PinnedMark() {
   return (
     <span className="inline-flex items-center gap-1 align-middle whitespace-nowrap">
       <Lock aria-hidden="true" size={14} strokeWidth={ICON_STROKE} />
-      {he.board.pinned}
+      {en.board.pinned}
     </span>
   )
 }

@@ -1,5 +1,5 @@
 import { codeText, isKnownCode } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 
 // Every failure of a call to our API. `status` is 0 when there was no response at all,
 // with `code` 'network' or 'timeout'. `code` and `title` come from the application/problem+json body,
@@ -222,7 +222,7 @@ export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.code !== null && isKnownCode(error.code)) return codeText(error.code, error.details)
     if (error.title !== null) return error.title
-    if (error.status === 0) return he.errors.unreachable
+    if (error.status === 0) return en.errors.unreachable
   }
-  return he.errors.generic
+  return en.errors.generic
 }

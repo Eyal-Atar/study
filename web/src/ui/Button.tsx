@@ -1,4 +1,4 @@
-import { LoaderCircle } from 'lucide-react'
+import { LoaderCircle } from './icons'
 import {
   Button as AriaButton,
   type ButtonProps as AriaButtonProps,

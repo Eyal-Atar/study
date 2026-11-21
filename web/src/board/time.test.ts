@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { makeBlock } from '../test/boardFixtures'
 import {
   addDays,
@@ -31,7 +31,7 @@ describe('formatTime and formatRange', () => {
     const block = makeBlock({ starts_at: '2026-10-24T21:30:00Z', ends_at: '2026-10-24T23:30:00Z' })
     expect(formatRange(block, 'Asia/Jerusalem')).toBe('00:30–01:30')
     expect(blockMinutes(block)).toBe(120)
-    expect(durationText(blockMinutes(block))).toBe(he.board.twoHours)
+    expect(durationText(blockMinutes(block))).toBe(en.board.twoHours)
   })
 })
 
@@ -55,17 +55,17 @@ describe('dates', () => {
   })
 
   it('formatDay gives the Hebrew weekday and day.month from the date itself', () => {
-    expect(formatDay('2026-11-15')).toBe(he.board.day('ראשון', 15, 11))
-    expect(formatDay('2026-11-21')).toBe(he.board.day('שבת', 21, 11))
-    expect(formatDay('2026-10-25')).toBe(he.board.day('ראשון', 25, 10))
+    expect(formatDay('2026-11-15')).toBe(en.board.day('ראשון', 15, 11))
+    expect(formatDay('2026-11-21')).toBe(en.board.day('שבת', 21, 11))
+    expect(formatDay('2026-10-25')).toBe(en.board.day('ראשון', 25, 10))
   })
 
   it('dayLabel says today, tomorrow and yesterday, else the day', () => {
-    expect(dayLabel('2026-11-16', '2026-11-16')).toBe(he.board.today)
-    expect(dayLabel('2026-11-17', '2026-11-16')).toBe(he.board.tomorrow)
-    expect(dayLabel('2026-11-15', '2026-11-16')).toBe(he.board.yesterday)
+    expect(dayLabel('2026-11-16', '2026-11-16')).toBe(en.board.today)
+    expect(dayLabel('2026-11-17', '2026-11-16')).toBe(en.board.tomorrow)
+    expect(dayLabel('2026-11-15', '2026-11-16')).toBe(en.board.yesterday)
     expect(dayLabel('2026-11-19', '2026-11-16')).toBe(formatDay('2026-11-19'))
-    expect(dayLabel('2026-12-01', '2026-11-30')).toBe(he.board.tomorrow)
+    expect(dayLabel('2026-12-01', '2026-11-30')).toBe(en.board.tomorrow)
   })
 
   it('dateIn is the calendar day in the timezone', () => {
@@ -77,16 +77,16 @@ describe('dates', () => {
 
 describe('durationText', () => {
   it.each([
-    [1, he.board.minute],
-    [45, he.board.minutes(45)],
-    [60, he.board.hour],
-    [75, he.board.hoursAndMinutes(he.board.hour, 15)],
-    [90, he.board.hourAndHalf],
-    [120, he.board.twoHours],
-    [150, he.board.hours(2.5)],
-    [180, he.board.hours(3)],
-    [200, he.board.hoursAndMinutes(he.board.hours(3), 20)],
-    [300, he.board.hours(5)],
+    [1, en.board.minute],
+    [45, en.board.minutes(45)],
+    [60, en.board.hour],
+    [75, en.board.hoursAndMinutes(en.board.hour, 15)],
+    [90, en.board.hourAndHalf],
+    [120, en.board.twoHours],
+    [150, en.board.hours(2.5)],
+    [180, en.board.hours(3)],
+    [200, en.board.hoursAndMinutes(en.board.hours(3), 20)],
+    [300, en.board.hours(5)],
   ])('%i minutes', (minutes, text) => {
     expect(durationText(minutes)).toBe(text)
   })

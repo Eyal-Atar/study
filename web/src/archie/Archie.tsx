@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type RefObject } from 'react'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { cx } from '../ui/styles'
 import './archie.css'
 import { EMITTERS, type Particle } from './emitters'
@@ -122,7 +122,7 @@ function Illustration({ mood, size, decorative, eager = false, style, className 
       sizes={SIZES[size]}
       width={art.width}
       height={art.height}
-      alt={decorative ? '' : he.archie.alt[mood]}
+      alt={decorative ? '' : en.archie.alt[mood]}
       loading={eager ? 'eager' : 'lazy'}
       decoding="async"
       draggable={false}

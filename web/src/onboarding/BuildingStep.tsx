@@ -1,12 +1,12 @@
 import { useQueries, useQueryClient } from '@tanstack/react-query'
-import { CircleAlert } from 'lucide-react'
+import { CircleAlert } from '../ui/icons'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useApi } from '../api/ApiContext'
 import { errorMessage, type ApiError } from '../api/client'
 import { meKey, useUserId } from '../api/me'
 import { codeText, shortfallText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { ReplanOffer } from '../plan/ReplanOffer'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
@@ -51,10 +51,10 @@ function useMaterialsSettled(exams: Exam[] | undefined, examsDone: boolean): boo
 
 function stageText(job: Job<GenerateResult> | undefined): string {
   const stage = job?.stage
-  if (stage !== null && stage !== undefined && Object.hasOwn(he.building.stages, stage)) {
-    return he.building.stages[stage as keyof typeof he.building.stages]
+  if (stage !== null && stage !== undefined && Object.hasOwn(en.building.stages, stage)) {
+    return en.building.stages[stage as keyof typeof en.building.stages]
   }
-  return he.building.starting
+  return en.building.starting
 }
 
 // Step 4: waits for the materials, starts generate_plan once, and follows the job until it is done.
@@ -127,12 +127,12 @@ export function BuildingStep() {
         void navigate(STEP_PATHS.schedule)
       }}
     >
-      {he.common.back}
+      {en.common.back}
     </Button>
   )
 
   const names = useMemo(() => new Map((exams.data ?? []).map((exam) => [exam.id, exam.name])), [exams.data])
-  const examName = (id: string) => names.get(id) ?? he.building.unknownExam
+  const examName = (id: string) => names.get(id) ?? en.building.unknownExam
 
   async function toToday() {
     await queryClient.refetchQueries({ queryKey: meKey(userId) })
@@ -142,7 +142,7 @@ export function BuildingStep() {
   const replan = (
     <ReplanOffer
       isOpen={replanOpen}
-      reasonText={he.building.replanReason}
+      reasonText={en.building.replanReason}
       onClose={() => {
         setReplanOpen(false)
       }}
@@ -167,7 +167,7 @@ export function BuildingStep() {
       />
     )
   } else if (jobId === null) {
-    body = <Progress percent={0} text={settled ? he.building.starting : he.building.waitingMaterials} />
+    body = <Progress percent={0} text={settled ? en.building.starting : en.building.waitingMaterials} />
   } else if (job.isError) {
     body = (
       <Failure
@@ -178,7 +178,7 @@ export function BuildingStep() {
               void job.refetch()
             }}
           >
-            {he.common.retry}
+            {en.common.retry}
           </Button>
         }
       />
@@ -187,14 +187,14 @@ export function BuildingStep() {
     body = <Summary result={job.data.result} examName={examName} />
     actions = (
       <Button className="flex-1 md:flex-none" onPress={() => void toToday()}>
-        {he.building.toToday}
+        {en.building.toToday}
       </Button>
     )
   } else if (job.data?.status === 'failed' || job.data?.status === 'done') {
     const code = job.data.error ?? ''
     body = (
       <Failure
-        title={he.building.failedTitle}
+        title={en.building.failedTitle}
         text={codeText(code)}
         action={
           <>
@@ -204,11 +204,11 @@ export function BuildingStep() {
                   setReplanOpen(true)
                 }}
               >
-                {he.building.scheduleAnalyzed}
+                {en.building.scheduleAnalyzed}
               </Button>
             ) : (
               <Button isPending={generate.isPending} onPress={start}>
-                {he.common.retry}
+                {en.common.retry}
               </Button>
             )}
             {back}
@@ -224,8 +224,8 @@ export function BuildingStep() {
   return (
     <OnboardingLayout
       step={4}
-      title={done ? he.building.doneTitle : he.building.title}
-      {...(done ? {} : { intro: he.building.intro })}
+      title={done ? en.building.doneTitle : en.building.title}
+      {...(done ? {} : { intro: en.building.intro })}
       actions={actions}
     >
       {body}
@@ -242,7 +242,7 @@ function Progress({ percent, text }: { percent: number; text: string }) {
       <p aria-live="polite" className="text-body font-semibold text-ink">
         {text}
       </p>
-      <ProgressBar label={he.building.progressLabel} value={percent} />
+      <ProgressBar label={en.building.progressLabel} value={percent} />
     </div>
   )
 }
@@ -277,7 +277,7 @@ function GenerateFailure({
         text={errorMessage(error)}
         action={
           <>
-            <Button onPress={onReplan}>{he.building.scheduleAnalyzed}</Button>
+            <Button onPress={onReplan}>{en.building.scheduleAnalyzed}</Button>
             {back}
           </>
         }
@@ -289,7 +289,7 @@ function GenerateFailure({
       text={errorMessage(error)}
       action={
         <>
-          <Button onPress={onRetry}>{he.common.retry}</Button>
+          <Button onPress={onRetry}>{en.common.retry}</Button>
           {back}
         </>
       }
@@ -302,31 +302,31 @@ function Summary({ result, examName }: { result: GenerateResult; examName: (id: 
   const { plan } = result
   return (
     <div className="flex flex-col gap-section">
-      <p className="text-body text-ink tabular-nums">{he.building.blocks(plan.blocks)}</p>
+      <p className="text-body text-ink tabular-nums">{en.building.blocks(plan.blocks)}</p>
 
       {/* A partial failure is not a silent success. */}
       {anyFailed ? (
         <Note tone="warning" role="alert">
-          {he.building.someFailed}
+          {en.building.someFailed}
         </Note>
       ) : null}
 
       <section className="flex flex-col gap-1">
-        <SectionHeading>{he.building.examsTitle}</SectionHeading>
-        <List aria-label={he.building.examsTitle}>
+        <SectionHeading>{en.building.examsTitle}</SectionHeading>
+        <List aria-label={en.building.examsTitle}>
           {result.exams.map((exam) => (
             <ListRow
               key={exam.exam_id}
               title={<bdi>{examName(exam.exam_id)}</bdi>}
               subtitle={
                 <>
-                  {exam.status === 'analyzed' ? <p className="tabular-nums">{he.building.examTasks(exam.tasks)}</p> : null}
-                  {exam.status === 'skipped' ? <p>{he.building.examSkipped}</p> : null}
+                  {exam.status === 'analyzed' ? <p className="tabular-nums">{en.building.examTasks(exam.tasks)}</p> : null}
+                  {exam.status === 'skipped' ? <p>{en.building.examSkipped}</p> : null}
                   {exam.status === 'failed' ? (
                     // The icon and the words "לא נותח" carry the state; the colour only repeats it.
                     <p className="text-danger">
                       <CircleAlert aria-hidden="true" size={14} strokeWidth={ICON_STROKE} className="me-1 inline-block align-[-0.125em]" />
-                      {he.building.examFailed} {codeText(exam.error ?? '')}
+                      {en.building.examFailed} {codeText(exam.error ?? '')}
                     </p>
                   ) : null}
                   {exam.warnings.map((code) => (
@@ -336,11 +336,11 @@ function Summary({ result, examName }: { result: GenerateResult; examName: (id: 
                   ))}
                   {/* Topics without material are worth knowing and not worth reading now. */}
                   {exam.gaps.length > 0 ? (
-                    <Disclosure label={he.building.gapsTitle}>
+                    <Disclosure label={en.building.gapsTitle}>
                       <ul role="list" className="flex flex-col gap-1">
                         {exam.gaps.map((gap, index) => (
                           // Gaps have no id, and a topic may repeat with another note.
-                          <li key={index}>{he.building.gap(gap.topic, gap.note)}</li>
+                          <li key={index}>{en.building.gap(gap.topic, gap.note)}</li>
                         ))}
                       </ul>
                     </Disclosure>
@@ -353,7 +353,7 @@ function Summary({ result, examName }: { result: GenerateResult; examName: (id: 
       </section>
 
       {plan.unscheduled_count > 0 ? (
-        <Card tone="warning" title={he.building.unscheduled(plan.unscheduled_count)}>
+        <Card tone="warning" title={en.building.unscheduled(plan.unscheduled_count)}>
           {plan.shortfalls.length > 0 ? (
             <ul role="list" className="flex flex-col gap-1 text-small">
               {plan.shortfalls.map((s) => (

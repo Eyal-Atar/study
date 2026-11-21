@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { fillBootTexts } from './bootTexts'
 
 // Read by path: Vite rewrites new URL('…html', import.meta.url) into an asset URL.
@@ -29,7 +29,7 @@ describe('the boot fallback in index.html', () => {
     vi.useRealTimers()
   })
 
-  it('has its texts filled in from he.ts', () => {
+  it('has its texts filled in from en.ts', () => {
     expect(script).not.toBe('')
     expect(html).not.toContain('%BOOT_TEXTS%')
   })
@@ -40,17 +40,17 @@ describe('the boot fallback in index.html', () => {
     vi.advanceTimersByTime(8000)
 
     const root = document.getElementById('root')
-    expect(root?.textContent).toContain(he.crash.title)
-    expect(root?.textContent).toContain(he.crash.body)
+    expect(root?.textContent).toContain(en.crash.title)
+    expect(root?.textContent).toContain(en.crash.body)
     expect(root?.textContent).toContain('SyntaxError: Unexpected token')
-    expect(root?.querySelector('button')?.textContent).toBe(he.crash.reload)
+    expect(root?.querySelector('button')?.textContent).toBe(en.crash.reload)
   })
 
   it('leaves a mounted app alone', () => {
     boot()
     document.getElementById('root')?.append(document.createElement('main'))
     vi.advanceTimersByTime(8000)
-    expect(document.getElementById('root')?.textContent).not.toContain(he.crash.title)
+    expect(document.getElementById('root')?.textContent).not.toContain(en.crash.title)
   })
 
   it('writes an error as text, never as markup', () => {

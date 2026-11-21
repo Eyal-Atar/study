@@ -3,7 +3,7 @@ import { useCallback } from 'react'
 import { useApi } from '../api/ApiContext'
 import { ApiError, errorMessage } from '../api/client'
 import { codeText, unscheduledText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { UNDO_TIMEOUT_MS, useToast } from '../ui/useToast'
 import { useBlockActions } from './actions'
 import { boardKey, reviewKey, todayKey, useBoardUserId } from './api'
@@ -108,7 +108,7 @@ export function useReviewActions(): ReviewActions {
   }
 
   function undoToast(text: string, onUndo: () => void) {
-    toast.show({ text, tone: 'success', action: { label: he.common.undo, onAction: onUndo }, timeoutMs: UNDO_TIMEOUT_MS })
+    toast.show({ text, tone: 'success', action: { label: en.common.undo, onAction: onUndo }, timeoutMs: UNDO_TIMEOUT_MS })
   }
 
   function undoVersion(versionId: string, doneText: string) {
@@ -148,7 +148,7 @@ export function useReviewActions(): ReviewActions {
             text: codeText('no_time_today'),
             tone: 'info',
             action: {
-              label: he.review.moveNext,
+              label: en.review.moveNext,
               onAction: () => {
                 moveMutation.mutate({ block, todayOnly: false })
               },
@@ -168,13 +168,13 @@ export function useReviewActions(): ReviewActions {
       // "Today" is the server's study day (after midnight, before sleep, it is still yesterday's date).
       const today = context.today ?? dateIn(tz)
       const text =
-        next === undefined ? he.review.movedSomewhere : he.review.moved(dayLabel(next.study_date, today), formatTime(next.starts_at, tz))
+        next === undefined ? en.review.movedSomewhere : en.review.moved(dayLabel(next.study_date, today), formatTime(next.starts_at, tz))
       const versionId = result.version_id
       if (versionId === null) {
         toast.show({ text, tone: 'success' })
       } else {
         undoToast(text, () => {
-          undoVersion(versionId, he.review.moveUndone)
+          undoVersion(versionId, en.review.moveUndone)
         })
       }
     },
@@ -186,13 +186,13 @@ export function useReviewActions(): ReviewActions {
     mutationFn: ({ block }) => api.post<SkipResult>(`/blocks/${block.id}/skip`),
     onError: fail,
     onSuccess: (result, { block }) => {
-      const text = he.review.skipped(block.task_title)
+      const text = en.review.skipped(block.task_title)
       const versionId = result.version_id
       if (versionId === null) {
         toast.show({ text, tone: 'success' })
       } else {
         undoToast(text, () => {
-          undoVersion(versionId, he.review.skipUndone)
+          undoVersion(versionId, en.review.skipUndone)
         })
       }
     },

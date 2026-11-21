@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { codeText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { makeBlock, makeMe, makePlan, makeToday, renderBoard, USER_ID } from '../test/boardFixtures'
 import { createFakeApi, problem } from '../test/fakeApi'
 import { todayKey } from './api'
@@ -34,19 +34,19 @@ function setup({ reply = slots(['2026-11-16T13:00:00Z', '2026-11-16T13:30:00Z'])
 }
 
 async function toasts() {
-  return within(await screen.findByRole('region', { name: he.common.notifications }))
+  return within(await screen.findByRole('region', { name: en.common.notifications }))
 }
 
 // "הזזה" is in the row's menu (S27): the menu button, then the item.
 async function openMenuItem(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('button', { name: he.board.actionsLabel(TITLE) }))
-  await user.click(await screen.findByRole('menuitem', { name: he.move.move }))
+  await user.click(screen.getByRole('button', { name: en.board.actionsLabel(TITLE) }))
+  await user.click(await screen.findByRole('menuitem', { name: en.move.move }))
 }
 
 async function openDialog() {
   const user = userEvent.setup()
   await openMenuItem(user)
-  const dialog = await screen.findByRole('dialog', { name: he.move.dialogTitle(TITLE) })
+  const dialog = await screen.findByRole('dialog', { name: en.move.dialogTitle(TITLE) })
   return { user, dialog: within(dialog) }
 }
 
@@ -54,11 +54,11 @@ describe('MoveDialog', () => {
   it('lists the free times, and moving sends PATCH with the chosen start', async () => {
     const { fake, queryClient } = setup()
     const { user, dialog } = await openDialog()
-    const list = await dialog.findByRole('listbox', { name: he.move.slotsLabel })
+    const list = await dialog.findByRole('listbox', { name: en.move.slotsLabel })
     // The cache holds today (after the sign-in settled, which clears it), so the optimistic move shows in it.
     queryClient.setQueryData<Today>(todayKey(USER_ID), makeToday([BLOCK]))
     expect(within(list).getAllByRole('option').map((o) => o.textContent)).toEqual(['15:00', '15:30'])
-    expect(dialog.getByRole('button', { name: he.move.confirm })).toBeDisabled()
+    expect(dialog.getByRole('button', { name: en.move.confirm })).toBeDisabled()
 
     fake.on(`PATCH /blocks/${BLOCK.id}`, (call: { body: { starts_at: string } }) => ({
       ...BLOCK,
@@ -67,7 +67,7 @@ describe('MoveDialog', () => {
       pinned: true,
     }))
     await user.click(within(list).getByRole('option', { name: '15:30' }))
-    await user.click(dialog.getByRole('button', { name: he.move.confirm }))
+    await user.click(dialog.getByRole('button', { name: en.move.confirm }))
 
     await waitFor(() => {
       expect(fake.calls('PATCH', `/blocks/${BLOCK.id}`)).toEqual([
@@ -81,29 +81,29 @@ describe('MoveDialog', () => {
     expect(moved?.pinned).toBe(true)
 
     const region = await toasts()
-    expect(await region.findByText(he.move.moved('15:30'))).toBeInTheDocument()
-    await user.click(region.getByRole('button', { name: he.common.undo }))
+    expect(await region.findByText(en.move.moved('15:30'))).toBeInTheDocument()
+    await user.click(region.getByRole('button', { name: en.common.undo }))
     await waitFor(() => {
       expect(fake.calls('PATCH', `/blocks/${BLOCK.id}`)[1]?.body).toEqual({ starts_at: BLOCK.starts_at, pinned: false })
     })
     // The region mounts again once the first toast went, so look it up again.
-    expect(await (await toasts()).findByText(he.move.undone)).toBeInTheDocument()
+    expect(await (await toasts()).findByText(en.move.undone)).toBeInTheDocument()
   })
 
   it('says so when there is no other free time', async () => {
     setup({ reply: slots([]) })
     const { dialog } = await openDialog()
-    expect(await dialog.findByText(he.move.empty)).toBeInTheDocument()
-    expect(dialog.queryByRole('button', { name: he.move.confirm })).not.toBeInTheDocument()
-    expect(dialog.getByRole('button', { name: he.common.cancel })).toBeInTheDocument()
+    expect(await dialog.findByText(en.move.empty)).toBeInTheDocument()
+    expect(dialog.queryByRole('button', { name: en.move.confirm })).not.toBeInTheDocument()
+    expect(dialog.getByRole('button', { name: en.common.cancel })).toBeInTheDocument()
   })
 
   it('shows a failed load with a retry', async () => {
     const { fake } = setup({ reply: problem(0, 'network') })
     const { user, dialog } = await openDialog()
-    expect(await dialog.findByRole('alert')).toHaveTextContent(he.move.loadFailed)
+    expect(await dialog.findByRole('alert')).toHaveTextContent(en.move.loadFailed)
     fake.on(`GET /blocks/${BLOCK.id}/slots`, slots(['2026-11-16T13:00:00Z']))
-    await user.click(dialog.getByRole('button', { name: he.common.retry }))
+    await user.click(dialog.getByRole('button', { name: en.common.retry }))
     expect(await dialog.findByRole('option', { name: '15:00' })).toBeInTheDocument()
   })
 
@@ -111,7 +111,7 @@ describe('MoveDialog', () => {
     const { fake } = setup()
     const { user, dialog } = await openDialog()
     await dialog.findByRole('listbox')
-    await user.click(dialog.getByRole('button', { name: he.common.cancel }))
+    await user.click(dialog.getByRole('button', { name: en.common.cancel }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(fake.calls('PATCH')).toHaveLength(0)
   })
@@ -123,7 +123,7 @@ describe('MoveDialog', () => {
     const option = await dialog.findByRole('option', { name: '15:00' })
     queryClient.setQueryData<Today>(todayKey(USER_ID), makeToday([BLOCK]))
     await user.click(option)
-    await user.click(dialog.getByRole('button', { name: he.move.confirm }))
+    await user.click(dialog.getByRole('button', { name: en.move.confirm }))
 
     const region = await toasts()
     expect(await region.findByText(codeText('slot_taken'))).toBeInTheDocument()
@@ -135,8 +135,8 @@ describe('MoveDialog', () => {
   it('names itself after the block, says what moving does, and shows the time the block has now', async () => {
     setup()
     await openDialog()
-    const dialog = screen.getByRole('dialog', { name: he.move.dialogTitle(TITLE) })
-    expect(dialog).toHaveAccessibleDescription(he.move.dialogLead)
+    const dialog = screen.getByRole('dialog', { name: en.move.dialogTitle(TITLE) })
+    expect(dialog).toHaveAccessibleDescription(en.move.dialogLead)
     expect(within(dialog).getByText(formatRange(BLOCK, 'Asia/Jerusalem'))).toHaveAttribute('dir', 'ltr')
   })
 
@@ -146,11 +146,11 @@ describe('MoveDialog', () => {
     const option = await dialog.findByRole('option', { name: '15:00' })
     await user.click(option)
     expect(option).toHaveAttribute('aria-selected', 'true')
-    expect(dialog.getByRole('button', { name: he.move.confirm })).toBeEnabled()
+    expect(dialog.getByRole('button', { name: en.move.confirm })).toBeEnabled()
 
     await user.click(option)
     expect(option).toHaveAttribute('aria-selected', 'false')
-    expect(dialog.getByRole('button', { name: he.move.confirm })).toBeDisabled()
+    expect(dialog.getByRole('button', { name: en.move.confirm })).toBeDisabled()
     expect(fake.calls('PATCH')).toHaveLength(0)
   })
 
@@ -158,7 +158,7 @@ describe('MoveDialog', () => {
     const { fake } = setup()
     const { user, dialog } = await openDialog()
     await dialog.findByRole('listbox')
-    await user.click(dialog.getByRole('button', { name: he.common.close }))
+    await user.click(dialog.getByRole('button', { name: en.common.close }))
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
@@ -169,7 +169,7 @@ describe('MoveDialog', () => {
     const { fake } = setup()
     const { user, dialog } = await openDialog()
     await user.click(await dialog.findByRole('option', { name: '15:00' }))
-    await user.click(dialog.getByRole('button', { name: he.common.cancel }))
+    await user.click(dialog.getByRole('button', { name: en.common.cancel }))
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
@@ -179,11 +179,11 @@ describe('MoveDialog', () => {
     expect(before).toBeGreaterThan(0)
 
     await openMenuItem(user)
-    const again = within(await screen.findByRole('dialog', { name: he.move.dialogTitle(TITLE) }))
+    const again = within(await screen.findByRole('dialog', { name: en.move.dialogTitle(TITLE) }))
     await waitFor(() => {
       expect(fake.calls('GET', `/blocks/${BLOCK.id}/slots`).length).toBeGreaterThan(before)
     })
     expect(await again.findByRole('option', { name: '15:00' })).toHaveAttribute('aria-selected', 'false')
-    expect(again.getByRole('button', { name: he.move.confirm })).toBeDisabled()
+    expect(again.getByRole('button', { name: en.move.confirm })).toBeDisabled()
   })
 })

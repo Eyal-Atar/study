@@ -1,12 +1,12 @@
 import { errorMessage } from '../api/client'
 import { unscheduledText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { useReplanOffer } from '../plan/replanOfferContext'
 import { useToast } from '../ui/useToast'
 import { useTaskUndo } from './api'
 import type { TaskWriteResponse } from './types'
 
-const t = he.exam.tasks
+const t = en.exam.tasks
 
 // What the screen says after a task write (plan decision "small change", spec 7.6 step 8):
 // - placement null: the board did not need to change, "נשמר".
@@ -32,7 +32,7 @@ export function usePlacementFeedback() {
     toast.show({
       text: texts.placed,
       action: {
-        label: he.common.undo,
+        label: en.common.undo,
         onAction: () => {
           undo(versionId).then(
             () => toast.show({ text: t.undone, tone: 'success' }),
@@ -56,7 +56,7 @@ export function useTaskDeleteFeedback() {
         ? {}
         : {
             action: {
-              label: he.common.undo,
+              label: en.common.undo,
               onAction: () => {
                 undo(versionId).then(
                   () => toast.show({ text: t.restored, tone: 'success' }),

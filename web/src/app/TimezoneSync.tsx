@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useMe, useUserId } from '../api/me'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { useUpdateMe } from '../onboarding/api'
 import { useReplanOffer } from '../plan/replanOfferContext'
 import { useToast } from '../ui/useToast'
@@ -40,11 +40,11 @@ export function TimezoneSync() {
         onSuccess: (answer) => {
           if (!answer.plan_affected || completed === null || completed === undefined) return
           toast.show({
-            text: he.replan.timezoneChanged,
+            text: en.replan.timezoneChanged,
             action: {
-              label: he.replan.showChange,
+              label: en.replan.showChange,
               onAction: () => {
-                offer(he.replan.timezoneReason)
+                offer(en.replan.timezoneReason)
               },
             },
           })

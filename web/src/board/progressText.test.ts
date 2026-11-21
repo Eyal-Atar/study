@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { makeBlock } from '../test/boardFixtures'
 import { completeText } from './progressText'
 import type { ProgressChange } from './types'
@@ -10,12 +10,12 @@ function progress(overrides: Partial<ProgressChange> = {}): ProgressChange {
 
 describe('completeText', () => {
   it('without progress (an API before S19) is the plain text', () => {
-    expect(completeText({ block: makeBlock(), task_status: 'done' }, false)).toBe(he.board.completed)
+    expect(completeText({ block: makeBlock(), task_status: 'done' }, false)).toBe(en.board.completed)
   })
 
   it('adds the XP gained', () => {
     expect(completeText({ block: makeBlock(), task_status: 'done', progress: progress() }, false)).toBe(
-      `${he.board.completed}. ${he.board.xpGained(10)}`,
+      `${en.board.completed}. ${en.board.xpGained(10)}`,
     )
   })
 
@@ -26,10 +26,10 @@ describe('completeText', () => {
     )
     expect(text).toBe(
       [
-        he.board.completed,
-        he.board.xpGained(10),
-        he.board.levelUp(3),
-        he.board.badgeEarned(`${he.progress.badges.items.first_task.name}, ${he.progress.badges.unknown.name}`),
+        en.board.completed,
+        en.board.xpGained(10),
+        en.board.levelUp(3),
+        en.board.badgeEarned(`${en.progress.badges.items.first_task.name}, ${en.progress.badges.unknown.name}`),
       ].join('. '),
     )
   })
@@ -39,10 +39,10 @@ describe('completeText', () => {
       { block: makeBlock(), task_status: 'todo', progress: progress({ xp_change: -10, badges_lost: ['first_task'] }) },
       true,
     )
-    expect(text).toBe(`${he.board.uncompleted}. ${he.board.xpLost(10)}`)
+    expect(text).toBe(`${en.board.uncompleted}. ${en.board.xpLost(10)}`)
   })
 
   it('no XP change adds nothing', () => {
-    expect(completeText({ block: makeBlock(), task_status: 'done', progress: progress({ xp_change: 0 }) }, false)).toBe(he.board.completed)
+    expect(completeText({ block: makeBlock(), task_status: 'done', progress: progress({ xp_change: 0 }) }, false)).toBe(en.board.completed)
   })
 })

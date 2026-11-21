@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useToday } from '../board/api'
 import type { Block, Today } from '../board/types'
 import { codeText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { makeBlock, makeMe, makePlan, makeToday, renderBoard } from '../test/boardFixtures'
 import { createFakeApi, type ApiCall } from '../test/fakeApi'
 import { DayTimeline, PX_PER_MINUTE } from './DayTimeline'
@@ -60,7 +60,7 @@ function setup(blocks: Block[] = [A, B, DONE]) {
 }
 
 async function handle(block: Block) {
-  return screen.findByRole('button', { name: he.move.handleLabel(block.task_title) })
+  return screen.findByRole('button', { name: en.move.handleLabel(block.task_title) })
 }
 
 function itemOf(element: HTMLElement) {
@@ -70,7 +70,7 @@ function itemOf(element: HTMLElement) {
 }
 
 function live() {
-  return within(screen.getByRole('region', { name: he.today.blocks })).getByRole('status')
+  return within(screen.getByRole('region', { name: en.today.blocks })).getByRole('status')
 }
 
 function patches(fake: ReturnType<typeof setup>['fake']) {
@@ -90,16 +90,16 @@ describe('DayTimeline', () => {
   it('shows the hours, the blocks with their times, and a handle only on upcoming blocks', async () => {
     setup()
     await handle(A)
-    const list = screen.getByRole('list', { name: he.move.timelineLabel })
+    const list = screen.getByRole('list', { name: en.move.timelineLabel })
     expect(within(list).getByText(A.task_title)).toBeInTheDocument()
     expect(within(list).getByText('14:00–15:00')).toBeInTheDocument()
     expect(within(list).getByText(DONE.task_title)).toBeInTheDocument()
     expect(screen.getByText('07:00')).toBeInTheDocument()
     expect(screen.getByText('22:00')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: he.move.handleLabel(DONE.task_title) })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: en.move.handleLabel(DONE.task_title) })).not.toBeInTheDocument()
     // The handle says how to use the keyboard.
     const grip = await handle(A)
-    expect(grip).toHaveAccessibleDescription(he.move.instructions)
+    expect(grip).toHaveAccessibleDescription(en.move.instructions)
   })
 
   it('a drag to free time sends PATCH with a start on the 15-minute grid', async () => {
@@ -108,7 +108,7 @@ describe('DayTimeline', () => {
     fireEvent.pointerDown(grip, { pointerId: 1, button: 0, clientY: 500 })
     // An hour down: 15:00 local, touching B, which is allowed.
     fireEvent.pointerMove(grip, { pointerId: 1, clientY: 500 + 60 * PX_PER_MINUTE })
-    expect(live()).toHaveTextContent(he.move.candidate('15:00–16:00', true))
+    expect(live()).toHaveTextContent(en.move.candidate('15:00–16:00', true))
     fireEvent.pointerUp(grip, { pointerId: 1, clientY: 500 + 60 * PX_PER_MINUTE })
 
     await waitFor(() => {
@@ -116,8 +116,8 @@ describe('DayTimeline', () => {
     })
     // Shown at once where it moved, and pinned.
     expect(itemOf(grip).getByText('15:00–16:00')).toBeInTheDocument()
-    expect(itemOf(grip).getByText(he.board.pinned)).toBeInTheDocument()
-    expect(await screen.findByText(he.move.moved('15:00'))).toBeInTheDocument()
+    expect(itemOf(grip).getByText(en.board.pinned)).toBeInTheDocument()
+    expect(await screen.findByText(en.move.moved('15:00'))).toBeInTheDocument()
   })
 
   it('a drag onto another block sends nothing, says so, and puts the block back', async () => {
@@ -125,7 +125,7 @@ describe('DayTimeline', () => {
     const grip = await handle(A)
     fireEvent.pointerDown(grip, { pointerId: 1, button: 0, clientY: 500 })
     fireEvent.pointerMove(grip, { pointerId: 1, clientY: 500 + 120 * PX_PER_MINUTE })
-    expect(live()).toHaveTextContent(he.move.candidate('16:00–17:00', false))
+    expect(live()).toHaveTextContent(en.move.candidate('16:00–17:00', false))
     fireEvent.pointerUp(grip, { pointerId: 1, clientY: 500 + 120 * PX_PER_MINUTE })
 
     expect(await screen.findByText(codeText('slot_taken'))).toBeInTheDocument()
@@ -139,11 +139,11 @@ describe('DayTimeline', () => {
     fireEvent.pointerDown(grip, { pointerId: 1, button: 0, clientY: 500 })
     fireEvent.pointerMove(grip, { pointerId: 1, clientY: 500 + 60 * PX_PER_MINUTE })
     const free = document.querySelector('[data-ghost="free"]')
-    expect(free).toHaveTextContent(he.move.candidate('15:00–16:00', true))
+    expect(free).toHaveTextContent(en.move.candidate('15:00–16:00', true))
     expect(free?.querySelector('[dir="ltr"]')).toHaveTextContent(/^15:00–16:00$/)
     fireEvent.pointerMove(grip, { pointerId: 1, clientY: 500 + 120 * PX_PER_MINUTE })
     const taken = document.querySelector('[data-ghost="taken"]')
-    expect(taken).toHaveTextContent(he.move.candidate('16:00–17:00', false))
+    expect(taken).toHaveTextContent(en.move.candidate('16:00–17:00', false))
     fireEvent.pointerCancel(grip, { pointerId: 1 })
   })
 
@@ -156,7 +156,7 @@ describe('DayTimeline', () => {
     const item = done.closest('li')
     expect(item?.querySelector('.bg-success-soft')).not.toBeNull()
     expect(item?.querySelector('.text-ink-muted')).toBeNull()
-    expect(within(item as HTMLElement).getByText(he.board.states.done)).toBeInTheDocument()
+    expect(within(item as HTMLElement).getByText(en.board.states.done)).toBeInTheDocument()
   })
 
   it('a small drag moves in 15-minute steps, and a tiny one does nothing', async () => {
@@ -170,7 +170,7 @@ describe('DayTimeline', () => {
     // 10 px is about 8 minutes: the nearest quarter hour is 14:15.
     fireEvent.pointerDown(grip, { pointerId: 2, button: 0, clientY: 500 })
     fireEvent.pointerMove(grip, { pointerId: 2, clientY: 510 })
-    expect(live()).toHaveTextContent(he.move.candidate('14:15–15:15', true))
+    expect(live()).toHaveTextContent(en.move.candidate('14:15–15:15', true))
     fireEvent.pointerUp(grip, { pointerId: 2, clientY: 510 })
     await waitFor(() => {
       expect(patches(fake)).toEqual([{ starts_at: '2026-11-16T12:15:00.000Z' }])
@@ -196,15 +196,15 @@ describe('DayTimeline', () => {
       grip.focus()
     })
     await user.keyboard('{Enter}{ArrowDown}{ArrowDown}')
-    expect(live()).toHaveTextContent(he.move.candidate('14:30–15:30', true))
+    expect(live()).toHaveTextContent(en.move.candidate('14:30–15:30', true))
     // Left and right do nothing: the axis is vertical, in RTL as well.
     await user.keyboard('{ArrowLeft}{ArrowRight}')
-    expect(live()).toHaveTextContent(he.move.candidate('14:30–15:30', true))
+    expect(live()).toHaveTextContent(en.move.candidate('14:30–15:30', true))
     await user.keyboard('{Enter}')
     await waitFor(() => {
       expect(patches(fake)).toEqual([{ starts_at: '2026-11-16T12:30:00.000Z' }])
     })
-    expect(itemOf(grip).getByText(he.board.pinned)).toBeInTheDocument()
+    expect(itemOf(grip).getByText(en.board.pinned)).toBeInTheDocument()
     expect(grip).toHaveFocus()
   })
 
@@ -216,7 +216,7 @@ describe('DayTimeline', () => {
       grip.focus()
     })
     await user.keyboard('{Enter}{ArrowDown}{Escape}')
-    expect(live()).toHaveTextContent(he.move.cancelled)
+    expect(live()).toHaveTextContent(en.move.cancelled)
     await user.keyboard('{Enter}{Escape}')
     expect(patches(fake)).toEqual([])
     expect(itemOf(grip).getByText('14:00–15:00')).toBeInTheDocument()
@@ -230,7 +230,7 @@ describe('DayTimeline', () => {
       grip.focus()
     })
     await user.keyboard('{Enter}{PageDown}{PageDown}')
-    expect(live()).toHaveTextContent(he.move.candidate('16:00–17:00', false))
+    expect(live()).toHaveTextContent(en.move.candidate('16:00–17:00', false))
     await user.keyboard('{Enter}')
     expect(await screen.findByText(codeText('slot_taken'))).toBeInTheDocument()
     expect(patches(fake)).toEqual([])
@@ -251,9 +251,9 @@ describe('DayTimeline', () => {
       grip.focus()
     })
     await user.keyboard('{Enter}{PageUp}{PageUp}{PageUp}{PageUp}{PageUp}')
-    expect(live()).toHaveTextContent(he.move.candidate('09:15–10:15', true))
+    expect(live()).toHaveTextContent(en.move.candidate('09:15–10:15', true))
     await user.keyboard('{PageUp}{ArrowUp}')
-    expect(live()).toHaveTextContent(he.move.candidate('09:15–10:15', true))
+    expect(live()).toHaveTextContent(en.move.candidate('09:15–10:15', true))
     await user.keyboard('{Enter}')
     await waitFor(() => {
       expect(patches(fake)).toEqual([{ starts_at: '2026-11-16T07:15:00.000Z' }])
@@ -268,7 +268,7 @@ describe('DayTimeline', () => {
     expect(document.querySelector('[data-ghost]')).not.toBeNull()
     fireEvent.lostPointerCapture(grip, { pointerId: 1 })
     expect(document.querySelector('[data-ghost]')).toBeNull()
-    expect(live()).toHaveTextContent(he.move.cancelled)
+    expect(live()).toHaveTextContent(en.move.cancelled)
     fireEvent.pointerUp(grip, { pointerId: 1, clientY: 500 + 60 * PX_PER_MINUTE })
     expect(patches(fake)).toEqual([])
   })
@@ -283,10 +283,10 @@ describe('DayTimeline', () => {
     state.today = { ...state.today, blocks: state.today.blocks.map((b) => (b.id === A.id ? { ...b, state: 'in_progress' } : b)) }
     await act(() => queryClient.invalidateQueries())
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: he.move.handleLabel(A.task_title) })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: en.move.handleLabel(A.task_title) })).not.toBeInTheDocument()
     })
     expect(document.querySelector('[data-ghost]')).toBeNull()
-    expect(live()).toHaveTextContent(he.move.cancelled)
+    expect(live()).toHaveTextContent(en.move.cancelled)
 
     // Upcoming again: a fresh handle with no move left over.
     state.today = { ...state.today, blocks: state.today.blocks.map((b) => (b.id === A.id ? { ...b, state: 'upcoming' } : b)) }

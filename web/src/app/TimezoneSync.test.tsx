@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { COMPLETED_AT, examFixture, jobFixture, meFixture, previewFixture } from '../onboarding/testFixtures'
 import { createFakeApi, type ApiCall } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
@@ -39,12 +39,12 @@ describe('TimezoneSync', () => {
     const fake = server({ completedAt: COMPLETED_AT, planAffected: true })
     open(fake, '/today')
 
-    expect(await screen.findByText(he.replan.timezoneChanged)).toBeInTheDocument()
+    expect(await screen.findByText(en.replan.timezoneChanged)).toBeInTheDocument()
     expect(fake.calls('PATCH', '/me')).toEqual([{ method: 'PATCH', path: '/me', body: { timezone: ZONE } }])
 
-    await user.click(screen.getByRole('button', { name: he.replan.showChange }))
-    const dialog = await screen.findByRole('dialog', { name: he.replan.title })
-    expect(within(dialog).getByText(he.replan.timezoneReason)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: en.replan.showChange }))
+    const dialog = await screen.findByRole('dialog', { name: en.replan.title })
+    expect(within(dialog).getByText(en.replan.timezoneReason)).toBeInTheDocument()
     await waitFor(() => {
       expect(fake.calls('POST', '/plan/replan')).toHaveLength(1)
     })
@@ -63,7 +63,7 @@ describe('TimezoneSync', () => {
     await screen.findByRole('progressbar')
     // Let the PATCH answer arrive.
     await new Promise((resolve) => setTimeout(resolve, 50))
-    expect(screen.queryByText(he.replan.timezoneChanged)).not.toBeInTheDocument()
+    expect(screen.queryByText(en.replan.timezoneChanged)).not.toBeInTheDocument()
   })
 
   it('no offer when the plan is not affected', async () => {
@@ -75,7 +75,7 @@ describe('TimezoneSync', () => {
       expect(fake.calls('PATCH', '/me')).toHaveLength(1)
     })
     await new Promise((resolve) => setTimeout(resolve, 50))
-    expect(screen.queryByText(he.replan.timezoneChanged)).not.toBeInTheDocument()
+    expect(screen.queryByText(en.replan.timezoneChanged)).not.toBeInTheDocument()
   })
 
   it('the same zone sends nothing', async () => {
@@ -83,7 +83,7 @@ describe('TimezoneSync', () => {
     const fake = server({ completedAt: COMPLETED_AT, planAffected: true })
     open(fake, '/today')
 
-    expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: en.today.title })).toBeInTheDocument()
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(fake.calls('PATCH', '/me')).toHaveLength(0)
   })

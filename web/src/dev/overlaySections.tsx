@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
 import { TextField } from '../ui/TextField'
@@ -40,7 +40,7 @@ export function DialogSection() {
                   setRegularOpen(false)
                 }}
               >
-                {he.common.save}
+                {en.common.save}
               </Button>
               <Button
                 variant="secondary"
@@ -48,7 +48,7 @@ export function DialogSection() {
                   setRegularOpen(false)
                 }}
               >
-                {he.common.cancel}
+                {en.common.cancel}
               </Button>
             </>
           }
@@ -81,7 +81,7 @@ export function DialogSection() {
                   setAlertOpen(false)
                 }}
               >
-                {he.common.delete}
+                {en.common.delete}
               </Button>
               <Button
                 variant="secondary"
@@ -89,7 +89,7 @@ export function DialogSection() {
                   setAlertOpen(false)
                 }}
               >
-                {he.common.cancel}
+                {en.common.cancel}
               </Button>
             </>
           }
@@ -120,7 +120,7 @@ export function DialogSection() {
           footer={
             <>
               <Button type="submit" className="flex-1">
-                {he.common.save}
+                {en.common.save}
               </Button>
               <Button
                 variant="secondary"
@@ -128,7 +128,7 @@ export function DialogSection() {
                   setFormOpen(false)
                 }}
               >
-                {he.common.cancel}
+                {en.common.cancel}
               </Button>
             </>
           }
@@ -184,7 +184,7 @@ export function ToastSection() {
             toast.show({
               text: t.toast.undoText,
               action: {
-                label: he.common.undo,
+                label: en.common.undo,
                 onAction: () => {
                   toast.show({ text: t.toast.undone })
                 },

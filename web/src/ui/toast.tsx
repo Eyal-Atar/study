@@ -1,4 +1,4 @@
-import { CircleAlert, CircleCheck, X, type LucideIcon } from 'lucide-react'
+import { CircleAlert, CircleCheck, X, type LucideIcon } from './icons'
 import { useMemo, useState, type ReactNode } from 'react'
 import {
   UNSTABLE_Toast as AriaToast,
@@ -7,7 +7,7 @@ import {
   UNSTABLE_ToastRegion as AriaToastRegion,
   Text,
 } from 'react-aria-components'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from './Button'
 import { IconButton } from './IconButton'
 import { cx, FOCUS_RING, ICON_STROKE } from './styles'
@@ -64,7 +64,7 @@ export function ToastRegion() {
   return (
     <AriaToastRegion
       queue={queue}
-      aria-label={he.common.notifications}
+      aria-label={en.common.notifications}
       className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+6rem)] z-[60] mx-auto flex max-w-md flex-col gap-2 outline-none lg:bottom-4"
     >
       {({ toast }) => {
@@ -98,7 +98,7 @@ export function ToastRegion() {
             )}
             {/* slot="close": React Aria's toast wires the press to closing this toast. The negative
                 margin lets the 44px target sit in the padding of the toast. */}
-            <IconButton slot="close" variant="inverse" aria-label={he.common.close} className="-me-2">
+            <IconButton slot="close" variant="inverse" aria-label={en.common.close} className="-me-2">
               <X aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
             </IconButton>
           </AriaToast>

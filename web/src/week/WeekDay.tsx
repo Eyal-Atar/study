@@ -1,7 +1,7 @@
 import { BlockRow } from '../board/BlockRow'
 import { blockMinutes, durationText, formatDay } from '../board/time'
 import type { Block } from '../board/types'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Badge } from '../ui/Badge'
 import { List } from '../ui/List'
 import { SectionHeading } from '../ui/SectionHeading'
@@ -30,9 +30,9 @@ export function WeekDay({ date, blocks, tz, isToday }: WeekDayProps) {
         {/* The badge is inside the heading: the region is named "יום רביעי 18.11 היום". */}
         <SectionHeading id={headingId} className="flex min-w-0 items-center gap-2">
           <span>{formatDay(date)}</span>
-          {isToday ? <Badge tone="brand">{he.board.today}</Badge> : null}
+          {isToday ? <Badge tone="brand">{en.board.today}</Badge> : null}
         </SectionHeading>
-        <p className="text-small text-ink-muted tabular-nums">{free ? he.week.free : he.week.total(durationText(total))}</p>
+        <p className="text-small text-ink-muted tabular-nums">{free ? en.week.free : en.week.total(durationText(total))}</p>
       </div>
       {free ? null : (
         <List>

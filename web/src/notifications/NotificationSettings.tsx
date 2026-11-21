@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ApiError, errorMessage } from '../api/client'
 import { useMe, useUserId } from '../api/me'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { ErrorState, LoadingState } from '../ui/states'
@@ -34,17 +34,17 @@ function DeviceReminders() {
 
   let body
   if (vapidPublicKey === null) {
-    body = <p className="text-ink-muted">{he.notifications.notConfigured}</p>
+    body = <p className="text-ink-muted">{en.notifications.notConfigured}</p>
   } else if (support === 'ios_not_installed') {
     body = <IosSteps />
   } else if (support === 'unsupported') {
-    body = <p className="text-ink-muted">{he.notifications.unsupported}</p>
+    body = <p className="text-ink-muted">{en.notifications.unsupported}</p>
   } else {
     body = <Toggle vapidPublicKey={vapidPublicKey} />
   }
 
   return (
-    <Card role="region" title={he.notifications.deviceTitle}>
+    <Card role="region" title={en.notifications.deviceTitle}>
       {body}
     </Card>
   )
@@ -54,9 +54,9 @@ function DeviceReminders() {
 function IosSteps() {
   return (
     <div className="space-y-2">
-      <p className="font-semibold">{he.notifications.iosTitle}</p>
+      <p className="font-semibold">{en.notifications.iosTitle}</p>
       <ol className="list-decimal space-y-1 ps-5 text-ink-muted">
-        {he.notifications.iosSteps.map((step) => (
+        {en.notifications.iosSteps.map((step) => (
           <li key={step}>{step}</li>
         ))}
       </ol>
@@ -67,9 +67,9 @@ function IosSteps() {
 function Blocked() {
   return (
     <div className="space-y-2">
-      <p className="font-semibold">{he.notifications.blockedTitle}</p>
-      <p className="text-small text-ink-muted">{he.notifications.blockedBrowser}</p>
-      <p className="text-small text-ink-muted">{he.notifications.blockedApp}</p>
+      <p className="font-semibold">{en.notifications.blockedTitle}</p>
+      <p className="text-small text-ink-muted">{en.notifications.blockedBrowser}</p>
+      <p className="text-small text-ink-muted">{en.notifications.blockedApp}</p>
     </div>
   )
 }
@@ -117,14 +117,14 @@ function Toggle({ vapidPublicKey }: { vapidPublicKey: string }) {
           return
         }
         if (permission !== 'granted') {
-          toast.show({ text: he.notifications.notAllowed, tone: 'error' })
+          toast.show({ text: en.notifications.notAllowed, tone: 'error' })
           return
         }
         let sub: PushSubscription
         try {
           sub = await subscribe(vapidPublicKey)
         } catch {
-          toast.show({ text: he.notifications.enableFailed, tone: 'error' })
+          toast.show({ text: en.notifications.enableFailed, tone: 'error' })
           return
         }
         try {
@@ -133,11 +133,11 @@ function Toggle({ vapidPublicKey }: { vapidPublicKey: string }) {
           // The server does not know this subscription, so the browser drops it too: "off" stays true
           // on the next load as well, instead of PushSync silently turning it on.
           await sub.unsubscribe().catch(() => false)
-          toast.show({ text: failureText(error, he.notifications.enableFailed), tone: 'error' })
+          toast.show({ text: failureText(error, en.notifications.enableFailed), tone: 'error' })
           return
         }
         setDevice('on')
-        toast.show({ text: he.notifications.enabled, tone: 'success' })
+        toast.show({ text: en.notifications.enabled, tone: 'success' })
       } finally {
         setBusy(false)
       }
@@ -168,9 +168,9 @@ function Toggle({ vapidPublicKey }: { vapidPublicKey: string }) {
         }
         await sub.unsubscribe()
         setDevice('off')
-        toast.show({ text: he.notifications.disabled, tone: 'success' })
+        toast.show({ text: en.notifications.disabled, tone: 'success' })
       } catch (error) {
-        toast.show({ text: failureText(error, he.notifications.disableFailed), tone: 'error' })
+        toast.show({ text: failureText(error, en.notifications.disableFailed), tone: 'error' })
       } finally {
         setBusy(false)
       }
@@ -180,7 +180,7 @@ function Toggle({ vapidPublicKey }: { vapidPublicKey: string }) {
   if (device === 'blocked') return <Blocked />
 
   const on = device === 'on'
-  const statusText = device === 'checking' ? he.notifications.checking : on ? he.notifications.on : he.notifications.off
+  const statusText = device === 'checking' ? en.notifications.checking : on ? en.notifications.on : en.notifications.off
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <p role="status" className="flex items-center gap-2">
@@ -189,11 +189,11 @@ function Toggle({ vapidPublicKey }: { vapidPublicKey: string }) {
       </p>
       {device === 'checking' ? null : on ? (
         <Button variant="secondary" isPending={busy} onPress={disable}>
-          {he.notifications.disable}
+          {en.notifications.disable}
         </Button>
       ) : (
         <Button isPending={busy} onPress={enable}>
-          {he.notifications.enable}
+          {en.notifications.enable}
         </Button>
       )}
     </div>
@@ -201,10 +201,10 @@ function Toggle({ vapidPublicKey }: { vapidPublicKey: string }) {
 }
 
 const LEAD_OPTIONS = [
-  { value: '0', label: he.notifications.lead0 },
-  { value: '5', label: he.notifications.lead5 },
-  { value: '10', label: he.notifications.lead10 },
-  { value: '15', label: he.notifications.lead15 },
+  { value: '0', label: en.notifications.lead0 },
+  { value: '5', label: en.notifications.lead5 },
+  { value: '10', label: en.notifications.lead10 },
+  { value: '15', label: en.notifications.lead15 },
 ] as const
 
 function isLead(value: number): value is LeadMinutes {
@@ -223,7 +223,7 @@ function LeadTime() {
     const value = save.isPending ? save.variables : me.data.notify_lead_minutes
     body = (
       <RadioCards
-        label={he.notifications.leadLabel}
+        label={en.notifications.leadLabel}
         options={LEAD_OPTIONS}
         value={String(value)}
         columns="grid-cols-2 sm:grid-cols-4"
@@ -231,7 +231,7 @@ function LeadTime() {
           const minutes = Number(next)
           if (!isLead(minutes)) return
           save.mutate(minutes, {
-            onSuccess: () => toast.show({ text: he.notifications.leadSaved, tone: 'success' }),
+            onSuccess: () => toast.show({ text: en.notifications.leadSaved, tone: 'success' }),
             onError: (error) => toast.show({ text: errorMessage(error), tone: 'error' }),
           })
         }}
@@ -246,7 +246,7 @@ function LeadTime() {
   return (
     <Card className="space-y-3">
       {body}
-      <p className="text-small text-ink-muted">{he.notifications.leadHint}</p>
+      <p className="text-small text-ink-muted">{en.notifications.leadHint}</p>
     </Card>
   )
 }

@@ -4,13 +4,13 @@ import { userEvent, type UserEvent } from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Me, MePatch } from '../api/me'
 import { codeText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { COMPLETED_AT, examFixture, meFixture, previewFixture } from '../onboarding/testFixtures'
 import { createFakeApi, problem, type ApiCall, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
 
-const t = he.settings.preferences
+const t = en.settings.preferences
 
 function server(overrides: Partial<Me> = {}, planAffected = false) {
   const me = meFixture({ onboarding_completed_at: COMPLETED_AT, ...overrides })
@@ -54,7 +54,7 @@ async function setTime(user: UserEvent, name: string, time: string) {
 }
 
 async function ready() {
-  await screen.findByRole('heading', { level: 1, name: he.settings.title })
+  await screen.findByRole('heading', { level: 1, name: en.settings.title })
   await screen.findByRole('group', { name: t.wakeTime })
 }
 
@@ -80,7 +80,7 @@ describe('SettingsPage preferences', () => {
     await ready()
     expect(
       within(group(t.hoursQuestion)).getByRole('radio', {
-        name: he.onboardingSchedule.hours(4),
+        name: en.onboardingSchedule.hours(4),
       }),
     ).toBeChecked()
     expect(screen.getByRole('checkbox', { name: /בוקר/ })).toBeChecked()
@@ -90,7 +90,7 @@ describe('SettingsPage preferences', () => {
     expect(timeField(t.sleepTime)).toHaveTextContent('23:30')
     expect(
       within(group(t.delayQuestion)).getByRole('radio', {
-        name: he.settings.duration(30),
+        name: en.settings.duration(30),
       }),
     ).toBeChecked()
     expect(within(group(t.restQuestion)).getByRole('radio', { name: t.restDays(2) })).toBeChecked()
@@ -109,12 +109,12 @@ describe('SettingsPage preferences', () => {
     await ready()
     expect(
       within(group(t.hoursQuestion)).getByRole('radio', {
-        name: he.settings.duration(150),
+        name: en.settings.duration(150),
       }),
     ).toBeChecked()
     expect(
       within(group(t.delayQuestion)).getByRole('radio', {
-        name: he.settings.duration(200),
+        name: en.settings.duration(200),
       }),
     ).toBeChecked()
     expect(within(group(t.restQuestion)).getByRole('radio', { name: t.restDays(5) })).toBeChecked()
@@ -137,14 +137,14 @@ describe('SettingsPage preferences', () => {
     await ready()
     await user.click(
       within(group(t.hoursQuestion)).getByRole('radio', {
-        name: he.onboardingSchedule.hours(3),
+        name: en.onboardingSchedule.hours(3),
       }),
     )
     await setTime(user, t.wakeTime, '07:00')
     await user.click(screen.getByRole('checkbox', { name: /ערב/ }))
     await user.click(
       within(group(t.delayQuestion)).getByRole('radio', {
-        name: he.settings.duration(15),
+        name: en.settings.duration(15),
       }),
     )
     await user.click(within(group(t.restQuestion)).getByRole('radio', { name: t.restDays(0) }))
@@ -167,12 +167,12 @@ describe('SettingsPage preferences', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     open(fake, '/settings', queryClient)
     await ready()
-    expect(within(group(t.hoursQuestion)).getByRole('radio', { name: he.onboardingSchedule.hours(4) })).toBeChecked()
+    expect(within(group(t.hoursQuestion)).getByRole('radio', { name: en.onboardingSchedule.hours(4) })).toBeChecked()
 
     fake.on('GET /me', meFixture({ onboarding_completed_at: COMPLETED_AT, daily_study_minutes: 120 }))
     await queryClient.invalidateQueries()
     await waitFor(() => {
-      expect(within(group(t.hoursQuestion)).getByRole('radio', { name: he.onboardingSchedule.hours(2) })).toBeChecked()
+      expect(within(group(t.hoursQuestion)).getByRole('radio', { name: en.onboardingSchedule.hours(2) })).toBeChecked()
     })
     expect(saveButton()).toBeDisabled()
     await user.click(saveButton())
@@ -197,11 +197,11 @@ describe('SettingsPage preferences', () => {
     await ready()
     await user.click(
       within(group(t.hoursQuestion)).getByRole('radio', {
-        name: he.onboardingSchedule.hours(5),
+        name: en.onboardingSchedule.hours(5),
       }),
     )
     await user.click(saveButton())
-    const dialog = await screen.findByRole('dialog', { name: he.replan.title })
+    const dialog = await screen.findByRole('dialog', { name: en.replan.title })
     expect(within(dialog).getByText(t.replanReason)).toBeInTheDocument()
     expect(fake.calls('POST', '/plan/replan').filter((c) => (c.body as { preview: boolean }).preview)).toHaveLength(1)
   })
@@ -213,7 +213,7 @@ describe('SettingsPage preferences', () => {
     await ready()
     await user.click(
       within(group(t.hoursQuestion)).getByRole('radio', {
-        name: he.onboardingSchedule.hours(5),
+        name: en.onboardingSchedule.hours(5),
       }),
     )
     await user.click(saveButton())
@@ -233,7 +233,7 @@ describe('SettingsPage preferences', () => {
     await setTime(user, t.hobbyStart, '19:30')
     await user.click(
       within(group(t.hobbyMinutes)).getByRole('radio', {
-        name: he.settings.duration(45),
+        name: en.settings.duration(45),
       }),
     )
     await user.click(saveButton())
@@ -255,7 +255,7 @@ describe('SettingsPage preferences', () => {
     expect(timeField(t.hobbyStart)).toHaveTextContent('18:00')
     await user.click(
       within(group(t.hobbyMinutes)).getByRole('radio', {
-        name: he.settings.duration(90),
+        name: en.settings.duration(90),
       }),
     )
     await user.click(saveButton())
@@ -371,7 +371,7 @@ describe('SettingsPage preferences', () => {
     const fake = server().on('PATCH /me', () => new Promise((resolve) => (release = resolve)))
     open(fake)
     await ready()
-    await user.click(within(group(t.hoursQuestion)).getByRole('radio', { name: he.onboardingSchedule.hours(5) }))
+    await user.click(within(group(t.hoursQuestion)).getByRole('radio', { name: en.onboardingSchedule.hours(5) }))
     await user.dblClick(saveButton())
     await user.click(saveButton())
     expect(patches(fake)).toHaveLength(1)
@@ -411,7 +411,7 @@ describe('SettingsPage preferences', () => {
     await ready()
     await user.click(
       within(group(t.hoursQuestion)).getByRole('radio', {
-        name: he.onboardingSchedule.hours(5),
+        name: en.onboardingSchedule.hours(5),
       }),
     )
     await user.click(saveButton())
@@ -424,8 +424,8 @@ describe('SettingsPage other sections', () => {
     open(server())
     await ready()
     // Without a VAPID key in the test env, the card says reminders are not set up here.
-    const section = screen.getByRole('region', { name: he.notifications.deviceTitle })
-    expect(within(section).getByText(he.notifications.notConfigured)).toBeInTheDocument()
+    const section = screen.getByRole('region', { name: en.notifications.deviceTitle })
+    expect(within(section).getByText(en.notifications.notConfigured)).toBeInTheDocument()
   })
 
   it('export downloads the JSON as studyflow-export-<local date>.json', async () => {
@@ -451,7 +451,7 @@ describe('SettingsPage other sections', () => {
     })
     open(fake)
     await ready()
-    await user.click(screen.getByRole('button', { name: he.settings.export.button }))
+    await user.click(screen.getByRole('button', { name: en.settings.export.button }))
     await waitFor(() => {
       expect(clicked).toHaveLength(1)
     })
@@ -472,7 +472,7 @@ describe('SettingsPage other sections', () => {
     const fake = server().on('GET /me/export', problem(503, 'database_unavailable'))
     open(fake)
     await ready()
-    await user.click(screen.getByRole('button', { name: he.settings.export.button }))
+    await user.click(screen.getByRole('button', { name: en.settings.export.button }))
     expect(await screen.findByText(codeText('database_unavailable'))).toBeInTheDocument()
   })
 
@@ -480,17 +480,17 @@ describe('SettingsPage other sections', () => {
     open(server())
     await ready()
     const regions = screen.getAllByRole('region')
-    const danger = screen.getByRole('region', { name: he.settings.danger.title })
+    const danger = screen.getByRole('region', { name: en.settings.danger.title })
     expect(regions.at(-1)).toBe(danger)
     expect(danger.className).toContain('bg-danger-soft')
-    expect(within(danger).getByText(he.settings.danger.description).className).not.toContain('text-ink-muted')
+    expect(within(danger).getByText(en.settings.danger.description).className).not.toContain('text-ink-muted')
   })
 
   it('the danger zone links to the account deletion page', async () => {
     const user = userEvent.setup()
     const { router } = open(server())
     await ready()
-    await user.click(screen.getByRole('link', { name: he.settings.danger.link }))
+    await user.click(screen.getByRole('link', { name: en.settings.danger.link }))
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/settings/delete-account')
     })

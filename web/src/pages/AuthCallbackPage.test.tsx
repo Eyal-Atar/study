@@ -1,16 +1,16 @@
 import { act, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
 
 function expectFailure() {
-  expect(screen.getByRole('heading', { level: 1, name: he.callback.title })).toBeInTheDocument()
-  expect(screen.getByRole('alert')).toHaveTextContent(he.callback.failed)
+  expect(screen.getByRole('heading', { level: 1, name: en.callback.title })).toBeInTheDocument()
+  expect(screen.getByRole('alert')).toHaveTextContent(en.callback.failed)
   // Trying again means going back to the login screen: the failure itself has no retry button.
   expect(screen.queryByRole('button')).not.toBeInTheDocument()
-  expect(screen.getByRole('link', { name: he.callback.backToLogin })).toHaveAttribute('href', '/login')
-  expect(screen.queryByText(he.callback.working)).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: en.callback.backToLogin })).toHaveAttribute('href', '/login')
+  expect(screen.queryByText(en.callback.working)).not.toBeInTheDocument()
 }
 
 // Lets the INITIAL_SESSION microtask of the fake run, with what it renders, inside act.
@@ -50,8 +50,8 @@ describe('AuthCallbackPage', () => {
   // (no code verifier): supabase-js creates no session, and INITIAL_SESSION is empty.
   it('shows the failure when no session came out of the callback', async () => {
     renderRoute('/auth/callback?code=expired', { auth: createFakeAuth(null) })
-    expect(screen.getByRole('heading', { level: 1, name: he.callback.title })).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent(he.callback.working)
+    expect(screen.getByRole('heading', { level: 1, name: en.callback.title })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(en.callback.working)
 
     await initialSession()
     expectFailure()
@@ -59,11 +59,11 @@ describe('AuthCallbackPage', () => {
 
   it('goes home once signed in', async () => {
     const { router } = renderRoute('/auth/callback?code=abc', { auth: createFakeAuth(fakeSession()) })
-    expect(screen.getByText(he.callback.working)).toBeInTheDocument()
+    expect(screen.getByText(en.callback.working)).toBeInTheDocument()
 
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/')
     })
-    expect(screen.queryByText(he.callback.failed)).not.toBeInTheDocument()
+    expect(screen.queryByText(en.callback.failed)).not.toBeInTheDocument()
   })
 })

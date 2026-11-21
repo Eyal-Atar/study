@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
 
@@ -11,7 +11,7 @@ describe('LoginPage', () => {
     const auth = createFakeAuth(null)
     renderRoute('/login', { auth })
 
-    await user.click(await screen.findByRole('button', { name: he.login.google }))
+    await user.click(await screen.findByRole('button', { name: en.login.google }))
     expect(auth.signInWithOAuth).toHaveBeenCalledExactlyOnceWith({
       provider: 'google',
       options: {
@@ -28,17 +28,17 @@ describe('LoginPage', () => {
     auth.signInWithOAuth.mockResolvedValueOnce({ error: new Error('x') })
     renderRoute('/login', { auth })
 
-    await user.click(await screen.findByRole('button', { name: he.login.google }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(he.login.failed)
+    await user.click(await screen.findByRole('button', { name: en.login.google }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(en.login.failed)
   })
 
   // The first impression: the name as the only h1, one sentence, and one button.
   it('shows the name as the h1, the tagline, and a single button', async () => {
     renderRoute('/login', { auth: createFakeAuth(null) })
 
-    expect(await screen.findByRole('heading', { level: 1, name: he.appName })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: en.appName })).toBeInTheDocument()
     expect(screen.getAllByRole('heading')).toHaveLength(1)
-    expect(screen.getByText(he.tagline)).toBeInTheDocument()
+    expect(screen.getByText(en.tagline)).toBeInTheDocument()
     expect(screen.getAllByRole('button')).toHaveLength(1)
     expect(screen.getByRole('main')).toBeInTheDocument()
   })
@@ -54,7 +54,7 @@ describe('LoginPage', () => {
     )
     renderRoute('/login', { auth })
 
-    const button = await screen.findByRole('button', { name: he.login.google })
+    const button = await screen.findByRole('button', { name: en.login.google })
     await user.click(button)
     // React Aria: a pending button keeps its name and its focus, and ignores presses.
     expect(button).toHaveAttribute('data-pending', 'true')
@@ -62,7 +62,7 @@ describe('LoginPage', () => {
     expect(auth.signInWithOAuth).toHaveBeenCalledOnce()
 
     fail(new Error('x'))
-    expect(await screen.findByRole('alert')).toHaveTextContent(he.login.failed)
+    expect(await screen.findByRole('alert')).toHaveTextContent(en.login.failed)
     expect(button).not.toHaveAttribute('data-pending')
 
     await user.click(button)

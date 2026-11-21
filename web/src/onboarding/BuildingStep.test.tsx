@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { codeText, shortfallText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { createFakeApi, problem, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
@@ -74,7 +74,7 @@ describe('BuildingStep', () => {
     fake.on('GET /exams/e1/materials', () => [material(reads++ === 0 ? 'processing' : 'ready')])
     const { router } = open(fake)
 
-    expect(await screen.findByText(he.building.waitingMaterials)).toBeInTheDocument()
+    expect(await screen.findByText(en.building.waitingMaterials)).toBeInTheDocument()
     expect(generateCalls(fake)).toHaveLength(0)
 
     await waitFor(() => {
@@ -88,11 +88,11 @@ describe('BuildingStep', () => {
     const { fake } = server({ jobs: [jobFixture({ stage: 'analyzing', percent: 40 })] })
     open(fake, '/onboarding/building?job=j1')
 
-    const bar = await screen.findByRole('progressbar', { name: he.building.progressLabel })
+    const bar = await screen.findByRole('progressbar', { name: en.building.progressLabel })
     await waitFor(() => {
       expect(bar).toHaveAttribute('aria-valuenow', '40')
     })
-    expect(screen.getByText(he.building.stages.analyzing)).toHaveAttribute('aria-live', 'polite')
+    expect(screen.getByText(en.building.stages.analyzing)).toHaveAttribute('aria-live', 'polite')
     expect(generateCalls(fake)).toHaveLength(0)
     expect(fake.calls('GET', /\/materials$/)).toHaveLength(0)
   })
@@ -101,7 +101,7 @@ describe('BuildingStep', () => {
     const { fake } = server({ jobs: [jobFixture({ stage: 'mystery', percent: null })] })
     open(fake, '/onboarding/building?job=j1')
 
-    expect(await screen.findByText(he.building.starting)).toBeInTheDocument()
+    expect(await screen.findByText(en.building.starting)).toBeInTheDocument()
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0')
   })
 
@@ -122,43 +122,43 @@ describe('BuildingStep', () => {
     const { fake } = server({ jobs: [jobFixture({ stage: 'planning', percent: 88 }), jobFixture({ status: 'done', percent: 100, result })] })
     const { router } = open(fake, '/onboarding/building?job=j1')
 
-    expect(await screen.findByRole('heading', { name: he.building.doneTitle }, POLL)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: en.building.doneTitle }, POLL)).toBeInTheDocument()
     // One row per exam (the gaps of an exam are a list of their own inside its row).
     const calculus = screen.getByText('חדו"א').closest('li')
     const physics = screen.getByText('פיזיקה').closest('li')
-    const exams = screen.getByRole('list', { name: he.building.examsTitle })
+    const exams = screen.getByRole('list', { name: en.building.examsTitle })
     expect(exams).toContainElement(calculus)
     expect(exams).toContainElement(physics)
-    expect(calculus).toHaveTextContent(he.building.examTasks(12))
+    expect(calculus).toHaveTextContent(en.building.examTasks(12))
     expect(calculus).toHaveTextContent(codeText('under_budget'))
-    expect(calculus).toHaveTextContent(he.building.gap('אינטגרלים', 'אין מבחני עבר'))
+    expect(calculus).toHaveTextContent(en.building.gap('אינטגרלים', 'אין מבחני עבר'))
     expect(physics).toHaveTextContent(codeText('analysis_invalid'))
     // The failed exam is marked by an icon and the words, not only by the red.
-    expect(physics).toHaveTextContent(he.building.examFailed)
+    expect(physics).toHaveTextContent(en.building.examFailed)
     expect(physics?.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
     // "למסך היום" is the only primary button of the summary.
     expect(screen.getAllByRole('button').filter((button) => button.classList.contains('bg-brand'))).toHaveLength(1)
     // A partial failure is not a silent success.
-    expect(screen.getByText(he.building.someFailed)).toBeInTheDocument()
-    expect(screen.getByText(he.building.unscheduled(3))).toBeInTheDocument()
+    expect(screen.getByText(en.building.someFailed)).toBeInTheDocument()
+    expect(screen.getByText(en.building.unscheduled(3))).toBeInTheDocument()
     expect(screen.getByText(shortfallText('חדו"א', 240, 300))).toBeInTheDocument()
 
     const meReads = fake.calls('GET', '/me').length
-    await user.click(screen.getByRole('button', { name: he.building.toToday }))
+    await user.click(screen.getByRole('button', { name: en.building.toToday }))
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/calendar')
     })
     expect(fake.calls('GET', '/me').length).toBeGreaterThan(meReads)
-    expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: en.today.title })).toBeInTheDocument()
   })
 
   it('a failure card holds its buttons, the one that goes on first and primary', async () => {
     const { fake } = server({ jobs: [jobFixture({ status: 'failed', error: 'analysis_invalid' })] })
     open(fake, '/onboarding/building?job=j1')
 
-    const alert = await screen.findByRole('alert', { name: he.building.failedTitle })
+    const alert = await screen.findByRole('alert', { name: en.building.failedTitle })
     const buttons = within(alert).getAllByRole('button')
-    expect(buttons.map((button) => button.textContent)).toEqual([he.common.retry, he.common.back])
+    expect(buttons.map((button) => button.textContent)).toEqual([en.common.retry, en.common.back])
     expect(buttons[0]).toHaveClass('bg-brand')
     expect(buttons[1]).not.toHaveClass('bg-brand')
   })
@@ -170,7 +170,7 @@ describe('BuildingStep', () => {
     const { router } = open(fake, '/onboarding/building?job=j1')
 
     expect(await screen.findByRole('alert')).toHaveTextContent(codeText('analysis_invalid'))
-    await user.click(screen.getByRole('button', { name: he.common.retry }))
+    await user.click(screen.getByRole('button', { name: en.common.retry }))
     await waitFor(() => {
       expect(router.state.location.search).toBe('?job=j2')
     })
@@ -186,7 +186,7 @@ describe('BuildingStep', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent(codeText('ai_quota_exceeded', { resets_at: resetsAt }))
     expect(alert.textContent).toMatch(/\d{2}:\d{2}/)
-    expect(screen.queryByRole('button', { name: he.common.retry })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: en.common.retry })).not.toBeInTheDocument()
   })
 
   it('409 nothing_to_analyze opens ReplanOffer, and applying it goes to the calendar (through /today)', async () => {
@@ -200,11 +200,11 @@ describe('BuildingStep', () => {
     })
     const { router } = open(fake)
 
-    const dialog = await screen.findByRole('dialog', { name: he.replan.title })
-    expect(within(dialog).getByText(he.building.replanReason)).toBeInTheDocument()
+    const dialog = await screen.findByRole('dialog', { name: en.replan.title })
+    expect(within(dialog).getByText(en.building.replanReason)).toBeInTheDocument()
     expect(screen.getByText(codeText('nothing_to_analyze'))).toBeInTheDocument()
 
-    await user.click(await within(dialog).findByRole('button', { name: he.replan.confirm }))
+    await user.click(await within(dialog).findByRole('button', { name: en.replan.confirm }))
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/calendar')
     })
@@ -218,9 +218,9 @@ describe('BuildingStep', () => {
     open(fake, '/onboarding/building?job=j1')
 
     expect(await screen.findByRole('alert')).toHaveTextContent(codeText('ai_no_credit'))
-    expect(screen.queryByRole('button', { name: he.common.retry })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: he.building.scheduleAnalyzed }))
-    expect(await screen.findByRole('dialog', { name: he.replan.title })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: en.common.retry })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: en.building.scheduleAnalyzed }))
+    expect(await screen.findByRole('dialog', { name: en.replan.title })).toBeInTheDocument()
     await waitFor(() => {
       expect(fake.calls('POST', '/plan/replan')).toHaveLength(1)
     })
@@ -235,7 +235,7 @@ describe('BuildingStep', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(codeText('database_unavailable'))
     fail = false
-    await user.click(screen.getByRole('button', { name: he.common.retry }))
+    await user.click(screen.getByRole('button', { name: en.common.retry }))
     await waitFor(() => {
       expect(router.state.location.search).toBe('?job=j1')
     })
@@ -249,7 +249,7 @@ describe('BuildingStep', () => {
     await waitFor(() => {
       expect(sessionStorage.getItem(JOB_KEY)).toBe('j1')
     })
-    expect(await screen.findByRole('heading', { name: he.building.doneTitle }, POLL)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: en.building.doneTitle }, POLL)).toBeInTheDocument()
     expect(sessionStorage.getItem(JOB_KEY)).toBeNull()
   })
 
@@ -302,12 +302,12 @@ describe('BuildingStep', () => {
     })
     const { router } = open(fake)
 
-    const dialog = await screen.findByRole('dialog', { name: he.replan.title })
-    await user.click(await within(dialog).findByRole('button', { name: he.replan.confirm }))
+    const dialog = await screen.findByRole('dialog', { name: en.replan.title })
+    await user.click(await within(dialog).findByRole('button', { name: en.replan.confirm }))
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/calendar')
     })
-    expect(await screen.findByText(he.replan.applied)).toBeInTheDocument()
+    expect(await screen.findByText(en.replan.applied)).toBeInTheDocument()
   })
 
   it.each([
@@ -319,7 +319,7 @@ describe('BuildingStep', () => {
     const { router } = open(fake, path)
 
     await screen.findByRole('alert')
-    await user.click(screen.getByRole('button', { name: he.common.back }))
+    await user.click(screen.getByRole('button', { name: en.common.back }))
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/onboarding/schedule')
     })
@@ -332,7 +332,7 @@ describe('BuildingStep', () => {
     const { router } = open(fake)
 
     await screen.findByRole('alert')
-    await user.click(screen.getByRole('button', { name: he.common.back }))
+    await user.click(screen.getByRole('button', { name: en.common.back }))
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/onboarding/schedule')
     })

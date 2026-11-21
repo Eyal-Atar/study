@@ -1,9 +1,9 @@
-import { FileText, Plus } from 'lucide-react'
+import { FileText, Plus } from '../ui/icons'
 import { useState } from 'react'
 import { Form } from 'react-aria-components'
 import { useNavigate } from 'react-router'
 import { errorMessage } from '../api/client'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { useCreateExam, useExams } from '../onboarding/api'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
@@ -17,7 +17,7 @@ import { daysBetween, longDate } from './dates'
 import { ExamFields } from './ExamFields'
 import { validateDraft, type ExamDraft, type ExamFieldErrors } from './examForm'
 
-const t = he.exam
+const t = en.exam
 
 const EMPTY_DRAFT: ExamDraft = { name: '', date: null, difficulty: '3' }
 
@@ -66,7 +66,7 @@ function NewExamForm({ today, onCancel }: { today: string; onCancel: () => void 
             {t.list.create}
           </Button>
           <Button variant="secondary" onPress={onCancel}>
-            {he.common.cancel}
+            {en.common.cancel}
           </Button>
         </div>
       </Form>

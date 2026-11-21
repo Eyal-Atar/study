@@ -274,6 +274,19 @@ body {
   padding-inline: max(env(safe-area-inset-left), env(safe-area-inset-right));
 }
 
+/* A long title of the user's content (ui/UserText, truncate): the element takes the direction of
+   its text (dir="auto"), so the ellipsis cuts the END of a Hebrew title, and it still sits on the
+   start edge of the interface, which is the left: the product is LTR only. Physical on purpose:
+   inside an RTL element "start" would be the right. */
+.user-text-truncate {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
 /* The targets of a focus that code moves (the h1 of a screen after a navigation, <main> after
    "דלג לתוכן"): they are not controls and Tab cannot reach them, so they show no ring. */
 main[tabindex='-1']:focus,

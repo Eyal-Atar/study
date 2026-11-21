@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react'
+import { Check } from './icons'
 import { ListBox, ListBoxItem, type Selection } from 'react-aria-components'
 import { cx, FOCUS_RING, ICON_STROKE } from './styles'
 

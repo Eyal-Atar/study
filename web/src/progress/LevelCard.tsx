@@ -1,11 +1,11 @@
 import { useId } from 'react'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Card } from '../ui/Card'
 import { ProgressBar } from '../ui/ProgressBar'
 import { formatNumber } from './format'
 import type { Progress } from './types'
 
-const t = he.progress.level
+const t = en.progress.level
 
 // The level as the one large number of the board, and a thin bar of the XP inside this level.
 // The bar counts from the start of the level (0) to the size of the level, so its values are the

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { AppErrorBoundary, RouteCrash } from './AppErrorBoundary'
@@ -25,10 +25,10 @@ describe('AppErrorBoundary', () => {
       </AppErrorBoundary>,
     )
 
-    expect(screen.getByRole('heading', { name: he.crash.title })).toBeInTheDocument()
-    expect(screen.getByText(he.crash.body)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: en.crash.title })).toBeInTheDocument()
+    expect(screen.getByText(en.crash.body)).toBeInTheDocument()
     expect(screen.getByText('Error: provider exploded')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: he.crash.reload }))
+    await userEvent.click(screen.getByRole('button', { name: en.crash.reload }))
     expect(reload).toHaveBeenCalledOnce()
   })
 
@@ -48,7 +48,7 @@ describe('RouteCrash', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const router = createMemoryRouter([{ ErrorBoundary: RouteCrash, children: [{ path: '/', Component: Boom }] }])
     render(<RouterProvider router={router} />)
-    expect(await screen.findByRole('heading', { name: he.crash.title })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: en.crash.title })).toBeInTheDocument()
     expect(screen.getByText('Error: provider exploded')).toBeInTheDocument()
   })
 })

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { ButtonLink } from '../ui/ButtonLink'
 import { Card } from '../ui/Card'
@@ -41,11 +41,11 @@ export function InstallHint() {
   // to it needs no click handler).
   if (!visible || onSettings) return null
   return (
-    <Card role="region" title={he.notifications.installTitle} className="mb-section">
-      <p className="text-small">{he.notifications.installText}</p>
+    <Card role="region" title={en.notifications.installTitle} className="mb-section">
+      <p className="text-small">{en.notifications.installText}</p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <ButtonLink to={NOTIFICATIONS_PATH} variant="primary">
-          {he.notifications.installHow}
+          {en.notifications.installHow}
         </ButtonLink>
         <Button
           variant="quiet"
@@ -53,7 +53,7 @@ export function InstallHint() {
             setVisible(false)
           }}
         >
-          {he.notifications.installDismiss}
+          {en.notifications.installDismiss}
         </Button>
       </div>
     </Card>

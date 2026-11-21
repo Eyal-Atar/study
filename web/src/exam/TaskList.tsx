@@ -1,7 +1,7 @@
-import { ListChecks } from 'lucide-react'
+import { ListChecks } from '../ui/icons'
 import { useId, useState } from 'react'
 import { errorMessage } from '../api/client'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import type { Block } from '../onboarding/types'
 import { List } from '../ui/List'
 import { SectionHeading } from '../ui/SectionHeading'
@@ -15,7 +15,7 @@ import { nextBlocks } from './timelineDays'
 import { GapList, TopicHeader } from './TopicList'
 import type { ExamTask, Topic } from './types'
 
-const tp = he.exam.topics
+const tp = en.exam.topics
 
 function Group({
   topic,

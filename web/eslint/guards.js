@@ -21,19 +21,62 @@ const NO_RAW_HTML = [
 ]
 
 // A string with a letter, in Latin or Hebrew. A string without one, like {' '}, is not text.
-const HAS_LETTER = String.raw`/[A-Za-z֐-׿]/`
+const HAS_LETTER = String.raw`/[A-Za-z\u0590-\u05FF]/`
 
 // Attributes whose value the user reads, or hears from a screen reader.
 const TEXT_ATTRIBUTE = String.raw`JSXAttribute[name.name=/^(alt|aria-label|aria-description|placeholder|title)$/]`
 
-const TEXT_MESSAGE = 'UI text lives in src/i18n/he.ts. Add a key there and render it, for example <p>{he.tagline}</p>.'
+const TEXT_MESSAGE = 'UI text lives in src/i18n/en.ts. Add a key there and render it, for example <p>{en.tagline}</p>.'
 const TEXT_ATTRIBUTE_MESSAGE =
-  'UI text lives in src/i18n/he.ts. Add a key there and pass it, for example aria-label={he.tagline}.'
+  'UI text lives in src/i18n/en.ts. Add a key there and pass it, for example aria-label={en.tagline}.'
 
 const LOGICAL_CLASS_MESSAGE =
-  'The app is RTL, so physical directions flip. Use a logical Tailwind class: ms-/me-, ps-/pe-, start-/end-, text-start/text-end, float-start/float-end, border-s/border-e, rounded-s/rounded-e, rounded-ss/-se/-es/-ee, scroll-ms-/scroll-pe-. bg-, object- and origin- have no logical form: use a value without a side, like bg-center or origin-top.'
+  'Layout follows the direction of the text, and user content can be right-to-left. Use a logical Tailwind class: ms-/me-, ps-/pe-, start-/end-, text-start/text-end, float-start/float-end, border-s/border-e, rounded-s/rounded-e, rounded-ss/-se/-es/-ee, scroll-ms-/scroll-pe-. bg-, object- and origin- have no logical form: use a value without a side, like bg-center or origin-top.'
+
+// No emoji, anywhere (S39, audit section 2): every pictograph, the dingbats (the check mark and the
+// cross among them), the miscellaneous symbols and the emoji selector. An icon is a component of
+// src/ui/icons. The same ranges as src/test/sourceGuards.test.ts, which also reads comments and CSS.
+const EMOJI = /[\p{Extended_Pictographic}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{1F000}-\u{1FAFF}\u{FE0F}]/u
+
+const EMOJI_MESSAGE =
+  'No emoji and no symbol characters as icons. Use an icon component from src/ui/icons (for example <StreakLeafIcon />).'
+
+const noEmoji = {
+  meta: { type: 'problem', schema: [], messages: { emoji: EMOJI_MESSAGE } },
+  create(context) {
+    const check = (node, text) => {
+      if (typeof text === 'string' && EMOJI.test(text)) context.report({ node, messageId: 'emoji' })
+    }
+    return {
+      Literal: (node) => check(node, node.raw),
+      TemplateElement: (node) => check(node, node.value.raw),
+      JSXText: (node) => check(node, node.value),
+      Program() {
+        for (const comment of context.sourceCode.getAllComments()) {
+          if (EMOJI.test(comment.value)) context.report({ loc: comment.loc, messageId: 'emoji' })
+        }
+      },
+    }
+  },
+}
+
+const ICONS_MESSAGE =
+  'Icons come from src/ui/icons, the one set of the product: Archi\'s own icons and the generic glyphs it re-exports. Import from there, not from lucide-react.'
 
 export const guards = [
+  {
+    // Every file of the app, tests included.
+    files: ['src/**/*.{ts,tsx}'],
+    plugins: { archi: { rules: { 'no-emoji': noEmoji } } },
+    rules: { 'archi/no-emoji': 'error' },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/ui/icons/**'],
+    rules: {
+      'no-restricted-imports': ['error', { paths: [{ name: 'lucide-react', message: ICONS_MESSAGE }] }],
+    },
+  },
   {
     files: ['src/**/*.{ts,tsx}'],
     rules: {
@@ -48,7 +91,7 @@ export const guards = [
           message: TEXT_MESSAGE,
         },
         { selector: `${TEXT_ATTRIBUTE} > Literal`, message: TEXT_ATTRIBUTE_MESSAGE },
-        // aria-label={'שם'}
+        // aria-label={'Name'}
         {
           selector: `${TEXT_ATTRIBUTE} > JSXExpressionContainer > Literal[value=${HAS_LETTER}]`,
           message: TEXT_ATTRIBUTE_MESSAGE,

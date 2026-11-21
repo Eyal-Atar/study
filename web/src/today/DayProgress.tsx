@@ -1,4 +1,4 @@
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { ProgressBar } from '../ui/ProgressBar'
 
 // The minutes of today (decision 11): real minutes from the server, done out of all of today's
@@ -6,5 +6,5 @@ import { ProgressBar } from '../ui/ProgressBar'
 export function DayProgress({ done, planned }: { done: number; planned: number }) {
   const total = planned + done
   if (total <= 0) return null
-  return <ProgressBar label={he.today.progressLabel} value={done} max={total} valueText={he.today.progress(done, total)} />
+  return <ProgressBar label={en.today.progressLabel} value={done} max={total} valueText={en.today.progress(done, total)} />
 }

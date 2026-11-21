@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { errorMessage } from '../api/client'
 import { GOODBYE_PATH, SETTINGS_PATH } from '../app/routes'
 import { useAuth } from '../auth/AuthContext'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { ButtonLink } from '../ui/ButtonLink'
 import { Card } from '../ui/Card'
@@ -15,7 +15,7 @@ import { useToast } from '../ui/useToast'
 import { useDeleteAccount } from './api'
 import { EXPORT_SECTION_ID } from './SettingsPage'
 
-const t = he.settings.deleteAccount
+const t = en.settings.deleteAccount
 
 // /settings/delete-account. No 10-second "בטל" toast here, unlike other destructive actions
 // (spec 7.9): S15 decision 9 — the owner chose an immediate delete with no grace period, and an

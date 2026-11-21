@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 
 export interface PageHeaderProps {
   title: string
@@ -22,9 +22,9 @@ export interface PageHeaderProps {
 // header's effect runs after this cleanup and sets its own.
 export function PageHeader({ title, subtitle, action }: PageHeaderProps) {
   useEffect(() => {
-    document.title = `${title} · ${he.appName}`
+    document.title = `${title} · ${en.appName}`
     return () => {
-      document.title = he.appName
+      document.title = en.appName
     }
   }, [title])
 

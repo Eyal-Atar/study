@@ -1,5 +1,5 @@
 import { errorMessage } from '../api/client'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { PageHeader } from '../ui/PageHeader'
 import { ErrorState, LoadingState } from '../ui/states'
 import { useProgress } from './api'
@@ -16,7 +16,7 @@ export function ProgressPage() {
   return (
     <div className="space-y-section">
       {/* Outside the loading condition: the h1 takes the focus after a navigation. */}
-      <PageHeader title={he.progress.title} />
+      <PageHeader title={en.progress.title} />
       {progress.isPending ? (
         <>
           <LoadingState shape="card" />

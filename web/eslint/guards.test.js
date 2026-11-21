@@ -67,8 +67,8 @@ describe('UI text', () => {
   })
 
   it.each([
-    '<p>{he.tagline}</p>',
-    '<input aria-label={he.tagline} />',
+    '<p>{en.tagline}</p>',
+    '<input aria-label={en.tagline} />',
     // No letter: the space JSX needs between two elements.
     "<p>{' '}</p>",
     // className is not text the user reads.
@@ -120,5 +120,45 @@ describe('Tailwind direction', () => {
     "const tag = 'html'",
   ])('allows %s', async (code) => {
     expect(await ruleIds(code, SOURCE)).toEqual([])
+  })
+})
+
+describe('emoji', () => {
+  // Written as code points, so this file holds no emoji either.
+  const leaf = String.fromCodePoint(0x1f33f)
+  const check = String.fromCodePoint(0x2713)
+  const star = String.fromCodePoint(0x2b50)
+
+  it.each([
+    `const text = '${leaf} 12'`,
+    `const text = \`${star} +50 XP\``,
+    `<p>{'${check}'}</p>`,
+    `<p>${leaf}</p>`,
+    `// done ${check}\nconst x = 1`,
+  ])('forbids an emoji or a symbol used as an icon: %#', async (code) => {
+    expect(await ruleIds(code, SOURCE)).toContain('archi/no-emoji')
+  })
+
+  it('forbids it in tests too', async () => {
+    expect(await ruleIds(`const name = '${leaf} x'`, TEST)).toEqual(['archi/no-emoji'])
+  })
+
+  it.each(["const range = '09:00–10:30'", "const text = 'Loading…'", "const name = 'חדו״א 1'"])(
+    'allows punctuation and user content: %#',
+    async (code) => {
+      expect(await ruleIds(code, TEST)).toEqual([])
+    },
+  )
+})
+
+describe('icons', () => {
+  it('forbids importing lucide-react outside src/ui/icons', async () => {
+    expect(await ruleIds("import { Check } from 'lucide-react'\nexport const a = Check", SOURCE)).toEqual([
+      'no-restricted-imports',
+    ])
+  })
+
+  it('allows it inside src/ui/icons', async () => {
+    expect(await ruleIds("export { Check } from 'lucide-react'", 'src/ui/icons/glyphs.ts')).toEqual([])
   })
 })

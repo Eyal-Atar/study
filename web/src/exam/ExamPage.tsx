@@ -1,9 +1,9 @@
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight } from '../ui/icons'
 import type { ReactNode } from 'react'
 import { useParams } from 'react-router'
 import { errorMessage } from '../api/client'
 import { useMe } from '../api/me'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { useExams } from '../onboarding/api'
 import { PageHeader } from '../ui/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '../ui/states'
@@ -17,7 +17,7 @@ import { TaskList } from './TaskList'
 import { Timeline } from './Timeline'
 import { timelineRange } from './timelineDays'
 
-const t = he.exam
+const t = en.exam
 
 // In RTL "back" points right, so the chevron needs no flip.
 function BackLink() {

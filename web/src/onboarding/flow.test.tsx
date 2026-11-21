@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { createFakeApi, type ApiCall } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
@@ -56,48 +56,48 @@ describe('the onboarding, end to end', { timeout: 15_000 }, () => {
     const { router } = renderRoute('/', { auth: createFakeAuth(fakeSession()), api: fake.api })
 
     // The gate: no plan yet, so the first step.
-    expect(await screen.findByRole('heading', { level: 1, name: he.onboardingExams.title })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: en.onboardingExams.title })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/onboarding/exams')
 
     // Step 1: one exam.
-    await user.type(screen.getByRole('textbox', { name: he.onboardingExams.name }), 'חדו"א')
+    await user.type(screen.getByRole('textbox', { name: en.onboardingExams.name }), 'חדו"א')
     const date = daysFromToday(30)
-    const [firstSegment] = within(screen.getByRole('group', { name: he.onboardingExams.date })).getAllByRole('spinbutton')
+    const [firstSegment] = within(screen.getByRole('group', { name: en.onboardingExams.date })).getAllByRole('spinbutton')
     if (firstSegment === undefined) throw new Error('no date segments')
     await user.click(firstSegment)
     await user.keyboard(date.typed)
-    await user.click(screen.getByRole('button', { name: he.onboardingExams.add }))
-    expect(await screen.findByRole('list', { name: he.onboardingExams.listTitle })).toHaveTextContent('חדו"א')
+    await user.click(screen.getByRole('button', { name: en.onboardingExams.add }))
+    expect(await screen.findByRole('list', { name: en.onboardingExams.listTitle })).toHaveTextContent('חדו"א')
     expect(fake.calls('POST', '/exams').at(0)?.body).toEqual({ name: 'חדו"א', exam_date: date.iso, difficulty: 3 })
-    await user.click(screen.getByRole('button', { name: he.onboarding.continue }))
+    await user.click(screen.getByRole('button', { name: en.onboarding.continue }))
 
     // Step 2: no materials.
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/onboarding/materials')
     })
     // The one button says that it goes on without them.
-    await user.click(await screen.findByRole('button', { name: he.onboardingMaterials.continueWithout }))
+    await user.click(await screen.findByRole('button', { name: en.onboardingMaterials.continueWithout }))
 
     // Step 3: the defaults, then build.
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/onboarding/schedule')
     })
-    await user.click(await screen.findByRole('button', { name: he.onboardingSchedule.build }))
+    await user.click(await screen.findByRole('button', { name: en.onboardingSchedule.build }))
 
     // Step 4: the job runs, then is done.
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/onboarding/building')
     })
     expect(fake.calls('PATCH', '/me').at(-1)?.body).toEqual({ daily_study_minutes: 240, study_windows: ['morning', 'afternoon'] })
-    expect(await screen.findByText(he.building.stages.analyzing)).toBeInTheDocument()
+    expect(await screen.findByText(en.building.stages.analyzing)).toBeInTheDocument()
     expect(router.state.location.search).toBe('?job=j1')
-    expect(await screen.findByRole('heading', { name: he.building.doneTitle }, { timeout: 4000 })).toBeInTheDocument()
-    expect(screen.getByText(he.building.examTasks(8))).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: en.building.doneTitle }, { timeout: 4000 })).toBeInTheDocument()
+    expect(screen.getByText(en.building.examTasks(8))).toBeInTheDocument()
     // The summary stays although the onboarding is now over on the server.
     expect(router.state.location.pathname).toBe('/onboarding/building')
 
-    await user.click(screen.getByRole('button', { name: he.building.toToday }))
-    expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: en.building.toToday }))
+    expect(await screen.findByRole('heading', { name: en.today.title })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/calendar')
     expect(fake.calls('POST', '/plans/generate')).toHaveLength(1)
   })
@@ -110,11 +110,11 @@ describe('the onboarding, end to end', { timeout: 15_000 }, () => {
     await waitFor(() => {
       expect(first.router.state.location.search).toBe('?job=j1')
     })
-    expect(await screen.findByText(he.building.stages.analyzing)).toBeInTheDocument()
+    expect(await screen.findByText(en.building.stages.analyzing)).toBeInTheDocument()
     first.unmount()
 
     const { router } = renderRoute('/', { auth: createFakeAuth(fakeSession()), api: fake.api })
-    expect(await screen.findByText(he.building.stages.analyzing)).toBeInTheDocument()
+    expect(await screen.findByText(en.building.stages.analyzing)).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/onboarding/building')
     expect(router.state.location.search).toBe('?job=j1')
     expect(fake.calls('POST', '/plans/generate')).toHaveLength(1)

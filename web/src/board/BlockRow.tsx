@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Badge } from '../ui/Badge'
 import { CheckButton } from '../ui/CheckButton'
 import { ListRow } from '../ui/List'
@@ -37,11 +37,11 @@ export function BlockRow({ block, tz }: BlockRowProps) {
         // min-w-0 on the words: a long exam name wraps instead of pushing the badge out.
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="min-w-0 break-words">
-            {he.board.meta(block.exam_name, he.board.kinds[block.task_kind], durationText(blockMinutes(block)))}
+            {en.board.meta(block.exam_name, en.board.kinds[block.task_kind], durationText(blockMinutes(block)))}
             {partSuffix(block)}
           </span>
           <StateBadge block={block} />
-          {deferring ? <Badge tone="neutral">{he.board.deferring}</Badge> : null}
+          {deferring ? <Badge tone="neutral">{en.board.deferring}</Badge> : null}
           {block.pinned ? <PinnedMark /> : null}
         </span>
       }
@@ -52,7 +52,7 @@ export function BlockRow({ block, tz }: BlockRowProps) {
           <span ref={checkRef} className="contents">
             <CheckButton
               isDone={done}
-              aria-label={done ? he.board.uncompleteLabel(name) : he.board.completeLabel(name)}
+              aria-label={done ? en.board.uncompleteLabel(name) : en.board.completeLabel(name)}
               isDisabled={pending}
               onChange={(next) => {
                 start(next ? 'complete' : 'uncomplete')

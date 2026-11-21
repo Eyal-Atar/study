@@ -3,7 +3,7 @@ import { useCallback } from 'react'
 import { useApi } from '../api/ApiContext'
 import { ApiError, errorMessage } from '../api/client'
 import { codeText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { UNDO_TIMEOUT_MS, useToast } from '../ui/useToast'
 import { actionKey, patchBoardBlock, restoreBoardBlock, type Snapshot } from './actions'
 import { boardKey, useBoardUserId } from './api'
@@ -146,14 +146,14 @@ export function useMoveBlock(): MoveBlock {
     },
     onSuccess: (result, { block, undo }) => {
       if (undo) {
-        toast.show({ text: he.move.undone, tone: 'success' })
+        toast.show({ text: en.move.undone, tone: 'success' })
         return
       }
       toast.show({
-        text: he.move.moved(formatTime(result.starts_at, tz)),
+        text: en.move.moved(formatTime(result.starts_at, tz)),
         tone: 'success',
         action: {
-          label: he.common.undo,
+          label: en.common.undo,
           onAction: () => {
             mutation.mutate({
               block: result,

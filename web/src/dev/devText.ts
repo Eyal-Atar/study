@@ -1,6 +1,6 @@
 // The texts of the internal components page (/dev/components).
 //
-// They are here and not in i18n/he.ts on purpose: `he` is one object that ships whole in the
+// They are here and not in i18n/en.ts on purpose: `he` is one object that ships whole in the
 // production bundle, and this page must add nothing to it. This module is reached only through the
 // import() of the dev route, which a production build drops. Nothing outside src/dev/ imports it.
 

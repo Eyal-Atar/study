@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { expect, it } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { fakeSession } from '../test/fakeAuth'
 import { AuthContext, type AuthState } from './AuthContext'
 import { RequireAuth } from './RequireAuth'
@@ -27,7 +27,7 @@ it('shows a loading state inside a main, and not the screen, until the session i
   const router = renderWith({ status: 'loading' })
 
   const status = within(screen.getByRole('main')).getByRole('status')
-  expect(status).toHaveTextContent(he.common.loading)
+  expect(status).toHaveTextContent(en.common.loading)
   expect(status.querySelector('[data-skeleton-card]')).not.toBeNull()
   expect(screen.queryByText('inside')).not.toBeInTheDocument()
   expect(router.state.location.pathname).toBe('/')

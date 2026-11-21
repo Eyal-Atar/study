@@ -1,5 +1,5 @@
 import { useMe } from '../api/me'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import type { Block } from './types'
 
 // Times on the board are shown in the profile's timezone, not the browser's (spec 7.3): the server
@@ -88,31 +88,31 @@ export function weekStart(date: string): string {
 // "יום ראשון, 15.11"
 export function formatDay(date: string): string {
   const [, m, d] = parts(date)
-  return he.board.day(he.board.weekdays[utcDay(date).getUTCDay()] ?? '', d, m)
+  return en.board.day(en.board.weekdays[utcDay(date).getUTCDay()] ?? '', d, m)
 }
 
 // 'היום', 'מחר' or 'אתמול' relative to `today`, else formatDay.
 export function dayLabel(date: string, today: string): string {
-  if (date === today) return he.board.today
-  if (date === addDays(today, 1)) return he.board.tomorrow
-  if (date === addDays(today, -1)) return he.board.yesterday
+  if (date === today) return en.board.today
+  if (date === addDays(today, 1)) return en.board.tomorrow
+  if (date === addDays(today, -1)) return en.board.yesterday
   return formatDay(date)
 }
 
 function hoursText(hours: number): string {
-  if (hours === 1) return he.board.hour
-  if (hours === 2) return he.board.twoHours
-  return he.board.hours(hours)
+  if (hours === 1) return en.board.hour
+  if (hours === 2) return en.board.twoHours
+  return en.board.hours(hours)
 }
 
 // Under an hour in minutes; whole and half hours as hours ("שעה וחצי", "2.5 שעות"); else hours and minutes.
 export function durationText(minutes: number): string {
   const total = Math.max(0, Math.round(minutes))
-  if (total === 1) return he.board.minute
-  if (total < 60) return he.board.minutes(total)
+  if (total === 1) return en.board.minute
+  if (total < 60) return en.board.minutes(total)
   const hours = Math.floor(total / 60)
   const rest = total % 60
   if (rest === 0) return hoursText(hours)
-  if (rest === 30) return hours === 1 ? he.board.hourAndHalf : he.board.hours(hours + 0.5)
-  return he.board.hoursAndMinutes(hoursText(hours), rest)
+  if (rest === 30) return hours === 1 ? en.board.hourAndHalf : en.board.hours(hours + 0.5)
+  return en.board.hoursAndMinutes(hoursText(hours), rest)
 }

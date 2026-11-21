@@ -1,7 +1,7 @@
-import { Coffee, Flag } from 'lucide-react'
+import { Coffee, Flag } from '../ui/icons'
 import { useId } from 'react'
 import { errorMessage, type ApiError } from '../api/client'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import type { Block } from '../onboarding/types'
 import { SectionHeading } from '../ui/SectionHeading'
 import { ErrorState } from '../ui/states'
@@ -9,7 +9,7 @@ import { cx, ICON_STROKE } from '../ui/styles'
 import { addDays, dayMonth, weekdayShort } from './dates'
 import { minutesByDay, type TimelineRange } from './timelineDays'
 
-const t = he.exam.timeline
+const t = en.exam.timeline
 
 // The bar of a day is at most this tall; the busiest day of the range fills it.
 const BAR_MAX_PX = 72

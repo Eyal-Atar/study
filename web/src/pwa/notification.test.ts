@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { PRODUCT_NAME } from '../product'
 import { clickTarget, readPushPayload } from './notification'
 
@@ -17,8 +17,8 @@ describe('readPushPayload', () => {
     expect(view.options).toMatchObject({
       body: 'בעוד 10 דקות · 09:00–10:30 · אלגוריתמים',
       tag: 'block:1',
-      lang: 'he',
-      dir: 'rtl',
+      lang: 'en',
+      dir: 'ltr',
       icon: '/icons/icon-192.png',
       badge: '/icons/badge-96.png',
       data: { url: '/today' },
@@ -30,8 +30,8 @@ describe('readPushPayload', () => {
     (data) => {
       const view = readPushPayload(data)
       expect(view.title).toBe(PRODUCT_NAME)
-      expect(view.options.body).toBe(he.pwa.pushFallbackBody)
-      expect(view.options).toMatchObject({ lang: 'he', dir: 'rtl', data: { url: '/today' } })
+      expect(view.options.body).toBe(en.pwa.pushFallbackBody)
+      expect(view.options).toMatchObject({ lang: 'en', dir: 'ltr', data: { url: '/today' } })
       expect(view.options.tag).toBeUndefined()
     },
   )
@@ -39,7 +39,7 @@ describe('readPushPayload', () => {
   it('keeps a valid title when only the body is missing', () => {
     const view = readPushPayload({ title: 'פרק 3' })
     expect(view.title).toBe('פרק 3')
-    expect(view.options.body).toBe(he.pwa.pushFallbackBody)
+    expect(view.options.body).toBe(en.pwa.pushFallbackBody)
   })
 
   it.each([

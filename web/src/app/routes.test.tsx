@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { COMPLETED_AT, meFixture } from '../onboarding/testFixtures'
 import { createFakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
@@ -16,16 +16,16 @@ describe('routes', () => {
       expect(router.state.location.pathname).toBe('/login')
     })
     // The router state changes before React commits the new screen (a transition), so wait for it.
-    expect(await screen.findByRole('button', { name: he.login.google })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: en.login.google })).toBeInTheDocument()
   })
 
   it('the home route shows loading until the session is known', async () => {
     const { router } = renderRoute('/', { auth: createFakeAuth(null) })
-    expect(screen.getByText(he.common.loading)).toBeInTheDocument()
+    expect(screen.getByText(en.common.loading)).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/')
 
     await waitFor(() => {
-      expect(screen.queryByText(he.common.loading)).not.toBeInTheDocument()
+      expect(screen.queryByText(en.common.loading)).not.toBeInTheDocument()
     })
   })
 
@@ -33,13 +33,13 @@ describe('routes', () => {
     const api = createFakeApi().on('GET /me', meFixture({ onboarding_completed_at: COMPLETED_AT })).api
     const { router } = renderRoute('/', { auth: createFakeAuth(fakeSession()), api })
 
-    expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: en.today.title })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe(CALENDAR_PATH)
     expect(router.state.historyAction).toBe('REPLACE')
-    expect(screen.getByRole('banner')).toHaveTextContent(he.appName)
+    expect(screen.getByRole('banner')).toHaveTextContent(en.appName)
     // Sign out moved into the profile menu (S26).
-    expect(screen.getByRole('button', { name: he.shell.profile })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: he.shell.signOut })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.shell.profile })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: en.shell.signOut })).not.toBeInTheDocument()
   })
 
   // S31: /today and /week were the two first destinations. Notifications that were already sent,
@@ -68,15 +68,15 @@ describe('routes', () => {
     const api = createFakeApi().on('GET /me', meFixture({ onboarding_completed_at: COMPLETED_AT })).api
     const { router } = renderRoute(CALENDAR_PATH, { auth: createFakeAuth(fakeSession()), api })
 
-    const nav = within(await screen.findByRole('navigation', { name: he.shell.mainNav }))
-    expect(nav.getByRole('link', { name: he.shell.calendar })).toHaveAttribute('aria-current', 'page')
-    expect(nav.getByRole('link', { name: he.shell.exams })).not.toHaveAttribute('aria-current')
+    const nav = within(await screen.findByRole('navigation', { name: en.shell.mainNav }))
+    expect(nav.getByRole('link', { name: en.shell.calendar })).toHaveAttribute('aria-current', 'page')
+    expect(nav.getByRole('link', { name: en.shell.exams })).not.toHaveAttribute('aria-current')
 
-    await user.click(nav.getByRole('link', { name: he.shell.exams }))
+    await user.click(nav.getByRole('link', { name: en.shell.exams }))
     expect(router.state.location.pathname).toBe(EXAMS_PATH)
-    expect(await screen.findByRole('heading', { level: 1, name: he.exam.list.title })).toBeInTheDocument()
-    expect(nav.getByRole('link', { name: he.shell.exams })).toHaveAttribute('aria-current', 'page')
-    expect(nav.getByRole('link', { name: he.shell.calendar })).not.toHaveAttribute('aria-current')
+    expect(await screen.findByRole('heading', { level: 1, name: en.exam.list.title })).toBeInTheDocument()
+    expect(nav.getByRole('link', { name: en.shell.exams })).toHaveAttribute('aria-current', 'page')
+    expect(nav.getByRole('link', { name: en.shell.calendar })).not.toHaveAttribute('aria-current')
   })
 
   it('the calendar route needs a signed-in user', async () => {
@@ -98,7 +98,7 @@ describe('routes', () => {
   it('an unknown path shows not found', async () => {
     renderRoute('/nope', { auth: createFakeAuth(null) })
 
-    expect(await screen.findByRole('heading', { name: he.notFound.title })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: he.notFound.backHome })).toHaveAttribute('href', '/')
+    expect(await screen.findByRole('heading', { name: en.notFound.title })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: en.notFound.backHome })).toHaveAttribute('href', '/')
   })
 })

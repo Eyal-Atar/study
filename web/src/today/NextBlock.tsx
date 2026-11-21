@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react'
+import { Check } from '../ui/icons'
 import { useId, useRef } from 'react'
 import { actionAriaLabel, actionLabel, isExtra, partSuffix, useBlockControls } from '../board/blockControls'
 import { BlockMenu, PinnedMark, StateBadge } from '../board/blockParts'
@@ -6,7 +6,7 @@ import { useFocusRequest } from '../board/focus'
 import { MoveDialog } from '../board/MoveDialog'
 import { blockMinutes, durationText, formatRange } from '../board/time'
 import type { Block } from '../board/types'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { ICON_STROKE } from '../ui/styles'
@@ -38,7 +38,7 @@ export function NextBlock({ block, tz, when }: NextBlockProps) {
     <Card role="region" aria-labelledby={headingId} className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3">
         <h2 id={headingId} className="text-small font-semibold text-brand-strong">
-          {he.today.next}
+          {en.today.next}
         </h2>
         {when === undefined ? <StateBadge block={block} /> : <p className="text-small font-semibold">{when}</p>}
       </div>
@@ -48,11 +48,11 @@ export function NextBlock({ block, tz, when }: NextBlockProps) {
           <span dir="ltr" className="tabular-nums">
             {formatRange(block, tz)}
           </span>
-          {he.board.nextMeta(durationText(blockMinutes(block)), block.exam_name, he.board.kinds[block.task_kind])}
+          {en.board.nextMeta(durationText(blockMinutes(block)), block.exam_name, en.board.kinds[block.task_kind])}
           {partSuffix(block)}
           {block.pinned ? (
             <>
-              {he.move.detailsJoiner}
+              {en.move.detailsJoiner}
               <PinnedMark />
             </>
           ) : null}
@@ -80,7 +80,7 @@ export function NextBlock({ block, tz, when }: NextBlockProps) {
               start('defer')
             }}
           >
-            {deferring ? he.board.deferring : actionLabel('defer')}
+            {deferring ? en.board.deferring : actionLabel('defer')}
           </Button>
         ) : null}
         {only !== undefined && rest.length === 1 ? (

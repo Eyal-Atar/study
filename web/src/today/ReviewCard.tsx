@@ -4,7 +4,7 @@ import { blockName } from '../board/blockName'
 import { useReview, useReviewActions } from '../board/review'
 import { dateIn, dayLabel, formatRange, useProfileTimezone } from '../board/time'
 import type { Block } from '../board/types'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 
@@ -92,9 +92,9 @@ export function ReviewCard() {
       <Card role="region" aria-labelledby="review-title" className="space-y-3">
         <div className="space-y-1">
           <h2 id="review-title" ref={headingRef} tabIndex={-1} className="text-body font-semibold outline-none">
-            {he.review.title}
+            {en.review.title}
           </h2>
-          <p className="text-small text-ink-muted">{blocks.length === 0 ? he.review.allDone : he.review.lead(blocks.length)}</p>
+          <p className="text-small text-ink-muted">{blocks.length === 0 ? en.review.allDone : en.review.lead(blocks.length)}</p>
         </div>
         {blocks.length === 0 ? null : (
           <ul>
@@ -109,43 +109,43 @@ export function ReviewCard() {
                       {block.task_title}
                     </h3>
                     <p className="text-small break-words text-ink-muted">
-                      {he.review.when(dayLabel(block.study_date, todayDate))}
+                      {en.review.when(dayLabel(block.study_date, todayDate))}
                       <span dir="ltr" className="tabular-nums">
                         {formatRange(block, tz)}
                       </span>
-                      {he.review.details(block.exam_name, block.part_count > 1 ? he.board.part(block.part_index, block.part_count) : null)}
+                      {en.review.details(block.exam_name, block.part_count > 1 ? en.board.part(block.part_index, block.part_count) : null)}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button
                       variant="secondary"
-                      aria-label={he.review.completeLabel(name)}
+                      aria-label={en.review.completeLabel(name)}
                       isDisabled={pending}
                       onPress={() => {
                         start('complete', block)
                       }}
                     >
-                      {he.review.complete}
+                      {en.review.complete}
                     </Button>
                     <Button
                       variant="secondary"
-                      aria-label={he.review.moveTodayLabel(name)}
+                      aria-label={en.review.moveTodayLabel(name)}
                       isDisabled={pending}
                       onPress={() => {
                         start('moveToday', block)
                       }}
                     >
-                      {actions.moving(block.id) ? he.review.moving : he.review.moveToday}
+                      {actions.moving(block.id) ? en.review.moving : en.review.moveToday}
                     </Button>
                     <Button
                       variant="quiet"
-                      aria-label={he.review.skipLabel(name)}
+                      aria-label={en.review.skipLabel(name)}
                       isDisabled={pending}
                       onPress={() => {
                         start('skip', block)
                       }}
                     >
-                      {he.review.skip}
+                      {en.review.skip}
                     </Button>
                   </div>
                 </li>

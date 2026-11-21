@@ -23,7 +23,7 @@ export const MAX_MATERIALS_PER_EXAM = 15
 // For <input accept> / a FileTrigger's acceptedFileTypes.
 export const ACCEPTED_FILE_TYPES: readonly string[] = [...ACCEPTED_MIMES, '.pdf', '.jpg', '.jpeg', '.png']
 
-// A failure before the API was asked: `code` is one of he.codes (unsupported_file, file_too_large, storage_unavailable).
+// A failure before the API was asked: `code` is one of en.codes (unsupported_file, file_too_large, storage_unavailable).
 export class UploadError extends Error {
   readonly code: string
 

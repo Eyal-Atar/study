@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { OnboardingLayout } from './OnboardingLayout'
 
@@ -12,7 +12,7 @@ describe('OnboardingLayout', () => {
       </OnboardingLayout>,
     )
     expect(screen.getByRole('heading', { level: 1, name: 'כותרת' })).toBeInTheDocument()
-    expect(screen.getByText(he.onboarding.stepOf(2, 4))).toBeInTheDocument()
+    expect(screen.getByText(en.onboarding.stepOf(2, 4))).toBeInTheDocument()
     expect(screen.getByText('הסבר')).toBeInTheDocument()
     expect(screen.getByText('תוכן')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'הבא' })).toBeInTheDocument()
@@ -24,10 +24,10 @@ describe('OnboardingLayout', () => {
         <p>תוכן</p>
       </OnboardingLayout>,
     )
-    const steps = within(screen.getByRole('navigation', { name: he.onboarding.stepsLabel })).getAllByRole('listitem')
+    const steps = within(screen.getByRole('navigation', { name: en.onboarding.stepsLabel })).getAllByRole('listitem')
     expect(steps).toHaveLength(4)
     expect(steps[2]).toHaveAttribute('aria-current', 'step')
-    expect(steps[2]).toHaveTextContent(he.onboarding.steps[2])
+    expect(steps[2]).toHaveTextContent(en.onboarding.steps[2])
     expect(steps[0]).not.toHaveAttribute('aria-current')
   })
 
@@ -37,7 +37,7 @@ describe('OnboardingLayout', () => {
         <p>תוכן</p>
       </OnboardingLayout>,
     )
-    expect(document.title).toBe(`כותרת · ${he.appName}`)
+    expect(document.title).toBe(`כותרת · ${en.appName}`)
     expect(screen.getByText('הסבר')).toHaveClass('max-w-prose')
   })
 

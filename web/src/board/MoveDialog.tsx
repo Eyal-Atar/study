@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useApi } from '../api/ApiContext'
 import type { ApiError } from '../api/client'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
 import { Note } from '../ui/Note'
@@ -39,8 +39,8 @@ export function MoveDialog({ block, tz, isOpen, onClose }: MoveDialogProps) {
 
   return (
     <Dialog
-      title={he.move.dialogTitle(blockName(block))}
-      description={he.move.dialogLead}
+      title={en.move.dialogTitle(blockName(block))}
+      description={en.move.dialogLead}
       isOpen={isOpen}
       onOpenChange={(open) => {
         if (!open) close()
@@ -87,28 +87,28 @@ function MoveSlots({
   return (
     <>
       <p className="text-small text-ink">
-        {he.move.current}
+        {en.move.current}
         <span dir="ltr" className="font-semibold tabular-nums">
           {formatRange(block, tz)}
         </span>
       </p>
 
-      {slots.isPending ? <LoadingState shape="text" rows={2} label={he.move.loading} /> : null}
+      {slots.isPending ? <LoadingState shape="text" rows={2} label={en.move.loading} /> : null}
 
       {slots.isError ? (
         <ErrorState
-          message={he.move.loadFailed}
+          message={en.move.loadFailed}
           onRetry={() => {
             void slots.refetch()
           }}
         />
       ) : null}
 
-      {slots.isSuccess && list.length === 0 ? <Note>{he.move.empty}</Note> : null}
+      {slots.isSuccess && list.length === 0 ? <Note>{en.move.empty}</Note> : null}
 
       {slots.isSuccess && list.length > 0 ? (
         <OptionGrid
-          aria-label={he.move.slotsLabel}
+          aria-label={en.move.slotsLabel}
           options={list.map((slot) => ({ id: slot, label: formatTime(slot, tz) }))}
           value={chosen}
           // Pressing the chosen time again gives null: nothing is chosen, and "הזזה" is disabled.
@@ -129,11 +129,11 @@ function MoveActions({ blockId, chosen, onCancel }: { blockId: string; chosen: s
     <>
       {canMove ? (
         <Button type="submit" className="flex-1" isDisabled={chosen === null}>
-          {he.move.confirm}
+          {en.move.confirm}
         </Button>
       ) : null}
       <Button variant="secondary" onPress={onCancel}>
-        {he.common.cancel}
+        {en.common.cancel}
       </Button>
     </>
   )

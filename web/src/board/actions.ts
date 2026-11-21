@@ -3,7 +3,7 @@ import { useCallback } from 'react'
 import { useApi } from '../api/ApiContext'
 import { ApiError, errorMessage } from '../api/client'
 import { codeText, unscheduledText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { UNDO_TIMEOUT_MS, useToast } from '../ui/useToast'
 import { boardKey, todayKey, useBoardUserId } from './api'
 import { requestFocus } from './focus'
@@ -169,7 +169,7 @@ export function useBlockActions(): BlockActions {
   }
 
   function undoToast(text: string, onUndo: () => void) {
-    toast.show({ text, tone: 'success', action: { label: he.common.undo, onAction: onUndo }, timeoutMs: UNDO_TIMEOUT_MS })
+    toast.show({ text, tone: 'success', action: { label: en.common.undo, onAction: onUndo }, timeoutMs: UNDO_TIMEOUT_MS })
   }
 
   // The callbacks live on the mutation, not on mutate(), so they still run when the screen that
@@ -215,7 +215,7 @@ export function useBlockActions(): BlockActions {
       fail(error)
     },
     onSuccess: (result) => {
-      undoToast(result.pinned ? he.board.pinnedDone : he.board.unpinnedDone, () => {
+      undoToast(result.pinned ? en.board.pinnedDone : en.board.unpinnedDone, () => {
         pinMutation.mutate(started(result, !result.pinned))
       })
     },
@@ -228,7 +228,7 @@ export function useBlockActions(): BlockActions {
     request
       .then(
         () => {
-          toast.show({ text: he.board.deferUndone, tone: 'success' })
+          toast.show({ text: en.board.deferUndone, tone: 'success' })
         },
         // nothing_to_undo or stale_plan: another version came in between. The refetch shows the board as it is.
         fail,
@@ -263,8 +263,8 @@ export function useBlockActions(): BlockActions {
       const today = context.today ?? dateIn(tz)
       const text =
         next === undefined
-          ? he.board.deferredSomewhere
-          : he.board.deferred(dayLabel(next.study_date, today), formatTime(next.starts_at, tz))
+          ? en.board.deferredSomewhere
+          : en.board.deferred(dayLabel(next.study_date, today), formatTime(next.starts_at, tz))
       const versionId = result.version_id
       if (versionId === null) {
         toast.show({ text, tone: 'success' })

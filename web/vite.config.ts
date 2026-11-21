@@ -9,7 +9,7 @@ import { fillBootTexts } from './src/pwa/bootTexts.ts'
 import { PRODUCT_NAME } from './src/product.ts'
 
 // Writes the product name into index.html, so it is written only in src/product.ts, and the boot
-// fallback's texts from he.ts (src/pwa/bootTexts.ts).
+// fallback's texts from en.ts (src/pwa/bootTexts.ts).
 // 'pre' runs before Vite's own %ENV% replacement, which would warn about an unknown variable.
 function productName(): Plugin {
   return {

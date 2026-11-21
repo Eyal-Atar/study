@@ -1,7 +1,7 @@
-import { Plus } from 'lucide-react'
+import { Plus } from '../ui/icons'
 import { useEffect, useRef, useState } from 'react'
 import { errorMessage } from '../api/client'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { ICON_STROKE } from '../ui/styles'
@@ -12,7 +12,7 @@ import { NEW_TASK_DRAFT, type TaskValues } from './taskDraft'
 import { TaskForm } from './TaskForm'
 import type { TaskCreate, Topic } from './types'
 
-const t = he.exam.tasks
+const t = en.exam.tasks
 
 // "הוספת משימה": a user task for this exam (POST /tasks), placed on the board by the server.
 export function AddTask({ examId, topics }: { examId: string; topics: readonly Topic[] }) {

@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Select, type SelectOption } from './Select'
 
 const OPTIONS: readonly SelectOption[] = [
@@ -102,7 +102,7 @@ describe('Select', () => {
     const user = userEvent.setup()
     const { trigger } = setup({ value: 'gone' })
 
-    expect(trigger).toHaveTextContent(he.common.choose)
+    expect(trigger).toHaveTextContent(en.common.choose)
     await user.click(trigger)
     for (const option of screen.getAllByRole('option')) {
       expect(option).toHaveAttribute('aria-selected', 'false')
@@ -141,7 +141,7 @@ describe('Select', () => {
     const user = userEvent.setup()
     const { onChange, trigger } = setup({ options: [], value: 'a' })
 
-    expect(trigger).toHaveTextContent(he.common.choose)
+    expect(trigger).toHaveTextContent(en.common.choose)
     await user.click(trigger)
     expect(screen.queryByRole('option')).not.toBeInTheDocument()
     expect(onChange).not.toHaveBeenCalled()

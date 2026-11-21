@@ -1,14 +1,14 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { COMPLETED_AT, examFixture, meFixture } from '../onboarding/testFixtures'
 import { addDays, dayMonth, longDate, weekdayShort } from './dates'
 import { problem } from '../test/fakeApi'
 import { EXAM, TODAY, blockFixture, examServer, openRoute } from './testFixtures'
 
-const t = he.exam
-const f = he.onboardingExams
+const t = en.exam
+const f = en.onboardingExams
 
 function dayName(day: string) {
   return t.timeline.day(weekdayShort(day), dayMonth(day))
@@ -90,7 +90,7 @@ describe('ExamPage', () => {
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1, name: t.title })).toBeInTheDocument()
     const before = fake.calls('GET', '/exams').length
-    await user.click(screen.getByRole('button', { name: he.common.retry }))
+    await user.click(screen.getByRole('button', { name: en.common.retry }))
     await waitFor(() => {
       expect(fake.calls('GET', '/exams').length).toBeGreaterThan(before)
     })
@@ -132,7 +132,7 @@ describe('ExamPage', () => {
     await user.click(await screen.findByRole('button', { name: t.header.editNamed }))
     expect(screen.getByRole('textbox', { name: f.name })).toHaveValue(EXAM.name)
     await user.click(screen.getByRole('radio', { name: f.difficultyLevels[4] }))
-    await user.click(screen.getByRole('button', { name: he.common.save }))
+    await user.click(screen.getByRole('button', { name: en.common.save }))
 
     await waitFor(() => {
       expect(fake.calls('PATCH', '/exams/e1').map((c) => c.body)).toEqual([{ difficulty: 5 }])
@@ -148,7 +148,7 @@ describe('ExamPage', () => {
     const fake = examServer()
     openRoute(fake, '/exams/e1')
     await user.click(await screen.findByRole('button', { name: t.header.editNamed }))
-    await user.click(screen.getByRole('button', { name: he.common.save }))
+    await user.click(screen.getByRole('button', { name: en.common.save }))
     expect(await screen.findByRole('button', { name: t.header.editNamed })).toBeInTheDocument()
     expect(fake.calls('PATCH')).toHaveLength(0)
   })
@@ -159,7 +159,7 @@ describe('ExamPage', () => {
     openRoute(fake, '/exams/e1')
     await user.click(await screen.findByRole('button', { name: t.header.editNamed }))
     await user.clear(screen.getByRole('textbox', { name: f.name }))
-    await user.click(screen.getByRole('button', { name: he.common.cancel }))
+    await user.click(screen.getByRole('button', { name: en.common.cancel }))
     expect(screen.getByRole('heading', { level: 1, name: EXAM.name })).toBeInTheDocument()
     expect(fake.calls('PATCH')).toHaveLength(0)
   })

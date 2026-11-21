@@ -1,8 +1,8 @@
 import { render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { Inbox } from 'lucide-react'
+import { Inbox } from './icons'
 import { describe, expect, it, vi } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from './Button'
 import { EmptyState, ErrorState, LoadingState, Skeleton } from './states'
 
@@ -23,9 +23,9 @@ describe('LoadingState', () => {
   it('is a status that says "טוען…" to screen readers only, over three list rows by default', () => {
     render(<LoadingState />)
     const status = screen.getByRole('status')
-    expect(status).toHaveTextContent(he.common.loading)
-    expect(status.textContent).toBe(he.common.loading)
-    expect(screen.getByText(he.common.loading)).toHaveClass('sr-only')
+    expect(status).toHaveTextContent(en.common.loading)
+    expect(status.textContent).toBe(en.common.loading)
+    expect(screen.getByText(en.common.loading)).toHaveClass('sr-only')
     const rows = skeletonRows(status)
     expect(rows).toHaveLength(3)
     for (const row of rows) {
@@ -59,7 +59,7 @@ describe('LoadingState', () => {
     const card = status.querySelector('[data-skeleton-card]')
     expect(card).toHaveClass('rounded-card', 'border', 'border-line', 'bg-surface', 'p-card')
     expect(card?.querySelectorAll('.animate-pulse')).toHaveLength(3)
-    expect(status.textContent).toBe(he.common.loading)
+    expect(status.textContent).toBe(en.common.loading)
   })
 
   it('takes another label', () => {
@@ -105,8 +105,8 @@ describe('ErrorState', () => {
   it('is an alert with the generic message and an icon, and no button without onRetry', () => {
     render(<ErrorState />)
     const alert = screen.getByRole('alert')
-    expect(alert).toHaveTextContent(he.errors.generic)
-    expect(within(alert).getByText(he.errors.generic)).toHaveClass('text-body', 'text-ink')
+    expect(alert).toHaveTextContent(en.errors.generic)
+    expect(within(alert).getByText(en.errors.generic)).toHaveClass('text-body', 'text-ink')
     const icon = alert.querySelector('svg')
     expect(icon).toHaveAttribute('aria-hidden', 'true')
     expect(icon).toHaveClass('text-danger')
@@ -117,12 +117,12 @@ describe('ErrorState', () => {
   it('shows a custom message, and the retry button calls onRetry', async () => {
     const user = userEvent.setup()
     const onRetry = vi.fn()
-    render(<ErrorState message={he.errors.unreachable} onRetry={onRetry} />)
+    render(<ErrorState message={en.errors.unreachable} onRetry={onRetry} />)
     const alert = screen.getByRole('alert')
-    expect(alert).toHaveTextContent(he.errors.unreachable)
-    expect(alert).not.toHaveTextContent(he.errors.generic)
+    expect(alert).toHaveTextContent(en.errors.unreachable)
+    expect(alert).not.toHaveTextContent(en.errors.generic)
 
-    await user.click(within(alert).getByRole('button', { name: he.common.retry }))
+    await user.click(within(alert).getByRole('button', { name: en.common.retry }))
     expect(onRetry).toHaveBeenCalledOnce()
   })
 

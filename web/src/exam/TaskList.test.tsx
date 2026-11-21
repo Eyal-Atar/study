@@ -2,15 +2,15 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { unscheduledText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { problem, type ApiCall } from '../test/fakeApi'
 import { momentIn } from './dates'
 import { BROWSER_ZONE } from '../onboarding/testFixtures'
 import { blockFixture, examServer, openRoute, taskFixture, topicFixture, topicsFixture } from './testFixtures'
 import type { TaskWriteResponse } from './types'
 
-const t = he.exam.tasks
-const tp = he.exam.topics
+const t = en.exam.tasks
+const tp = en.exam.topics
 
 const LONG_TITLE = 'א'.repeat(120)
 
@@ -150,14 +150,14 @@ describe('TaskList', () => {
     const minutes = within(form).getByRole('textbox', { name: t.minutesLabel })
     await user.clear(minutes)
     await user.type(minutes, '90')
-    await user.click(within(form).getByRole('button', { name: he.common.save }))
+    await user.click(within(form).getByRole('button', { name: en.common.save }))
 
     await waitFor(() => {
       expect(fake.calls('PATCH', '/tasks/t1').map((c) => c.body)).toEqual([{ estimated_minutes: 90 }])
     })
-    const toast = await screen.findByRole('region', { name: he.common.notifications })
+    const toast = await screen.findByRole('region', { name: en.common.notifications })
     await within(toast).findByText(t.placed)
-    await user.click(within(toast).getByRole('button', { name: he.common.undo }))
+    await user.click(within(toast).getByRole('button', { name: en.common.undo }))
     await waitFor(() => {
       expect(fake.calls('POST', '/plan/undo').map((c) => c.body)).toEqual([{ version_id: 'v7' }])
     })
@@ -167,7 +167,7 @@ describe('TaskList', () => {
     const user = userEvent.setup()
     const fake = await open()
     await choose(user, 'גבולות', t.edit)
-    await user.click(screen.getByRole('button', { name: he.common.save }))
+    await user.click(screen.getByRole('button', { name: en.common.save }))
     await waitFor(() => {
       expect(screen.queryByRole('form', { name: t.formLabel('גבולות') })).not.toBeInTheDocument()
     })
@@ -180,7 +180,7 @@ describe('TaskList', () => {
     await open(fake)
     await choose(user, 'גבולות', t.edit)
     await chooseTopic(user, tp.noTopic)
-    await user.click(screen.getByRole('button', { name: he.common.save }))
+    await user.click(screen.getByRole('button', { name: en.common.save }))
     await waitFor(() => {
       expect(fake.calls('PATCH', '/tasks/t1').map((c) => c.body)).toEqual([{ topic_id: null }])
     })
@@ -198,7 +198,7 @@ describe('TaskList', () => {
     const minutes = screen.getByRole('textbox', { name: t.minutesLabel })
     await user.clear(minutes)
     await user.type(minutes, '300')
-    await user.click(screen.getByRole('button', { name: he.common.save }))
+    await user.click(screen.getByRole('button', { name: en.common.save }))
     const dialog = await screen.findByRole('dialog')
     expect(dialog).toHaveTextContent(t.notPlaced(unscheduledText('not_enough_time')))
     await waitFor(() => {
@@ -213,7 +213,7 @@ describe('TaskList', () => {
     const minutes = screen.getByRole('textbox', { name: t.minutesLabel })
     await user.clear(minutes)
     await user.type(minutes, '2')
-    await user.click(screen.getByRole('button', { name: he.common.save }))
+    await user.click(screen.getByRole('button', { name: en.common.save }))
     expect(await screen.findByText(t.minutesRange)).toBeInTheDocument()
     expect(fake.calls('PATCH')).toHaveLength(0)
   })
@@ -302,7 +302,7 @@ describe('TaskList', () => {
     await waitFor(() => {
       expect(within(form).getByRole('textbox', { name: t.title })).toHaveFocus()
     })
-    within(form).getByRole('button', { name: he.common.cancel }).focus()
+    within(form).getByRole('button', { name: en.common.cancel }).focus()
     await user.keyboard('{Enter}')
     await waitFor(() => {
       expect(screen.queryByRole('form', { name: t.formLabel('גבולות') })).not.toBeInTheDocument()
@@ -355,8 +355,8 @@ describe('TaskList', () => {
     openRoute(fake, '/exams/e1')
     // The analysis section reads the same tasks and has a retry of its own: this is the one of the list.
     const section = await screen.findByRole('region', { name: tp.title })
-    const retry = await within(section).findByRole('button', { name: he.common.retry })
-    expect(within(section).getByRole('alert')).toHaveTextContent(he.codes.internal_error)
+    const retry = await within(section).findByRole('button', { name: en.common.retry })
+    expect(within(section).getByRole('alert')).toHaveTextContent(en.codes.internal_error)
     fail = false
     await user.click(retry)
     expect(await within(section).findByText('גבולות')).toBeInTheDocument()
@@ -380,12 +380,12 @@ describe('TaskList', () => {
     await waitFor(() => {
       expect(fake.calls('DELETE', '/tasks/t3')).toHaveLength(1)
     })
-    const toast = await screen.findByRole('region', { name: he.common.notifications })
+    const toast = await screen.findByRole('region', { name: en.common.notifications })
     await within(toast).findByText(t.deleted)
     await waitFor(() => {
       expect(screen.queryByText('שאלות של המתרגל')).not.toBeInTheDocument()
     })
-    await user.click(within(toast).getByRole('button', { name: he.common.undo }))
+    await user.click(within(toast).getByRole('button', { name: en.common.undo }))
     await waitFor(() => {
       expect(fake.calls('POST', '/plan/undo').map((c) => c.body)).toEqual([{ version_id: 'v9' }])
     })
@@ -405,8 +405,8 @@ describe('TaskList', () => {
       expect(topicCalls()).toBeGreaterThan(initial)
     })
     const afterWrite = topicCalls()
-    const toast = await screen.findByRole('region', { name: he.common.notifications })
-    await user.click(await within(toast).findByRole('button', { name: he.common.undo }))
+    const toast = await screen.findByRole('region', { name: en.common.notifications })
+    await user.click(await within(toast).findByRole('button', { name: en.common.undo }))
     await waitFor(() => {
       expect(fake.calls('POST', '/plan/undo')).toHaveLength(1)
     })
@@ -421,7 +421,7 @@ describe('TaskList', () => {
     await open(fake)
     const before = fake.calls('GET', '/exams/e1/tasks').length
     await user.click(within(row('גבולות')).getByRole('button', { name: t.markDoneNamed('גבולות') }))
-    expect(await screen.findByText(he.codes.not_found)).toBeInTheDocument()
+    expect(await screen.findByText(en.codes.not_found)).toBeInTheDocument()
     await waitFor(() => {
       expect(fake.calls('GET', '/exams/e1/tasks').length).toBeGreaterThan(before)
     })
@@ -436,7 +436,7 @@ describe('TaskList', () => {
     await user.clear(name)
     await user.type(name, 'נגזרות וחקירה')
     await user.click(screen.getByRole('radio', { name: '5' }))
-    await user.click(screen.getByRole('button', { name: he.common.save }))
+    await user.click(screen.getByRole('button', { name: en.common.save }))
     await waitFor(() => {
       expect(fake.calls('PATCH', '/topics/p2').map((c) => c.body)).toEqual([{ name: 'נגזרות וחקירה', weight: 5 }])
     })
@@ -463,9 +463,9 @@ describe('AddTask', () => {
         { exam_id: 'e1', title: 'חזרה על תרגיל 4', estimated_minutes: 45, kind: 'custom', topic_id: 'p2' },
       ])
     })
-    const toast = await screen.findByRole('region', { name: he.common.notifications })
+    const toast = await screen.findByRole('region', { name: en.common.notifications })
     await within(toast).findByText(t.addedPlaced)
-    expect(within(toast).getByRole('button', { name: he.common.undo })).toBeInTheDocument()
+    expect(within(toast).getByRole('button', { name: en.common.undo })).toBeInTheDocument()
   })
 
   it('a new task that did not fit opens the replan offer', async () => {

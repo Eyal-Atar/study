@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { ApiError, createApiClient, errorMessage } from './client'
 
 function problem(status: number, body: unknown, contentType = 'application/problem+json') {
@@ -422,7 +422,7 @@ describe('createApiClient on concurrent 401s', () => {
 
 describe('errorMessage', () => {
   it('prefers our own text for a known code', () => {
-    expect(errorMessage(new ApiError(422, 'exam_in_past', 'כותרת של השרת'))).toBe(he.codes.exam_in_past)
+    expect(errorMessage(new ApiError(422, 'exam_in_past', 'כותרת של השרת'))).toBe(en.codes.exam_in_past)
   })
 
   it('returns the title when there is one', () => {
@@ -430,12 +430,12 @@ describe('errorMessage', () => {
   })
 
   it('says the server is unreachable when there was no response', () => {
-    expect(errorMessage(new ApiError(0, null, null))).toBe(he.errors.unreachable)
-    expect(errorMessage(new ApiError(0, 'timeout', null))).toBe(he.codes.timeout)
+    expect(errorMessage(new ApiError(0, null, null))).toBe(en.errors.unreachable)
+    expect(errorMessage(new ApiError(0, 'timeout', null))).toBe(en.codes.timeout)
   })
 
   it('falls back to the generic message', () => {
-    expect(errorMessage(new ApiError(500, null, null))).toBe(he.errors.generic)
-    expect(errorMessage(new Error('boom'))).toBe(he.errors.generic)
+    expect(errorMessage(new ApiError(500, null, null))).toBe(en.errors.generic)
+    expect(errorMessage(new Error('boom'))).toBe(en.errors.generic)
   })
 })

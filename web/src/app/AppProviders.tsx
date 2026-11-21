@@ -1,6 +1,7 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { I18nProvider } from 'react-aria-components'
+import { LOCALE } from '../i18n/locale'
 import { ApiContext } from '../api/ApiContext'
 import type { ApiClient } from '../api/client'
 import { AuthProvider } from '../auth/AuthProvider'
@@ -29,7 +30,7 @@ export function AppProviders({
 }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <I18nProvider locale="he-IL">
+      <I18nProvider locale={LOCALE}>
         <ApiContext value={api}>
           <StorageContext value={storage}>
             <AuthProvider auth={auth}>

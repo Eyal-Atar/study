@@ -2,7 +2,7 @@ import { useId, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { errorMessage } from '../api/client'
 import { useMe, type Me, type StudyWindow } from '../api/me'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { CheckboxCards } from '../ui/CheckboxCards'
 import { Note } from '../ui/Note'
@@ -13,7 +13,7 @@ import { OnboardingLayout } from './OnboardingLayout'
 import { flushDeletes } from './pendingDeletes'
 import { STEP_PATHS } from './steps'
 
-const t = he.onboardingSchedule
+const t = en.onboardingSchedule
 
 // S13 decision 8: a choice of whole hours, not a free field. Faster on a phone, and inside the API's
 // 30–960 minutes. The default is the profile's own (240), so an untouched answer changes nothing.
@@ -100,7 +100,7 @@ function ScheduleForm({ me }: { me: Me }) {
           void navigate(STEP_PATHS.materials)
         }}
       >
-        {he.common.back}
+        {en.common.back}
       </Button>
     </>
   )

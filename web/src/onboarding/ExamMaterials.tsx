@@ -1,11 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from '../ui/icons'
 import { useEffect, useId, useState, type ReactNode } from 'react'
 import { FileTrigger } from 'react-aria-components'
 import { ApiError, errorMessage } from '../api/client'
 import { useUserId } from '../api/me'
 import { codeText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { IconButton } from '../ui/IconButton'
 import { List } from '../ui/List'
@@ -28,7 +28,7 @@ import {
   useUploadMaterial,
 } from './upload'
 
-const t = he.onboardingMaterials
+const t = en.onboardingMaterials
 
 // A file the user picked that is not registered yet: uploading (error null), or failed before the API
 // took it (Storage, the register call, or the checks of uploadMaterial).
@@ -66,7 +66,7 @@ function materialStatus(material: Material): { status: string; tone: 'muted' | '
     case 'ready':
       return { status: t.ready(material.page_count), tone: 'success' }
     case 'failed':
-      return { status: material.ingest_error === null ? he.errors.generic : codeText(material.ingest_error), tone: 'danger' }
+      return { status: material.ingest_error === null ? en.errors.generic : codeText(material.ingest_error), tone: 'danger' }
     default:
       return { status: t.processing, tone: 'muted' }
   }
@@ -172,7 +172,7 @@ export function ExamMaterials({ exam, onCountChange, heading, kindControl, bare 
     const key = toast.show({
       text: t.deleted(material.filename),
       action: {
-        label: he.common.undo,
+        label: en.common.undo,
         onAction: () => {
           cancelDelete(material.id)
           show()
@@ -257,7 +257,7 @@ export function ExamMaterials({ exam, onCountChange, heading, kindControl, bare 
                   <>
                     {canRetry(item.error) ? (
                       <Button variant="quiet" aria-label={t.retryNamed(item.file.name)} onPress={() => { retry(item); }}>
-                        {he.common.retry}
+                        {en.common.retry}
                       </Button>
                     ) : null}
                     <Button variant="quiet" aria-label={t.removeNamed(item.file.name)} onPress={() => { drop(item); }}>

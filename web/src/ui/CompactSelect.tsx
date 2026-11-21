@@ -1,4 +1,4 @@
-import { Check, ChevronDown } from 'lucide-react'
+import { Check, ChevronDown } from './icons'
 import { Button, ListBox, ListBoxItem, Popover, Select as AriaSelect, SelectValue } from 'react-aria-components'
 import type { SelectOption } from './Select'
 import { cx, FOCUS_RING, ICON_STROKE } from './styles'

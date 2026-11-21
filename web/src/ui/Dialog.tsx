@@ -1,7 +1,7 @@
-import { X } from 'lucide-react'
+import { X } from './icons'
 import { useId, type ReactNode } from 'react'
 import { Dialog as AriaDialog, Heading, Modal, ModalOverlay } from 'react-aria-components'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { IconButton } from './IconButton'
 import { cx, ICON_STROKE } from './styles'
 
@@ -102,7 +102,7 @@ export function Dialog({
             {dismissable ? (
               // slot="close": React Aria's Dialog wires the press to onOpenChange(false).
               // The negative margins keep the 44px target from pushing the title down and in.
-              <IconButton slot="close" aria-label={he.common.close} className="-me-2 -mt-2">
+              <IconButton slot="close" aria-label={en.common.close} className="-me-2 -mt-2">
                 <X aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
               </IconButton>
             ) : null}

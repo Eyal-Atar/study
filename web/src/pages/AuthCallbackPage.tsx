@@ -1,6 +1,6 @@
 import { Navigate, useSearchParams } from 'react-router'
 import { useAuth } from '../auth/AuthContext'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { ButtonLink } from '../ui/ButtonLink'
 import { StandalonePage } from '../ui/PageContainer'
 import { PageHeader } from '../ui/PageHeader'
@@ -20,17 +20,17 @@ export function AuthCallbackPage() {
   return (
     <StandalonePage>
       <div className="space-y-section">
-        <PageHeader title={he.callback.title} />
+        <PageHeader title={en.callback.title} />
         {failed ? (
           <>
             {/* No retry here: the code in the URL is spent, so trying again starts at the login screen. */}
-            <ErrorState message={he.callback.failed} />
+            <ErrorState message={en.callback.failed} />
             <ButtonLink to="/login" variant="primary" className="w-full md:w-auto">
-              {he.callback.backToLogin}
+              {en.callback.backToLogin}
             </ButtonLink>
           </>
         ) : (
-          <LoadingState shape="text" rows={2} label={he.callback.working} />
+          <LoadingState shape="text" rows={2} label={en.callback.working} />
         )}
       </div>
     </StandalonePage>

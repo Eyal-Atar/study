@@ -1,6 +1,6 @@
-import { CircleAlert, type LucideIcon } from 'lucide-react'
+import { CircleAlert, type LucideIcon } from './icons'
 import type { ReactNode } from 'react'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from './Button'
 import { cx, ICON_STROKE } from './styles'
 
@@ -33,7 +33,7 @@ const LINE_WIDTHS = ['w-full', 'w-5/6', 'w-2/3', 'w-3/4'] as const
 // Loading, in the shape of the content, so the screen does not jump when it arrives. Never a
 // spinner over the whole screen. The label is for screen readers only (role="status" announces it
 // politely); the drawing is hidden from them.
-export function LoadingState({ shape = 'list', rows = 3, label = he.common.loading }: LoadingStateProps) {
+export function LoadingState({ shape = 'list', rows = 3, label = en.common.loading }: LoadingStateProps) {
   const indexes = Array.from({ length: Math.max(0, Math.floor(rows)) }, (_, index) => index)
   return (
     <div role="status">
@@ -118,7 +118,7 @@ export interface ErrorStateProps {
 // The state is carried by the icon and the words, not by red text, and it is aligned to the start
 // like the paragraph it replaces. For a failed action (a save) use a toast or the error of the
 // field instead.
-export function ErrorState({ message = he.errors.generic, onRetry, retryLabel = he.common.retry }: ErrorStateProps) {
+export function ErrorState({ message = en.errors.generic, onRetry, retryLabel = en.common.retry }: ErrorStateProps) {
   return (
     <div role="alert" className="flex flex-col items-start gap-3">
       <div className="flex items-start gap-2">

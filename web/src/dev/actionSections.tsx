@@ -1,4 +1,4 @@
-import { CalendarDays, EllipsisVertical, Lock, Pencil, Plus, Trash2 } from 'lucide-react'
+import { CalendarDays, EllipsisVertical, Lock, Pencil, Plus, Trash2 } from '../ui/icons'
 import { useState } from 'react'
 import { Button } from '../ui/Button'
 import { ButtonLink } from '../ui/ButtonLink'

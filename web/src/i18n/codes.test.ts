@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { codeText, shortfallText, unscheduledText } from './codes'
-import { he } from './he'
+import { en } from './en'
 
 // Every code that S07–S12 send to the web (spec 7.5–7.8, and the roadmap items of S13).
 const CODES = [
@@ -19,7 +19,7 @@ const CODES = [
 describe('codeText', () => {
   it.each(CODES)('%s has its own Hebrew text', (code) => {
     const text = codeText(code)
-    expect(text).not.toBe(he.errors.generic)
+    expect(text).not.toBe(en.errors.generic)
     expect(text).toMatch(/[א-ת]/)
   })
 
@@ -28,7 +28,7 @@ describe('codeText', () => {
   })
 
   it('an unknown code gets the generic text, never the code', () => {
-    expect(codeText('something_new')).toBe(he.errors.generic)
+    expect(codeText('something_new')).toBe(en.errors.generic)
   })
 
   it('the quota text shows the reset time in Jerusalem', () => {
@@ -66,7 +66,7 @@ describe('reports', () => {
   })
 
   it('a cycle reason has its own wording', () => {
-    expect(unscheduledText('dependency_cycle')).toBe(he.report.cycle)
-    expect(unscheduledText('not_enough_time')).toBe(he.codes.not_enough_time)
+    expect(unscheduledText('dependency_cycle')).toBe(en.report.cycle)
+    expect(unscheduledText('not_enough_time')).toBe(en.codes.not_enough_time)
   })
 })

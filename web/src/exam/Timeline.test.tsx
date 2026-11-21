@@ -1,13 +1,13 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/client'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { addDays, dayMonth, weekdayShort } from './dates'
 import { blockFixture, TODAY } from './testFixtures'
 import { Timeline } from './Timeline'
 import { timelineRange } from './timelineDays'
 
-const t = he.exam.timeline
+const t = en.exam.timeline
 const EXAM_DATE = addDays(TODAY, 5)
 
 function dayName(day: string) {
@@ -125,7 +125,7 @@ describe('Timeline', () => {
     const alert = screen.getByRole('alert')
     const list = screen.getByRole('list', { name: t.listLabel })
     expect(alert.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    within(alert).getByRole('button', { name: he.common.retry }).click()
+    within(alert).getByRole('button', { name: en.common.retry }).click()
     expect(onRetry).toHaveBeenCalledTimes(1)
   })
 

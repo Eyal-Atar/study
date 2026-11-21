@@ -6,7 +6,7 @@ import { errorMessage } from '../api/client'
 import { todayKey } from '../board/api'
 import { formatDay } from '../board/time'
 import type { Block } from '../board/types'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { makeBlock, makeMe, makePlan, makeToday, USER_ID } from '../test/boardFixtures'
 import { createFakeApi, problem, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
@@ -74,8 +74,8 @@ describe('the week screen', () => {
 
     expect(planCalls(fake)).toContain(planPath(SUNDAY, SATURDAY))
     expect(planCalls(fake).every((p) => p === planPath(SUNDAY, SATURDAY))).toBe(true)
-    expect(screen.getByRole('heading', { level: 1, name: he.week.title })).toBeInTheDocument()
-    expect(screen.getByText(he.week.range(formatDay(SUNDAY), formatDay(SATURDAY)))).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: en.week.title })).toBeInTheDocument()
+    expect(screen.getByText(en.week.range(formatDay(SUNDAY), formatDay(SATURDAY)))).toBeInTheDocument()
   })
 
   it('shows seven days with headings, marks today, and says which days are free', async () => {
@@ -88,14 +88,14 @@ describe('the week screen', () => {
       expect(within(day(date)).getByRole('heading', { name: new RegExp(formatDay(date)) })).toBeInTheDocument()
     }
     expect(day(TODAY)).toHaveAttribute('aria-current', 'date')
-    expect(within(day(TODAY)).getByText(he.board.today)).toBeInTheDocument()
+    expect(within(day(TODAY)).getByText(en.board.today)).toBeInTheDocument()
     expect(day('2026-11-17')).not.toHaveAttribute('aria-current')
     expect(row(TODAY, 'פרק 3: גרפים')).toBeInTheDocument()
     expect(screen.queryByRole('article')).not.toBeInTheDocument()
-    expect(within(day(TODAY)).queryByText(he.week.free)).not.toBeInTheDocument()
-    expect(within(day(TODAY)).getByText(he.week.total('שעה'))).toBeInTheDocument()
+    expect(within(day(TODAY)).queryByText(en.week.free)).not.toBeInTheDocument()
+    expect(within(day(TODAY)).getByText(en.week.total('שעה'))).toBeInTheDocument()
     for (const date of WEEK_DAYS.filter((d) => d !== TODAY)) {
-      expect(within(day(date)).getByText(he.week.free)).toBeInTheDocument()
+      expect(within(day(date)).getByText(en.week.free)).toBeInTheDocument()
     }
   })
 
@@ -121,7 +121,7 @@ describe('the week screen', () => {
     expect(row('2026-11-16', 'סימולציה מאוחרת')).toBeInTheDocument()
     expect(within(day('2026-11-17')).queryByText('סימולציה מאוחרת')).not.toBeInTheDocument()
     expect(row('2026-11-17', 'חזרה של בוקר')).toBeInTheDocument()
-    expect(within(day('2026-11-17')).getByText(he.week.total('45 דקות'))).toBeInTheDocument()
+    expect(within(day('2026-11-17')).getByText(en.week.total('45 דקות'))).toBeInTheDocument()
   })
 
   it('the next, previous and this-week buttons move the week through ?from=', async () => {
@@ -131,9 +131,9 @@ describe('the week screen', () => {
       blocks: [blockOn(TODAY), blockOn('2026-11-24', { id: 'block-next' }), blockOn('2026-11-10', { id: 'block-previous' })],
     })
     await weekShown()
-    expect(within(screen.getByRole('group', { name: he.week.moves })).getAllByRole('button')).toHaveLength(3)
+    expect(within(screen.getByRole('group', { name: en.week.moves })).getAllByRole('button')).toHaveLength(3)
 
-    await user.click(screen.getByRole('button', { name: he.week.next }))
+    await user.click(screen.getByRole('button', { name: en.week.next }))
     // The week screen writes ?from= alone; the calendar puts view=week back (S31).
     await waitFor(() => {
       expect(router.state.location.search).toBe('?view=week&from=2026-11-22')
@@ -141,8 +141,8 @@ describe('the week screen', () => {
     await weekShown('2026-11-22')
     expect(planCalls(fake)).toContain(planPath('2026-11-22', '2026-11-28'))
 
-    await user.click(screen.getByRole('button', { name: he.week.previous }))
-    await user.click(screen.getByRole('button', { name: he.week.previous }))
+    await user.click(screen.getByRole('button', { name: en.week.previous }))
+    await user.click(screen.getByRole('button', { name: en.week.previous }))
     // The week screen writes ?from= alone; the calendar puts view=week back (S31).
     await waitFor(() => {
       expect(router.state.location.search).toBe('?view=week&from=2026-11-08')
@@ -150,7 +150,7 @@ describe('the week screen', () => {
     await weekShown('2026-11-08')
     expect(planCalls(fake)).toContain(planPath('2026-11-08', '2026-11-14'))
 
-    await user.click(screen.getByRole('button', { name: he.week.thisWeek }))
+    await user.click(screen.getByRole('button', { name: en.week.thisWeek }))
     // The week screen writes ?from= alone; the calendar puts view=week back (S31).
     await waitFor(() => {
       expect(router.state.location.search).toBe('?view=week')
@@ -190,9 +190,9 @@ describe('the week screen', () => {
     fake.on('POST /blocks/block-1/complete', () => new Promise<never>(() => undefined))
 
     // One press: "done" is not behind the menu.
-    await user.click(within(day(TODAY)).getByRole('button', { name: he.board.completeLabel(block.task_title) }))
+    await user.click(within(day(TODAY)).getByRole('button', { name: en.board.completeLabel(block.task_title) }))
 
-    expect(await within(day(TODAY)).findByRole('button', { name: he.board.uncompleteLabel(block.task_title) })).toHaveAttribute(
+    expect(await within(day(TODAY)).findByRole('button', { name: en.board.uncompleteLabel(block.task_title) })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -200,7 +200,7 @@ describe('the week screen', () => {
     expect(fake.calls('POST', '/blocks/block-1/complete')).toHaveLength(1)
 
     // S31: the day is the other view of the calendar.
-    await user.click(screen.getByRole('radio', { name: he.calendar.day }))
+    await user.click(screen.getByRole('radio', { name: en.calendar.day }))
     expect(router.state.location.pathname).toBe('/calendar')
     expect(router.state.location.search).toBe('')
     expect(queryClient.getQueryData<{ blocks: Block[] }>(todayKey(USER_ID))?.blocks[0]?.state).toBe('done')
@@ -215,13 +215,13 @@ describe('the week screen', () => {
     const names = within(day(TODAY))
       .getAllByRole('button')
       .map((b) => b.getAttribute('aria-label'))
-    const first = `${part1.task_title} (${he.board.part(1, 2)})`
-    const second = `${part1.task_title} (${he.board.part(2, 2)})`
+    const first = `${part1.task_title} (${en.board.part(1, 2)})`
+    const second = `${part1.task_title} (${en.board.part(2, 2)})`
     expect(names).toEqual([
-      he.board.actionsLabel(first),
-      he.board.completeLabel(first),
-      he.board.actionsLabel(second),
-      he.board.completeLabel(second),
+      en.board.actionsLabel(first),
+      en.board.completeLabel(first),
+      en.board.actionsLabel(second),
+      en.board.completeLabel(second),
     ])
   })
 
@@ -233,9 +233,9 @@ describe('the week screen', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(errorMessage(failure))
     // The title stays on an error too: it takes the focus after a navigation.
-    expect(screen.getByRole('heading', { level: 1, name: he.week.title })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: en.week.title })).toBeInTheDocument()
     fake.on({ method: 'GET', path: /^\/plan\?/ }, makePlan([blockOn(TODAY)], { from: SUNDAY, to: SATURDAY }))
-    await user.click(screen.getByRole('button', { name: he.common.retry }))
+    await user.click(screen.getByRole('button', { name: en.common.retry }))
 
     await weekShown()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -249,17 +249,17 @@ describe('the week screen', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(errorMessage(failure))
     // The title stays on an error too: it takes the focus after a navigation.
-    expect(screen.getByRole('heading', { level: 1, name: he.week.title })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: en.week.title })).toBeInTheDocument()
     fake.on('GET /today', makeToday([], { date: TODAY }))
-    await user.click(screen.getByRole('button', { name: he.common.retry }))
+    await user.click(screen.getByRole('button', { name: en.common.retry }))
     await weekShown()
   })
 
   it('shows loading until the week is known', async () => {
     const { state } = setup('/week')
     state.frozen = true
-    await screen.findByRole('heading', { level: 1, name: he.week.title })
-    expect(within(screen.getByRole('main')).getByRole('status')).toHaveTextContent(he.common.loading)
+    await screen.findByRole('heading', { level: 1, name: en.week.title })
+    expect(within(screen.getByRole('main')).getByRole('status')).toHaveTextContent(en.common.loading)
     expect(screen.queryAllByRole('region')).toHaveLength(0)
   })
 
@@ -267,28 +267,28 @@ describe('the week screen', () => {
     const { state } = setup('/week')
     state.frozen = true
 
-    await screen.findByRole('heading', { level: 1, name: he.week.title })
+    await screen.findByRole('heading', { level: 1, name: en.week.title })
     expect(within(screen.getByRole('main')).getByRole('status')).toBeInTheDocument()
-    expect(screen.queryByRole('group', { name: he.week.moves })).not.toBeInTheDocument()
-    expect(screen.queryByText(he.week.range(formatDay(SUNDAY), formatDay(SATURDAY)))).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: en.week.moves })).not.toBeInTheDocument()
+    expect(screen.queryByText(en.week.range(formatDay(SUNDAY), formatDay(SATURDAY)))).not.toBeInTheDocument()
   })
 
   it('a week without any block shows one empty state and not seven free days, and the week can still be moved', async () => {
     const user = userEvent.setup()
     const { router } = setup('/week', { blocks: [blockOn('2026-11-24')] })
 
-    expect(await screen.findByText(he.week.empty)).toBeInTheDocument()
+    expect(await screen.findByText(en.week.empty)).toBeInTheDocument()
     expect(screen.queryAllByRole('region')).toHaveLength(0)
-    expect(screen.queryByText(he.week.free)).not.toBeInTheDocument()
-    expect(screen.getByText(he.week.range(formatDay(SUNDAY), formatDay(SATURDAY)))).toBeInTheDocument()
+    expect(screen.queryByText(en.week.free)).not.toBeInTheDocument()
+    expect(screen.getByText(en.week.range(formatDay(SUNDAY), formatDay(SATURDAY)))).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: he.week.next }))
+    await user.click(screen.getByRole('button', { name: en.week.next }))
     // The week screen writes ?from= alone; the calendar puts view=week back (S31).
     await waitFor(() => {
       expect(router.state.location.search).toBe('?view=week&from=2026-11-22')
     })
     await weekShown('2026-11-22')
-    expect(screen.queryByText(he.week.empty)).not.toBeInTheDocument()
+    expect(screen.queryByText(en.week.empty)).not.toBeInTheDocument()
   })
 
   it('a failed refresh keeps the week and says it may be out of date', async () => {
@@ -297,7 +297,7 @@ describe('the week screen', () => {
     fake.on({ method: 'GET', path: /^\/plan\?/ }, problem(0, 'network'))
 
     await queryClient.refetchQueries({ queryKey: ['board', USER_ID, 'plan'] })
-    expect(await screen.findByText(he.week.stale)).toBeInTheDocument()
+    expect(await screen.findByText(en.week.stale)).toBeInTheDocument()
     expect(day(TODAY)).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })

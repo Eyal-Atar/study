@@ -1,9 +1,9 @@
 import { parseDate } from '@internationalized/date'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import type { DateValue } from '../ui/DatePicker'
 import { addDays } from './dates'
 
-const f = he.onboardingExams
+const f = en.onboardingExams
 
 // The API's limits (ExamCreate in api/app/schemas): a name of up to 200 characters, a date from
 // tomorrow (the profile's day, plan decision 5) up to two years ahead, difficulty 1–5.

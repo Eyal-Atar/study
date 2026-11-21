@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react'
+import type { LucideIcon } from './icons'
 import type { ReactElement, ReactNode } from 'react'
 import {
   Menu as AriaMenu,

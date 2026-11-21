@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from './Button'
 import { Dialog, type DialogProps } from './Dialog'
 
@@ -94,7 +94,7 @@ describe('Dialog', () => {
     }
     expect(visited).toContain(screen.getByRole('button', { name: 'אישור' }))
     expect(visited).toContain(screen.getByRole('button', { name: 'לא עכשיו' }))
-    expect(visited).toContain(screen.getByRole('button', { name: he.common.close }))
+    expect(visited).toContain(screen.getByRole('button', { name: en.common.close }))
   })
 
   it('Escape asks to close', async () => {
@@ -107,7 +107,7 @@ describe('Dialog', () => {
   it('the close button asks to close', async () => {
     const user = userEvent.setup()
     const { onOpenChange } = setup()
-    await user.click(screen.getByRole('button', { name: he.common.close }))
+    await user.click(screen.getByRole('button', { name: en.common.close }))
     expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false)
   })
 
@@ -131,7 +131,7 @@ describe('Dialog', () => {
     const dialog = screen.getByRole('alertdialog', { name: 'מחיקת המבחן' })
     expect(dialog).toHaveAccessibleDescription('אי אפשר לבטל את המחיקה.')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: he.common.close })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: en.common.close })).not.toBeInTheDocument()
 
     await user.click(overlayOf(dialog))
     expect(onOpenChange).not.toHaveBeenCalled()
@@ -148,7 +148,7 @@ describe('Dialog', () => {
   it('isDismissable overrides the default of the role', () => {
     setup({ isDismissable: false })
     expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: he.common.close })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: en.common.close })).not.toBeInTheDocument()
   })
 
   it('gives the focus back to the button that opened it', async () => {

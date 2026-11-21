@@ -5,7 +5,7 @@ import { StrictMode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppProviders } from '../app/AppProviders'
 import { codeText, shortfallText, unscheduledText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { COMPLETED_AT, examFixture, jobFixture, meFixture, previewFixture, resultFixture } from '../onboarding/testFixtures'
 import { ReplanOfferProvider } from '../plan/ReplanOffer'
 import { createFakeApi, problem, type ApiCall, type FakeApi } from '../test/fakeApi'
@@ -16,7 +16,7 @@ import { AnalysisSection } from './AnalysisSection'
 import { applyFixture, reanalyzeJob, reanalyzeResult, taskItem, topicsFixture } from './analysisFixtures'
 import type { AnalysisApply } from './analysis'
 
-const t = he.exam.analysis
+const t = en.exam.analysis
 // The job is polled every 2 seconds, so a test that waits for a second answer waits a little longer.
 const POLL = { timeout: 4000 }
 const JOB_KEY = 'studyflow:exam-job:user-a:e1'
@@ -103,8 +103,8 @@ describe('AnalysisSection without AI tasks', () => {
     expect(screen.queryByRole('button', { name: t.reanalyze })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: t.build }))
 
-    expect(await screen.findByText(he.building.stages.analyzing)).toBeInTheDocument()
-    expect(screen.getByRole('progressbar', { name: he.building.stages.analyzing })).toHaveAttribute('aria-valuenow', '40')
+    expect(await screen.findByText(en.building.stages.analyzing)).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: en.building.stages.analyzing })).toHaveAttribute('aria-valuenow', '40')
     expect(fake.calls('POST', '/plans/generate')).toHaveLength(1)
     expect(sessionStorage.getItem(JOB_KEY)).toContain('j1')
 
@@ -138,7 +138,7 @@ describe('AnalysisSection without AI tasks', () => {
     await user.click(await screen.findByRole('button', { name: t.build }))
     expect(await screen.findByText(codeText('nothing_to_analyze'))).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: t.replan }))
-    expect(await screen.findByRole('dialog', { name: he.replan.title })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: en.replan.title })).toBeInTheDocument()
     expect(screen.getByText(t.replanReason)).toBeInTheDocument()
   })
 
@@ -151,7 +151,7 @@ describe('AnalysisSection without AI tasks', () => {
 
     expect(await screen.findByText(codeText('ai_unavailable'))).toBeInTheDocument()
     expect(sessionStorage.getItem(JOB_KEY)).toBeNull()
-    await user.click(screen.getByRole('button', { name: he.common.retry }))
+    await user.click(screen.getByRole('button', { name: en.common.retry }))
     await waitFor(() => {
       expect(fake.calls('POST', '/plans/generate')).toHaveLength(2)
     })
@@ -161,7 +161,7 @@ describe('AnalysisSection without AI tasks', () => {
     sessionStorage.setItem(JOB_KEY, JSON.stringify({ jobId: 'j1', kind: 'generate' }))
     const fake = server().on('GET /jobs/j1', jobFixture({ stage: 'planning', percent: 88 }))
     setup(fake)
-    expect(await screen.findByText(he.building.stages.planning)).toBeInTheDocument()
+    expect(await screen.findByText(en.building.stages.planning)).toBeInTheDocument()
     expect(fake.calls('POST', '/plans/generate')).toHaveLength(0)
   })
 })
@@ -201,16 +201,16 @@ describe('AnalysisSection with AI tasks', () => {
     expect(within(added).getByText('תרגול אינטגרלים')).toBeInTheDocument()
     expect(within(added).getByText('מופיע בשלושה מבחני עבר')).toBeInTheDocument()
     expect(
-      within(added).getByText(t.taskMeta(he.exam.tasks.kinds.practice, he.exam.tasks.minutes(90))),
+      within(added).getByText(t.taskMeta(en.exam.tasks.kinds.practice, en.exam.tasks.minutes(90))),
     ).toBeInTheDocument()
-    expect(within(dialog).getByText(he.replan.added(1))).toBeInTheDocument()
+    expect(within(dialog).getByText(en.replan.added(1))).toBeInTheDocument()
     expect(
-      within(dialog).getByText(he.replan.unscheduledGroup(1, unscheduledText('no_contiguous_window'))),
+      within(dialog).getByText(en.replan.unscheduledGroup(1, unscheduledText('no_contiguous_window'))),
     ).toBeInTheDocument()
     expect(await within(dialog).findByText(shortfallText('חדו"א', 120, 300))).toBeInTheDocument()
     expect(previewCalls(fake, 'a2')).toHaveLength(1)
 
-    await user.click(within(dialog).getByRole('button', { name: he.replan.confirm }))
+    await user.click(within(dialog).getByRole('button', { name: en.replan.confirm }))
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
@@ -219,7 +219,7 @@ describe('AnalysisSection with AI tasks', () => {
     expect(invalidated()).toContain(JSON.stringify(['plan', 'user-a']))
 
     expect(await screen.findByText(t.applied)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: he.common.undo }))
+    await user.click(screen.getByRole('button', { name: en.common.undo }))
     await waitFor(() => {
       expect(fake.calls('POST', '/plan/undo').map((c) => c.body)).toEqual([{ version_id: 'v9' }])
     })
@@ -244,12 +244,12 @@ describe('AnalysisSection with AI tasks', () => {
     const dialog = await screen.findByRole('dialog', { name: t.previewTitle })
     await within(dialog).findByText('תרגול אינטגרלים')
 
-    await user.click(within(dialog).getByRole('button', { name: he.replan.confirm }))
+    await user.click(within(dialog).getByRole('button', { name: en.replan.confirm }))
     expect(await within(dialog).findByText('חזרה כללית')).toBeInTheDocument()
     expect(within(dialog).getByText(codeText('stale_plan'))).toBeInTheDocument()
     expect(previewCalls(fake, 'a2')).toHaveLength(2)
 
-    await user.click(within(dialog).getByRole('button', { name: he.replan.confirm }))
+    await user.click(within(dialog).getByRole('button', { name: en.replan.confirm }))
     await waitFor(() => {
       expect(applyCalls(fake, 'a2').map((c) => c.body)).toEqual([
         { preview: false, basis: 'b1' },
@@ -284,10 +284,10 @@ describe('AnalysisSection with AI tasks', () => {
     const dialog = await screen.findByRole('dialog', { name: t.previewTitle })
     // "אישור" waits for the preview.
     expect(await within(dialog).findByText(t.replaced(2))).toBeInTheDocument()
-    expect(within(dialog).getByRole('button', { name: he.replan.confirm })).toBeEnabled()
+    expect(within(dialog).getByRole('button', { name: en.replan.confirm })).toBeEnabled()
     expect(previewCalls(fake, 'a3')).toHaveLength(1)
 
-    await user.click(within(dialog).getByRole('button', { name: he.replan.notNow }))
+    await user.click(within(dialog).getByRole('button', { name: en.replan.notNow }))
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
@@ -313,8 +313,8 @@ describe('AnalysisSection with AI tasks', () => {
     await user.click(await screen.findByRole('button', { name: t.showDraft }))
     const dialog = await screen.findByRole('dialog', { name: t.previewTitle })
     expect(await within(dialog).findByRole('alert')).toBeInTheDocument()
-    expect(within(dialog).getByRole('button', { name: he.replan.confirm })).toBeDisabled()
-    await user.click(within(dialog).getByRole('button', { name: he.common.retry }))
+    expect(within(dialog).getByRole('button', { name: en.replan.confirm })).toBeDisabled()
+    await user.click(within(dialog).getByRole('button', { name: en.common.retry }))
     expect(await within(dialog).findByText(t.replaced(2))).toBeInTheDocument()
     expect(previewCalls(fake, 'a3')).toHaveLength(2)
   })
@@ -327,7 +327,7 @@ describe('AnalysisSection with AI tasks', () => {
     await openSection(user)
     await user.click(screen.getByRole('button', { name: t.reanalyze }))
     expect(await screen.findByText(codeText('analysis_invalid'))).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: he.common.retry }))
+    await user.click(screen.getByRole('button', { name: en.common.retry }))
     await waitFor(() => {
       expect(fake.calls('POST', '/exams/e1/reanalyze')).toHaveLength(2)
     })
@@ -360,7 +360,7 @@ describe('AnalysisSection, closed and open', () => {
     expect(await trigger()).toHaveAttribute('aria-expanded', 'true')
     expect(within(await trigger()).getByText(t.summaryFailed)).toBeVisible()
     expect(screen.getByRole('alert', { name: t.failedTitle })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: he.common.retry })).toBeVisible()
+    expect(screen.getByRole('button', { name: en.common.retry })).toBeVisible()
   })
 
   it('a section the user closed while the job ran opens again when the job fails', async () => {
@@ -371,7 +371,7 @@ describe('AnalysisSection, closed and open', () => {
     )
     const { user } = setup(fake)
     // A running job opens the section, and the heading says so.
-    expect(await screen.findByText(he.building.stages.analyzing)).toBeVisible()
+    expect(await screen.findByText(en.building.stages.analyzing)).toBeVisible()
     const button = await trigger()
     expect(within(button).getByText(t.summaryRunning)).toBeVisible()
 
@@ -410,6 +410,6 @@ describe('AnalysisSection, closed and open', () => {
     setup(fake)
     expect(await screen.findByRole('alert')).toBeVisible()
     expect(await trigger(t.buildTitle)).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByRole('button', { name: he.common.retry })).toBeVisible()
+    expect(screen.getByRole('button', { name: en.common.retry })).toBeVisible()
   })
 })

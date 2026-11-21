@@ -20,8 +20,8 @@ describe('manifest', () => {
     expect(manifest).toMatchObject({
       name: PRODUCT_NAME,
       short_name: PRODUCT_NAME,
-      lang: 'he',
-      dir: 'rtl',
+      lang: 'en',
+      dir: 'ltr',
       display: 'standalone',
       start_url: '/today',
       scope: '/',

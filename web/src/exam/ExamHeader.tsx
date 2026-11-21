@@ -1,8 +1,8 @@
-import { Pencil } from 'lucide-react'
+import { Pencil } from '../ui/icons'
 import { useState } from 'react'
 import { Form } from 'react-aria-components'
 import { errorMessage } from '../api/client'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import type { Exam } from '../onboarding/types'
 import { useReplanOffer } from '../plan/replanOfferContext'
 import { Button } from '../ui/Button'
@@ -15,8 +15,8 @@ import { daysBetween, longDate } from './dates'
 import { ExamFields } from './ExamFields'
 import { draftOf, validateDraft, type ExamDraft, type ExamFieldErrors } from './examForm'
 
-const t = he.exam
-const f = he.onboardingExams
+const t = en.exam
+const f = en.onboardingExams
 
 function EditForm({ exam, today, onDone }: { exam: Exam; today: string; onDone: () => void }) {
   const updateExam = useUpdateExam()
@@ -72,10 +72,10 @@ function EditForm({ exam, today, onDone }: { exam: Exam; today: string; onDone: 
         ) : null}
         <div className="flex gap-2">
           <Button type="submit" className="flex-1 sm:flex-none" isPending={updateExam.isPending}>
-            {he.common.save}
+            {en.common.save}
           </Button>
           <Button variant="secondary" onPress={onDone}>
-            {he.common.cancel}
+            {en.common.cancel}
           </Button>
         </div>
       </Form>

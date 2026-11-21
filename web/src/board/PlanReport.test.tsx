@@ -3,7 +3,7 @@ import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { errorMessage } from '../api/client'
 import { shortfallText, unscheduledText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { EXAM_ID, EXAMS, USER_ID, makeMe, makePlan, makePreview, renderBoard } from '../test/boardFixtures'
 import { createFakeApi, problem } from '../test/fakeApi'
 import { planKey } from './api'
@@ -30,12 +30,12 @@ function setup({ unplaced = UNPLACED, preview = makePreview() }: { unplaced?: Un
 }
 
 async function report() {
-  return within(await screen.findByRole('region', { name: he.board.report.title }))
+  return within(await screen.findByRole('region', { name: en.board.report.title }))
 }
 
 // The region exists only while a toast shows.
 async function toasts() {
-  return within(await screen.findByRole('region', { name: he.common.notifications }))
+  return within(await screen.findByRole('region', { name: en.common.notifications }))
 }
 
 const withReasons = makePreview({
@@ -53,7 +53,7 @@ describe('PlanReport', () => {
       expect(queryClient.getQueryData(planKey(USER_ID))).toBeDefined()
     })
     expect(container.querySelector('#report')).toBeNull()
-    expect(screen.queryByText(he.board.report.title)).not.toBeInTheDocument()
+    expect(screen.queryByText(en.board.report.title)).not.toBeInTheDocument()
     expect(fake.calls('POST', '/plan/replan')).toHaveLength(0)
   })
 
@@ -65,14 +65,14 @@ describe('PlanReport', () => {
     expect(fake.calls('POST', '/plan/replan').map((c) => c.body)).toEqual([{ preview: true }])
 
     const items = r.getAllByRole('listitem').filter((li) => li.textContent.includes('('))
-    expect(items[0]).toHaveTextContent(he.board.report.task('פרק 3: גרפים', durationText(90)))
+    expect(items[0]).toHaveTextContent(en.board.report.task('פרק 3: גרפים', durationText(90)))
     expect(items[0]).toHaveTextContent(unscheduledText('not_enough_time'))
-    expect(unscheduledText('not_enough_time')).toBe(he.codes.not_enough_time)
-    expect(items[1]).toHaveTextContent(he.board.report.task('סימולציה 1', durationText(180)))
+    expect(unscheduledText('not_enough_time')).toBe(en.codes.not_enough_time)
+    expect(items[1]).toHaveTextContent(en.board.report.task('סימולציה 1', durationText(180)))
     expect(items[1]).toHaveTextContent(unscheduledText('dependency_cycle'))
     // The reason follows a colon (design language 5.2: no dash between the details).
     expect(items[0]).toHaveTextContent(
-      `${he.board.report.task('פרק 3: גרפים', durationText(90))}${he.board.report.reason(unscheduledText('not_enough_time'))}`,
+      `${en.board.report.task('פרק 3: גרפים', durationText(90))}${en.board.report.reason(unscheduledText('not_enough_time'))}`,
     )
     expect(items[0]?.textContent).not.toContain('—')
   })
@@ -84,7 +84,7 @@ describe('PlanReport', () => {
     const card = container.querySelector('#report')
     expect(card).toHaveClass('border-warning', 'bg-warning-soft')
     expect(card?.querySelector('.text-ink-muted')).toBeNull()
-    expect(r.getByRole('heading', { level: 2, name: he.board.report.title })).toBeInTheDocument()
+    expect(r.getByRole('heading', { level: 2, name: en.board.report.title })).toBeInTheDocument()
   })
 
   it('says it is checking why while the preview is on its way', async () => {
@@ -95,8 +95,8 @@ describe('PlanReport', () => {
       .on('POST /plan/replan', () => new Promise(() => undefined))
     renderBoard(<PlanReport />, { api: fake.api })
     const r = await report()
-    expect(await r.findByRole('status')).toHaveTextContent(he.board.report.loading)
-    expect(r.getByText(he.board.report.task('סימולציה 1', durationText(180)))).toBeInTheDocument()
+    expect(await r.findByRole('status')).toHaveTextContent(en.board.report.loading)
+    expect(r.getByText(en.board.report.task('סימולציה 1', durationText(180)))).toBeInTheDocument()
   })
 
   it('the raise button shows that it is on its way and cannot be sent twice', async () => {
@@ -104,7 +104,7 @@ describe('PlanReport', () => {
     const { fake } = setup({ preview: withReasons })
     fake.on('PATCH /me', () => new Promise(() => undefined))
     const r = await report()
-    const raise = await r.findByRole('button', { name: he.board.report.raise(durationText(300)) })
+    const raise = await r.findByRole('button', { name: en.board.report.raise(durationText(300)) })
     await user.click(raise)
     await waitFor(() => {
       expect(raise).toHaveAttribute('data-pending')
@@ -119,10 +119,10 @@ describe('PlanReport', () => {
     fake.on('PATCH /me', { ...makeMe(), daily_study_minutes: 300 })
     const r = await report()
 
-    await user.click(await r.findByRole('button', { name: he.board.report.raise(durationText(300)) }))
+    await user.click(await r.findByRole('button', { name: en.board.report.raise(durationText(300)) }))
     expect(fake.calls('PATCH', '/me').map((c) => c.body)).toEqual([{ daily_study_minutes: 300 }])
-    const dialog = within(await screen.findByRole('dialog', { name: he.replan.title }))
-    expect(dialog.getByText(he.board.report.raised(durationText(300)))).toBeInTheDocument()
+    const dialog = within(await screen.findByRole('dialog', { name: en.replan.title }))
+    expect(dialog.getByText(en.board.report.raised(durationText(300)))).toBeInTheDocument()
   })
 
   it('raises to the largest daily minutes over every exam', async () => {
@@ -141,7 +141,7 @@ describe('PlanReport', () => {
     expect(await r.findByText(shortfallText('הסתברות', 60, 300))).toBeInTheDocument()
     expect(r.getByText(shortfallText('אלגוריתמים', 120, 240))).toBeInTheDocument()
 
-    await user.click(r.getByRole('button', { name: he.board.report.raise(durationText(300)) }))
+    await user.click(r.getByRole('button', { name: en.board.report.raise(durationText(300)) }))
     expect(fake.calls('PATCH', '/me').map((c) => c.body)).toEqual([{ daily_study_minutes: 300 }])
   })
 
@@ -159,22 +159,22 @@ describe('PlanReport', () => {
     fake.on('PATCH /me', failure)
     const r = await report()
 
-    await user.click(await r.findByRole('button', { name: he.board.report.raise(durationText(300)) }))
+    await user.click(await r.findByRole('button', { name: en.board.report.raise(durationText(300)) }))
     const t = await toasts()
     expect(await t.findByText(errorMessage(failure))).toBeInTheDocument()
-    expect(t.queryByText(he.board.report.raised(durationText(300)))).not.toBeInTheDocument()
-    expect(screen.queryByRole('dialog', { name: he.replan.title })).not.toBeInTheDocument()
+    expect(t.queryByText(en.board.report.raised(durationText(300)))).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: en.replan.title })).not.toBeInTheDocument()
   })
 
   it('a failed preview says so, still lists the tasks, and retry asks again', async () => {
     const user = userEvent.setup()
     const { fake } = setup({ preview: problem(0, 'network') })
     const r = await report()
-    expect(await r.findByRole('alert')).toHaveTextContent(he.board.report.failed)
-    expect(r.getByText(he.board.report.task('פרק 3: גרפים', durationText(90)))).toBeInTheDocument()
+    expect(await r.findByRole('alert')).toHaveTextContent(en.board.report.failed)
+    expect(r.getByText(en.board.report.task('פרק 3: גרפים', durationText(90)))).toBeInTheDocument()
 
     fake.on('POST /plan/replan', withReasons)
-    await user.click(r.getByRole('button', { name: he.common.retry }))
+    await user.click(r.getByRole('button', { name: en.common.retry }))
     expect(await r.findByText(shortfallText('אלגוריתמים', 270, 300))).toBeInTheDocument()
     expect(r.queryByRole('alert')).not.toBeInTheDocument()
     expect(fake.calls('POST', '/plan/replan')).toHaveLength(2)

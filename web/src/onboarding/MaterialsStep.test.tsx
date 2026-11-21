@@ -6,7 +6,7 @@ import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AppProviders } from '../app/AppProviders'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { createFakeApi, problem, type ApiCall, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { createFakeStorage, type FakeStorage } from '../test/fakeStorage'
@@ -108,7 +108,7 @@ describe('MaterialsStep', () => {
     expect(screen.getByText(/לא חובה/)).toBeInTheDocument()
     expect(screen.getByText(/מבחני עבר עם פתרונות/)).toBeInTheDocument()
     expect(screen.getByText(/Anthropic/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: he.onboardingMaterials.addFilesFor('חדו"א') })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.onboardingMaterials.addFilesFor('חדו"א') })).toBeInTheDocument()
     expect(fileInput(document.body)).toHaveAttribute('accept', expect.stringContaining('application/pdf') as string)
     expect(fileInput(document.body)).toHaveAttribute('multiple')
   })
@@ -533,11 +533,11 @@ describe('MaterialsStep', () => {
     const fake = createFakeApi().on('GET /exams', problem(503, 'database_unavailable'))
     const { user } = setup({ fake })
 
-    expect(screen.getByRole('heading', { level: 1, name: he.onboardingMaterials.title })).toBeInTheDocument()
-    expect(await screen.findByRole('alert')).toHaveTextContent(he.codes.database_unavailable)
+    expect(screen.getByRole('heading', { level: 1, name: en.onboardingMaterials.title })).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(en.codes.database_unavailable)
     fake.on('GET /exams', [])
-    await user.click(screen.getByRole('button', { name: he.common.retry }))
-    expect(await screen.findByText(he.onboardingMaterials.noExams)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: en.common.retry }))
+    expect(await screen.findByText(en.onboardingMaterials.noExams)).toBeInTheDocument()
   })
 
   it('goes back to the exams step', async () => {

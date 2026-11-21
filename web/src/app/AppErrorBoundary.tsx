@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { useRouteError } from 'react-router'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { StandalonePage } from '../ui/PageContainer'
 import { BUTTON_BASE, BUTTON_REST, cx, FOCUS_RING_NATIVE } from '../ui/styles'
 
@@ -12,8 +12,8 @@ export function CrashScreen({ error }: { error: unknown }) {
   return (
     <StandalonePage>
       <div role="alert" className="text-center">
-        <h1 className="text-title font-semibold">{he.crash.title}</h1>
-        <p className="mt-2 text-ink-muted">{he.crash.body}</p>
+        <h1 className="text-title font-semibold">{en.crash.title}</h1>
+        <p className="mt-2 text-ink-muted">{en.crash.body}</p>
         <button
           type="button"
           className={cx('mt-6', BUTTON_BASE, BUTTON_REST.primary, 'hover:bg-brand-strong active:bg-brand-strong', FOCUS_RING_NATIVE)}
@@ -21,11 +21,11 @@ export function CrashScreen({ error }: { error: unknown }) {
             window.location.reload()
           }}
         >
-          {he.crash.reload}
+          {en.crash.reload}
         </button>
         {/* The error's own text: what a screenshot sent to support needs. Never markup. */}
         <details className="mt-8 text-start text-small text-ink-muted">
-          <summary className="cursor-pointer">{he.crash.details}</summary>
+          <summary className="cursor-pointer">{en.crash.details}</summary>
           <p dir="ltr" className="mt-2 font-mono text-caption break-words">
             {detail}
           </p>

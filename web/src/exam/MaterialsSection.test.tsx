@@ -4,7 +4,7 @@ import { userEvent } from '@testing-library/user-event'
 import { StrictMode } from 'react'
 import { describe, expect, it } from 'vitest'
 import { AppProviders } from '../app/AppProviders'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { COMPLETED_AT, examFixture, meFixture } from '../onboarding/testFixtures'
 import type { Material } from '../onboarding/types'
 import { createFakeApi, type ApiCall, type FakeApi } from '../test/fakeApi'
@@ -14,8 +14,8 @@ import { ToastRegion } from '../ui/toast'
 import { MaterialsSection } from './MaterialsSection'
 import { taskItem } from './analysisFixtures'
 
-const t = he.exam.materials
-const kinds = he.onboardingMaterials.kinds
+const t = en.exam.materials
+const kinds = en.onboardingMaterials.kinds
 const POLL = { timeout: 4000 }
 
 function material(overrides: Partial<Material> = {}): Material {
@@ -95,7 +95,7 @@ describe('MaterialsSection', () => {
       kinds.past_exam,
     )
     expect(within(row).getByText('PDF.')).toBeInTheDocument()
-    expect(within(row).getByRole('button', { name: he.onboardingMaterials.deleteNamed('מבחן 2024.pdf') })).toBeInTheDocument()
+    expect(within(row).getByRole('button', { name: en.onboardingMaterials.deleteNamed('מבחן 2024.pdf') })).toBeInTheDocument()
     // The section has the only heading: the list inside brings none of its own.
     expect(screen.getAllByRole('heading')).toHaveLength(1)
   })
@@ -167,7 +167,7 @@ describe('MaterialsSection', () => {
     })
     const { user } = setup(fake)
     await openSection(user)
-    expect(await screen.findByText(he.onboardingMaterials.processing)).toBeInTheDocument()
+    expect(await screen.findByText(en.onboardingMaterials.processing)).toBeInTheDocument()
     expect(screen.queryByText(t.reanalyzeHint)).not.toBeInTheDocument()
     file.ready = true
     expect(await screen.findByText(t.reanalyzeHint, {}, POLL)).toBeInTheDocument()

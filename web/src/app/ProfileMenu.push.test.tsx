@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { VAPID_KEY, installFakePush, pushServer, type FakePush } from '../notifications/fakePush'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
@@ -16,8 +16,8 @@ afterEach(() => {
 })
 
 async function signOutFromMenu(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole('button', { name: he.shell.profile }))
-  await user.click(screen.getByRole('menuitem', { name: he.shell.signOut }))
+  await user.click(await screen.findByRole('button', { name: en.shell.profile }))
+  await user.click(screen.getByRole('menuitem', { name: en.shell.signOut }))
 }
 
 describe('sign out and the push subscription', () => {

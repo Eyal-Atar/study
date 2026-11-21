@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { createFakeAuth } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
 import { examColor } from '../ui/examColor'
@@ -35,7 +35,7 @@ describe('the components page (dev only)', { timeout: 15_000 }, () => {
     const { router } = await open()
 
     expect(router.state.location.pathname).toBe(PATH)
-    expect(screen.queryByRole('button', { name: he.login.google })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: en.login.google })).not.toBeInTheDocument()
   })
 
   it('has exactly one h1', async () => {
@@ -101,7 +101,7 @@ describe('the components page (dev only)', { timeout: 15_000 }, () => {
 
     await user.click(screen.getByRole('button', { name: devText.toast.showInfo }))
 
-    expect(screen.getByRole('region', { name: he.common.notifications })).toHaveTextContent(devText.toast.infoText)
+    expect(screen.getByRole('region', { name: en.common.notifications })).toHaveTextContent(devText.toast.infoText)
   })
 
   // S31: the design language itself.
@@ -205,8 +205,8 @@ describe('the components page (dev only)', { timeout: 15_000 }, () => {
     await open()
 
     const shell = within(region('shell'))
-    expect(shell.getByText(he.appName)).toBeInTheDocument()
-    const chip = shell.getByRole('link', { name: he.shell.progressChip(devText.shell.streak, devText.shell.level) })
+    expect(shell.getByText(en.appName)).toBeInTheDocument()
+    const chip = shell.getByRole('link', { name: en.shell.progressChip(devText.shell.streak, devText.shell.level) })
     expect(chip).toHaveAttribute('href', '/progress')
     expect(shell.getByRole('button', { name: devText.shell.undo })).toBeInTheDocument()
   })
@@ -223,6 +223,6 @@ describe('the components page (dev only)', { timeout: 15_000 }, () => {
     expect(archie.querySelectorAll('[data-size="scene"]')).toHaveLength(1)
     expect(archie.querySelectorAll('[data-size="avatar"]').length).toBeGreaterThanOrEqual(6)
     // The scene and the avatar of flow are named; the cards are decorative beside their captions.
-    expect(within(archie).getAllByRole('img', { name: he.archie.alt.flow })).toHaveLength(2)
+    expect(within(archie).getAllByRole('img', { name: en.archie.alt.flow })).toHaveLength(2)
   })
 })

@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown } from './icons'
 import type { ReactNode } from 'react'
 import { Button, Disclosure as AriaDisclosure, DisclosurePanel } from 'react-aria-components'
 import { cx, FOCUS_RING, ICON_STROKE } from './styles'

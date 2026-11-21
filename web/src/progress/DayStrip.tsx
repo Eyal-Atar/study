@@ -1,9 +1,9 @@
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { cx } from '../ui/styles'
 import { weekdayOf } from './format'
 import type { Progress } from './types'
 
-const t = he.progress.days
+const t = en.progress.days
 
 // The last 14 study days as a row of quiet cells: filled in green where something was done (green
 // is "done"), an outline where not (never red, spec 7.9), today with a ring. Filled, outlined and

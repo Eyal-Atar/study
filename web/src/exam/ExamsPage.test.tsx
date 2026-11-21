@@ -1,15 +1,15 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent, type UserEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { examFixture } from '../onboarding/testFixtures'
 import type { ExamCreate } from '../onboarding/types'
 import { problem, type ApiCall } from '../test/fakeApi'
 import { addDays, longDate } from './dates'
 import { TODAY, examServer, openRoute } from './testFixtures'
 
-const t = he.exam
-const f = he.onboardingExams
+const t = en.exam
+const f = en.onboardingExams
 
 async function typeDate(user: UserEvent, iso: string) {
   const [year, month, day] = iso.split('-')
@@ -81,7 +81,7 @@ describe('ExamsPage', () => {
     await user.click(screen.getByRole('button', { name: t.list.newExam }))
     expect(screen.getByRole('heading', { level: 2, name: t.list.formTitle })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: t.list.newExam })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: he.common.cancel }))
+    await user.click(screen.getByRole('button', { name: en.common.cancel }))
     expect(screen.getByRole('button', { name: t.list.newExam })).toBeInTheDocument()
   })
 
@@ -177,6 +177,6 @@ describe('ExamsPage', () => {
     await user.type(screen.getByRole('textbox', { name: f.name }), 'x')
     await typeDate(user, addDays(TODAY, 3))
     await user.click(screen.getByRole('button', { name: t.list.create }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(he.codes.exam_in_past)
+    expect(await screen.findByRole('alert')).toHaveTextContent(en.codes.exam_in_past)
   })
 })

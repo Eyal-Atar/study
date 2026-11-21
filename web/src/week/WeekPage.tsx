@@ -1,10 +1,10 @@
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight } from '../ui/icons'
 import { useSearchParams } from 'react-router'
 import { errorMessage } from '../api/client'
 import { usePlan, useToday } from '../board/api'
 import { addDays, formatDay, useProfileTimezone, weekStart } from '../board/time'
 import type { Block } from '../board/types'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { IconButton } from '../ui/IconButton'
 import { Note } from '../ui/Note'
@@ -61,10 +61,10 @@ function WeekBoard({ from, today }: { from: string; today: string | undefined })
   return (
     <>
       {/* A failed refresh keeps the week on screen; the next minute's refetch tries again. */}
-      {plan.isError ? <Note tone="warning">{he.week.stale}</Note> : null}
+      {plan.isError ? <Note tone="warning">{en.week.stale}</Note> : null}
       {empty ? (
         // One sentence instead of seven "free day" lines; the range in the header says which week.
-        <EmptyState icon={CalendarDays} title={he.week.empty} />
+        <EmptyState icon={CalendarDays} title={en.week.empty} />
       ) : (
         <div className="space-y-section">
           {days.map((date) => (
@@ -112,15 +112,15 @@ export function WeekPage() {
       {/* Outside every condition: the h1 takes the focus after a navigation. The range and the
           buttons need the week, so they come with it. */}
       <PageHeader
-        title={he.week.title}
-        subtitle={from === undefined ? undefined : he.week.range(formatDay(from), formatDay(addDays(from, 6)))}
+        title={en.week.title}
+        subtitle={from === undefined ? undefined : en.week.range(formatDay(from), formatDay(addDays(from, 6)))}
         action={
           from === undefined ? undefined : (
-            <div role="group" aria-label={he.week.moves} className="flex items-center gap-2">
+            <div role="group" aria-label={en.week.moves} className="flex items-center gap-2">
               {/* The app is RTL only: back in time is to the right, forward to the left. */}
               <IconButton
                 variant="secondary"
-                aria-label={he.week.previous}
+                aria-label={en.week.previous}
                 onPress={() => {
                   move(addDays(from, -7))
                 }}
@@ -133,11 +133,11 @@ export function WeekPage() {
                   move(null)
                 }}
               >
-                {he.week.thisWeek}
+                {en.week.thisWeek}
               </Button>
               <IconButton
                 variant="secondary"
-                aria-label={he.week.next}
+                aria-label={en.week.next}
                 onPress={() => {
                   move(addDays(from, 7))
                 }}

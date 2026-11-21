@@ -2,7 +2,7 @@ import { useId, type ReactNode } from 'react'
 import { errorMessage } from '../api/client'
 import { useMe, type Me } from '../api/me'
 import { DELETE_ACCOUNT_PATH } from '../app/routes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { ButtonLink } from '../ui/ButtonLink'
 import { Card } from '../ui/Card'
 import { PageHeader } from '../ui/PageHeader'
@@ -12,7 +12,7 @@ import { ExportSection } from './ExportSection'
 import { PreferencesForm } from './PreferencesForm'
 import { NotificationSettings } from '../notifications/NotificationSettings'
 
-const t = he.settings
+const t = en.settings
 
 // The id DeleteAccountPage links to ("export first").
 export const EXPORT_SECTION_ID = 'export'
@@ -75,7 +75,7 @@ export function SettingsPage() {
 
       {/* S16: reminders on this device and the lead time. The component draws its own two cards;
           the section gives them the heading and the line every other part of the screen has. */}
-      <Section title={he.notifications.title} intro={he.notifications.intro}>
+      <Section title={en.notifications.title} intro={en.notifications.intro}>
         <NotificationSettings />
       </Section>
 

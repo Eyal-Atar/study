@@ -1,10 +1,10 @@
 import { screen } from '@testing-library/react'
 import { expect, it } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { createFakeAuth } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
 
-const t = he.settings.goodbye
+const t = en.settings.goodbye
 
 it('shows the title as the h1, the sentence, and one link to the login screen', async () => {
   renderRoute('/goodbye', { auth: createFakeAuth(null) })

@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Form } from 'react-aria-components'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { Select } from '../ui/Select'
 import { TextField } from '../ui/TextField'
 import { emptyErrors, validateTask, type TaskDraft, type TaskDraftErrors, type TaskValues } from './taskDraft'
 import { TASK_KINDS, type Topic } from './types'
 
-const t = he.exam.tasks
+const t = en.exam.tasks
 
 const KIND_OPTIONS = TASK_KINDS.map((kind) => ({ value: kind, label: t.kinds[kind] }))
 
@@ -35,7 +35,7 @@ export function TaskForm({
 }) {
   const [draft, setDraft] = useState<TaskDraft>(initial)
   const [errors, setErrors] = useState<TaskDraftErrors>(emptyErrors)
-  const topicOptions = [{ value: '', label: he.exam.topics.noTopic }, ...topics.map((p) => ({ value: p.id, label: p.name }))]
+  const topicOptions = [{ value: '', label: en.exam.topics.noTopic }, ...topics.map((p) => ({ value: p.id, label: p.name }))]
 
   function set<K extends keyof TaskDraft>(key: K, value: TaskDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }))
@@ -109,7 +109,7 @@ export function TaskForm({
           {submitLabel}
         </Button>
         <Button variant="secondary" onPress={onCancel}>
-          {he.common.cancel}
+          {en.common.cancel}
         </Button>
       </div>
     </Form>

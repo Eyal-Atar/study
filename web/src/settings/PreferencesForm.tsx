@@ -1,7 +1,7 @@
 import { useId, useState, type ReactNode } from 'react'
 import { ApiError, errorMessage } from '../api/client'
 import type { Me, MePatch, StudyWindow } from '../api/me'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { useUpdateMe } from '../onboarding/api'
 import { useReplanOffer } from '../plan/replanOfferContext'
 import { Button } from '../ui/Button'
@@ -12,7 +12,7 @@ import { Switch } from '../ui/Switch'
 import { TimeField } from '../ui/TimeField'
 import { useToast } from '../ui/useToast'
 
-const t = he.settings.preferences
+const t = en.settings.preferences
 
 // The same whole hours as the onboarding (S13 decision 8).
 const HOURS = [1, 2, 3, 4, 5, 6, 8] as const
@@ -27,8 +27,8 @@ const HOBBY_DEFAULT_MINUTES = 60
 const WINDOWS: readonly StudyWindow[] = ['morning', 'afternoon', 'evening', 'night']
 const WINDOW_OPTIONS = WINDOWS.map((window) => ({
   value: window,
-  label: he.onboardingSchedule.windows[window].label,
-  description: he.onboardingSchedule.windows[window].range,
+  label: en.onboardingSchedule.windows[window].label,
+  description: en.onboardingSchedule.windows[window].range,
 }))
 
 type Field =
@@ -115,11 +115,11 @@ function choices(fixed: readonly number[], current: number, label: (n: number) =
 }
 
 function hoursLabel(minutes: number): string {
-  return minutes % 60 === 0 ? he.onboardingSchedule.hours(minutes / 60) : he.settings.duration(minutes)
+  return minutes % 60 === 0 ? en.onboardingSchedule.hours(minutes / 60) : en.settings.duration(minutes)
 }
 
 function delayLabel(minutes: number): string {
-  return minutes === 0 ? t.delayNow : he.settings.duration(minutes)
+  return minutes === 0 ? t.delayNow : en.settings.duration(minutes)
 }
 
 // The field messages of a 422 validation_error ({errors: [{loc: ['body', field], type}]}).
@@ -301,7 +301,7 @@ export function PreferencesForm({ me }: { me: Me }) {
             </div>
             <RadioCards
               label={t.hobbyMinutes}
-              options={choices(HOBBY_LENGTHS, me.hobby_minutes ?? HOBBY_DEFAULT_MINUTES, he.settings.duration)}
+              options={choices(HOBBY_LENGTHS, me.hobby_minutes ?? HOBBY_DEFAULT_MINUTES, en.settings.duration)}
               value={String(values.hobbyMinutes)}
               onChange={(value) => {
                 set('hobbyMinutes', Number(value), 'hobby_minutes')

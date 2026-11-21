@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { errorMessage, type ApiError } from '../api/client'
 import { useUserId } from '../api/me'
 import { codeText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { useGenerate, useJob, useUndo, type GenerateResult, type Job } from '../onboarding/api'
 import { useReplanOffer } from '../plan/replanOfferContext'
 import { Button } from '../ui/Button'
@@ -29,7 +29,7 @@ import {
 } from './analysis'
 import { AnalysisPreview } from './AnalysisPreview'
 
-const t = he.exam.analysis
+const t = en.exam.analysis
 
 export interface AnalysisSectionProps {
   examId: string
@@ -43,8 +43,8 @@ interface Failure {
 }
 
 function stageText(stage: string | null | undefined): string {
-  if (stage !== null && stage !== undefined && Object.hasOwn(he.building.stages, stage)) {
-    return he.building.stages[stage as keyof typeof he.building.stages]
+  if (stage !== null && stage !== undefined && Object.hasOwn(en.building.stages, stage)) {
+    return en.building.stages[stage as keyof typeof en.building.stages]
   }
   return t.starting
 }
@@ -154,7 +154,7 @@ export function AnalysisSection({ examId }: AnalysisSectionProps) {
         ? {}
         : {
             action: {
-              label: he.common.undo,
+              label: en.common.undo,
               onAction: () => {
                 // mutateAsync, not mutate's callbacks: they would not run once the screen is gone.
                 undo.mutateAsync(versionId).then(
@@ -197,7 +197,7 @@ export function AnalysisSection({ examId }: AnalysisSectionProps) {
         text={errorMessage(tasks.error)}
         action={
           <Button variant="secondary" onPress={() => void tasks.refetch()}>
-            {he.common.retry}
+            {en.common.retry}
           </Button>
         }
       />
@@ -208,7 +208,7 @@ export function AnalysisSection({ examId }: AnalysisSectionProps) {
         text={errorMessage(job.error)}
         action={
           <Button variant="secondary" onPress={() => void job.refetch()}>
-            {he.common.retry}
+            {en.common.retry}
           </Button>
         }
       />
@@ -252,7 +252,7 @@ export function AnalysisSection({ examId }: AnalysisSectionProps) {
                   start(failure.kind)
                 }}
               >
-                {he.common.retry}
+                {en.common.retry}
               </Button>
             }
           />

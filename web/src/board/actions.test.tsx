@@ -3,7 +3,7 @@ import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { errorMessage } from '../api/client'
 import { codeText, unscheduledText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { makeBlock, makeMe, makePlan, makeToday, renderBoard, USER_ID } from '../test/boardFixtures'
 import { createFakeApi, problem } from '../test/fakeApi'
 import { useBlockActions } from './actions'
@@ -80,7 +80,7 @@ async function ready(text = 'planned/upcoming/free') {
 
 // The region exists only while a toast shows.
 async function toasts() {
-  return within(await screen.findByRole('region', { name: he.common.notifications }))
+  return within(await screen.findByRole('region', { name: en.common.notifications }))
 }
 
 describe('useBlockActions', () => {
@@ -106,7 +106,7 @@ describe('useBlockActions', () => {
     })
     // S19's progress in the toast: the XP and the new level.
     expect(
-      await (await toasts()).findByText(`${he.board.completed}. ${he.board.xpGained(15)}. ${he.board.levelUp(2)}`),
+      await (await toasts()).findByText(`${en.board.completed}. ${en.board.xpGained(15)}. ${en.board.levelUp(2)}`),
     ).toBeInTheDocument()
     await waitFor(() => {
       expect(fake.calls('GET', '/today').length).toBeGreaterThan(todayCalls)
@@ -129,10 +129,10 @@ describe('useBlockActions', () => {
     })
 
     await user.click(screen.getByRole('button', { name: 'complete' }))
-    await user.click(await (await toasts()).findByRole('button', { name: he.common.undo }))
+    await user.click(await (await toasts()).findByRole('button', { name: en.common.undo }))
     expect(fake.calls('POST', '/blocks/block-1/uncomplete')).toHaveLength(1)
     await ready()
-    expect(await (await toasts()).findByText(he.board.uncompleted)).toBeInTheDocument()
+    expect(await (await toasts()).findByText(en.board.uncompleted)).toBeInTheDocument()
   })
 
   it('a failed complete puts the block back in both caches and says why', async () => {
@@ -202,7 +202,7 @@ describe('useBlockActions', () => {
     })
     state.block = makeBlock()
     answer.resolve({ block: state.block, task_status: 'todo' })
-    await user.click(await (await toasts()).findByRole('button', { name: he.common.undo }))
+    await user.click(await (await toasts()).findByRole('button', { name: en.common.undo }))
     expect(fake.calls('POST', '/blocks/block-1/complete')).toHaveLength(1)
   })
 
@@ -228,12 +228,12 @@ describe('useBlockActions', () => {
 
     state.block = moved
     answer.resolve({ blocks: [earlierDone, moved], version_id: 'v1' })
-    const text = he.board.deferred(dayLabel('2026-11-17', '2026-11-16'), '09:00')
+    const text = en.board.deferred(dayLabel('2026-11-17', '2026-11-16'), '09:00')
     expect(await (await toasts()).findByText(text)).toBeInTheDocument()
 
-    await user.click((await toasts()).getByRole('button', { name: he.common.undo }))
+    await user.click((await toasts()).getByRole('button', { name: en.common.undo }))
     expect(fake.calls('POST', '/plan/undo')).toEqual([{ method: 'POST', path: '/plan/undo', body: { version_id: 'v1' } }])
-    expect(await (await toasts()).findByText(he.board.deferUndone)).toBeInTheDocument()
+    expect(await (await toasts()).findByText(en.board.deferUndone)).toBeInTheDocument()
   })
 
   it('the defer toast names the new block, not a later part of the task that stayed in place', async () => {
@@ -250,7 +250,7 @@ describe('useBlockActions', () => {
     fake.on('POST /blocks/block-1/defer', { blocks: [{ ...part2, part_index: 1 }, moved], version_id: 'v1' })
 
     await user.click(screen.getByRole('button', { name: 'defer' }))
-    expect(await (await toasts()).findByText(he.board.deferred(he.board.tomorrow, '16:00'))).toBeInTheDocument()
+    expect(await (await toasts()).findByText(en.board.deferred(en.board.tomorrow, '16:00'))).toBeInTheDocument()
   })
 
   it('the defer toast counts days from the server study day, not the calendar day', async () => {
@@ -265,7 +265,7 @@ describe('useBlockActions', () => {
     fake.on('POST /blocks/block-1/defer', { blocks: [moved], version_id: 'v1' })
 
     await user.click(screen.getByRole('button', { name: 'defer' }))
-    expect(await (await toasts()).findByText(he.board.deferred(he.board.today, '01:30'))).toBeInTheDocument()
+    expect(await (await toasts()).findByText(en.board.deferred(en.board.today, '01:30'))).toBeInTheDocument()
   })
 
   it('the defer toast shows the time in the profile timezone', async () => {
@@ -279,10 +279,10 @@ describe('useBlockActions', () => {
     fake.on('POST /blocks/block-1/defer', { blocks: [moved], version_id: null })
 
     await user.click(screen.getByRole('button', { name: 'defer' }))
-    const text = he.board.deferred(dayLabel('2026-11-17', '2026-11-16'), '10:00')
+    const text = en.board.deferred(dayLabel('2026-11-17', '2026-11-16'), '10:00')
     expect(await (await toasts()).findByText(text)).toBeInTheDocument()
     // Without a version there is nothing to undo.
-    expect((await toasts()).queryByRole('button', { name: he.common.undo })).not.toBeInTheDocument()
+    expect((await toasts()).queryByRole('button', { name: en.common.undo })).not.toBeInTheDocument()
   })
 
   it('pressing the undo of a defer twice sends one POST /plan/undo', async () => {
@@ -300,12 +300,12 @@ describe('useBlockActions', () => {
     )
 
     await user.click(screen.getByRole('button', { name: 'defer' }))
-    const undo = await (await toasts()).findByRole('button', { name: he.common.undo })
+    const undo = await (await toasts()).findByRole('button', { name: en.common.undo })
     act(() => {
       fireEvent.click(undo)
       fireEvent.click(undo)
     })
-    expect(await (await toasts()).findByText(he.board.deferUndone)).toBeInTheDocument()
+    expect(await (await toasts()).findByText(en.board.deferUndone)).toBeInTheDocument()
     expect(fake.calls('POST', '/plan/undo')).toHaveLength(1)
     expect(screen.queryByText(errorMessage(problem(409, 'nothing_to_undo')))).not.toBeInTheDocument()
   })
@@ -319,7 +319,7 @@ describe('useBlockActions', () => {
     fake.on('POST /plan/undo', problem(409, 'nothing_to_undo'))
 
     await user.click(screen.getByRole('button', { name: 'defer' }))
-    const undo = await (await toasts()).findByRole('button', { name: he.common.undo })
+    const undo = await (await toasts()).findByRole('button', { name: en.common.undo })
     await waitFor(() => {
       expect(screen.getByTestId('pending')).toHaveTextContent('false')
     })
@@ -340,7 +340,7 @@ describe('useBlockActions', () => {
     await user.click(screen.getByRole('button', { name: 'defer' }))
     const text = `${codeText('placement_failed')} ${unscheduledText('not_enough_time')}`
     // S13's ReplanOffer: a dialog with the reason, which runs the preview itself.
-    const dialog = within(await screen.findByRole('dialog', { name: he.replan.title }))
+    const dialog = within(await screen.findByRole('dialog', { name: en.replan.title }))
     expect(dialog.getByText(text)).toBeInTheDocument()
     expect(screen.getByTestId('today')).toHaveTextContent('planned/upcoming/free')
     expect(screen.getByTestId('week')).toHaveTextContent('planned/upcoming/free')
@@ -358,10 +358,10 @@ describe('useBlockActions', () => {
 
     await user.click(screen.getByRole('button', { name: 'pin' }))
     await ready('planned/upcoming/pinned')
-    await user.click(await (await toasts()).findByRole('button', { name: he.common.undo }))
+    await user.click(await (await toasts()).findByRole('button', { name: en.common.undo }))
     expect(fake.calls('PATCH', '/blocks/block-1').map((c) => c.body)).toEqual([{ pinned: true }, { pinned: false }])
     await ready()
-    expect(await (await toasts()).findByText(he.board.unpinnedDone)).toBeInTheDocument()
+    expect(await (await toasts()).findByText(en.board.unpinnedDone)).toBeInTheDocument()
   })
 
   it('a failed pin puts pinned back', async () => {

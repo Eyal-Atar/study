@@ -1,7 +1,7 @@
 import { act, render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { ToastProvider, ToastRegion } from './toast'
 import { useToast, type ToastApi } from './useToast'
 
@@ -27,7 +27,7 @@ describe('toast', () => {
     act(() => {
       toast.show({ text: 'נשמר' })
     })
-    expect(screen.getByRole('region', { name: he.common.notifications })).toHaveTextContent('נשמר')
+    expect(screen.getByRole('region', { name: en.common.notifications })).toHaveTextContent('נשמר')
   })
 
   it('the undo action runs once and closes the toast, without an expiry', async () => {
@@ -36,9 +36,9 @@ describe('toast', () => {
     const onAction = vi.fn()
     const onExpire = vi.fn()
     act(() => {
-      toast.show({ text: 'המבחן נמחק', action: { label: he.common.undo, onAction }, onExpire })
+      toast.show({ text: 'המבחן נמחק', action: { label: en.common.undo, onAction }, onExpire })
     })
-    await user.click(screen.getByRole('button', { name: he.common.undo }))
+    await user.click(screen.getByRole('button', { name: en.common.undo }))
     expect(onAction).toHaveBeenCalledTimes(1)
     expect(onExpire).not.toHaveBeenCalled()
     expect(screen.queryByText('המבחן נמחק')).not.toBeInTheDocument()
@@ -50,7 +50,7 @@ describe('toast', () => {
       const toast = setup()
       const onExpire = vi.fn()
       act(() => {
-        toast.show({ text: 'הקובץ יימחק', action: { label: he.common.undo, onAction: vi.fn() }, onExpire })
+        toast.show({ text: 'הקובץ יימחק', action: { label: en.common.undo, onAction: vi.fn() }, onExpire })
       })
       act(() => {
         vi.advanceTimersByTime(9999)
@@ -71,9 +71,9 @@ describe('toast', () => {
     const onAction = vi.fn()
     const onExpire = vi.fn()
     act(() => {
-      toast.show({ text: 'המבחן נמחק', action: { label: he.common.undo, onAction }, onExpire })
+      toast.show({ text: 'המבחן נמחק', action: { label: en.common.undo, onAction }, onExpire })
     })
-    const close = screen.getByRole('button', { name: he.common.close })
+    const close = screen.getByRole('button', { name: en.common.close })
     // An icon, not the "×" character.
     expect(close).toHaveTextContent('')
     expect(close.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
@@ -116,12 +116,12 @@ describe('toast', () => {
   it('its undo and its close are the inverse buttons, readable on the dark', () => {
     const toast = setup()
     act(() => {
-      toast.show({ text: 'המבחן נמחק', action: { label: he.common.undo, onAction: vi.fn() } })
+      toast.show({ text: 'המבחן נמחק', action: { label: en.common.undo, onAction: vi.fn() } })
     })
-    const undo = screen.getByRole('button', { name: he.common.undo })
+    const undo = screen.getByRole('button', { name: en.common.undo })
     expect(undo).toHaveClass('text-inverse-action')
     expect(undo).not.toHaveClass('text-brand')
-    const close = screen.getByRole('button', { name: he.common.close })
+    const close = screen.getByRole('button', { name: en.common.close })
     expect(close).toHaveClass('text-on-inverse')
     expect(close).not.toHaveClass('text-ink-muted')
   })
@@ -131,7 +131,7 @@ describe('toast', () => {
     act(() => {
       toast.show({ text: 'נשמר' })
     })
-    const region = screen.getByRole('region', { name: he.common.notifications })
+    const region = screen.getByRole('region', { name: en.common.notifications })
     const item = screen.getByRole('alertdialog')
     expect(item).toHaveClass('bg-inverse', 'text-on-inverse', 'rounded-button', 'shadow-overlay', 'min-h-14')
     // Above the scrim of a dialog (z-50): an undo toast must stay pressable when a dialog opens.

@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { problem } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
@@ -32,7 +32,7 @@ describe('PushSync', () => {
       user_agent: navigator.userAgent,
     })
 
-    await user.click(await screen.findByRole('link', { name: he.shell.exams }))
+    await user.click(await screen.findByRole('link', { name: en.shell.exams }))
     await settle()
     expect(server.calls('POST', '/push/subscriptions')).toHaveLength(1)
   })
@@ -41,7 +41,7 @@ describe('PushSync', () => {
     push = installFakePush({ permission: 'default', subscribedWith: VAPID_KEY })
     const server = pushServer()
     renderRoute('/today', { auth: createFakeAuth(fakeSession()), api: server.api, vapidPublicKey: VAPID_KEY })
-    await screen.findByRole('heading', { name: he.today.title })
+    await screen.findByRole('heading', { name: en.today.title })
     await settle()
     expect(server.calls('POST', '/push/subscriptions')).toEqual([])
   })
@@ -50,7 +50,7 @@ describe('PushSync', () => {
     push = installFakePush({ permission: 'granted' })
     const server = pushServer()
     renderRoute('/today', { auth: createFakeAuth(fakeSession()), api: server.api, vapidPublicKey: VAPID_KEY })
-    await screen.findByRole('heading', { name: he.today.title })
+    await screen.findByRole('heading', { name: en.today.title })
     await settle()
     expect(server.calls('POST', '/push/subscriptions')).toEqual([])
   })
@@ -63,6 +63,6 @@ describe('PushSync', () => {
       expect(server.calls('POST', '/push/subscriptions')).toHaveLength(1)
     })
     await settle()
-    expect(screen.queryByText(he.codes.database_unavailable)).not.toBeInTheDocument()
+    expect(screen.queryByText(en.codes.database_unavailable)).not.toBeInTheDocument()
   })
 })

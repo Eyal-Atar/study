@@ -1,10 +1,10 @@
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { DatePicker } from '../ui/DatePicker'
 import { RadioCards } from '../ui/RadioCards'
 import { TextField } from '../ui/TextField'
 import { DIFFICULTY_OPTIONS, NAME_MAX, dateError, isoOf, type ExamDraft, type ExamFieldErrors } from './examForm'
 
-const f = he.onboardingExams
+const f = en.onboardingExams
 
 // The three fields of an exam, shared by "new exam" and the header's in-place edit.
 export function ExamFields({

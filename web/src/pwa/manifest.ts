@@ -8,8 +8,8 @@ import { PRODUCT_NAME } from '../product.ts'
 export const manifest: Partial<ManifestOptions> = {
   name: PRODUCT_NAME,
   short_name: PRODUCT_NAME,
-  lang: 'he',
-  dir: 'rtl',
+  lang: 'en',
+  dir: 'ltr',
   display: 'standalone',
   // S31 made /calendar the home, but start_url stays /today: /today redirects to it, and changing
   // start_url without an id would make the installed app a different app (decision 13).

@@ -3,7 +3,7 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { codeText, unscheduledText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { todayKey } from '../board/api'
 import { dayLabel, formatDay } from '../board/time'
 import type { Block, Plan, Today } from '../board/types'
@@ -48,7 +48,7 @@ async function region(name: string) {
 }
 
 async function toasts() {
-  return within(await screen.findByRole('region', { name: he.common.notifications }))
+  return within(await screen.findByRole('region', { name: en.common.notifications }))
 }
 
 // A block of the list is a row (BlockRow): a listitem with no name of its own, found by its title.
@@ -112,10 +112,10 @@ describe('the today screen', () => {
   it('shows the title, the day and the progress in minutes', async () => {
     setup({ today: makeToday([makeBlock()], { planned_minutes: 120, done_minutes: 60 }) })
 
-    expect(await screen.findByRole('heading', { level: 1, name: he.today.title })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: en.today.title })).toBeInTheDocument()
     expect(await screen.findByText(formatDay('2026-11-16'))).toBeInTheDocument()
     expect(screen.getByText('60 מתוך 180 דקות')).toBeInTheDocument()
-    const meter = screen.getByRole('progressbar', { name: he.today.progressLabel })
+    const meter = screen.getByRole('progressbar', { name: en.today.progressLabel })
     expect(meter).toHaveAttribute('aria-valuenow', '60')
     expect(meter).toHaveAttribute('aria-valuemax', '180')
     expect(meter).toHaveAttribute('aria-valuetext', '60 מתוך 180 דקות')
@@ -124,9 +124,9 @@ describe('the today screen', () => {
   it('the next block is the one in progress, before an upcoming one, and never an overdue one', async () => {
     setup({ today: makeToday([LATE, LATER, NOW]) })
 
-    const next = await region(he.today.next)
+    const next = await region(en.today.next)
     expect(next.getByRole('heading', { level: 3, name: NOW.task_title })).toBeInTheDocument()
-    expect(next.getByText(he.board.states.in_progress)).toBeInTheDocument()
+    expect(next.getByText(en.board.states.in_progress)).toBeInTheDocument()
     expect(next.queryByText(LATE.task_title)).not.toBeInTheDocument()
     expect(next.queryByText(LATER.task_title)).not.toBeInTheDocument()
   })
@@ -134,30 +134,30 @@ describe('the today screen', () => {
   it("lists today's other blocks in order, with their states, but not the overdue one", async () => {
     setup({ today: makeToday([NOW, LATE, DONE, LATER]) })
 
-    const list = await region(he.today.moreBlocks)
-    const rows = within(list.getByRole('list', { name: he.today.moreBlocks })).getAllByRole('listitem')
+    const list = await region(en.today.moreBlocks)
+    const rows = within(list.getByRole('list', { name: en.today.moreBlocks })).getAllByRole('listitem')
     // The next block (in progress) is in its own card, so the list has the others, by start time.
     // The overdue block waits in the morning review card (S18 decision 13).
     expect(rows).toHaveLength(2)
     expect(rows[0]).toBe(row(DONE.task_title))
     expect(rows[1]).toBe(row(LATER.task_title))
     // A done block has no badge: its check button is pressed (S27 decision 5).
-    expect(within(row(DONE.task_title)).getByRole('button', { name: he.board.uncompleteLabel(DONE.task_title) })).toHaveAttribute('aria-pressed', 'true')
-    expect(within(row(LATER.task_title)).getByRole('button', { name: he.board.completeLabel(LATER.task_title) })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(row(DONE.task_title)).getByRole('button', { name: en.board.uncompleteLabel(DONE.task_title) })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(row(LATER.task_title)).getByRole('button', { name: en.board.completeLabel(LATER.task_title) })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('an overdue block is in the review card, below the next block, and not in the list', async () => {
     const { fake } = setup({ today: makeToday([NOW, LATE, LATER]) })
     fake.on('GET /review', { blocks: [LATE] })
 
-    const review = await region(he.review.title)
+    const review = await region(en.review.title)
     expect(review.getByRole('heading', { name: LATE.task_title })).toBeInTheDocument()
-    const listRegion = screen.getByRole('region', { name: he.today.moreBlocks })
+    const listRegion = screen.getByRole('region', { name: en.today.moreBlocks })
     expect(within(listRegion).queryByText(LATE.task_title)).not.toBeInTheDocument()
     // The next block is the first thing on the screen; the review comes after it and before the
     // list (S27 decision 3).
-    const reviewRegion = screen.getByRole('region', { name: he.review.title })
-    const nextRegion = screen.getByRole('region', { name: he.today.next })
+    const reviewRegion = screen.getByRole('region', { name: en.review.title })
+    const nextRegion = screen.getByRole('region', { name: en.today.next })
     expect(nextRegion.compareDocumentPosition(reviewRegion) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(reviewRegion.compareDocumentPosition(listRegion) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
@@ -168,26 +168,26 @@ describe('the today screen', () => {
       window.localStorage.clear()
     })
     const first = setup({ today: makeToday([NOW, LATER]) })
-    await region(he.today.moreBlocks)
-    const group = within(screen.getByRole('radiogroup', { name: he.move.viewLabel }))
-    expect(group.getByRole('radio', { name: he.move.list })).toBeChecked()
-    expect(group.getByRole('radio', { name: he.move.timeline })).not.toBeChecked()
-    await user.click(screen.getByRole('radio', { name: he.move.timeline }))
+    await region(en.today.moreBlocks)
+    const group = within(screen.getByRole('radiogroup', { name: en.move.viewLabel }))
+    expect(group.getByRole('radio', { name: en.move.list })).toBeChecked()
+    expect(group.getByRole('radio', { name: en.move.timeline })).not.toBeChecked()
+    await user.click(screen.getByRole('radio', { name: en.move.timeline }))
 
-    const timeline = await region(he.today.blocks)
-    expect(timeline.getByRole('list', { name: he.move.timelineLabel })).toBeInTheDocument()
-    expect(timeline.getByRole('button', { name: he.move.handleLabel(LATER.task_title) })).toBeInTheDocument()
+    const timeline = await region(en.today.blocks)
+    expect(timeline.getByRole('list', { name: en.move.timelineLabel })).toBeInTheDocument()
+    expect(timeline.getByRole('button', { name: en.move.handleLabel(LATER.task_title) })).toBeInTheDocument()
     // The next block keeps its card above.
-    expect((await region(he.today.next)).getByRole('heading', { level: 3, name: NOW.task_title })).toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: he.today.moreBlocks })).not.toBeInTheDocument()
+    expect((await region(en.today.next)).getByRole('heading', { level: 3, name: NOW.task_title })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: en.today.moreBlocks })).not.toBeInTheDocument()
     expect(window.localStorage.getItem('studyflow.todayView')).toBe('timeline')
     first.unmount()
 
     setup({ today: makeToday([NOW, LATER]) })
-    expect(await screen.findByRole('list', { name: he.move.timelineLabel })).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: he.move.timeline })).toBeChecked()
-    await user.click(screen.getByRole('radio', { name: he.move.list }))
-    expect(await region(he.today.moreBlocks)).toBeTruthy()
+    expect(await screen.findByRole('list', { name: en.move.timelineLabel })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: en.move.timeline })).toBeChecked()
+    await user.click(screen.getByRole('radio', { name: en.move.list }))
+    expect(await region(en.today.moreBlocks)).toBeTruthy()
     expect(window.localStorage.getItem('studyflow.todayView')).toBe('list')
   })
 
@@ -197,15 +197,15 @@ describe('the today screen', () => {
     })
     window.localStorage.setItem('studyflow.todayView', 'timeline')
     setup({ today: makeToday([NOW, LATER], { day_starts_at: null, day_ends_at: null }) })
-    expect(await region(he.today.moreBlocks)).toBeTruthy()
-    expect(screen.queryByRole('radio', { name: he.move.timeline })).not.toBeInTheDocument()
+    expect(await region(en.today.moreBlocks)).toBeTruthy()
+    expect(screen.queryByRole('radio', { name: en.move.timeline })).not.toBeInTheDocument()
   })
 
   it('with no next block today, takes the first one of the plan, labelled with its day and time', async () => {
     const { fake } = setup({ today: makeToday([LATE]), plan: makePlan([LATE, TOMORROW]) })
 
-    const next = await region(he.today.next)
-    expect(await next.findByText(he.today.nextAt(he.board.tomorrow, '09:00'))).toBeInTheDocument()
+    const next = await region(en.today.next)
+    expect(await next.findByText(en.today.nextAt(en.board.tomorrow, '09:00'))).toBeInTheDocument()
     expect(next.getByRole('heading', { level: 3, name: TOMORROW.task_title })).toBeInTheDocument()
     // GET /plan without a range: the server's seven days from today.
     expect(fake.calls('GET', '/plan').length).toBeGreaterThan(0)
@@ -216,25 +216,25 @@ describe('the today screen', () => {
   it('an empty day with a block tomorrow says so and shows the block', async () => {
     setup({ today: makeToday([], { planned_minutes: 0 }), plan: makePlan([TOMORROW]) })
 
-    expect(await screen.findByText(he.today.noBlocksToday)).toBeInTheDocument()
-    const next = await region(he.today.next)
+    expect(await screen.findByText(en.today.noBlocksToday)).toBeInTheDocument()
+    const next = await region(en.today.next)
     expect(await next.findByRole('heading', { level: 3, name: TOMORROW.task_title })).toBeInTheDocument()
-    expect(next.getByText(he.today.nextAt(he.board.tomorrow, '09:00'))).toBeInTheDocument()
-    expect(screen.queryByText(he.today.noTasks)).not.toBeInTheDocument()
+    expect(next.getByText(en.today.nextAt(en.board.tomorrow, '09:00'))).toBeInTheDocument()
+    expect(screen.queryByText(en.today.noTasks)).not.toBeInTheDocument()
     // No empty list with a heading under the card (S27 review focus).
-    expect(screen.queryByRole('heading', { name: he.today.blocks })).not.toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: he.today.moreBlocks })).not.toBeInTheDocument()
-    expect(screen.queryByRole('radiogroup', { name: he.move.viewLabel })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: en.today.blocks })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: en.today.moreBlocks })).not.toBeInTheDocument()
+    expect(screen.queryByRole('radiogroup', { name: en.move.viewLabel })).not.toBeInTheDocument()
   })
 
   it('with nothing on the board at all, says there are no tasks', async () => {
     setup({ today: makeToday([], { planned_minutes: 0 }), plan: makePlan([]) })
 
-    expect(await screen.findByText(he.today.noTasks)).toBeInTheDocument()
-    expect(screen.getByText(he.today.noTasksHint)).toBeInTheDocument()
+    expect(await screen.findByText(en.today.noTasks)).toBeInTheDocument()
+    expect(screen.getByText(en.today.noTasksHint)).toBeInTheDocument()
     // The way out of an empty board is the exams screen; it is a link, not a new request.
-    expect(screen.getByRole('link', { name: he.today.toExams })).toHaveAttribute('href', '/exams')
-    expect(screen.queryByRole('region', { name: he.today.next })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: en.today.toExams })).toHaveAttribute('href', '/exams')
+    expect(screen.queryByRole('region', { name: en.today.next })).not.toBeInTheDocument()
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
   })
 
@@ -245,17 +245,17 @@ describe('the today screen', () => {
     fake.on(`POST /blocks/${NOW.id}/complete`, () => answer.promise)
     fake.on(`POST /blocks/${NOW.id}/uncomplete`, { block: NOW, task_status: 'todo' })
 
-    await user.click(await screen.findByRole('button', { name: he.board.completeLabel(NOW.task_title) }))
+    await user.click(await screen.findByRole('button', { name: en.board.completeLabel(NOW.task_title) }))
     // Before the server answers: the block is done and the next block is the upcoming one.
     await waitFor(() => {
-      expect(within(row(NOW.task_title)).getByRole('button', { name: he.board.uncompleteLabel(NOW.task_title) })).toHaveAttribute('aria-pressed', 'true')
+      expect(within(row(NOW.task_title)).getByRole('button', { name: en.board.uncompleteLabel(NOW.task_title) })).toHaveAttribute('aria-pressed', 'true')
     })
-    expect(within(screen.getByRole('region', { name: he.today.next })).getByRole('heading', { level: 3, name: LATER.task_title })).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: en.today.next })).getByRole('heading', { level: 3, name: LATER.task_title })).toBeInTheDocument()
 
     const done: Block = { ...NOW, status: 'done', state: 'done' }
     state.today = makeToday([done, LATER])
     answer.resolve({ block: done, task_status: 'done' })
-    await user.click(await (await toasts()).findByRole('button', { name: he.common.undo }))
+    await user.click(await (await toasts()).findByRole('button', { name: en.common.undo }))
     await waitFor(() => {
       expect(fake.calls('POST', `/blocks/${NOW.id}/uncomplete`)).toHaveLength(1)
     })
@@ -267,9 +267,9 @@ describe('the today screen', () => {
     const answer = deferred<unknown>()
     fake.on(`POST /blocks/${NOW.id}/complete`, () => answer.promise)
 
-    const meter = await screen.findByRole('progressbar', { name: he.today.progressLabel })
+    const meter = await screen.findByRole('progressbar', { name: en.today.progressLabel })
     expect(meter).toHaveAttribute('aria-valuenow', '0')
-    await user.click(screen.getByRole('button', { name: he.board.completeLabel(NOW.task_title) }))
+    await user.click(screen.getByRole('button', { name: en.board.completeLabel(NOW.task_title) }))
     await waitFor(() => {
       expect(meter).toHaveAttribute('aria-valuenow', '60')
     })
@@ -291,9 +291,9 @@ describe('the today screen', () => {
     const { fake } = setup({ today: makeToday([NOW, DONE], { planned_minutes: 60, done_minutes: 60 }) })
     fake.on(`POST /blocks/${DONE.id}/uncomplete`, () => new Promise<never>(() => undefined))
 
-    const meter = await screen.findByRole('progressbar', { name: he.today.progressLabel })
+    const meter = await screen.findByRole('progressbar', { name: en.today.progressLabel })
     expect(meter).toHaveAttribute('aria-valuenow', '60')
-    await user.click(screen.getByRole('button', { name: he.board.uncompleteLabel(DONE.task_title) }))
+    await user.click(screen.getByRole('button', { name: en.board.uncompleteLabel(DONE.task_title) }))
     await waitFor(() => {
       expect(meter).toHaveAttribute('aria-valuenow', '0')
     })
@@ -306,15 +306,15 @@ describe('the today screen', () => {
     const answer = deferred<unknown>()
     fake.on(`POST /blocks/${NOW.id}/complete`, () => answer.promise)
 
-    const next = await region(he.today.next)
-    await user.click(next.getByRole('button', { name: he.board.completeLabel(NOW.task_title) }))
+    const next = await region(en.today.next)
+    await user.click(next.getByRole('button', { name: en.board.completeLabel(NOW.task_title) }))
     const done: Block = { ...NOW, status: 'done', state: 'done' }
     state.today = makeToday([done, LATER])
     answer.resolve({ block: done, task_status: 'done' })
 
-    const list = await region(he.today.moreBlocks)
+    const list = await region(en.today.moreBlocks)
     await waitFor(() => {
-      expect(list.getByRole('button', { name: he.board.uncompleteLabel(NOW.task_title) })).toHaveFocus()
+      expect(list.getByRole('button', { name: en.board.uncompleteLabel(NOW.task_title) })).toHaveFocus()
     })
     expect(document.activeElement?.closest('li')).toBe(row(NOW.task_title))
   })
@@ -335,9 +335,9 @@ describe('the today screen', () => {
       return { block: planned, task_status: 'todo' }
     })
 
-    await user.click(await screen.findByRole('button', { name: he.board.uncompleteLabel(DONE.task_title) }))
+    await user.click(await screen.findByRole('button', { name: en.board.uncompleteLabel(DONE.task_title) }))
     await waitFor(() => {
-      expect(within(row(DONE.task_title)).getByRole('button', { name: he.board.completeLabel(DONE.task_title) })).toHaveFocus()
+      expect(within(row(DONE.task_title)).getByRole('button', { name: en.board.completeLabel(DONE.task_title) })).toHaveFocus()
     })
   })
 
@@ -349,13 +349,13 @@ describe('the today screen', () => {
       return { ...LATER, pinned: true }
     })
 
-    await user.click(await screen.findByRole('button', { name: he.board.actionsLabel(LATER.task_title) }))
-    await user.click(await screen.findByRole('menuitem', { name: he.board.pin }))
+    await user.click(await screen.findByRole('button', { name: en.board.actionsLabel(LATER.task_title) }))
+    await user.click(await screen.findByRole('menuitem', { name: en.board.pin }))
     await waitFor(() => {
-      expect(within(row(LATER.task_title)).getByText(he.board.pinned)).toBeInTheDocument()
+      expect(within(row(LATER.task_title)).getByText(en.board.pinned)).toBeInTheDocument()
     })
     await waitFor(() => {
-      expect(within(row(LATER.task_title)).getByRole('button', { name: he.board.completeLabel(LATER.task_title) })).toHaveFocus()
+      expect(within(row(LATER.task_title)).getByRole('button', { name: en.board.completeLabel(LATER.task_title) })).toHaveFocus()
     })
   })
 
@@ -364,14 +364,14 @@ describe('the today screen', () => {
     const part2 = makeBlock({ ...LATER, id: 'b-part-2', part_index: 2, part_count: 2, starts_at: '2026-11-16T09:30:00Z', ends_at: '2026-11-16T10:30:00Z' })
     setup({ today: makeToday([part1, part2]) })
 
-    const first = `${LATER.task_title} (${he.board.part(1, 2)})`
-    const second = `${LATER.task_title} (${he.board.part(2, 2)})`
-    expect(await screen.findByRole('button', { name: he.board.completeLabel(first) })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: he.board.completeLabel(second) })).toBeInTheDocument()
+    const first = `${LATER.task_title} (${en.board.part(1, 2)})`
+    const second = `${LATER.task_title} (${en.board.part(2, 2)})`
+    expect(await screen.findByRole('button', { name: en.board.completeLabel(first) })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.board.completeLabel(second) })).toBeInTheDocument()
     // The first part is the next block (a card), the second a row; each has its own menu.
-    expect(screen.getByRole('button', { name: he.board.deferLabel(first) })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: he.board.actionsLabel(first) })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: he.board.actionsLabel(second) })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.board.deferLabel(first) })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.board.actionsLabel(first) })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.board.actionsLabel(second) })).toBeInTheDocument()
     // Both show the plain title.
     expect(screen.getAllByText(LATER.task_title)).toHaveLength(2)
   })
@@ -384,10 +384,10 @@ describe('the today screen', () => {
     fake.on(`POST /blocks/${LATER.id}/defer`, { blocks: [moved], version_id: 'v-2' })
     fake.on('POST /plan/undo', { version_id: 'v-2' })
 
-    await user.click(await screen.findByRole('button', { name: he.board.deferLabel(LATER.task_title) }))
+    await user.click(await screen.findByRole('button', { name: en.board.deferLabel(LATER.task_title) }))
     const region = await toasts()
-    expect(await region.findByText(he.board.deferred(dayLabel('2026-11-17', '2026-11-16'), '09:00'))).toBeInTheDocument()
-    await user.click(region.getByRole('button', { name: he.common.undo }))
+    expect(await region.findByText(en.board.deferred(dayLabel('2026-11-17', '2026-11-16'), '09:00'))).toBeInTheDocument()
+    await user.click(region.getByRole('button', { name: en.common.undo }))
     await waitFor(() => {
       expect(fake.calls('POST', '/plan/undo')).toEqual([{ method: 'POST', path: '/plan/undo', body: { version_id: 'v-2' } }])
     })
@@ -398,8 +398,8 @@ describe('the today screen', () => {
     const { fake } = setup({ today: makeToday([LATER]) })
     fake.on(`POST /blocks/${LATER.id}/defer`, problem(409, 'placement_failed', { reason: 'not_enough_time' }))
 
-    await user.click(await screen.findByRole('button', { name: he.board.deferLabel(LATER.task_title) }))
-    const dialog = within(await screen.findByRole('dialog', { name: he.replan.title }))
+    await user.click(await screen.findByRole('button', { name: en.board.deferLabel(LATER.task_title) }))
+    const dialog = within(await screen.findByRole('dialog', { name: en.replan.title }))
     expect(dialog.getByText(`${codeText('placement_failed')} ${unscheduledText('not_enough_time')}`)).toBeInTheDocument()
     // The open dialog hides the page from assistive tech; the card is still there, unchanged.
     expect(await nextTitle(LATER.task_title, { hidden: true })).toBeInTheDocument()
@@ -415,10 +415,10 @@ describe('the today screen', () => {
     })
 
     // The block is the next one, and not yet started: pin is in the menu of its card.
-    await user.click(await screen.findByRole('button', { name: he.board.actionsLabel(LATER.task_title) }))
-    await user.click(await screen.findByRole('menuitem', { name: he.board.pin }))
+    await user.click(await screen.findByRole('button', { name: en.board.actionsLabel(LATER.task_title) }))
+    await user.click(await screen.findByRole('menuitem', { name: en.board.pin }))
     await waitFor(() => {
-      expect(within(screen.getByRole('region', { name: he.today.next })).getByText(he.board.pinned)).toBeInTheDocument()
+      expect(within(screen.getByRole('region', { name: en.today.next })).getByText(en.board.pinned)).toBeInTheDocument()
     })
     expect(fake.calls('PATCH', `/blocks/${LATER.id}`)).toEqual([
       { method: 'PATCH', path: `/blocks/${LATER.id}`, body: { pinned: true } },
@@ -430,19 +430,19 @@ describe('the today screen', () => {
     fake.on('GET /today', () => new Promise(() => undefined))
 
     // The h1 takes the focus after a navigation, so it does not wait for the data.
-    expect(await screen.findByRole('heading', { level: 1, name: he.today.title })).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent(he.common.loading)
+    expect(await screen.findByRole('heading', { level: 1, name: en.today.title })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(en.common.loading)
   })
 
   it('when every task is done, says so without sending anywhere', async () => {
     setup({ today: makeToday([DONE], { planned_minutes: 0, done_minutes: 60 }), plan: makePlan([DONE]) })
 
-    expect(await screen.findByText(he.today.noMoreTasks)).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: he.today.toExams })).not.toBeInTheDocument()
-    expect(screen.queryByText(he.today.noTasks)).not.toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: he.today.next })).not.toBeInTheDocument()
+    expect(await screen.findByText(en.today.noMoreTasks)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: en.today.toExams })).not.toBeInTheDocument()
+    expect(screen.queryByText(en.today.noTasks)).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: en.today.next })).not.toBeInTheDocument()
     // The done block stays in the list.
-    expect(within(row(DONE.task_title)).getByRole('button', { name: he.board.uncompleteLabel(DONE.task_title) })).toBeInTheDocument()
+    expect(within(row(DONE.task_title)).getByRole('button', { name: en.board.uncompleteLabel(DONE.task_title) })).toBeInTheDocument()
   })
 
   it('a failed look at the next days says so, and the retry asks again', async () => {
@@ -450,12 +450,12 @@ describe('the today screen', () => {
     const { fake } = setup({ today: makeToday([], { planned_minutes: 0 }) })
     fake.on({ method: 'GET', path: /^\/plan/ }, problem(0, 'network'))
 
-    expect(await screen.findByText(he.today.planFailed)).toBeInTheDocument()
-    expect(screen.queryByText(he.today.noTasks)).not.toBeInTheDocument()
+    expect(await screen.findByText(en.today.planFailed)).toBeInTheDocument()
+    expect(screen.queryByText(en.today.noTasks)).not.toBeInTheDocument()
     fake.on({ method: 'GET', path: /^\/plan/ }, makePlan([TOMORROW]))
-    await user.click(screen.getByRole('button', { name: he.common.retry }))
+    await user.click(screen.getByRole('button', { name: en.common.retry }))
     expect(await nextTitle(TOMORROW.task_title)).toBeInTheDocument()
-    expect(screen.queryByText(he.today.planFailed)).not.toBeInTheDocument()
+    expect(screen.queryByText(en.today.planFailed)).not.toBeInTheDocument()
   })
 
   it('a network error shows an alert, and the retry works', async () => {
@@ -463,9 +463,9 @@ describe('the today screen', () => {
     const { state } = setup({ today: problem(0, 'network') })
 
     expect(await screen.findByRole('alert')).toHaveTextContent(codeText('network'))
-    expect(screen.getByRole('heading', { level: 1, name: he.today.title })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: en.today.title })).toBeInTheDocument()
     state.today = makeToday([LATER])
-    await user.click(screen.getByRole('button', { name: he.common.retry }))
+    await user.click(screen.getByRole('button', { name: en.common.retry }))
     expect(await nextTitle(LATER.task_title)).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
@@ -476,10 +476,10 @@ describe('the today screen', () => {
 
     state.today = problem(0, 'network')
     await act(() => queryClient.refetchQueries({ queryKey: todayKey(USER_ID) }))
-    expect(await screen.findByText(he.today.stale)).toBeInTheDocument()
+    expect(await screen.findByText(en.today.stale)).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 3, name: LATER.task_title })).toBeInTheDocument()
     // The data is still there, so this is a remark with a retry, not an error in its place.
-    expect(screen.getByRole('button', { name: he.common.retry })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.common.retry })).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -489,18 +489,18 @@ describe('the today screen', () => {
 
     // The only block is the next one; its card shows the whole range (a row shows the start only).
     await nextTitle(block.task_title)
-    const article = screen.getByRole('region', { name: he.today.next })
+    const article = screen.getByRole('region', { name: en.today.next })
     await waitFor(() => {
       expect(article).toHaveTextContent('00:30–01:30')
     })
-    expect(article).toHaveTextContent(he.board.twoHours)
+    expect(article).toHaveTextContent(en.board.twoHours)
   })
 
   it("shows times in the profile's timezone, not the browser's", async () => {
     setup({ today: makeToday([makeBlock()]), timezone: 'America/New_York' })
 
     await nextTitle(makeBlock().task_title)
-    const article = screen.getByRole('region', { name: he.today.next })
+    const article = screen.getByRole('region', { name: en.today.next })
     await waitFor(() => {
       expect(article).toHaveTextContent('07:00–08:00')
     })
@@ -512,7 +512,7 @@ describe('the today screen', () => {
       plan: makePlan([LATER], { unplaced: [{ task_id: 't-x', exam_id: EXAMS[0]?.id ?? '', exam_color_index: 0, title: 'סימולציה מלאה', minutes: 90 }] }),
     })
 
-    expect(await screen.findByRole('heading', { name: he.board.report.title })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: en.board.report.title })).toBeInTheDocument()
   })
 
   it('scrolls the report into view when the address is /today#report', async () => {
@@ -528,7 +528,7 @@ describe('the today screen', () => {
       plan: makePlan([LATER], { unplaced: [{ task_id: 't-x', exam_id: EXAMS[0]?.id ?? '', exam_color_index: 0, title: 'סימולציה מלאה', minutes: 90 }] }),
     })
 
-    await screen.findByRole('heading', { name: he.board.report.title })
+    await screen.findByRole('heading', { name: en.board.report.title })
     await waitFor(() => {
       expect(scroll).toHaveBeenCalled()
     })
@@ -546,8 +546,8 @@ describe('the today screen', () => {
     const { auth, router } = setup()
 
     // S26: sign out lives in the profile menu of the shell.
-    await user.click(await screen.findByRole('button', { name: he.shell.profile }))
-    await user.click(await screen.findByRole('menuitem', { name: he.shell.signOut }))
+    await user.click(await screen.findByRole('button', { name: en.shell.profile }))
+    await user.click(await screen.findByRole('menuitem', { name: en.shell.signOut }))
     expect(auth.signOut).toHaveBeenCalledExactlyOnceWith({ scope: 'local' })
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/login')

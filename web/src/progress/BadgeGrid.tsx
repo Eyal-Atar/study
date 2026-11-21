@@ -1,14 +1,14 @@
-import { Award, CircleDashed } from 'lucide-react'
+import { Award, CircleDashed } from '../ui/icons'
 import { useId } from 'react'
 import { useProfileTimezone } from '../board/time'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { List, ListRow } from '../ui/List'
 import { SectionHeading } from '../ui/SectionHeading'
 import { ICON_STROKE } from '../ui/styles'
 import { formatEarnedDate, formatNumber } from './format'
 import type { Badge, BadgeGroup, Progress } from './types'
 
-const t = he.progress.badges
+const t = en.progress.badges
 
 const GROUPS: BadgeGroup[] = ['first', 'blocks', 'streak', 'level', 'xp']
 

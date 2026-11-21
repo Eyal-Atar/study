@@ -5,7 +5,7 @@ import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { describe, expect, it } from 'vitest'
 import { AppProviders } from '../app/AppProviders'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { createFakeApi, problem, type ApiCall, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { createFakeStorage } from '../test/fakeStorage'
@@ -14,7 +14,7 @@ import { ExamsStep } from './ExamsStep'
 import { STEP_PATHS } from './steps'
 import type { Exam, ExamCreate } from './types'
 
-const t = he.onboardingExams
+const t = en.onboardingExams
 
 // An API with a list of exams that POST, DELETE and undo change, like the server does.
 function examsApi(initial: Exam[] = []) {
@@ -97,7 +97,7 @@ describe('ExamsStep', () => {
   it('shows the step, the title and the empty state', async () => {
     renderExams(examsApi())
     expect(screen.getByRole('heading', { level: 1, name: t.title })).toBeInTheDocument()
-    expect(screen.getByText(he.onboarding.stepOf(1, 4))).toBeInTheDocument()
+    expect(screen.getByText(en.onboarding.stepOf(1, 4))).toBeInTheDocument()
     expect(await screen.findByText(t.empty)).toBeInTheDocument()
   })
 
@@ -168,7 +168,7 @@ describe('ExamsStep', () => {
     await fillExam(user, 'הסתברות')
     await user.click(screen.getByRole('button', { name: t.add }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(he.codes.exam_in_past)
+    expect(await screen.findByRole('alert')).toHaveTextContent(en.codes.exam_in_past)
     expect(screen.getByRole('textbox', { name: t.name })).toHaveValue('הסתברות')
   })
 
@@ -180,12 +180,12 @@ describe('ExamsStep', () => {
 
     await user.click(await screen.findByRole('button', { name: t.deleteExam('שפת C') }))
 
-    const region = await screen.findByRole('region', { name: he.common.notifications })
+    const region = await screen.findByRole('region', { name: en.common.notifications })
     await within(region).findByText(t.deleted('שפת C'))
     expect(fake.calls('DELETE', '/exams/e1')).toHaveLength(1)
     expect(await screen.findByText(t.empty)).toBeInTheDocument()
 
-    await user.click(within(region).getByRole('button', { name: he.common.undo }))
+    await user.click(within(region).getByRole('button', { name: en.common.undo }))
 
     await waitFor(() => {
       expect(fake.calls('POST', '/plan/undo')).toHaveLength(1)
@@ -247,9 +247,9 @@ describe('ExamsStep', () => {
     const fake = createFakeApi().on('GET /exams', problem(503, 'database_unavailable'))
     renderExams(fake)
     expect(screen.getByRole('heading', { level: 1, name: t.title })).toBeInTheDocument()
-    expect(await screen.findByRole('alert')).toHaveTextContent(he.codes.database_unavailable)
+    expect(await screen.findByRole('alert')).toHaveTextContent(en.codes.database_unavailable)
     fake.on('GET /exams', [])
-    await user.click(screen.getByRole('button', { name: he.common.retry }))
+    await user.click(screen.getByRole('button', { name: en.common.retry }))
     expect(await screen.findByText(t.empty)).toBeInTheDocument()
   })
 
@@ -257,7 +257,7 @@ describe('ExamsStep', () => {
     const user = userEvent.setup()
     renderExams(examsApi())
     await screen.findByText(t.empty)
-    const proceed = () => screen.getByRole('button', { name: he.onboarding.continue })
+    const proceed = () => screen.getByRole('button', { name: en.onboarding.continue })
     expect(proceed()).toBeDisabled()
     // One blue button at a time: adding the first exam is the next step, so it is the primary one.
     expect(screen.getByRole('button', { name: t.add })).toHaveClass('bg-brand')

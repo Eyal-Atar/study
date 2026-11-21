@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { PageHeader } from './PageHeader'
 
 beforeEach(() => {
@@ -35,10 +35,10 @@ describe('PageHeader', () => {
 
   it('names the browser tab after the screen, and follows a change of the title', () => {
     const { rerender } = render(<PageHeader title="שבוע" />)
-    expect(document.title).toBe(`שבוע · ${he.appName}`)
+    expect(document.title).toBe(`שבוע · ${en.appName}`)
 
     rerender(<PageHeader title="מבחנים" />)
-    expect(document.title).toBe(`מבחנים · ${he.appName}`)
+    expect(document.title).toBe(`מבחנים · ${en.appName}`)
   })
 
   it('a very long title without spaces breaks instead of widening the page', () => {

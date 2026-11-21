@@ -1,4 +1,4 @@
-import { CircleCheck } from 'lucide-react'
+import { CircleCheck } from '../ui/icons'
 import { Logo } from '../app/Logo'
 import { ProgressChipView, type ChipProgress } from '../app/ProgressChip'
 import { Button } from '../ui/Button'

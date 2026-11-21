@@ -2,7 +2,7 @@ import { screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { codeText } from '../i18n/codes'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { COMPLETED_AT, examFixture, jobFixture, meFixture } from '../onboarding/testFixtures'
 import { createFakeApi, problem, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
@@ -94,7 +94,7 @@ describe('OnboardingGate', () => {
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/calendar')
     })
-    expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: en.today.title })).toBeInTheDocument()
   })
 
   it('lets a user with a plan see the building screen of a job (its summary)', async () => {
@@ -115,7 +115,7 @@ describe('OnboardingGate', () => {
     const { router } = open(fake, '/today')
     // The shell is up (the auth check passed), and the gate holds the screen.
     expect(await screen.findByRole('banner')).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent(he.common.loading)
+    expect(screen.getByRole('status')).toHaveTextContent(en.common.loading)
     expect(router.state.location.pathname).toBe('/today')
   })
 
@@ -128,8 +128,8 @@ describe('OnboardingGate', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(codeText('database_unavailable'))
     fail = false
-    await user.click(screen.getByRole('button', { name: he.common.retry }))
-    expect(await screen.findByRole('heading', { name: he.today.title })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: en.common.retry }))
+    expect(await screen.findByRole('heading', { name: en.today.title })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/calendar')
   })
 })

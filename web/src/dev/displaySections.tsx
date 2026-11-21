@@ -1,6 +1,6 @@
-import { CalendarOff, EllipsisVertical, FileText, Plus } from 'lucide-react'
+import { CalendarOff, EllipsisVertical, FileText, Plus } from '../ui/icons'
 import { useState } from 'react'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
@@ -305,7 +305,7 @@ export function ErrorSection() {
       <Example caption={t.error.custom}>
         <ErrorState
           message={t.error.message}
-          retryLabel={he.common.retry}
+          retryLabel={en.common.retry}
           onRetry={() => {
             toast.show({ text: t.error.retried })
           }}

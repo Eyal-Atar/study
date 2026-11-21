@@ -1,12 +1,12 @@
-import { Download } from 'lucide-react'
+import { Download } from '../ui/icons'
 import { errorMessage } from '../api/client'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { ICON_STROKE } from '../ui/styles'
 import { useToast } from '../ui/useToast'
 import { downloadJson, localDate, useExportData } from './api'
 
-const t = he.settings.export
+const t = en.settings.export
 
 // GET /me/export → studyflow-export-YYYY-MM-DD.json (S15 decision 10).
 export function ExportSection() {

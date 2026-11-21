@@ -1,4 +1,4 @@
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from './icons'
 import {
   Button,
   Calendar,

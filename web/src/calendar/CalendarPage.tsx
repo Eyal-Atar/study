@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavigationType, useLocation, useNavigationType, useSearchParams } from 'react-router'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { TodayPage } from '../pages/TodayPage'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { WeekPage } from '../week/WeekPage'
@@ -9,8 +9,8 @@ import { DAY_CHOSEN, dayChosen } from './calendarState'
 type CalendarView = 'day' | 'week'
 
 const VIEWS: readonly { id: CalendarView; label: string }[] = [
-  { id: 'day', label: he.calendar.day },
-  { id: 'week', label: he.calendar.week },
+  { id: 'day', label: en.calendar.day },
+  { id: 'week', label: en.calendar.week },
 ]
 
 // The query of the week: view=week first, then the rest as it was.
@@ -75,7 +75,7 @@ export function CalendarPage() {
 
   return (
     <div className="space-y-section">
-      <SegmentedControl aria-label={he.calendar.view} options={VIEWS} value={view} onChange={choose} />
+      <SegmentedControl aria-label={en.calendar.view} options={VIEWS} value={view} onChange={choose} />
       {view === 'week' ? <WeekPage /> : <TodayPage />}
     </div>
   )

@@ -6,14 +6,14 @@ import { RouterProvider } from 'react-router/dom'
 import { describe, expect, it } from 'vitest'
 import type { Me, MePatch } from '../api/me'
 import { AppProviders } from '../app/AppProviders'
-import { he } from '../i18n/he'
+import { en } from '../i18n/en'
 import { createFakeApi, problem, type ApiCall, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { createFakeStorage } from '../test/fakeStorage'
 import { ScheduleStep } from './ScheduleStep'
 import { STEP_PATHS } from './steps'
 
-const t = he.onboardingSchedule
+const t = en.onboardingSchedule
 
 const me: Me = {
   id: 'user-a',
@@ -68,7 +68,7 @@ describe('ScheduleStep', () => {
     renderSchedule(meApi())
     expect(await screen.findByRole('radio', { name: t.hours(4) })).toBeChecked()
     expect(screen.getByRole('heading', { level: 1, name: t.title })).toBeInTheDocument()
-    expect(screen.getByText(he.onboarding.stepOf(3, 4))).toBeInTheDocument()
+    expect(screen.getByText(en.onboarding.stepOf(3, 4))).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: windowName('morning') })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: windowName('afternoon') })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: windowName('evening') })).not.toBeChecked()
@@ -127,7 +127,7 @@ describe('ScheduleStep', () => {
     renderSchedule(fake)
 
     await user.click(await screen.findByRole('button', { name: t.build }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(he.codes.database_unavailable)
+    expect(await screen.findByRole('alert')).toHaveTextContent(en.codes.database_unavailable)
     expect(screen.queryByText('building')).not.toBeInTheDocument()
   })
 
@@ -162,7 +162,7 @@ describe('ScheduleStep', () => {
     const build = await screen.findByRole('button', { name: t.build })
     const bar = build.parentElement
     if (bar === null) throw new Error('no actions bar')
-    expect(within(bar).getAllByRole('button').map((button) => button.textContent)).toEqual([t.build, he.common.back])
+    expect(within(bar).getAllByRole('button').map((button) => button.textContent)).toEqual([t.build, en.common.back])
     // U+2066 … U+2069 isolate the range as left-to-right text inside the Hebrew card.
     expect(screen.getByText('\u206606:00–12:00\u2069')).toBeInTheDocument()
     expect(screen.getByText('\u206621:00–02:00\u2069')).toBeInTheDocument()
@@ -171,7 +171,7 @@ describe('ScheduleStep', () => {
   it('"back" goes to the materials step', async () => {
     const user = userEvent.setup()
     renderSchedule(meApi())
-    await user.click(await screen.findByRole('button', { name: he.common.back }))
+    await user.click(await screen.findByRole('button', { name: en.common.back }))
     expect(await screen.findByText('materials')).toBeInTheDocument()
   })
 
@@ -179,9 +179,9 @@ describe('ScheduleStep', () => {
     const user = userEvent.setup()
     const fake = createFakeApi().on('GET /me', problem(503, 'database_unavailable'))
     renderSchedule(fake)
-    expect(await screen.findByRole('alert')).toHaveTextContent(he.codes.database_unavailable)
+    expect(await screen.findByRole('alert')).toHaveTextContent(en.codes.database_unavailable)
     fake.on('GET /me', me)
-    await user.click(screen.getByRole('button', { name: he.common.retry }))
+    await user.click(screen.getByRole('button', { name: en.common.retry }))
     await waitFor(() => {
       expect(screen.getByRole('radio', { name: t.hours(4) })).toBeChecked()
     })
