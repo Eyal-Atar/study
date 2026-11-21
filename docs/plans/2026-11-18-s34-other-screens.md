@@ -102,7 +102,7 @@ flowchart TB
 - **אייקונים רק מ-`web/src/ui/icons/`** (גם הגליפים של lucide, דרך `glyphs.ts`). ‏`import … from 'lucide-react'` נכשל ב-lint. מקום של אייקון ברכיב מוגדר כ-`IconType`. גליף חסר נוסף ל-`glyphs.ts` בשורה אחת.
 - **אפס אימוג׳י** בכל מקום, כולל `✓`, ‏`©`, ‏`™`, ‏`▶` ובבדיקות; נתון בדיקה כזה נכתב עם `String.fromCodePoint`. סימן "נבחר" הוא `CheckMarkIcon`.
 - **תנועה:** לכל אינטראקציה תגובה מונפשת קצרה (`motion-safe:`), ושקט מלא עם `prefers-reduced-motion`. לכל רכיב מונפש בדיקה שעם reduced motion אין אנימציה פעילה (לפי הדפוס של `archie/motionLayer.tsx`).
-- רק רכיבי `web/src/ui/` וה-tokens. אין hex, אין צבע מהלוח של Tailwind, אין `text-brand` על טקסט (רק `text-brand-strong`/`text-brand-ink`), אין שקיפות על טקסט (מסמך העיצוב 2.7).
+- רק רכיבי `web/src/ui/` וה-tokens. אין hex, אין צבע מהלוח של Tailwind, אין `text-brand` על טקסט (רק `text-brand-strong`), אין שקיפות על טקסט (מסמך העיצוב 2.7).
 - **לא משנים רכיב קיים ב-`ui/`** (S32 רץ במקביל). רכיב חסר = קובץ חדש עם בדיקה, קטע ב-`dev/s34Sections.tsx`, ושורה במסמך העיצוב (סעיף 5.8, נכתבת ב-Task 23). חריג אחד: שורות export חדשות ב-`ui/icons/glyphs.ts`.
 - 44px לכל מה שלוחצים (`min-h-touch`), שם נגיש לכל כפתור שחוזר ("Delete: משמרת עבודה", נבנה מפונקציה ב-`en` עם `isolate`), ‏`h1` אחד שמופיע מיד, ‏`tabular-nums` למספרים, רק logical properties. אין `dir="ltr"` על שעות ואין `rtl:` (המוצר LTR).
 - ההתנהגות, הבדיקות של ההתנהגות וה-API של S13–S19, ‏S35, ‏S44 ו-S45 נשמרים. בדיקה משתנה רק כשהיא נשענת על מבנה או טקסט שהשתנה, והציפייה נבנית מ-`en.<key>` ולא מטקסט מועתק.
@@ -226,7 +226,7 @@ S32 (היומן) רץ במקביל ב-worktree משלו, ושייכים לו `we
 
 **Interfaces (Produces):**
 - `ArchiLead({ mood: ArchieMood, question: string, context?: string, below?: string, headingLevel?: 1 | 2 })`: שורה (`flex items-end gap-3`), ‏`<Archie mood={mood} size="card" />` משמאל (ישר על המשטח, בלי רקע ובלי מסגרת), ולצידו כותרת (`h1` כברירת מחדל) עם `question` ב-`font-display` (Amatic SC, "his handwriting" בהדמיה) ו-`font-bold leading-none` בגודל של `.q` בהדמיה, ומתחתיה `context` ב-`text-body text-ink-muted`. ‏`below` הוא פסקה אחת מתחת לשורה, לכל הרוחב (`.leadp` בהדמיה). השאלה מופיעה מיד, ו-Archi נכנס עם fade של 200ms רק ב-`motion-safe`.
-- `RecapLine({ children })`: שורה שקטה אחת, `CheckMarkIcon` בגודל 14 ב-`text-brand-ink`, טקסט `text-small text-ink-muted`, נחתכת בסוף. תוכן משתמש בתוכה דרך `UserText` או מחרוזת עם `isolate`.
+- `RecapLine({ children })`: שורה שקטה אחת, `CheckMarkIcon` בגודל 14 ב-`text-brand-strong`, טקסט `text-small text-ink-muted`, נחתכת בסוף. תוכן משתמש בתוכה דרך `UserText` או מחרוזת עם `isolate`.
 - `FeasibilityNote({ estimate: FeasibilityEstimate | null })`: הטיפוס מוגדר כאן זמנית (`{ level: 'none' | 'tight' | 'roomy'; firstExamName: string; firstExamMinutes: number; tightExamName?: string; tightExamMinutes?: number }`), ו-Task 10 מעביר אותו ל-`feasibility.ts`. ‏`null` → לא מציג כלום. אחרת `Note` (`ui/Note.tsx`): ‏`tone="neutral"` ל-`roomy`, ‏`tone="warning"` ל-`tight` ול-`none`, בתוך עוטף `role="status" aria-live="polite"` שקיים תמיד (גם כש-`null`, ריק), עם `XpSparkIcon` ל-`roomy` ו-`CircleAlert` לשאר. הטקסט מ-`en.onboardingFlow.feasibility.{roomy,tight,none}`; כאן ניסוח ראשוני לפי Task 14, ו-Task 14 מלטש.
 
 - [ ] **Step 1: בדיקות.** ‏`ArchiLead`: ה-`h1` הוא השאלה; Archi הוא `img` עם השם `en.archie.alt[mood]` ובא לפני הכותרת ב-DOM; ‏`headingLevel={2}` → ‏`h2`; עם `matchMedia('(prefers-reduced-motion: reduce)')` אין אנימציה פעילה. ‏`RecapLine`: מציג את הטקסט ואייקון `aria-hidden`. ‏`FeasibilityNote`: ‏`null` → אזור חי ריק; ‏`roomy` → טקסט ב-`role="status"`; ‏`tight` → ‏tone אזהרה; שינוי ב-`estimate` מעדכן את אותו אזור (לא יוצר חדש).
@@ -296,7 +296,7 @@ S32 (היומן) רץ במקביל ב-worktree משלו, ושייכים לו `we
 **Interfaces:**
 - Consumes: `useRegisterTimetable`, ‏`useApplyTimetable` (`availability/api.ts`), ‏`useJob<TimetableResult>` (`onboarding/api.ts`), ‏`CommitmentDialog` עם `mode="draft"`, ‏`downscaleImage`, ‏`timetableFileProblem` (`commitments/downscale.ts`), ההעלאה ב-`commitments/timetableUpload.ts`, ‏`groupSubtitle`, ‏`kindIcon`, ‏`useUserId`.
 - Produces: `TimetableImport({ onApplied: (r: TimetableApplyResponse) => void, buttonVariant?: 'onboarding' | 'row' })`. המצבים:
-  1. כפתור: `'Upload a photo of my timetable'` (`Camera`, ‏`variant="secondary"`, לכל הרוחב); ב-`row` זו שורה בצבע `text-brand-ink`: `'Update from a photo of my timetable'`.
+  1. כפתור: `'Upload a photo of my timetable'` (`Camera`, ‏`variant="secondary"`, לכל הרוחב); ב-`row` זו שורה בצבע `text-brand-strong`: `'Update from a photo of my timetable'`.
   2. מכין ומעלה: `'Preparing your photo…'`.
   3. קורא: `'I’m reading your timetable…'` (`role="status"`).
   4. הצעות: כרטיס `bg-brand-soft` עם השאלה `en.commitments.timetable.found(n)`: ‏`'I found 3 busy times in your photo. Should I add them?'`, וביחיד `'I found 1 busy time in your photo. Should I add it?'`; שורה לכל הצעה (`kindIcon` ב-`text-busy`, כותרת ב-`UserText`, ‏`groupSubtitle`, תיבת סימון), ‏`'Edit'` לכל אחת, ‏`'Valid until (optional)'`, ‏`'Add them'` (ראשי; ‏`'Add it'` ביחיד) ו-`'Not now'`.
