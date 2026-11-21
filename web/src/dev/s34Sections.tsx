@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import type { ArchieMood } from '../archie/moods'
-import { paintedRanges } from '../commitments/model'
+import { CommitmentDialog, type CommitmentDraft } from '../commitments/CommitmentDialog'
+import { paintedRanges, type CommitmentGroup } from '../commitments/model'
 import { WeekPainter } from '../commitments/WeekPainter'
 import { en } from '../i18n/en'
 import { isolate } from '../i18n/bidi'
 import { FeasibilityNote, type FeasibilityEstimate } from '../onboarding/FeasibilityNote'
 import { ArchiLead } from '../ui/ArchiLead'
+import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { ExamChip, ExamInitial, ExamProgressBar } from '../ui/ExamMark'
 import { EXAM_COLOR_COUNT } from '../ui/examColor'
@@ -351,6 +353,68 @@ export function WeekPainterSection() {
   )
 }
 
+const SAMPLE_GROUP: CommitmentGroup = {
+  key: 'sample',
+  title: WORK,
+  kind: 'work',
+  weekdays: [1, 2, 3],
+  start_time: '09:00',
+  end_time: '17:00',
+  valid_from: '2026-11-01',
+  valid_until: null,
+  ids: ['a', 'b', 'c'],
+  isMeTime: false,
+}
+
+export function CommitmentDialogSection() {
+  const [open, setOpen] = useState<'add' | 'edit' | null>(null)
+  const [draft, setDraft] = useState<CommitmentDraft | null>(null)
+  return (
+    <Section id="commitment-dialog">
+      <Example caption={t.commitmentDialog.caption} className={PHONE}>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            onPress={() => {
+              setOpen('add')
+            }}
+          >
+            {t.commitmentDialog.add}
+          </Button>
+          <Button
+            variant="secondary"
+            onPress={() => {
+              setOpen('edit')
+            }}
+          >
+            {t.commitmentDialog.edit}
+          </Button>
+        </div>
+        <p className="text-small text-ink-muted tabular-nums">
+          {t.commitmentDialog.draft}{' '}
+          {draft === null ? (
+            t.commitmentDialog.nothing
+          ) : (
+            <>
+              <UserText>{draft.title}</UserText>, {draft.weekdays.map((d) => en.commitments.weekdayShort[d]).join(', ')}, {draft.start_time}–{draft.end_time}
+            </>
+          )}
+        </p>
+      </Example>
+      <CommitmentDialog
+        isOpen={open !== null}
+        onOpenChange={(next) => {
+          if (!next) setOpen(null)
+        }}
+        group={open === 'edit' ? SAMPLE_GROUP : null}
+        mode="draft"
+        onDraft={setDraft}
+        onSaved={() => undefined}
+      />
+    </Section>
+  )
+}
+
 // All the S34 sections in their order, so the page adds them in one line.
 export function S34Sections() {
   return (
@@ -363,6 +427,7 @@ export function S34Sections() {
       <ArchiLeadSection />
       <RecapLineSection />
       <WeekPainterSection />
+      <CommitmentDialogSection />
     </>
   )
 }

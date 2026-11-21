@@ -59,6 +59,7 @@ export const SECTIONS = [
   { id: 'archi-lead', title: 'Archi lead' },
   { id: 'recap-line', title: 'Recap line' },
   { id: 'week-painter', title: 'Week painter' },
+  { id: 'commitment-dialog', title: 'Commitment dialog' },
 ] as const
 
 export type SectionId = (typeof SECTIONS)[number]['id']
@@ -549,6 +550,15 @@ export const devText = {
       marked: 'Marked:',
       nothing: 'nothing yet',
       late: 'A day that ends after midnight: the hours after it sit at the bottom of the day before',
+    },
+    // The dialog that adds or edits a group of busy times (Task 6). Both buttons use the draft mode,
+    // which sends nothing, so the page never writes.
+    commitmentDialog: {
+      caption: 'The dialog in draft mode: Save hands the form back and nothing is sent. Delete is only in the edit form.',
+      add: 'Add a busy time',
+      edit: 'Edit a busy time',
+      draft: 'Last draft:',
+      nothing: 'nothing yet',
     },
   },
   optionGrid: {
