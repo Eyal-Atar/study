@@ -25,7 +25,7 @@ def test_unknown_route_is_problem_json(client: TestClient) -> None:
     assert response.headers["content-type"] == "application/problem+json"
     assert response.json() == {
         "type": "about:blank",
-        "title": "לא מצאנו את מה שחיפשת.",
+        "title": "I couldn't find that.",
         "status": 404,
         "code": "not_found",
     }
@@ -61,9 +61,11 @@ def test_unhandled_exception_hides_details(app: FastAPI) -> None:
     assert "hunter2" not in response.text
 
 
-def test_every_title_is_hebrew() -> None:
+def test_every_title_is_english_in_archis_voice() -> None:
     hebrew = re.compile("[֐-׿]")
-    assert [code for code, problem in PROBLEMS.items() if not hebrew.search(problem.title)] == []
+    assert [code for code, p in PROBLEMS.items() if hebrew.search(p.title)] == []
+    assert [code for code, p in PROBLEMS.items() if re.search(r"\b[Ww]e\b|Archi", p.title)] == []
+    assert [code for code, p in PROBLEMS.items() if "!" in p.title] == []
 
 
 def test_unknown_code_raises_key_error() -> None:

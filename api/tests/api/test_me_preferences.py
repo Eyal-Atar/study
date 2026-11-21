@@ -199,7 +199,7 @@ def test_a_hobby_set_after_a_preview_makes_its_apply_stale(
 def _live_hobby_rows(db: psycopg.Connection, user: ApiUser) -> int:
     row = db.execute(
         "SELECT count(*) FROM app.commitments WHERE user_id = %s AND deleted_at IS NULL "
-        "AND title = 'זמן לעצמי'",
+        "AND title = 'Me time'",
         (user.id,),
     ).fetchone()
     assert row is not None
@@ -248,6 +248,33 @@ def test_a_duplicate_hobby_row_does_not_hide_the_hobby(
     )
     assert extra.status_code == 201, extra.text
     assert api.get("/me", headers=user.headers).json()["hobby_start"] == "19:00"
+
+
+def test_a_legacy_titled_hobby_is_recognised_and_replaced_without_duplicates(
+    api: TestClient, make_api_user: MakeApiUser, db: psycopg.Connection
+) -> None:
+    user = make_api_user()
+    api.get("/me", headers=user.headers)
+    # Rows written before 2026-11-21 carry the Hebrew title; there is no migration.
+    db.execute(
+        "INSERT INTO app.commitments (user_id, title, kind, weekday, start_time, end_time, "
+        "valid_from) SELECT %s, 'זמן לעצמי', 'other', n, '19:00', '20:00', '2026-01-01' "
+        "FROM generate_series(0, 6) AS n",
+        (user.id,),
+    )
+    me = api.get("/me", headers=user.headers).json()
+    assert me["hobby_start"] == "19:00"
+    assert me["hobby_minutes"] == 60
+
+    assert _patch(api, user, {"hobby_start": "19:00", "hobby_minutes": 90}).status_code == 200
+    live = db.execute(
+        "SELECT title, count(*) FROM app.commitments WHERE user_id = %s "
+        "AND deleted_at IS NULL GROUP BY title",
+        (user.id,),
+    ).fetchall()
+    assert [(row[0], row[1]) for row in live] == [("Me time", 7)]
+    assert _patch(api, user, {"hobby_start": None, "hobby_minutes": None}).status_code == 200
+    assert _live_hobby_rows(db, user) == 0
 
 
 def test_the_hobby_respects_the_commitment_limit(

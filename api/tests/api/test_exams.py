@@ -186,7 +186,7 @@ def test_exam_in_past_says_the_date_has_passed_or_is_today(api: TestClient, user
     response = api.post(
         "/exams", json={"name": "היום", "exam_date": "2026-11-16"}, headers=user.headers
     )
-    assert response.json()["title"] == "תאריך המבחן כבר עבר, או שהוא היום."
+    assert response.json()["title"] == "The exam date has already passed, or it's today."
 
 
 def test_today_follows_the_profile_timezone_for_the_upper_bound(

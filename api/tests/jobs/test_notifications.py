@@ -195,7 +195,7 @@ def test_the_payload_is_the_reminder_text_and_ttl_runs_to_the_end(
     # 09:00Z is 11:00 in Israel in November (UTC+2).
     assert call.payload == {
         "title": "פרק 3",
-        "body": f"בעוד 10 דקות · 11:00{DASH}12:30 · הסתברות",
+        "body": f"In 10 min · 11:00{DASH}12:30 · הסתברות",
         "url": "/today",
         "tag": f"block:{block_id}",
     }
@@ -308,7 +308,7 @@ def test_a_late_reminder_goes_within_the_grace_but_not_after(
     assert sender.block_ids() == [str(late)]
     assert notified_at(db, stale) is None
     # The text tells the truth: it already started.
-    assert sender.calls[0].payload["body"].startswith("התחיל לפני 9 דקות")
+    assert sender.calls[0].payload["body"].startswith("Started 9 min ago")
 
 
 def test_a_user_without_a_subscription_is_not_claimed_until_subscribing(
@@ -571,7 +571,7 @@ def test_dst_fall_back_night_uses_real_minutes_and_local_hours(
 
     assert run(owner_db, sender, datetime(2026, 10, 24, 22, 14, tzinfo=UTC)).claimed == 0
     assert run(owner_db, sender, datetime(2026, 10, 24, 22, 15, tzinfo=UTC)).sent == 1
-    assert sender.calls[0].payload["body"].startswith(f"בעוד 15 דקות · 01:30{DASH}01:59")
+    assert sender.calls[0].payload["body"].startswith(f"In 15 min · 01:30{DASH}01:59")
 
 
 # --- the ticker ---

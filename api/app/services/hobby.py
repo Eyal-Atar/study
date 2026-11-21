@@ -4,7 +4,8 @@ Migration 0014 moved `profiles.hobby_start`/`hobby_minutes` into seven commitmen
 weekday, so the planner has one mechanism for taken time. The settings screen of S15 still
 reads and writes the hobby through GET/PATCH /me, so the API keeps those two fields: they read
 and replace the "hobby set", exactly the set the migration writes and its downgrade
-recognises: seven live commitments of kind 'other' titled HOBBY_TITLE, with no valid_until,
+recognises: seven live commitments of kind 'other' titled HOBBY_TITLE or a legacy title,
+with no valid_until,
 the same start and end, covering every weekday, 15 to 240 minutes long (a duplicate row
 on a weekday does not hide it). When several such sets exist, the one created first is the
 hobby. Writing it replaces every live hobby-titled row at the old time and at the new time,
@@ -19,7 +20,10 @@ from app.errors import ApiError
 from app.services.commitments import MAX_LIVE_COMMITMENTS, live_count
 from app.services.profiles import Conn
 
-HOBBY_TITLE: Final = "זמן לעצמי"
+HOBBY_TITLE: Final = "Me time"
+# Rows written before 2026-11-21 keep the Hebrew title; there is no migration.
+LEGACY_HOBBY_TITLES: Final = ("\u05d6\u05de\u05df \u05dc\u05e2\u05e6\u05de\u05d9",)
+_TITLES: Final = (HOBBY_TITLE, *LEGACY_HOBBY_TITLES)
 _WEEKDAYS: Final = 7
 
 # The hobby set, as (start_time, end_time, minutes), oldest first.
@@ -28,7 +32,7 @@ _SETS_SQL: Final = """
            (((extract(epoch FROM end_time - start_time) / 60)::int + 1440) %% 1440) AS minutes
     FROM app.commitments
     WHERE user_id = %(user_id)s AND deleted_at IS NULL AND kind = 'other'
-      AND title = %(title)s AND valid_until IS NULL
+      AND title = ANY(%(titles)s) AND valid_until IS NULL
     GROUP BY start_time, end_time
     HAVING count(DISTINCT weekday) = 7
     ORDER BY min(created_at), start_time, end_time
@@ -42,7 +46,7 @@ def _end(start: dt.time, minutes: int) -> dt.time:
 
 def read_hobby(conn: Conn, user_id: UUID) -> tuple[dt.time, int] | None:
     """The hobby (start, minutes) from the user's commitments, or None."""
-    for row in conn.execute(_SETS_SQL, {"user_id": user_id, "title": HOBBY_TITLE}).fetchall():
+    for row in conn.execute(_SETS_SQL, {"user_id": user_id, "titles": list(_TITLES)}).fetchall():
         if 15 <= row["minutes"] <= 240:
             return row["start_time"], row["minutes"]
     return None
@@ -64,9 +68,9 @@ def write_hobby(
         conn.execute(
             "UPDATE app.commitments SET deleted_at = %(now)s "
             "WHERE user_id = %(user_id)s AND deleted_at IS NULL AND kind = 'other' "
-            "AND title = %(title)s AND valid_until IS NULL "
+            "AND title = ANY(%(titles)s) AND valid_until IS NULL "
             "AND start_time = %(start)s AND end_time = %(end)s",
-            {"now": now, "user_id": user_id, "title": HOBBY_TITLE, "start": start, "end": end},
+            {"now": now, "user_id": user_id, "titles": list(_TITLES), "start": start, "end": end},
         )
     if hobby is not None:
         if live_count(conn, user_id) + _WEEKDAYS > MAX_LIVE_COMMITMENTS:

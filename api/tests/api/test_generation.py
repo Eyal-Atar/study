@@ -199,7 +199,7 @@ def test_generate_without_anything_to_analyze(
     assert response.status_code == 409, response.text
     body = response.json()
     assert body["code"] == "nothing_to_analyze"
-    assert body["title"] == "כל המבחנים כבר נותחו. אפשר לתכנן מחדש את הלוח."
+    assert body["title"].startswith("I've already analysed all your exams.")
     assert job_count(db, user.id) == 0
 
 
@@ -218,7 +218,7 @@ def test_fourth_request_of_the_day_is_refused(
         make_job(db, user.id, created_at=created_at)
     response = generate(api, user)
     assert_quota_exceeded(response)
-    assert response.json()["title"] == "הגעתם למספר הבקשות היומי. אפשר לנסות שוב מחר."
+    assert response.json()["title"] == "You've reached today's limit. You can try again tomorrow."
     assert job_count(db, user.id) == 3
 
 

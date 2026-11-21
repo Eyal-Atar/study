@@ -57,14 +57,14 @@ def _lead(seconds_left: float) -> str:
     # after a worker pause (up to the grace window) it says how long ago the block started.
     minutes = int((seconds_left + 30) // 60)
     if minutes == 0:
-        return "מתחיל עכשיו"
+        return "Starting now"
     if minutes == -1:
-        return "התחיל לפני דקה"
+        return "Started 1 min ago"
     if minutes < 0:
-        return f"התחיל לפני {-minutes} דקות"
+        return f"Started {-minutes} min ago"
     if minutes == 1:
-        return "בעוד דקה"
-    return f"בעוד {minutes} דקות"
+        return "In 1 min"
+    return f"In {minutes} min"
 
 
 def reminder_text(
@@ -76,7 +76,7 @@ def reminder_text(
     now: datetime,
     timezone: str,
 ) -> ReminderText:
-    """The fixed Hebrew template, for example "בעוד 10 דקות · 09:00-10:30 · הסתברות".
+    """The fixed English template, for example "In 10 min · 09:00-10:30 · הסתברות".
 
     The hours (joined by an en dash) are wall-clock times in the profile's timezone:
     starts_at is an absolute instant, so a block on a DST night shows the offset it really

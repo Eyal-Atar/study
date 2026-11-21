@@ -40,18 +40,20 @@ def text_at(now: datetime, **overrides: object) -> ReminderText:
 @pytest.mark.parametrize(
     ("before", "lead"),
     [
-        (timedelta(0), "מתחיל עכשיו"),
-        (timedelta(seconds=20), "מתחיל עכשיו"),
-        (timedelta(minutes=1), "בעוד דקה"),
-        (timedelta(minutes=2), "בעוד 2 דקות"),
-        (timedelta(minutes=5), "בעוד 5 דקות"),
-        (timedelta(minutes=15), "בעוד 15 דקות"),
+        (timedelta(0), "Starting now"),
+        (timedelta(seconds=20), "Starting now"),
+        (timedelta(minutes=1), "In 1 min"),
+        (timedelta(minutes=2), "In 2 min"),
+        (timedelta(minutes=5), "In 5 min"),
+        (timedelta(minutes=10), "In 10 min"),
+        (-timedelta(minutes=5), "Started 5 min ago"),
+        (timedelta(minutes=15), "In 15 min"),
         # The ticker wakes a moment into the minute, so a 15-minute reminder sees 14:59.
-        (timedelta(minutes=14, seconds=59), "בעוד 15 דקות"),
+        (timedelta(minutes=14, seconds=59), "In 15 min"),
         # A late reminder (the worker was down) does not claim time is left.
-        (-timedelta(minutes=3), "התחיל לפני 3 דקות"),
-        (-timedelta(seconds=75), "התחיל לפני דקה"),
-        (-timedelta(seconds=25), "מתחיל עכשיו"),
+        (-timedelta(minutes=3), "Started 3 min ago"),
+        (-timedelta(seconds=75), "Started 1 min ago"),
+        (-timedelta(seconds=25), "Starting now"),
     ],
 )
 def test_the_lead_counts_the_real_time_left(before: timedelta, lead: str) -> None:
@@ -63,13 +65,13 @@ def test_the_lead_counts_the_real_time_left(before: timedelta, lead: str) -> Non
 def test_summer_time_is_utc_plus_three() -> None:
     start = datetime(2026, 7, 1, 6, 0, tzinfo=UTC)
     text = text_at(start, starts_at=start, ends_at=start + timedelta(hours=1))
-    assert text.body == "מתחיל עכשיו · 09:00–10:00 · הסתברות"
+    assert text.body == "Starting now · 09:00–10:00 · הסתברות"
 
 
 def test_winter_time_is_utc_plus_two() -> None:
     start = datetime(2026, 12, 1, 6, 0, tzinfo=UTC)
     text = text_at(start, starts_at=start, ends_at=start + timedelta(hours=1))
-    assert text.body == "מתחיל עכשיו · 08:00–09:00 · הסתברות"
+    assert text.body == "Starting now · 08:00–09:00 · הסתברות"
 
 
 @pytest.mark.parametrize(
@@ -88,14 +90,14 @@ def test_both_repeated_times_on_the_fall_back_night_read_0130(
     text = text_at(
         start - timedelta(minutes=15), starts_at=start, ends_at=start + timedelta(minutes=30)
     )
-    assert text.body == f"בעוד 15 דקות · 01:30–{end_wall} · הסתברות"
+    assert text.body == f"In 15 min · 01:30–{end_wall} · הסתברות"
 
 
 def test_a_block_across_the_fall_back_shows_each_end_in_its_own_offset() -> None:
     start = datetime(2026, 10, 24, 22, 30, tzinfo=UTC)  # 01:30 IDT
     end = start + timedelta(hours=1)  # 01:30 IST: an hour later, same wall clock
     assert text_at(start, starts_at=start, ends_at=end).body == (
-        "מתחיל עכשיו · 01:30–01:30 · הסתברות"
+        "Starting now · 01:30–01:30 · הסתברות"
     )
 
 
@@ -106,7 +108,7 @@ def test_any_aware_input_offset_gives_the_same_text() -> None:
         starts_at=START.astimezone(plus5),
         ends_at=END.astimezone(plus5),
     )
-    assert text.body == "בעוד 5 דקות · 09:00–10:30 · הסתברות"
+    assert text.body == "In 5 min · 09:00–10:30 · הסתברות"
 
 
 def test_naive_datetimes_are_rejected() -> None:
