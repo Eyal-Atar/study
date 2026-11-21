@@ -1,3 +1,4 @@
+import { Archie } from '../archie/Archie'
 import { en } from '../i18n/en'
 import { ButtonLink } from '../ui/ButtonLink'
 import { StandalonePage } from '../ui/PageContainer'
@@ -10,6 +11,9 @@ export function GoodbyePage() {
   return (
     <StandalonePage>
       <div className="space-y-section">
+        <div className="mx-auto w-full max-w-xs">
+          <Archie mood="joy" size="scene" eager />
+        </div>
         <PageHeader title={t.title} />
         <p className="max-w-prose text-body text-ink-muted">{t.body}</p>
         <ButtonLink to="/login" variant="primary" className="w-full md:w-auto">

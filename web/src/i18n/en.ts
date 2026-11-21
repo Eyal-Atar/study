@@ -76,7 +76,7 @@ export const en = {
   callback: {
     title: 'Signing in',
     working: 'Finishing your sign-in…',
-    failed: 'The sign-in didn’t complete. You can try again.',
+    failed: 'I couldn’t finish your sign-in. You can try again from the sign-in screen.',
     backToLogin: 'Back to sign-in',
   },
   errors: {
@@ -723,7 +723,7 @@ export const en = {
     },
     goodbye: {
       title: 'Your account is deleted',
-      body: 'All your data has been deleted.',
+      body: 'I’ve deleted all your data.',
       login: 'Back to sign-in',
     },
   },

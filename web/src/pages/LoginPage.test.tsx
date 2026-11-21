@@ -43,6 +43,16 @@ describe('LoginPage', () => {
     expect(screen.getByRole('main')).toBeInTheDocument()
   })
 
+  it('shows Archi, and the agreement line with the two documents as links', async () => {
+    renderRoute('/login', { auth: createFakeAuth(null) })
+
+    expect(await screen.findByRole('img', { name: en.archie.alt.joy })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: en.entry.login.terms })).toHaveAttribute('href', '/terms')
+    expect(screen.getByRole('link', { name: en.entry.login.privacy })).toHaveAttribute('href', '/privacy')
+    const line = screen.getByRole('link', { name: en.entry.login.terms }).parentElement
+    expect(line).toHaveTextContent(`${en.entry.login.agreeBefore}${en.entry.login.terms}${en.entry.login.agreeAnd}${en.entry.login.privacy}${en.entry.login.agreeAfter}`)
+  })
+
   it('is pending while the request is on its way, sends it once, and comes back when it fails', async () => {
     const user = userEvent.setup()
     const auth = createFakeAuth(null)

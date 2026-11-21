@@ -10,6 +10,7 @@ it('shows the title as the h1, the sentence, and one link to the login screen', 
   renderRoute('/goodbye', { auth: createFakeAuth(null) })
 
   expect(await screen.findByRole('heading', { level: 1, name: t.title })).toBeInTheDocument()
+  expect(screen.getByRole('img', { name: en.archie.alt.joy })).toBeInTheDocument()
   expect(screen.getByText(t.body)).toBeInTheDocument()
   expect(screen.getAllByRole('link')).toHaveLength(1)
   expect(screen.getByRole('link', { name: t.login })).toHaveAttribute('href', '/login')
