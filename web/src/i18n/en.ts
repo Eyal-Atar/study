@@ -1,5 +1,6 @@
 import { PRODUCT_NAME } from '../product'
 import { isolate } from './bidi'
+import { enCommitments } from './enCommitments'
 import { enControls } from './enControls'
 import { enCrash } from './enCrash'
 import { enEntry } from './enEntry'
@@ -41,6 +42,7 @@ export const en = {
   },
   // S16: the crash screen (AppErrorBoundary, and the boot fallback in index.html); texts in enCrash.ts.
   crash: enCrash,
+  commitments: enCommitments,
   controls: enControls,
   entry: enEntry,
   onboardingFlow: enOnboardingFlow,

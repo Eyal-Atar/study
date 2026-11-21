@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Commitment, Weekday } from '../availability/types'
-import { cellsOf, groupCommitments, groupSubtitle, groupWrites, paintedRanges, weekdaysText, type CommitmentGroup } from './model'
+import { en } from '../i18n/en'
+import { cellsOf, groupCommitments, groupSubtitle, groupWrites, meTimeText, paintedRanges, weekdaysText, ME_TIME_TITLES, type CommitmentGroup } from './model'
 
 let next = 0
 function commitment(overrides: Partial<Commitment> = {}): Commitment {
@@ -23,7 +24,7 @@ function commitment(overrides: Partial<Commitment> = {}): Commitment {
 const ALL_DAYS: Weekday[] = [0, 1, 2, 3, 4, 5, 6]
 
 describe('groupCommitments', () => {
-  it('groups the seven "זמן לעצמי" rows of the migration into one row "כל יום"', () => {
+  it('groups the seven Hebrew-titled Me time rows of the migration into one row for every day', () => {
     // Out of order, as the server may list them.
     const list = [3, 0, 6, 1, 5, 2, 4].map((weekday) =>
       commitment({ id: `h${String(weekday)}`, title: 'זמן לעצמי', kind: 'other', weekday: weekday as Weekday, start_time: '18:00', end_time: '19:00' }),
@@ -33,8 +34,10 @@ describe('groupCommitments', () => {
     const [group] = groups as [CommitmentGroup]
     expect(group.weekdays).toEqual(ALL_DAYS)
     expect(group.ids).toEqual(['h0', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
-    expect(weekdaysText(group.weekdays)).toBe('כל יום')
-    expect(groupSubtitle(group)).toBe('כל יום, ⁦18:00–19:00⁩')
+    expect(weekdaysText(group.weekdays)).toBe(en.commitments.everyDay)
+    expect(weekdaysText(group.weekdays)).toBe('Every day')
+    expect(group.isMeTime).toBe(true)
+    expect(groupSubtitle(group)).toBe('Every day, 18:00–19:00')
   })
 
   it('keeps commitments with a different title, kind, time or validity apart', () => {
@@ -68,11 +71,11 @@ describe('groupCommitments', () => {
 
 describe('weekdaysText and groupSubtitle', () => {
   it('names the days', () => {
-    expect(weekdaysText([1, 3])).toBe('שני, רביעי')
-    expect(weekdaysText([0, 1, 2, 3, 4])).toBe('ראשון עד חמישי')
-    expect(weekdaysText([1, 2, 3, 4, 5, 6])).toBe('שני עד שבת')
-    expect(weekdaysText([0, 1, 2, 4])).toBe('ראשון, שני, שלישי, חמישי')
-    expect(weekdaysText([4])).toBe('חמישי')
+    expect(weekdaysText([1, 3])).toBe('Mon, Wed')
+    expect(weekdaysText([0, 1, 2, 3, 4])).toBe('Sun to Thu')
+    expect(weekdaysText([1, 2, 3, 4, 5, 6])).toBe('Mon to Sat')
+    expect(weekdaysText([0, 1, 2, 4])).toBe('Sun, Mon, Tue, Thu')
+    expect(weekdaysText([4])).toBe('Thu')
   })
 
   it('adds the end date', () => {
@@ -80,7 +83,7 @@ describe('weekdaysText and groupSubtitle', () => {
       commitment({ weekday: 1, valid_until: '2027-01-10' }),
       commitment({ weekday: 3, valid_until: '2027-01-10' }),
     ]) as [CommitmentGroup]
-    expect(groupSubtitle(group)).toBe('שני, רביעי, ⁦14:00–17:00⁩. עד 10 בינואר')
+    expect(groupSubtitle(group)).toBe('Mon, Wed, 14:00–17:00, until 10 January')
   })
 })
 
@@ -142,6 +145,7 @@ describe('groupWrites', () => {
     valid_from: '2026-11-01',
     valid_until: null,
     ids: ['mon', 'wed'],
+    isMeTime: false,
   }
 
   it('creates every day of a new group', () => {
@@ -205,5 +209,65 @@ describe('groupWrites', () => {
       { id: 'mon', patch: { valid_until: null } },
       { id: 'wed', patch: { valid_until: null } },
     ])
+  })
+})
+
+const meTimeRows = (title: string, extra: Partial<Commitment> = {}) =>
+  ALL_DAYS.map((weekday) =>
+    commitment({ title, kind: 'other', weekday, start_time: '20:00', end_time: '21:00', ...extra }),
+  )
+
+describe('Me time', () => {
+  it('names both titles the server recognises', () => {
+    expect(ME_TIME_TITLES).toEqual(['Me time', '\u05d6\u05de\u05df \u05dc\u05e2\u05e6\u05de\u05d9'])
+  })
+
+  it('recognises seven rows titled Me time as one group', () => {
+    const groups = groupCommitments(meTimeRows('Me time'))
+    expect(groups).toHaveLength(1)
+    expect(groups[0]?.isMeTime).toBe(true)
+    expect(weekdaysText(groups[0]?.weekdays ?? [])).toBe('Every day')
+  })
+
+  it('marks only the oldest of two Me time groups', () => {
+    const newer = meTimeRows('Me time', { start_time: '18:00', end_time: '19:00', created_at: '2026-11-10T10:00:00Z' })
+    const older = meTimeRows('Me time', { created_at: '2026-11-02T10:00:00Z' })
+    const groups = groupCommitments([...newer, ...older])
+    expect(groups.map((g) => [g.start_time, g.isMeTime])).toEqual([
+      ['18:00', false],
+      ['20:00', true],
+    ])
+  })
+
+  it('is not Me time with an end date, with a different kind, with fewer days or at a length outside 15 to 240 minutes', () => {
+    expect(groupCommitments(meTimeRows('Me time', { valid_until: '2027-01-10' }))[0]?.isMeTime).toBe(false)
+    expect(groupCommitments(meTimeRows('Me time', { kind: 'work' }))[0]?.isMeTime).toBe(false)
+    expect(groupCommitments(meTimeRows('Me time').slice(1))[0]?.isMeTime).toBe(false)
+    expect(groupCommitments(meTimeRows('Me time', { end_time: '20:10' }))[0]?.isMeTime).toBe(false)
+    expect(groupCommitments(meTimeRows('Me time', { end_time: '00:30' }))[0]?.isMeTime).toBe(false)
+    expect(groupCommitments(meTimeRows('Me time', { end_time: '00:00' }))[0]?.isMeTime).toBe(true)
+  })
+
+  it('writes the start and the length', () => {
+    expect(meTimeText('20:00', 60)).toBe('20:00, 1 hour')
+    expect(meTimeText('18:30', 45)).toBe('18:30, 45 minutes')
+  })
+})
+
+describe('more cases', () => {
+  it('paints the hours of one day', () => {
+    expect(paintedRanges(new Set(['0-10', '0-11']), 8)).toEqual([{ weekday: 0, start_time: '10:00', end_time: '12:00' }])
+    expect(paintedRanges(new Set(['0-22', '0-23']), 8)).toEqual([{ weekday: 0, start_time: '22:00', end_time: '00:00' }])
+  })
+
+  it('writes a group that gains a day, loses a day and moves in time', () => {
+    const before: CommitmentGroup = {
+      key: 'k', title: 'Work', kind: 'work', weekdays: [1, 2], start_time: '09:00', end_time: '10:00',
+      valid_from: '2026-11-01', valid_until: null, ids: ['m', 't'], isMeTime: false,
+    }
+    const writes = groupWrites(before, { title: 'Work', kind: 'work', weekday: 2, weekdays: [2, 5], start_time: '10:00', end_time: '11:00' })
+    expect(writes.remove).toEqual(['m'])
+    expect(writes.update).toEqual([{ id: 't', patch: { start_time: '10:00', end_time: '11:00' } }])
+    expect(writes.create).toEqual([{ title: 'Work', kind: 'work', weekday: 5, start_time: '10:00', end_time: '11:00' }])
   })
 })
