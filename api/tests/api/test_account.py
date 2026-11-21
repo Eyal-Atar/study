@@ -297,6 +297,8 @@ def test_export_has_the_documented_shape(
         "material_id",
         "position",
         "analysis_id",
+        "bite_minutes",
+        "split_dismissed_at",
         "deleted_at",
         "created_at",
     }

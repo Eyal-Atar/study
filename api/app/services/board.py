@@ -125,8 +125,8 @@ def load_board(conn: Conn, user_id: UUID, now: dt.datetime, *, lock: bool = Fals
     )
 
     task_rows = conn.execute(
-        "SELECT id, exam_id, kind, estimated_minutes, focus, depends_on_task_id, status "
-        "FROM app.tasks "
+        "SELECT id, exam_id, kind, estimated_minutes, focus, depends_on_task_id, status, "
+        "bite_minutes FROM app.tasks "
         "WHERE user_id = %s AND deleted_at IS NULL AND exam_id = ANY(%s) "
         "ORDER BY position NULLS LAST, created_at, id",
         (user_id, [exam.id for exam in exams]),
@@ -141,6 +141,7 @@ def load_board(conn: Conn, user_id: UUID, now: dt.datetime, *, lock: bool = Fals
             focus=row["focus"],
             depends_on=row["depends_on_task_id"] if row["depends_on_task_id"] in task_ids else None,
             status=TaskStatus(row["status"]),
+            bite_minutes=row["bite_minutes"],
         )
         for row in task_rows
     )
@@ -205,6 +206,8 @@ def fingerprint(board: Board) -> str:
         ],
         "tasks": [
             {
+                # Only a split task carries its bite, so the basis of other boards is as before.
+                **({} if t.bite_minutes is None else {"bite_minutes": t.bite_minutes}),
                 "id": str(t.id),
                 "exam_id": str(t.exam_id),
                 "kind": t.kind.value,

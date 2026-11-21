@@ -209,6 +209,9 @@ class Task:
     focus: int = 5
     depends_on: UUID | None = None
     status: TaskStatus = TaskStatus.TODO
+    # A task the user split (S44): the planner gives it one part of this length a day
+    # (assign.py). None packs the task as before.
+    bite_minutes: int | None = None
 
     def __post_init__(self) -> None:
         _require(isinstance(self.id, UUID), "id must be a UUID")
@@ -224,6 +227,9 @@ class Task:
         _require(5 <= self.estimated_minutes <= 600, "estimated_minutes must be 5-600")
         _require(1 <= self.focus <= 10, "focus must be 1-10")
         _require(self.depends_on != self.id, "a task cannot depend on itself")
+        if self.bite_minutes is not None:
+            _require(_is_int(self.bite_minutes), "bite_minutes must be an int or None")
+            _require(30 <= self.bite_minutes <= 300, "bite_minutes must be 30-300")
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

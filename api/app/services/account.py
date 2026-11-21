@@ -52,6 +52,8 @@ _EXPORTED: Final[Mapping[str, tuple[tuple[str, ...], tuple[str, ...]]]] = {
             "material_id",
             "position",
             "analysis_id",
+            "bite_minutes",
+            "split_dismissed_at",
             "deleted_at",
             "created_at",
         ),
