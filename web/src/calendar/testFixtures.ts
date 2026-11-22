@@ -2,7 +2,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { vi } from 'vitest'
 import type { Me } from '../api/me'
 import type { BusyItem } from '../availability/types'
-import { blockMinutes } from '../board/time'
+import { addDays, blockMinutes } from '../board/time'
 import type { Block, Plan } from '../board/types'
 import type { Exam } from '../onboarding/types'
 import { makeProgress } from '../progress/testFixtures'
@@ -77,6 +77,8 @@ export function stubMedia({ desktop = false, reducedMotion = false }: { desktop?
 }
 
 export interface CalendarServer {
+  // The server's today (a test that moves it also moves the clock).
+  date: string
   blocks: Block[]
   busy: BusyItem[]
   review: Block[]
@@ -93,7 +95,7 @@ export function openCalendar(path: string, init: Partial<CalendarServer> = {}) {
   if (!('scrollTo' in Element.prototype)) {
     Object.defineProperty(Element.prototype, 'scrollTo', { configurable: true, writable: true, value: () => undefined })
   }
-  const state: CalendarServer = { blocks: [], busy: [], review: [], unplaced: [], today: null, plan: null, legacy: false, ...init }
+  const state: CalendarServer = { date: CAL_TODAY, blocks: [], busy: [], review: [], unplaced: [], today: null, plan: null, legacy: false, ...init }
   const withBusy = <T extends { busy: BusyItem[] }>(answer: T): T => {
     const copy: Partial<T> = { ...answer, busy: state.busy }
     if (state.legacy) Reflect.deleteProperty(copy, 'busy')
@@ -103,21 +105,22 @@ export function openCalendar(path: string, init: Partial<CalendarServer> = {}) {
     .on('GET /me', makeBoardMe(CAL_TZ))
     .on('GET /today', () => {
       if (state.today !== null) return state.today
-      const blocks = state.blocks.filter((b) => b.study_date === CAL_TODAY)
+      const blocks = state.blocks.filter((b) => b.study_date === state.date)
       const today = makeToday(blocks, {
-        date: CAL_TODAY,
+        date: state.date,
         planned_minutes: blocks.filter((b) => b.status === 'planned').reduce((sum, b) => sum + blockMinutes(b), 0),
         done_minutes: blocks.filter((b) => b.status === 'done').reduce((sum, b) => sum + blockMinutes(b), 0),
-        day_starts_at: '2026-11-24T06:00:00Z',
-        day_ends_at: '2026-11-24T21:00:00Z',
+        day_starts_at: `${state.date}T06:00:00Z`,
+        day_ends_at: `${state.date}T21:00:00Z`,
       })
       return withBusy(today)
     })
     .on({ method: 'GET', path: /^\/plan/ }, (call: ApiCall) => {
       if (state.plan !== null) return state.plan
       const params = new URLSearchParams(call.path.slice(call.path.indexOf('?') + 1))
-      const from = params.get('from') ?? CAL_TODAY
-      const to = params.get('to') ?? CAL_TODAY
+      // With no range, the server's seven days from today.
+      const from = params.get('from') ?? state.date
+      const to = params.get('to') ?? addDays(from, 6)
       const plan = makePlan(
         state.blocks.filter((b) => b.study_date >= from && b.study_date <= to),
         { from, to, unplaced: state.unplaced },

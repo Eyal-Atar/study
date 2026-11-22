@@ -14,8 +14,9 @@ import { TodayTasks } from './TodayTasks'
 
 export interface SidebarProps {
   todayData: Today
-  // The calendar's range: where the next block is looked for when today has none left.
-  plan: Plan | undefined
+  // The seven days from today (GET /plan with no range, whatever week is on screen): where the
+  // next block is looked for when today has none left.
+  ahead: Plan | undefined
   exams: SidebarExam[]
   tz: string
   moment: ArchiMoment
@@ -31,11 +32,11 @@ const counts = (block: Block) => block.state !== 'missed' && block.state !== 'sk
 // The side panel of the calendar on a computer (the .side of the prototype): Archi opens the day
 // in his own words, standing on the card of the next block; under them the minutes of today, the
 // two ways to change the day, the rest of today's blocks, and the coming exams.
-export function Sidebar({ todayData, plan, exams, tz, moment, onFreeTime, onMarkBusy, onDefer, onOpenBlock }: SidebarProps) {
+export function Sidebar({ todayData, ahead, exams, tz, moment, onFreeTime, onMarkBusy, onDefer, onOpenBlock }: SidebarProps) {
   const today = todayData.date
   const counted = todayData.blocks.filter(counts)
   const next = nextToday(todayData.blocks)
-  const later = next === undefined && plan !== undefined ? nextLater(plan.blocks, today) : undefined
+  const later = next === undefined && ahead !== undefined ? nextLater(ahead.blocks, today) : undefined
   const line = archiLine(moment, today, {
     total: counted.length,
     done: counted.filter((block) => block.state === 'done').length,

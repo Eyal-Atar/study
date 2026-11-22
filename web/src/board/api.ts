@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query'
 import { useApi } from '../api/ApiContext'
 import { errorMessage, type ApiError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
@@ -48,7 +48,13 @@ export function useToday(): UseQueryResult<Today, ApiError> {
 }
 
 // Without a range the server shows seven days from today.
-export function usePlan(from?: string, to?: string): UseQueryResult<Plan, ApiError> {
+// `enabled: false` holds the request back (the calendar's week, until the week is known);
+// `keepPrevious` keeps the last range's answer on screen while the next range loads.
+export function usePlan(
+  from?: string,
+  to?: string,
+  { enabled = true, keepPrevious = false }: { enabled?: boolean; keepPrevious?: boolean } = {},
+): UseQueryResult<Plan, ApiError> {
   const api = useApi()
   const userId = useBoardUserId()
   return useQuery<Plan, ApiError>({
@@ -60,8 +66,9 @@ export function usePlan(from?: string, to?: string): UseQueryResult<Plan, ApiErr
       const query = params.toString()
       return api.get<Plan>(query === '' ? '/plan' : `/plan?${query}`, { signal })
     },
-    enabled: userId !== null,
+    enabled: enabled && userId !== null,
     refetchInterval: REFRESH_MS,
+    ...(keepPrevious ? { placeholderData: keepPreviousData } : {}),
   })
 }
 

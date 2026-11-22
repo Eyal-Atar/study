@@ -60,8 +60,9 @@ function nextHourDraft(date: string, today: string, now: number, tz: string): { 
 // The calendar (S32): the home of the app. Every part was built on its own (Tasks 0–12); this is
 // where they meet.
 //
-// - Data: the week of the date in the URL (or of today) from GET /plan, today from GET /today, and
-//   the profile's waking hours for the other days (useCalendarData).
+// - Data: the week of the date in the URL (or of today) from GET /plan, the seven days from today
+//   from GET /plan with no range (Up next, the free-time list, the empty state), today from
+//   GET /today, and the profile's waking hours for the other days (useCalendarData).
 // - On a computer: the side panel, and beside it the banner and the grid of the week or the day, in
 //   a box that scrolls under the shell's top bar; the toolbar lives in the shell's header
 //   (ShellToolbar). The only h1 is out of sight: the title and the range.
@@ -126,10 +127,19 @@ export function CalendarPage() {
   )
 
   const ready = todayData !== undefined && planData !== undefined && selected !== undefined && today !== undefined
-  // Nothing at all to show: no block in the range, nothing that did not fit and nothing to review.
-  // A past week with nothing in it is only a past week.
+  // A block still to come in the seven days from today (whatever week is on screen). While that
+  // answer loads the calendar is not called empty; if it fails, the range alone decides.
+  const aheadBlocks = data.ahead.data?.blocks ?? []
+  const blockAhead = data.ahead.isPending || aheadBlocks.some((block) => block.state === 'upcoming')
+  // Nothing at all to show: no block in the range or ahead, nothing that did not fit and nothing to
+  // review. A past week with nothing in it is only a past week.
   const empty =
-    ready && blocks.length === 0 && unplacedCount === 0 && reviewCount === 0 && (days[days.length - 1] ?? '') >= today
+    ready &&
+    blocks.length === 0 &&
+    !blockAhead &&
+    unplacedCount === 0 &&
+    reviewCount === 0 &&
+    (days[days.length - 1] ?? '') >= today
   const showGrid = ready && !empty
   useAutoScroll(scroller, gridBox, `${view}|${days[0] ?? ''}`, showGrid)
 
@@ -143,7 +153,10 @@ export function CalendarPage() {
     todayBlocks,
     hour,
   })
-  const upcoming = sortByStart(blocks.filter((b) => b.status === 'planned' && Date.parse(b.starts_at) > now))
+  // What the free-time sheet can bring forward: the next blocks from now, not the week on screen.
+  const upcoming = sortByStart(
+    mergeBlocks(aheadBlocks, todayBlocks, today).filter((b) => b.status === 'planned' && Date.parse(b.starts_at) > now),
+  )
 
   const openBlock = (block: Block) => {
     setSheet({ kind: 'block', block })
@@ -278,7 +291,7 @@ export function CalendarPage() {
                 <h2 className="sr-only">{en.today.title}</h2>
                 <Sidebar
                   todayData={todayData}
-                  plan={planData}
+                  ahead={data.ahead.data}
                   exams={data.exams.data ?? []}
                   tz={tz}
                   moment={moment}

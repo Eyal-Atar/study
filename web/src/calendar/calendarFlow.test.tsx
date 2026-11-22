@@ -54,8 +54,8 @@ async function toasts() {
   return within(await screen.findByRole('region', { name: en.common.notifications }))
 }
 
-// The ranges asked for. (Before GET /today answers, useCalendarData asks once for /plan with no
-// range: a request of Task 4's hook, reported to the manager, and not one of a week.)
+// The ranges asked for. (GET /plan with no range is the seven days from today, useCalendarData's
+// `ahead`: not one of a week.)
 function planCalls(fake: FakeApi) {
   return fake.calls('GET', /^\/plan\?/).map((c) => c.path)
 }
@@ -196,6 +196,65 @@ describe('what to do next (from today.test.tsx)', () => {
     await waitFor(() => {
       expect(fake.calls('PATCH', `/blocks/${LATER.id}`)).toEqual([{ method: 'PATCH', path: `/blocks/${LATER.id}`, body: { pinned: true } }])
     })
+  })
+})
+
+// S32 final review, I1: what belongs to "now" reads the seven days from today (GET /plan with no
+// range), not the week on screen.
+describe('now, whatever week is on screen', () => {
+  beforeEach(() => {
+    stubMedia({ desktop: true })
+  })
+
+  it('on a Saturday, Up next is Sunday’s first block, in the next week', async () => {
+    vi.setSystemTime(new Date('2026-11-28T09:25:00Z'))
+    const sunday = makeBlock({ id: 'b-sun', task_id: 't-sun', task_title: 'ראשון: עצים', study_date: '2026-11-29', starts_at: '2026-11-29T07:00:00Z', ends_at: '2026-11-29T08:00:00Z' })
+    openCalendar('/calendar', { date: SATURDAY, blocks: [sunday] })
+    const next = await upNext()
+    expect(await next.findByText(en.today.nextAt(en.board.tomorrow, '09:00'))).toBeInTheDocument()
+    expect(next.getByText(sunday.task_title)).toBeInTheDocument()
+  })
+
+  it('another week on screen does not change Up next', async () => {
+    const far = makeBlock({ id: 'b-far', task_id: 't-far', task_title: 'רחוק: גרפים', study_date: '2026-12-08', starts_at: '2026-12-08T07:00:00Z', ends_at: '2026-12-08T08:00:00Z' })
+    openCalendar('/calendar?date=2026-12-08', { blocks: [TOMORROW, far] })
+    const next = await upNext()
+    expect(await next.findByText(TOMORROW.task_title)).toBeInTheDocument()
+    expect(next.queryByText(far.task_title)).not.toBeInTheDocument()
+  })
+
+  it('the free-time sheet opened on another week lists the next block from today', async () => {
+    const user = userEvent.setup()
+    const far = makeBlock({ id: 'b-far', task_id: 't-far', task_title: 'רחוק: גרפים', study_date: '2026-12-08', starts_at: '2026-12-08T07:00:00Z', ends_at: '2026-12-08T08:00:00Z' })
+    openCalendar('/calendar?date=2026-12-08', { blocks: [TOMORROW, far] })
+    await waitFor(() => {
+      expect(columns()).toHaveLength(7)
+    })
+    await user.click(await screen.findByRole('button', { name: en.calendar.side.freeTime }))
+    const sheet = within(await screen.findByRole('dialog', { name: en.calendar.sheets.freeTime.title }))
+    expect(await sheet.findByText(TOMORROW.task_title)).toBeInTheDocument()
+    expect(sheet.queryByText(far.task_title)).not.toBeInTheDocument()
+  })
+
+  it('a week with no block and a plan that starts next week shows the grid, not the empty calendar', async () => {
+    vi.setSystemTime(new Date('2026-11-28T09:25:00Z'))
+    const sunday = makeBlock({ id: 'b-sun', task_id: 't-sun', task_title: 'ראשון: עצים', study_date: '2026-11-29', starts_at: '2026-11-29T07:00:00Z', ends_at: '2026-11-29T08:00:00Z' })
+    openCalendar('/calendar', { date: SATURDAY, blocks: [sunday] })
+    await waitFor(() => {
+      expect(columns()).toHaveLength(7)
+    })
+    expect(screen.queryByText(en.today.noTasks)).not.toBeInTheDocument()
+  })
+
+  // StrictMode aborts and repeats each first request (every query passes its signal), so the test
+  // counts the different requests, not the calls.
+  it('a cold load asks for the week and for the days from today, and nothing else', async () => {
+    const { fake } = openCalendar('/calendar', { blocks: [LATER] })
+    await waitFor(() => {
+      expect(columns()).toHaveLength(7)
+    })
+    const asked = new Set(fake.calls('GET', /^\/plan/).map((c) => c.path))
+    expect([...asked].sort()).toEqual(['/plan', `/plan?from=${SUNDAY}&to=${SATURDAY}`])
   })
 })
 
@@ -395,6 +454,22 @@ describe('the week (from week.test.tsx)', () => {
       expect(router.state.location.search).toBe('')
     })
     expect(header.getByText(RANGE)).toBeInTheDocument()
+  })
+
+  // S32 final review, M13: the frame stays while the next week loads.
+  it('Next week keeps the grid on screen while the new week loads', async () => {
+    const user = userEvent.setup()
+    const { fake } = openCalendar('/calendar', { blocks: [LATER] })
+    const header = within(await screen.findByRole('banner'))
+    await waitFor(() => {
+      expect(columns()).toHaveLength(7)
+    })
+    fake.on({ method: 'GET', path: /^\/plan\?from=2026-11-29/ }, never)
+    await user.click(header.getByRole('button', { name: en.calendar.page.nextWeek }))
+    await waitFor(() => {
+      expect(planCalls(fake)).toContain('/plan?from=2026-11-29&to=2026-12-05')
+    })
+    expect(columns()).toHaveLength(7)
   })
 
   // "the check button updates the week, and today has the block done without waiting for a request"

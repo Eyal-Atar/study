@@ -84,7 +84,7 @@ function setup({
     ])
     .on('GET /exams/exam-old/tasks', [])
   const handlers = { onFreeTime: vi.fn(), onMarkBusy: vi.fn(), onDefer: vi.fn(), onOpenBlock: vi.fn() }
-  renderBoard(<Sidebar todayData={today} plan={plan} exams={exams} tz={TZ} moment={moment} {...handlers} />, { api: fake.api })
+  renderBoard(<Sidebar todayData={today} ahead={plan} exams={exams} tz={TZ} moment={moment} {...handlers} />, { api: fake.api })
   return { fake, ...handlers }
 }
 
