@@ -137,7 +137,7 @@ WCAG 1.4.11: מה שמזהה פקד או נושא מידע בלי טקסט. נב
 - **`text-brand`.** הירוק כטקסט הוא `text-brand-strong`. בדיקה ב-`theme.test.ts` סורקת כל `.tsx` ונכשלת על `text-brand`.
 - **`clay`, ‏`sprout`, ‏`sand` ו-`gold` כטקסט.** הם מילוי או קישוט.
 - **`ink-muted` על צבע של מבחן.** בתוך בלוק כל הטקסט `ink`, גם השעה.
-- **`text-exam-N` כטקסט לקריאה.** הצבע החזק נבדק רק כ-3:1 (על ה-soft שלו הוא 4.07–5.57). המחלקה קיימת בשביל `currentColor` של הפס ושל תיבת הסימון.
+- **`text-exam-N` כטקסט לקריאה.** הצבע החזק נבדק רק כ-3:1 (על ה-soft שלו הוא 4.07–5.57). המחלקה קיימת בשביל `currentColor` של הפס ושל תיבת הסימון. החריג היחיד הוא האות של המבחן (2.8, "האות הגדולה").
 - **`ink-muted` על `danger-soft`, ‏`success-soft` או `warning-soft`.** לכן כרטיס של מצב ו-`Note` של אזהרה מחזיקים רק `ink`.
 - **צבע מצב על הגרסה הרכה של מצב אחר**, ו-`on-brand` על `warning`, על `clay` או על `now`.
 - **שקיפות על טקסט או על בלוק** (`opacity-50`, ‏`text-ink/70`). כבוי הוא `surface-muted` עם `ink-muted`.
@@ -165,6 +165,7 @@ WCAG 1.4.11: מה שמזהה פקד או נושא מידע בלי טקסט. נב
 - `exam-N` על `soft` (4.07–5.57), על `surface` ועל `canvas`: ‏3:1 לפחות.
 - שמונת הגוונים שונים זה מזה, ואף אחד אינו `brand` או `brand-strong`. הזית (0) שונה מ-`brand` בגוון: צהבהב, מול הירוק של העלה, כמו בהדמיה שאייל אישר.
 - הסדר מרחיק גוונים קרובים.
+- **האות הגדולה (S34):** האות הראשונה של שם המבחן (`ExamInitial`) היא `exam-N` על `exam-N-soft`, ורק ב-20px ו-700 (`text-title font-bold`). זה טקסט גדול לפי WCAG (18.66px מודגש ומעלה), ולכן 3:1 מספיק, והזוג נבדק ב-`LARGE_TEXT_PAIRS` של `theme.test.ts`. בגודל או במשקל קטנים יותר `exam-N` אינו טקסט. האות `aria-hidden`, כי השם כתוב לידה.
 
 **מאיפה המספר:** ה-API נותן לכל מבחן `color_index` (‏0–7), ולכל בלוק ולכל שורה בדוח "לא נכנס" את `exam_color_index` של המבחן שלו (מיגרציה 0013). מבחן חדש מקבל את הצבע הראשון שלא בשימוש בין המבחנים החיים של המשתמש. מחיקה של מבחן אחר לא משנה צבע. אין עדיין בחירה ידנית.
 
@@ -419,6 +420,15 @@ const c = examColor(block.exam_color_index)
 | `PageHeader` | ה-`h1` היחיד של המסך, ב-`text-display font-bold`, עם תת-כותרת ופעולה. קובע את שם הלשונית | כותרת קטע |
 | `StandalonePage` | מסך מחוץ לשלד (כניסה, 404, פרידה): אותו רוחב ושוליים | מסך בתוך השלד |
 | `examColor()` | המחלקות של צבע מבחן (2.8) | כל צבע אחר |
+| `ArchiLead` | Archi והשאלה שלו בראש שלב או מסך שהוא מוביל (S34): Archi ב-`size="card"` ישר על המשטח, השאלה ככותרת (`h1` כברירת מחדל, ‏`headingLevel` 2–3 כשיש כבר כותרת) ב-`font-display` של 34px, ‏`context` (משפט אחד לידו) ו-`below` (פסקה ברוחב מלא). Archi נכנס ב-200ms, ובלי תנועה עם reduced motion. מתחתיו רק הפקדים שעונים לו | כותרת מסך רגילה (`PageHeader`) |
+| `RecapLine` | תשובה קודמת בשיחה כשורה שקטה אחת עם וי ("3 exams: …"). ‏`label` במילים של Archi, ותוכן המשתמש ב-`value` בלבד (`UserText truncate`, נחתך בסופו הלוגי) | פקד; כותרת; תוכן משתמש בתוך `label` |
+| `TileList`, ‏`TileRow` | פריטים שיושבים ישר על `canvas`: אריח לבן עם קו (הנושאים במסך המבחן). ‏`leading`, ‏`trailing`, ‏`footer` (פס), ‏`to` או `onPress` לאריח שלם | רשימה בתוך כרטיס (`List`); רשימת המבחנים (כרטיס אחד עם `ListRow`) |
+| `Stepper` | מספר מתוך סדרה קבועה של ערכים עם מילים ("4 hours"), בשני כפתורים עגולים של 44px (`Minus`, ‏`Plus`), ‏`role="group"` עם התווית. כפתור כבוי בקצה | שדה חופשי; יותר מכעשרה ערכים (`Select`) |
+| `IconChoiceCards` | כמה בחירות שמובחנות באייקון ובטווח (זמני היום ללימוד), בשתי עמודות. נבחר: גבול `brand` של 2px על `brand-soft` ו-`CheckMarkIcon` בפינה | אפשרויות שהטקסט לבד מספיק להן (`CheckboxCards`) |
+| `ExamInitial`, ‏`ExamProgressBar`, ‏`ExamChip` (`ui/ExamMark.tsx`) | הסימנים של מבחן בצבע שלו: ריבוע עם האות (42px ברשימה, 44px במסך המבחן; 2.8, "האות הגדולה"), פס של 5px בצבע החזק עם `valueText` במילים, וצ'יפ הימים ב-soft וב-line עם `ink` | הירוק של "Done"; כל צבע מבחן שלא דרך `examColor()` |
+| `InkButton` | הכפתור הכהה (`bg-inverse text-on-inverse`), רק ל-"Continue with Google" במסך הכניסה. אינו ראשי שני | כל פעולה אחרת |
+| `WeekdayPicker` | בחירת ימים בשבוע: שבע תיבות בשורה, שם קצר גלוי ("Sun") ושם מלא לקורא מסך. נכנס ב-360px | בחירה מקבוצה שאינה ימים (`CheckboxCards`) |
+| `WeekPainter` (`web/src/commitments/`) | סימון שעות תפוסות בשבוע קטן: שעות שלמות משעת הקימה עד השינה, ראשון ראשון, בגרירה, בהקשה ובמקלדת (`role="grid"`, ‏roving tabindex, חצים, Space ו-Enter). תא מסומן בקווים של זמן תפוס (2.9). מה שכבר נשמר מוצג ולא משתנה בגרירה | שעות מדויקות (הדיאלוג, "Add exact hours"); זמן תפוס ביומן |
 
 **ה-toast הכהה.** כל toast הוא `bg-inverse text-on-inverse rounded-button shadow-overlay` (14px, כמו `.toast` של ההדמיה), בלי גבול, כמו באב-הטיפוס. המצב באייקון: `CircleCheck` ב-`inverse-success`, ‏`CircleAlert` ב-`inverse-danger`; ל-`info` אין אייקון. הפעולה היא `Button variant="inverse"`, והסגירה `IconButton variant="inverse"`. מתחת ל-`lg` הוא יושב מעל הסרגל התחתון (6rem ועוד ה-safe-area), ומ-`lg` במרחק 1rem מהתחתית. ‏`z-[60]`, שכבה מעל הרקע של דיאלוג, כדי ש"בטל" יישאר לחיץ. בלי `action`: ‏6 שניות. עם `action`: ‏10 שניות.
 
@@ -683,13 +693,22 @@ S31 בנה את השפה, את הצבע לכל מבחן, את השלד, את ה�
 
 **S33, גיימיפיקציה:** מחליף את `ProgressChip` בגיימיפיקציה המלאה ואת מסך ההתקדמות: "+XP" שעף לטבעת, היום שהושלם, הרצף כשורת עלים, הגן לפי רמה ותגים כאבנים (מסמך ארצ׳י, 4.1–4.7), עם placeholders עד שיגיעו האיורים. משתמש ב-`font-display` לכותרות הגדולות של ארצ׳י (סעיף 3). ההחלטה על "עלה כל 100 XP" מחכה לאייל.
 
-**S34, שאר המסכים:** כניסה, אונבורדינג, מבחנים ומסך מבחן, הגדרות, מחיקת חשבון, פרידה ו-404, בשפה הזו. ארצ׳י `joy` בכניסה ובפרידה, `intentions` בסוף האונבורדינג. שלב הלו"ז הקבוע באונבורדינג וקטע "לו"ז קבוע" בהגדרות (מסמך הזמינות). האונבורדינג עדיין נגמר תוך 5 דקות.
+**S34, שאר המסכים (הושלם ב-22.11.2026):** כניסה, אונבורדינג, מבחנים ומסך מבחן, הגדרות, מחיקת חשבון, פרידה, 404, ‏`/terms` ו-`/privacy`, לפי ההדמיה המחייבת באנגלית. התוכנית: `docs/plans/2026-11-18-s34-other-screens.md`.
+
+- **האונבורדינג הוא שיחה ש-Archi מוביל:** בכל שלב `ArchiLead`, תשובות קודמות כ-`RecapLine`, חץ חזרה בראש ליד פס השלבים, וכפתור ראשי אחד בתחתית. ארבעה שלבים (Exams, ‏Materials, ‏Questions, ‏Busy time), והבנייה ו-"Your plan is ready" מחוץ לפס. המצבים של Archi: שלב 1 `joy`, שלב 2 `wisdom`, שלב 3 `intentions`, שלב 4 `flow`, בנייה `wisdom`, מוכן `eureka`; כניסה ופרידה `joy`, ‏404 `flow`, מבחנים ריקים `intentions`.
+- **המשוב החי** (`onboarding/FeasibilityNote`): `Note` ניטרלי עם `XpSparkIcon` כשיש מקום, ו-`tone="warning"` עם `CircleAlert` כשצפוף או כשאין זמן, אף פעם לא `danger`. ה-live region על המסך מההתחלה.
+- **"Your plan is ready":** הצ'יפ הירוק "The first seed in your garden" (`SproutIcon`) תמיד, והצ'יפ הזהוב "+50 XP" (`XpSparkIcon`, ‏`bg-gold-soft text-gold-ink`) רק כשהשרת נתן את ה-XP.
+- **מבחנים:** הרשימה היא `Card` אחד עם `ListRow` לכל מבחן (`ExamInitial`, ‏`ExamChip`, ‏`ExamProgressBar`); הנושאים במסך המבחן הם `TileList`. הפס בצבע המבחן, כי הירוק שמור ל-"Done".
+- **הגדרות:** Study preferences כשורות (`CollapsibleSection` לכל אחת, כולל Me time) עם Save אחד, אחריהן Busy time (שורה לכל קבוצת התחייבויות, בלי ה-Me time), ‏Reminders (`NotificationSettings variant="bare"`, בלי כרטיס בתוך כרטיס) וכרטיס החשבון. Save לפני Busy time ו-Reminders, כי הם נשמרים מיד: סטייה מכוונת מההדמיה.
+- **כניסה:** `InkButton` ל-"Continue with Google"; במחשב שתי עמודות מ-`lg`.
+- **רכיבים חדשים ב-`ui/`** (5.8): `ArchiLead`, ‏`RecapLine`, ‏`TileList`, ‏`Stepper`, ‏`IconChoiceCards`, ‏`ExamMark`, ‏`InkButton`, ‏`WeekdayPicker`, ועוד `WeekPainter` ב-`commitments/`. רכיב קיים ב-`ui/` לא שונה (חוץ משורות export ב-`ui/icons/glyphs.ts`: ‏`Minus`, ‏`Camera`, ‏`ChevronUp`).
+- **נשאר פתוח:** `ProgressBar` בלי prop של גודל (הפס של 8px במסך הבנייה נשען על המבנה שלו); `SectionHeading` בלי variant לכותרת של כרטיס; תאים של 16px ב-`WeekPainter` בטאבלט במגע.
 
 **S29, ליטוש:** גיוון בטקסטים של ארצ׳י (קובץ אחד, כמה ניסוחים לכל רגע; היום יש רק `en.archie.alt`), קורא מסך על כל הרגעים, axe לכל מסך ולדף הרכיבים, הגדלה ל-200%, ומעבר על הניסוחים. גם מה שנשאר ברכיבים מ-S27 ו-S28 (לא נבדק מחדש ב-S31): `ref` ל-`Card`, ‏`ListRow`, ‏`Button` ו-`IconButton`; שם נגיש ו-`id` ל-`ListRow`; ‏`footer` של `Dialog` מתוך תוכן עם state; ‏`aria-labelledby` ל-`List`; ‏`meter` במקום `progressbar`; מחלקה לאייקון ב-`MenuItem`; ‏`CompactSelect` מתאחד עם `Select`; הכותרת של `Dialog` היא `h3`; היישור של `TimeField`; והציר של מסך המבחן בלי פוקוס מקלדת.
 
 **פתוח, ומחכה למי שבונה:**
 
-- **`ListRow` על `canvas` לא נראה.** האריח הוא `bg-canvas`, ועל העמוד עצמו הוא נבלע. S34 שם רשימות על `surface` (כרטיס או סרגל), או מוסיף קו. אותו דבר ל-`LoadingState shape="list"`.
+- **`ListRow` על `canvas` לא נראה.** האריח הוא `bg-canvas`, ועל העמוד עצמו הוא נבלע. S34 שם רשימות על `surface` (כרטיס או סרגל), או מוסיף קו. אותו דבר ל-`LoadingState shape="list"`. **(S34):** רשימת המבחנים היא `ListRow` בתוך `Card`, ופריטים על `canvas` הם `TileList` (5.8). ‏`ListRow` עצמו לא שונה.
 - **`BuildingStep` עדיין מנווט ל-`/today`** (`web/src/onboarding/BuildingStep.tsx`). זה עובד דרך ההפניה, אבל S32 או S34 מעבירים אותו ל-`CALENDAR_PATH`.
 - **הכותרת בטלפון.** בשלד יש כותרת של 56px (לוגו, צ'יפ ופרופיל), כי ה-brief של S31 ביקש פרופיל בכותרת. בשתי ההדמיות אין כותרת כזו: כותרת המסך, והצ'יפ והאווטאר לידה, הם חלק מהמסך. S32 מאחד את כותרת השלד עם כותרת היומן (למשל דרך `ShellToolbar` או מקום דומה בטלפון), כדי שהשלד לא יתפוס 112px מתוך 844.
 - **`CalendarPage` זמני.** S32 מחליף את הקובץ כולו. ‏`/today` ו-`/week` נשארים כהפניות.
