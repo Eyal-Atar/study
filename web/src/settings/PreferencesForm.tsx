@@ -1,19 +1,24 @@
-import { useId, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ApiError, errorMessage } from '../api/client'
 import type { Me, MePatch, StudyWindow } from '../api/me'
+import { meTimeText } from '../commitments/model'
 import { en } from '../i18n/en'
 import { useUpdateMe } from '../onboarding/api'
 import { useReplanOffer } from '../plan/replanOfferContext'
 import { Button } from '../ui/Button'
-import { CheckboxCards } from '../ui/CheckboxCards'
+import { Card } from '../ui/Card'
+import { CollapsibleSection } from '../ui/CollapsibleSection'
 import { DAYPART_ICON } from '../ui/icons'
+import { IconChoiceCards } from '../ui/IconChoiceCards'
 import { Note } from '../ui/Note'
 import { RadioCards, type ChoiceOption } from '../ui/RadioCards'
+import { Stepper, type StepperOption } from '../ui/Stepper'
 import { Switch } from '../ui/Switch'
 import { TimeField } from '../ui/TimeField'
 import { useToast } from '../ui/useToast'
 
 const t = en.settings.preferences
+const r = en.settingsScreen.prefs
 
 // The same whole hours as the onboarding (S13 decision 8).
 const HOURS = [1, 2, 3, 4, 5, 6, 8] as const
@@ -33,7 +38,7 @@ const WINDOW_OPTIONS = WINDOWS.map((window) => {
     value: window,
     label: en.onboardingSchedule.windows[window].label,
     description: en.onboardingSchedule.windows[window].range,
-    icon: <Icon size={18} />,
+    icon: Icon,
   }
 })
 
@@ -59,6 +64,19 @@ const FIELDS: readonly Field[] = [
 ]
 
 type FieldErrors = Partial<Record<Field, string>>
+
+// The rows of the card; a field that fails opens the row it lives in.
+type RowId = 'hours' | 'when' | 'meTime' | 'rest' | 'day' | 'delay'
+const ROW_OF: Record<Field, RowId> = {
+  daily_study_minutes: 'hours',
+  study_windows: 'when',
+  wake_time: 'day',
+  sleep_time: 'day',
+  study_start_delay_minutes: 'delay',
+  hobby_start: 'meTime',
+  hobby_minutes: 'meTime',
+  rest_days_before_exam: 'rest',
+}
 
 interface Values {
   minutes: number
@@ -145,21 +163,10 @@ function serverFieldErrors(error: unknown): FieldErrors | null {
   return Object.keys(found).length > 0 ? found : null
 }
 
-// One of the four groups of the form: its name over its fields, set apart from the group above it
-// by a thin line and air (no card: the settings screen has one card, the danger zone). The name is
-// an h3 in the size and weight of a row title, one step above the labels of the fields, so the
-// screen reads section (quiet h2), group, field. `hiddenTitle`: the first control of the group
-// already says the name (the switch "Time for myself every day"), so the heading is for the outline only.
-function Group({ title, hiddenTitle = false, children }: { title: string; hiddenTitle?: boolean; children: ReactNode }) {
-  const headingId = useId()
-  return (
-    <div role="group" aria-labelledby={headingId} className="flex flex-col gap-4 border-t border-line pt-6 first:border-t-0 first:pt-0">
-      <h3 id={headingId} className={hiddenTitle ? 'sr-only' : 'text-body font-semibold text-ink'}>
-        {title}
-      </h3>
-      {children}
-    </div>
-  )
+// The whole hours of the onboarding, plus the profile's own value when it is not one of them.
+function hourSteps(current: number): StepperOption[] {
+  const minutes = HOUR_MINUTES.includes(current) ? [...HOUR_MINUTES] : [...HOUR_MINUTES, current].sort((a, b) => a - b)
+  return minutes.map((value) => ({ value, label: hoursLabel(value) }))
 }
 
 // The study preferences of spec 7.9. One "Save" sends only what changed; a plan field that changed
@@ -171,6 +178,7 @@ export function PreferencesForm({ me }: { me: Me }) {
   const [values, setValues] = useState<Values>(() => fromMe(me))
   const [errors, setErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
+  const [openRows, setOpenRows] = useState<ReadonlySet<RowId>>(new Set())
 
   const patch = changes(me, values)
   const dirty = Object.keys(patch).length > 0
@@ -186,13 +194,40 @@ export function PreferencesForm({ me }: { me: Me }) {
     }
   }
 
+  // Shows the errors and opens the rows they belong to: an error must not stay behind a closed row.
+  function showErrors(found: FieldErrors) {
+    setErrors(found)
+    setOpenRows((current) => new Set([...current, ...(Object.keys(found) as Field[]).map((field) => ROW_OF[field])]))
+  }
+
+  function row(id: RowId, title: string, summary: string | undefined, children: ReactNode) {
+    return (
+      <CollapsibleSection
+        level={3}
+        title={title}
+        summary={summary}
+        isExpanded={openRows.has(id)}
+        onExpandedChange={(isOpen) => {
+          setOpenRows((current) => {
+            const next = new Set(current)
+            if (isOpen) next.add(id)
+            else next.delete(id)
+            return next
+          })
+        }}
+      >
+        {children}
+      </CollapsibleSection>
+    )
+  }
+
   function save() {
     if (!dirty || updateMe.isPending) return
     const local: FieldErrors = {}
     if (values.windows.length === 0) local.study_windows = t.windowsRequired
     if (values.wake === values.sleep) local.sleep_time = t.sameTimes
     if (Object.keys(local).length > 0) {
-      setErrors(local)
+      showErrors(local)
       return
     }
     setErrors({})
@@ -204,140 +239,178 @@ export function PreferencesForm({ me }: { me: Me }) {
       },
       onError: (error) => {
         const fields = serverFieldErrors(error)
-        if (fields === null) setFormError(errorMessage(error))
-        else setErrors(fields)
+        if (fields !== null) showErrors(fields)
+        else if (error instanceof ApiError && error.code === 'too_many_commitments') {
+          // Turning Me time on needs a place among the busy times.
+          setFormError(r.tooManyBusy)
+          setOpenRows((current) => new Set([...current, 'meTime']))
+        } else setFormError(errorMessage(error))
       },
     })
   }
 
   const afterMidnight = values.sleep < values.wake
+  const windowsSummary = WINDOWS.filter((w) => values.windows.includes(w))
+    .map((w) => en.onboardingSchedule.windows[w].label)
+    .join(', ')
 
   return (
-    // max-w-xl: on a wide screen the choice grids keep the width they have on a phone.
+    // max-w-xl: on a wide screen the card keeps the width it has on a phone.
     <form
       noValidate
-      className="flex max-w-xl flex-col gap-6"
+      className="flex max-w-xl flex-col gap-3"
       onSubmit={(event) => {
         event.preventDefault()
         save()
       }}
     >
-      <Group title={t.groups.amount}>
-        <RadioCards
-          label={t.hoursQuestion}
-          options={choices(HOUR_MINUTES, me.daily_study_minutes, hoursLabel)}
-          value={String(values.minutes)}
-          onChange={(value) => {
-            set('minutes', Number(value), 'daily_study_minutes')
-          }}
-          columns="grid-cols-4"
-          errorMessage={errors.daily_study_minutes}
-        />
-        <CheckboxCards
-          label={t.windowsQuestion}
-          description={t.windowsHint}
-          options={WINDOW_OPTIONS}
-          value={values.windows}
-          onChange={(value) => {
-            set('windows', value.filter(isWindow), 'study_windows')
-          }}
-          errorMessage={errors.study_windows}
-        />
-      </Group>
-
-      <Group title={t.groups.routine}>
-        <div className="grid grid-cols-2 items-start gap-3">
-          <TimeField
-            label={t.wakeTime}
-            value={values.wake}
-            onChange={(value) => {
-              // A cleared segment reports ''; keep the last whole value instead (as <input type="time"> did).
-              if (value !== '') set('wake', value, 'wake_time', 'sleep_time')
-            }}
-            errorMessage={errors.wake_time}
-          />
-          <TimeField
-            label={t.sleepTime}
-            value={values.sleep}
-            onChange={(value) => {
-              if (value !== '') set('sleep', value, 'wake_time', 'sleep_time')
-            }}
-            errorMessage={errors.sleep_time}
-          />
-        </div>
-        {afterMidnight ? (
-          <Note>
-            <p>{t.afterMidnight}</p>
-            {values.rest > 0 ? <p className="mt-1">{t.nightShiftRest}</p> : null}
-          </Note>
-        ) : null}
-        <RadioCards
-          label={t.delayQuestion}
-          options={choices(DELAYS, me.study_start_delay_minutes, delayLabel)}
-          value={String(values.delay)}
-          onChange={(value) => {
-            set('delay', Number(value), 'study_start_delay_minutes')
-          }}
-          columns="grid-cols-4"
-          errorMessage={errors.study_start_delay_minutes}
-        />
-      </Group>
-
-      <Group title={t.groups.hobby} hiddenTitle>
-        <Switch
-          label={t.hobbyLabel}
-          description={t.hobbyHint}
-          isSelected={values.hobbyOn}
-          onChange={(on) => {
-            set('hobbyOn', on, 'hobby_start', 'hobby_minutes')
-          }}
-        />
-        {values.hobbyOn ? (
-          <>
-            {/* Half the row, like the wake and sleep times above: a time does not need the whole width. */}
-            <div className="grid grid-cols-2 gap-3">
-              <TimeField
-                label={t.hobbyStart}
-                value={values.hobbyStart}
+      <Card role="region" title={t.title}>
+        <p className="mb-2 max-w-prose text-small text-ink-muted">{t.intro}</p>
+        {/* The first row's line would sit under the intro: the card's own top edge is the line. */}
+        <div className="[&>:first-child]:border-t-0">
+          {row(
+            'hours',
+            r.hours,
+            hoursLabel(values.minutes),
+            <>
+              <Stepper
+                label={t.hoursQuestion}
+                options={hourSteps(me.daily_study_minutes)}
+                value={values.minutes}
                 onChange={(value) => {
-                  if (value !== '') set('hobbyStart', value, 'hobby_start')
+                  set('minutes', value, 'daily_study_minutes')
                 }}
-                errorMessage={errors.hobby_start}
               />
-            </div>
-            <RadioCards
-              label={t.hobbyMinutes}
-              options={choices(HOBBY_LENGTHS, me.hobby_minutes ?? HOBBY_DEFAULT_MINUTES, en.settings.duration)}
-              value={String(values.hobbyMinutes)}
+              {errors.daily_study_minutes === undefined ? null : <p className="text-small text-danger">{errors.daily_study_minutes}</p>}
+            </>,
+          )}
+          {row(
+            'when',
+            r.when,
+            windowsSummary === '' ? undefined : windowsSummary,
+            <IconChoiceCards
+              label={t.windowsQuestion}
+              description={t.windowsHint}
+              options={WINDOW_OPTIONS}
+              value={values.windows}
               onChange={(value) => {
-                set('hobbyMinutes', Number(value), 'hobby_minutes')
+                set('windows', value.filter(isWindow), 'study_windows')
               }}
-              columns="grid-cols-3"
-              errorMessage={errors.hobby_minutes}
-            />
-          </>
-        ) : null}
-      </Group>
-
-      <Group title={t.groups.rest}>
-        <RadioCards
-          label={t.restQuestion}
-          options={choices(REST_DAYS, me.rest_days_before_exam, t.restDays)}
-          value={String(values.rest)}
-          onChange={(value) => {
-            set('rest', Number(value), 'rest_days_before_exam')
-          }}
-          columns="grid-cols-4"
-          errorMessage={errors.rest_days_before_exam}
-        />
-      </Group>
+              errorMessage={errors.study_windows}
+            />,
+          )}
+          {row(
+            'meTime',
+            r.meTime,
+            values.hobbyOn ? meTimeText(values.hobbyStart, values.hobbyMinutes) : r.off,
+            <div className="flex flex-col gap-4">
+              <Switch
+                label={t.hobbyLabel}
+                description={t.hobbyHint}
+                isSelected={values.hobbyOn}
+                onChange={(on) => {
+                  set('hobbyOn', on, 'hobby_start', 'hobby_minutes')
+                }}
+              />
+              {values.hobbyOn ? (
+                <>
+                  {/* Half the row, like the wake and sleep times: a time does not need the whole width. */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <TimeField
+                      label={t.hobbyStart}
+                      value={values.hobbyStart}
+                      onChange={(value) => {
+                        if (value !== '') set('hobbyStart', value, 'hobby_start')
+                      }}
+                      errorMessage={errors.hobby_start}
+                    />
+                  </div>
+                  <RadioCards
+                    label={t.hobbyMinutes}
+                    options={choices(HOBBY_LENGTHS, me.hobby_minutes ?? HOBBY_DEFAULT_MINUTES, en.settings.duration)}
+                    value={String(values.hobbyMinutes)}
+                    onChange={(value) => {
+                      set('hobbyMinutes', Number(value), 'hobby_minutes')
+                    }}
+                    columns="grid-cols-3"
+                    errorMessage={errors.hobby_minutes}
+                  />
+                </>
+              ) : null}
+            </div>,
+          )}
+          {row(
+            'rest',
+            r.rest,
+            t.restDays(values.rest),
+            <RadioCards
+              label={t.restQuestion}
+              options={choices(REST_DAYS, me.rest_days_before_exam, t.restDays)}
+              value={String(values.rest)}
+              onChange={(value) => {
+                set('rest', Number(value), 'rest_days_before_exam')
+              }}
+              columns="grid-cols-4"
+              errorMessage={errors.rest_days_before_exam}
+            />,
+          )}
+          {row(
+            'day',
+            r.day,
+            `${values.wake}–${values.sleep}`,
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 items-start gap-3">
+                <TimeField
+                  label={t.wakeTime}
+                  value={values.wake}
+                  onChange={(value) => {
+                    // A cleared segment reports ''; keep the last whole value instead (as <input type="time"> did).
+                    if (value !== '') set('wake', value, 'wake_time', 'sleep_time')
+                  }}
+                  errorMessage={errors.wake_time}
+                />
+                <TimeField
+                  label={t.sleepTime}
+                  value={values.sleep}
+                  onChange={(value) => {
+                    if (value !== '') set('sleep', value, 'wake_time', 'sleep_time')
+                  }}
+                  errorMessage={errors.sleep_time}
+                />
+              </div>
+              {afterMidnight ? (
+                <Note>
+                  <p>{t.afterMidnight}</p>
+                  {values.rest > 0 ? <p className="mt-1">{t.nightShiftRest}</p> : null}
+                </Note>
+              ) : null}
+            </div>,
+          )}
+          {row(
+            'delay',
+            r.delay,
+            delayLabel(values.delay),
+            <RadioCards
+              label={t.delayQuestion}
+              options={choices(DELAYS, me.study_start_delay_minutes, delayLabel)}
+              value={String(values.delay)}
+              onChange={(value) => {
+                set('delay', Number(value), 'study_start_delay_minutes')
+              }}
+              columns="grid-cols-4"
+              errorMessage={errors.study_start_delay_minutes}
+            />,
+          )}
+        </div>
+      </Card>
 
       {formError === null ? null : (
         <p role="alert" className="text-small text-danger">
           {formError}
         </p>
       )}
-      {/* isPending and not disabled: the button keeps its text and its focus while the save is out. */}
+      {/* isPending and not disabled: the button keeps its text and its focus while the save is out.
+          It saves the preferences only: Busy time and Reminders below it save as they change. */}
       <Button type="submit" className="w-full md:w-auto md:self-start" isDisabled={!dirty} isPending={updateMe.isPending}>
         {t.save}
       </Button>

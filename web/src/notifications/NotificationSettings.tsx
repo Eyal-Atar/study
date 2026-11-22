@@ -16,18 +16,20 @@ type Device = 'checking' | 'off' | 'on' | 'blocked'
 
 // The reminder settings (S16): whether this device gets reminders, and how long before a block.
 // Self-contained, so S15's settings screen can render it as is (decision 18).
-export function NotificationSettings() {
+// `cards` (the default) draws its two cards. `bare` draws the same content with no card of its own,
+// for a screen that already has the card (the settings screen: a card never sits inside a card).
+export function NotificationSettings({ variant = 'cards' }: { variant?: 'cards' | 'bare' }) {
   return (
-    <div className="space-y-4">
-      <DeviceReminders />
-      <LeadTime />
+    <div className={variant === 'bare' ? 'flex flex-col gap-4' : 'space-y-4'}>
+      <DeviceReminders variant={variant} />
+      <LeadTime variant={variant} />
     </div>
   )
 }
 
 // Reminders on this device: a subscription per browser (decision 8), so "Turn off" here leaves the
 // other devices on.
-function DeviceReminders() {
+function DeviceReminders({ variant }: { variant: 'cards' | 'bare' }) {
   const { vapidPublicKey } = usePushState()
   // Read once: support does not change while the page is open.
   const [support] = useState(pushSupport)
@@ -43,6 +45,14 @@ function DeviceReminders() {
     body = <Toggle vapidPublicKey={vapidPublicKey} />
   }
 
+  if (variant === 'bare') {
+    return (
+      <div className="flex flex-col gap-2">
+        <h3 className="text-small font-semibold text-ink">{en.notifications.deviceTitle}</h3>
+        {body}
+      </div>
+    )
+  }
   return (
     <Card role="region" title={en.notifications.deviceTitle}>
       {body}
@@ -213,7 +223,7 @@ function isLead(value: number): value is LeadMinutes {
 
 // A profile setting (decision 10), so it is shown even where this device cannot get reminders.
 // Saved on change; while the PATCH runs the chosen option already shows as chosen.
-function LeadTime() {
+function LeadTime({ variant }: { variant: 'cards' | 'bare' }) {
   const me = useMe()
   const toast = useToast()
   const save = useSetLeadMinutes()
@@ -243,6 +253,14 @@ function LeadTime() {
     body = <LoadingState shape="card" rows={1} />
   }
 
+  if (variant === 'bare') {
+    return (
+      <div className="flex flex-col gap-3 border-t border-line pt-4">
+        {body}
+        <p className="text-small text-ink-muted">{en.notifications.leadHint}</p>
+      </div>
+    )
+  }
   return (
     <Card className="space-y-3">
       {body}

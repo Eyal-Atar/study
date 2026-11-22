@@ -4,6 +4,7 @@ import { userEvent, type UserEvent } from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Me, MePatch } from '../api/me'
 import { codeText } from '../i18n/codes'
+import { meTimeText } from '../commitments/model'
 import { en } from '../i18n/en'
 import { COMPLETED_AT, examFixture, meFixture, previewFixture } from '../test/onboardingFixtures'
 import { createFakeApi, problem, type ApiCall, type FakeApi } from '../test/fakeApi'
@@ -11,12 +12,15 @@ import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
 
 const t = en.settings.preferences
+const s = en.settingsScreen
+const r = s.prefs
 
 function server(overrides: Partial<Me> = {}, planAffected = false) {
   const me = meFixture({ onboarding_completed_at: COMPLETED_AT, ...overrides })
   return createFakeApi()
     .on('GET /me', me)
     .on('GET /exams', [examFixture()])
+    .on('GET /commitments', { commitments: [] })
     .on('PATCH /me', (call: ApiCall) => ({
       ...me,
       ...(call.body as MePatch),
@@ -37,6 +41,23 @@ function group(name: string) {
   return screen.getByRole('radiogroup', { name })
 }
 
+// The rows of Study preferences are closed until pressed: a row is a button named by its title and
+// its summary ("Hours a day 4 hours").
+async function openRow(user: UserEvent, title: string) {
+  const row = screen.getByRole('button', { name: new RegExp(`^${title}`) })
+  if (row.getAttribute('aria-expanded') !== 'true') await user.click(row)
+}
+
+// The name of a row button: its title and its summary (the space between them is the browser's).
+function rowName(title: string, summary: string) {
+  const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`^${escape(title)}\\s*${escape(summary)}$`)
+}
+
+function hours() {
+  return within(screen.getByRole('group', { name: t.hoursQuestion })).getByRole('status')
+}
+
 function saveButton() {
   return screen.getByRole('button', { name: t.save })
 }
@@ -55,7 +76,7 @@ async function setTime(user: UserEvent, name: string, time: string) {
 
 async function ready() {
   await screen.findByRole('heading', { level: 1, name: en.settings.title })
-  await screen.findByRole('group', { name: t.wakeTime })
+  await screen.findByRole('button', { name: new RegExp(`^${r.hours}`) })
 }
 
 function patches(fake: FakeApi) {
@@ -78,11 +99,9 @@ describe('SettingsPage preferences', () => {
       }),
     )
     await ready()
-    expect(
-      within(group(t.hoursQuestion)).getByRole('radio', {
-        name: en.onboardingSchedule.hours(4),
-      }),
-    ).toBeChecked()
+    const user = userEvent.setup()
+    for (const title of [r.hours, r.when, r.meTime, r.rest, r.day, r.delay]) await openRow(user, title)
+    expect(hours()).toHaveTextContent(en.onboardingSchedule.hours(4))
     expect(screen.getByRole('checkbox', { name: new RegExp(en.onboardingSchedule.windows.morning.label) })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: new RegExp(en.onboardingSchedule.windows.afternoon.label) })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: new RegExp(en.onboardingSchedule.windows.evening.label) })).not.toBeChecked()
@@ -107,11 +126,9 @@ describe('SettingsPage preferences', () => {
       }),
     )
     await ready()
-    expect(
-      within(group(t.hoursQuestion)).getByRole('radio', {
-        name: en.settings.duration(150),
-      }),
-    ).toBeChecked()
+    const user = userEvent.setup()
+    for (const title of [r.hours, r.rest, r.delay]) await openRow(user, title)
+    expect(hours()).toHaveTextContent(en.settings.duration(150))
     expect(
       within(group(t.delayQuestion)).getByRole('radio', {
         name: en.settings.duration(200),
@@ -135,11 +152,8 @@ describe('SettingsPage preferences', () => {
     const fake = server()
     open(fake)
     await ready()
-    await user.click(
-      within(group(t.hoursQuestion)).getByRole('radio', {
-        name: en.onboardingSchedule.hours(3),
-      }),
-    )
+    for (const title of [r.hours, r.when, r.rest, r.day, r.delay]) await openRow(user, title)
+    await user.click(within(screen.getByRole('group', { name: t.hoursQuestion })).getByRole('button', { name: en.controls.stepper.less }))
     await setTime(user, t.wakeTime, '07:00')
     await user.click(screen.getByRole('checkbox', { name: new RegExp(en.onboardingSchedule.windows.evening.label) }))
     await user.click(
@@ -167,12 +181,12 @@ describe('SettingsPage preferences', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     open(fake, '/settings', queryClient)
     await ready()
-    expect(within(group(t.hoursQuestion)).getByRole('radio', { name: en.onboardingSchedule.hours(4) })).toBeChecked()
+    expect(screen.getByRole('button', { name: rowName(r.hours, en.onboardingSchedule.hours(4)) })).toBeInTheDocument()
 
     fake.on('GET /me', meFixture({ onboarding_completed_at: COMPLETED_AT, daily_study_minutes: 120 }))
     await queryClient.invalidateQueries()
     await waitFor(() => {
-      expect(within(group(t.hoursQuestion)).getByRole('radio', { name: en.onboardingSchedule.hours(2) })).toBeChecked()
+      expect(screen.getByRole('button', { name: rowName(r.hours, en.onboardingSchedule.hours(2)) })).toBeInTheDocument()
     })
     expect(saveButton()).toBeDisabled()
     await user.click(saveButton())
@@ -184,6 +198,7 @@ describe('SettingsPage preferences', () => {
     const fake = server()
     open(fake)
     await ready()
+    await openRow(user, r.when)
     await user.click(screen.getByRole('checkbox', { name: new RegExp(en.onboardingSchedule.windows.evening.label) }))
     expect(saveButton()).toBeEnabled()
     await user.click(screen.getByRole('checkbox', { name: new RegExp(en.onboardingSchedule.windows.evening.label) }))
@@ -195,11 +210,8 @@ describe('SettingsPage preferences', () => {
     const fake = server({}, true)
     open(fake)
     await ready()
-    await user.click(
-      within(group(t.hoursQuestion)).getByRole('radio', {
-        name: en.onboardingSchedule.hours(5),
-      }),
-    )
+    await openRow(user, r.hours)
+    await user.click(within(screen.getByRole('group', { name: t.hoursQuestion })).getByRole('button', { name: en.controls.stepper.more }))
     await user.click(saveButton())
     const dialog = await screen.findByRole('dialog', { name: en.replan.title })
     expect(within(dialog).getByText(t.replanReason)).toBeInTheDocument()
@@ -211,11 +223,8 @@ describe('SettingsPage preferences', () => {
     const fake = server({}, false)
     open(fake)
     await ready()
-    await user.click(
-      within(group(t.hoursQuestion)).getByRole('radio', {
-        name: en.onboardingSchedule.hours(5),
-      }),
-    )
+    await openRow(user, r.hours)
+    await user.click(within(screen.getByRole('group', { name: t.hoursQuestion })).getByRole('button', { name: en.controls.stepper.more }))
     await user.click(saveButton())
     expect(await screen.findByText(t.saved)).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -229,6 +238,7 @@ describe('SettingsPage preferences', () => {
     const fake = server()
     open(fake)
     await ready()
+    await openRow(user, r.meTime)
     await user.click(screen.getByRole('switch', { name: t.hobbyLabel }))
     await setTime(user, t.hobbyStart, '19:30')
     await user.click(
@@ -251,6 +261,7 @@ describe('SettingsPage preferences', () => {
     const fake = server({ hobby_start: '18:00', hobby_minutes: 60 })
     open(fake)
     await ready()
+    await openRow(user, r.meTime)
     expect(screen.getByRole('switch', { name: t.hobbyLabel })).toBeChecked()
     expect(timeField(t.hobbyStart)).toHaveTextContent('18:00')
     await user.click(
@@ -273,6 +284,7 @@ describe('SettingsPage preferences', () => {
     const fake = server({ hobby_start: '18:00', hobby_minutes: 60 })
     open(fake)
     await ready()
+    await openRow(user, r.meTime)
     await user.click(screen.getByRole('switch', { name: t.hobbyLabel }))
     await user.click(saveButton())
     await waitFor(() => {
@@ -289,6 +301,7 @@ describe('SettingsPage preferences', () => {
     const fake = server()
     open(fake)
     await ready()
+    await openRow(user, r.day)
     await setTime(user, t.sleepTime, '08:00')
     await user.click(saveButton())
     expect(await screen.findByText(t.sameTimes)).toBeInTheDocument()
@@ -319,6 +332,7 @@ describe('SettingsPage preferences', () => {
     const fake = server({ study_windows: ['morning'] })
     open(fake)
     await ready()
+    await openRow(user, r.when)
     await user.click(screen.getByRole('checkbox', { name: new RegExp(en.onboardingSchedule.windows.morning.label) }))
     await user.click(saveButton())
     expect(await screen.findByText(t.windowsRequired)).toBeInTheDocument()
@@ -335,6 +349,7 @@ describe('SettingsPage preferences', () => {
     )
     open(fake)
     await ready()
+    await openRow(user, r.day)
     await setTime(user, t.wakeTime, '07:00')
     await user.click(saveButton())
     const sleep = timeField(t.sleepTime)
@@ -356,6 +371,7 @@ describe('SettingsPage preferences', () => {
     )
     open(fake)
     await ready()
+    await openRow(user, r.rest)
     await user.click(within(group(t.restQuestion)).getByRole('radio', { name: t.restDays(3) }))
     await user.click(saveButton())
     await waitFor(() => {
@@ -371,7 +387,8 @@ describe('SettingsPage preferences', () => {
     const fake = server().on('PATCH /me', () => new Promise((resolve) => (release = resolve)))
     open(fake)
     await ready()
-    await user.click(within(group(t.hoursQuestion)).getByRole('radio', { name: en.onboardingSchedule.hours(5) }))
+    await openRow(user, r.hours)
+    await user.click(within(screen.getByRole('group', { name: t.hoursQuestion })).getByRole('button', { name: en.controls.stepper.more }))
     await user.dblClick(saveButton())
     await user.click(saveButton())
     expect(patches(fake)).toHaveLength(1)
@@ -386,6 +403,7 @@ describe('SettingsPage preferences', () => {
     const fake = server()
     open(fake)
     await ready()
+    await openRow(user, r.day)
     const [, minute] = within(timeField(t.wakeTime)).getAllByRole('spinbutton') as [HTMLElement, HTMLElement]
     await user.click(minute)
     await user.keyboard('{Backspace}{Backspace}')
@@ -394,14 +412,84 @@ describe('SettingsPage preferences', () => {
     expect(patches(fake)).toHaveLength(0)
   })
 
-  it('the preferences are four named groups with one save', async () => {
+  it('the preferences are rows of one card, each with its summary, and one Save under it', async () => {
     open(server())
     await ready()
-    const section = screen.getByRole('region', { name: t.title })
-    for (const name of Object.values(t.groups)) {
-      expect(within(section).getByRole('heading', { level: 3, name })).toBeInTheDocument()
-    }
-    expect(within(section).getAllByRole('button', { name: t.save })).toHaveLength(1)
+    const card = screen.getByRole('region', { name: t.title })
+    const names = within(card)
+      .getAllByRole('heading', { level: 3 })
+      .map((h) => h.textContent)
+    expect(names).toEqual([
+      `${r.hours} ${en.onboardingSchedule.hours(4)}`,
+      `${r.when} ${[en.onboardingSchedule.windows.morning.label, en.onboardingSchedule.windows.afternoon.label].join(', ')}`,
+      `${r.meTime} ${r.off}`,
+      `${r.rest} ${t.restDays(1)}`,
+      `${r.day} 08:00–23:00`,
+      `${r.delay} ${en.settings.duration(60)}`,
+    ])
+    // The one Save sits under the card, not in it, and before Busy time.
+    expect(within(card).queryByRole('button', { name: t.save })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: t.save })).toHaveLength(1)
+    const busy = screen.getByRole('region', { name: s.busy.title })
+    expect(card.compareDocumentPosition(saveButton()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(saveButton().compareDocumentPosition(busy) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  // Review Focus 5: a veteran's Me time is one row of the preferences, and not in Busy time.
+  it('a veteran with Me time sees one row "Me time every day: 18:00, 1 hour" and no Me time in Busy time', async () => {
+    const user = userEvent.setup()
+    const days = [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+      id: `m${String(weekday)}`,
+      title: 'Me time',
+      kind: 'other',
+      weekday,
+      start_time: '18:00',
+      end_time: '19:00',
+      valid_from: '2026-11-01',
+      valid_until: null,
+      source_job_id: null,
+      created_at: '2026-11-01T08:00:00Z',
+    }))
+    const fake = server({ hobby_start: '18:00', hobby_minutes: 60 }).on('GET /commitments', { commitments: days })
+    open(fake)
+    await ready()
+    const card = screen.getByRole('region', { name: t.title })
+    expect(within(card).getByRole('button', { name: rowName(r.meTime, meTimeText('18:00', 60)) })).toBeInTheDocument()
+    expect(meTimeText('18:00', 60)).toBe('18:00, 1 hour')
+    const busy = screen.getByRole('region', { name: s.busy.title })
+    await within(busy).findByText(s.busy.empty)
+    expect(within(busy).queryByText(/Me time/)).not.toBeInTheDocument()
+    expect(screen.getAllByText(/Me time every day/)).toHaveLength(2)
+    // Changing it and saving sends the pair and offers the replan.
+    await openRow(user, r.meTime)
+    await user.click(within(group(t.hobbyMinutes)).getByRole('radio', { name: en.settings.duration(90) }))
+    await user.click(saveButton())
+    await waitFor(() => {
+      expect(patches(fake)).toEqual([{ hobby_start: '18:00', hobby_minutes: 90 }])
+    })
+  })
+
+  it('a change to Me time that touches the plan offers the replan', async () => {
+    const user = userEvent.setup()
+    const fake = server({ hobby_start: '18:00', hobby_minutes: 60 }, true)
+    open(fake)
+    await ready()
+    await openRow(user, r.meTime)
+    await user.click(within(group(t.hobbyMinutes)).getByRole('radio', { name: en.settings.duration(30) }))
+    await user.click(saveButton())
+    const dialog = await screen.findByRole('dialog', { name: en.replan.title })
+    expect(within(dialog).getByText(t.replanReason)).toBeInTheDocument()
+  })
+
+  it('a server error on the preferences keeps the row open and shows its message', async () => {
+    const user = userEvent.setup()
+    const fake = server().on('PATCH /me', problem(422, 'too_many_commitments'))
+    open(fake)
+    await ready()
+    await openRow(user, r.meTime)
+    await user.click(screen.getByRole('switch', { name: t.hobbyLabel }))
+    await user.click(saveButton())
+    expect(await screen.findByText(r.tooManyBusy)).toBeInTheDocument()
   })
 
   it('another failure shows its message', async () => {
@@ -409,23 +497,30 @@ describe('SettingsPage preferences', () => {
     const fake = server().on('PATCH /me', problem(503, 'database_unavailable'))
     open(fake)
     await ready()
-    await user.click(
-      within(group(t.hoursQuestion)).getByRole('radio', {
-        name: en.onboardingSchedule.hours(5),
-      }),
-    )
+    await openRow(user, r.hours)
+    await user.click(within(screen.getByRole('group', { name: t.hoursQuestion })).getByRole('button', { name: en.controls.stepper.more }))
     await user.click(saveButton())
     expect(await screen.findByText(codeText('database_unavailable'))).toBeInTheDocument()
   })
 })
 
 describe('SettingsPage other sections', () => {
-  it('hosts the reminder settings of S16', async () => {
+  it('the cards come in the order of the settings: preferences, Save, Busy time, Reminders, account', async () => {
+    open(server())
+    await ready()
+    const names = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
+    expect(names).toEqual([t.title, s.busy.title, en.notifications.title, r.accountTitle])
+  })
+
+  it('hosts the reminder settings of S16 in one card, with no card inside it', async () => {
     open(server())
     await ready()
     // Without a VAPID key in the test env, the card says reminders are not set up here.
-    const section = screen.getByRole('region', { name: en.notifications.deviceTitle })
-    expect(within(section).getByText(en.notifications.notConfigured)).toBeInTheDocument()
+    const card = screen.getByRole('region', { name: en.notifications.title })
+    expect(within(card).getByText(en.notifications.notConfigured)).toBeInTheDocument()
+    expect(within(card).getByRole('radiogroup', { name: en.notifications.leadLabel })).toBeInTheDocument()
+    expect(within(card).queryByRole('region')).not.toBeInTheDocument()
+    expect(card.querySelectorAll('.rounded-card')).toHaveLength(0)
   })
 
   it('export downloads the JSON as studyflow-export-<local date>.json', async () => {
@@ -451,6 +546,7 @@ describe('SettingsPage other sections', () => {
     })
     open(fake)
     await ready()
+    expect(document.getElementById('export')).toContainElement(screen.getByRole('button', { name: en.settings.export.button }))
     await user.click(screen.getByRole('button', { name: en.settings.export.button }))
     await waitFor(() => {
       expect(clicked).toHaveLength(1)
@@ -476,21 +572,25 @@ describe('SettingsPage other sections', () => {
     expect(await screen.findByText(codeText('database_unavailable'))).toBeInTheDocument()
   })
 
-  it('the danger zone is the last section, and the only one drawn as a danger card', async () => {
+  it('the account card ends the screen: Export your data, then Delete my account in the danger colour', async () => {
     open(server())
     await ready()
+    const account = screen.getByRole('region', { name: r.accountTitle })
     const regions = screen.getAllByRole('region')
-    const danger = screen.getByRole('region', { name: en.settings.danger.title })
-    expect(regions.at(-1)).toBe(danger)
-    expect(danger.className).toContain('bg-danger-soft')
-    expect(within(danger).getByText(en.settings.danger.description).className).not.toContain('text-ink-muted')
+    expect(regions.at(-1)).toBe(account)
+    expect(account.className).not.toContain('bg-danger-soft')
+    const del = within(account).getByRole('link', { name: new RegExp(en.settings.danger.link) })
+    expect(del.className).toContain('text-danger')
+    expect(within(account).getByText(en.settings.export.title)).toBeInTheDocument()
+    const text = account.textContent
+    expect(text.indexOf(en.settings.export.title)).toBeLessThan(text.indexOf(en.settings.danger.link))
   })
 
   it('the danger zone links to the account deletion page', async () => {
     const user = userEvent.setup()
     const { router } = open(server())
     await ready()
-    await user.click(screen.getByRole('link', { name: en.settings.danger.link }))
+    await user.click(screen.getByRole('link', { name: new RegExp(en.settings.danger.link) }))
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/settings/delete-account')
     })

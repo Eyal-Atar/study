@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { errorMessage } from '../api/client'
 import { GOODBYE_PATH, SETTINGS_PATH } from '../app/routes'
@@ -8,7 +8,6 @@ import { Button } from '../ui/Button'
 import { ButtonLink } from '../ui/ButtonLink'
 import { Card } from '../ui/Card'
 import { PageHeader } from '../ui/PageHeader'
-import { SectionHeading } from '../ui/SectionHeading'
 import { TextField } from '../ui/TextField'
 import { TextLink } from '../ui/TextLink'
 import { useToast } from '../ui/useToast'
@@ -26,7 +25,6 @@ export function DeleteAccountPage() {
   const { signOut } = useAuth()
   const toast = useToast()
   const deleteAccount = useDeleteAccount()
-  const whatId = useId()
   const [word, setWord] = useState('')
   // A second press before the re-render that disables the button must not send a second DELETE.
   const sending = useRef(false)
@@ -53,18 +51,16 @@ export function DeleteAccountPage() {
   const pending = deleteAccount.isPending || deleteAccount.isSuccess
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader title={t.title} />
-      <p className="max-w-prose text-body text-ink">{t.intro}</p>
-
-      <section aria-labelledby={whatId} className="flex flex-col gap-2">
-        <SectionHeading id={whatId}>{t.whatTitle}</SectionHeading>
+      <Card className="max-w-xl" title={t.whatTitle}>
+        <p className="mb-3 max-w-prose text-body text-ink">{t.intro}</p>
         <ul className="list-disc ps-5 text-body text-ink">
           {t.what.map((item) => (
             <li key={item}>{item}</li>
           ))}
         </ul>
-      </section>
+      </Card>
 
       <p className="max-w-prose text-small text-ink-muted">
         {t.exportFirst} <TextLink to={`${SETTINGS_PATH}#${EXPORT_SECTION_ID}`}>{t.exportLink}</TextLink>

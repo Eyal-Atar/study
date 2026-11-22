@@ -34,7 +34,8 @@ function open(
   return { ...result, server, push }
 }
 
-const device = () => screen.findByRole('region', { name: en.notifications.deviceTitle })
+// The settings screen hosts the reminders in one card (variant bare): that card is the region.
+const device = () => screen.findByRole('region', { name: en.notifications.title })
 
 describe('NotificationSettings', () => {
   it('without a VAPID key says reminders are not set up, but still shows the lead time', async () => {

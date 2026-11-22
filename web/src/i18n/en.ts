@@ -707,8 +707,8 @@ export const en = {
     },
     deleteAccount: {
       title: 'Delete your account',
-      intro: 'Deletion is immediate and final. There’s no way to undo it and no grace period.',
-      whatTitle: 'What gets deleted',
+      intro: 'I delete everything the moment you confirm. There’s no way to undo it and no grace period.',
+      whatTitle: 'What I’ll delete',
       what: [
         'Your profile and preferences',
         'Your exams, tasks and plan',
@@ -717,7 +717,7 @@ export const en = {
         'The usage log',
         'Your sign-in account',
       ],
-      exportFirst: 'Want to keep a copy? Download your data first.',
+      exportFirst: 'Want to keep a copy? I can give you your data first.',
       exportLink: 'Export your data',
       confirmWord: 'delete',
       confirmLabel: 'To confirm, type the word “delete”',

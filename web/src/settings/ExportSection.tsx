@@ -14,6 +14,7 @@ export function ExportSection() {
   const toast = useToast()
   return (
     <div className="flex flex-col items-start gap-3">
+      <p className="text-body font-semibold text-ink">{t.title}</p>
       <p className="max-w-prose text-small text-ink-muted">{t.description}</p>
       <Button
         variant="secondary"
