@@ -2,17 +2,9 @@ import { en } from '../i18n/en'
 import { CircleAlert, XpSparkIcon, type IconType } from '../ui/icons'
 import { Note } from '../ui/Note'
 import { ICON_STROKE } from '../ui/styles'
+import type { FeasibilityEstimate } from './feasibility'
 
-// What the estimate of onboarding/feasibility.ts says. Defined here for now: Task 10 of S34 moves
-// it there, with the function that computes it.
-export interface FeasibilityEstimate {
-  level: 'none' | 'tight' | 'roomy'
-  firstExamName: string
-  firstExamMinutes: number
-  // The exam where the time runs short (tight) or out (none), when it is not the first one.
-  tightExamName?: string
-  tightExamMinutes?: number
-}
+export type { FeasibilityEstimate } from './feasibility'
 
 // roomy is good news in a neutral note. tight and none need attention and are not a failure, so
 // they are a warning, never a danger. The icon's colour is one of the checked pairs of its fill.
