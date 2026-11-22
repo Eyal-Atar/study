@@ -1,23 +1,26 @@
-import { Trash2 } from '../ui/icons'
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import { Form } from 'react-aria-components'
 import { useNavigate } from 'react-router'
 import { errorMessage } from '../api/client'
+import { useMe } from '../api/me'
+import { todayIn } from '../exam/dates'
 import { en } from '../i18n/en'
 import { LOCALE } from '../i18n/locale'
 import { Button } from '../ui/Button'
-import { Card } from '../ui/Card'
 import { DatePicker, type DateValue } from '../ui/DatePicker'
+import { ExamInitial } from '../ui/ExamMark'
 import { IconButton } from '../ui/IconButton'
+import { Plus, Trash2 } from '../ui/icons'
 import { List, ListRow } from '../ui/List'
 import { RadioCards } from '../ui/RadioCards'
-import { SectionHeading } from '../ui/SectionHeading'
-import { EmptyState, ErrorState, LoadingState } from '../ui/states'
+import { ErrorState } from '../ui/states'
 import { ICON_STROKE } from '../ui/styles'
 import { TextField } from '../ui/TextField'
 import { useToast } from '../ui/useToast'
 import { UserText } from '../ui/UserText'
 import { useCreateExam, useDeleteExam, useExams, useUndo, type Exam } from './api'
+import { feasibility } from './feasibility'
+import { FeasibilityNote } from './FeasibilityNote'
 import { OnboardingLayout } from './OnboardingLayout'
 import { STEP_PATHS } from './steps'
 
@@ -62,8 +65,10 @@ interface FieldErrors {
   date?: string
 }
 
-// Onboarding step 1: the student's exams. Each one is saved on the server as it is added, so the
-// step keeps no local state that a refresh would lose.
+// Onboarding step 1: Archi greets and asks for the exams, and everything that answers him is on
+// the one card he stands behind: the exams added so far, what he makes of them, and the form for
+// the next one. Each exam is saved on the server as it is added, so the step keeps no local state
+// that a refresh would lose.
 export function ExamsStep() {
   const navigate = useNavigate()
   const toast = useToast()
@@ -71,7 +76,7 @@ export function ExamsStep() {
   const createExam = useCreateExam()
   const deleteExam = useDeleteExam()
   const undo = useUndo()
-  const listTitleId = useId()
+  const me = useMe()
 
   const [name, setName] = useState('')
   const [date, setDate] = useState<DateValue | null>(null)
@@ -83,6 +88,19 @@ export function ExamsStep() {
   const visible = (exams.data ?? [])
     .filter((exam) => !deleting.has(exam.id))
     .sort((a, b) => a.exam_date.localeCompare(b.exam_date))
+
+  // What Archi makes of the exams so far (audit, guideline 9), from the profile's defaults and
+  // with no busy time yet: that is asked in step 4. It follows the list, so it changes the moment
+  // an exam is added or deleted.
+  const estimate =
+    me.data === undefined
+      ? null
+      : feasibility({
+          today: todayIn(me.data.timezone),
+          exams: visible.map((exam) => ({ name: exam.name, exam_date: exam.exam_date })),
+          profile: me.data,
+          busy: [],
+        })
 
   function submit() {
     const trimmed = name.trim()
@@ -152,11 +170,10 @@ export function ExamsStep() {
       })
   }
 
-  // One blue thing at a time, and it is the next step: adding an exam while there is none (the
-  // continue button is disabled then), and going on once there is one.
   const hasExams = visible.length > 0
 
-  const actions = (
+  // The one green button of the screen is the way forward; it waits for the first exam.
+  const primary = (
     <Button
       className="flex-1 md:flex-none"
       isDisabled={!hasExams}
@@ -169,66 +186,15 @@ export function ExamsStep() {
   )
 
   return (
-    <OnboardingLayout step={1} title={t.title} intro={t.intro} actions={actions}>
-      <Card className="md:max-w-xl">
-        <Form
-          validationBehavior="aria"
-          onSubmit={(event) => {
-            event.preventDefault()
-            submit()
-          }}
-          className="flex flex-col gap-5"
-        >
-          <TextField
-            label={t.name}
-            placeholder={t.namePlaceholder}
-            value={name}
-            onChange={(value) => {
-              setName(value)
-              if (errors.name !== undefined) setErrors((e) => ({ ...e, name: undefined }))
-            }}
-            maxLength={NAME_MAX}
-            isRequired
-            autoComplete="off"
-            {...(errors.name === undefined ? {} : { errorMessage: errors.name })}
-          />
-          <DatePicker
-            label={t.date}
-            value={date}
-            onChange={(value) => {
-              setDate(value)
-              // A full date out of range is flagged at once; a missing one only when adding.
-              setErrors((e) => ({ ...e, date: value === null ? undefined : dateRangeError(value.toString().slice(0, 10)) }))
-            }}
-            isDateUnavailable={(value) => dateRangeError(value.toString().slice(0, 10)) !== undefined}
-            isRequired
-            {...(errors.date === undefined ? {} : { errorMessage: errors.date })}
-          />
-          <RadioCards
-            label={t.difficulty}
-            options={DIFFICULTY_OPTIONS}
-            value={difficulty}
-            onChange={setDifficulty}
-            columns="grid-cols-5"
-          />
-          {createExam.isError ? (
-            <p role="alert" className="text-small text-danger">
-              {errorMessage(createExam.error)}
-            </p>
-          ) : null}
-          {/* isPending keeps the text and ignores presses, so a double press sends one exam. */}
-          <Button type="submit" variant={hasExams ? 'secondary' : 'primary'} isPending={createExam.isPending}>
-            {t.add}
-          </Button>
-        </Form>
-      </Card>
+    <OnboardingLayout step={1} mood="joy" question={t.title} primary={primary}>
+      {/* As in the prototype, his sentence of context opens the card: beside him there is room
+          for the greeting and the question only. */}
+      <p className="text-small text-ink-muted">{t.intro}</p>
 
-      <section className="flex flex-col gap-1" aria-labelledby={listTitleId}>
-        <SectionHeading id={listTitleId}>{t.listTitle}</SectionHeading>
-        {exams.isPending ? (
-          <LoadingState shape="list" rows={2} />
-        ) : exams.isError ? (
-          <div className="pt-2">
+      {/* The place of the exams. With none it is empty: the form under it is the answer. */}
+      <div data-part="exams" aria-busy={exams.isPending}>
+        {exams.isError ? (
+          <div className="mt-3">
             <ErrorState
               message={errorMessage(exams.error)}
               onRetry={() => {
@@ -236,13 +202,12 @@ export function ExamsStep() {
               }}
             />
           </div>
-        ) : !hasExams ? (
-          <EmptyState title={t.empty} />
-        ) : (
-          <List aria-label={t.listTitle}>
+        ) : hasExams ? (
+          <List aria-label={t.listTitle} className="mt-3">
             {visible.map((exam) => (
               <ListRow
                 key={exam.id}
+                leading={<ExamInitial name={exam.name} colorIndex={exam.color_index} />}
                 // An exam name can be in any language: <UserText> isolates its direction.
                 title={<UserText>{exam.name}</UserText>}
                 subtitle={
@@ -261,8 +226,66 @@ export function ExamsStep() {
               />
             ))}
           </List>
-        )}
-      </section>
+        ) : null}
+      </div>
+
+      {/* The live region is always here, and takes its space only when Archi has something to say. */}
+      <div className={estimate === null ? undefined : 'mt-2'}>
+        <FeasibilityNote estimate={estimate} />
+      </div>
+
+      <Form
+        validationBehavior="aria"
+        onSubmit={(event) => {
+          event.preventDefault()
+          submit()
+        }}
+        className="mt-4 flex flex-col gap-5"
+      >
+        <TextField
+          label={t.name}
+          placeholder={t.namePlaceholder}
+          value={name}
+          onChange={(value) => {
+            setName(value)
+            if (errors.name !== undefined) setErrors((e) => ({ ...e, name: undefined }))
+          }}
+          maxLength={NAME_MAX}
+          isRequired
+          autoComplete="off"
+          {...(errors.name === undefined ? {} : { errorMessage: errors.name })}
+        />
+        <DatePicker
+          label={t.date}
+          value={date}
+          onChange={(value) => {
+            setDate(value)
+            // A full date out of range is flagged at once; a missing one only when adding.
+            setErrors((e) => ({ ...e, date: value === null ? undefined : dateRangeError(value.toString().slice(0, 10)) }))
+          }}
+          isDateUnavailable={(value) => dateRangeError(value.toString().slice(0, 10)) !== undefined}
+          isRequired
+          {...(errors.date === undefined ? {} : { errorMessage: errors.date })}
+        />
+        <RadioCards
+          label={t.difficulty}
+          options={DIFFICULTY_OPTIONS}
+          value={difficulty}
+          onChange={setDifficulty}
+          columns="grid-cols-5"
+        />
+        {createExam.isError ? (
+          <p role="alert" className="text-small text-danger">
+            {errorMessage(createExam.error)}
+          </p>
+        ) : null}
+        {/* isPending keeps the text and ignores presses, so a double press sends one exam. The
+            spinner takes the place of the plus while the exam is sent. */}
+        <Button type="submit" variant="secondary" isPending={createExam.isPending}>
+          {createExam.isPending ? null : <Plus aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />}
+          {t.add}
+        </Button>
+      </Form>
     </OnboardingLayout>
   )
 }

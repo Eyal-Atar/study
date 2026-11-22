@@ -13,6 +13,11 @@ const aboutStudyHours = (minutes: number) => {
 }
 
 export const enOnboardingFlow = {
+  // Step 4 of 4 (S34 decision 4): what I ask about the hours that are already taken.
+  fixedHours: {
+    question: 'Do you have work, classes or other fixed hours?',
+    below: 'Mark your busy hours, and I’ll schedule around them.',
+  },
   // What I say while you answer, before I build anything (audit, guideline 9). A first wording:
   // Task 14 of S34 polishes it.
   feasibility: {

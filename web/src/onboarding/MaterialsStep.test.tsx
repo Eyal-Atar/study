@@ -476,10 +476,12 @@ describe('MaterialsStep', () => {
     await screen.findByRole('heading', { name: 'חדו"א' })
 
     expect(screen.queryByRole('button', { name: en.onboarding.continue })).not.toBeInTheDocument()
-    // The primary button first, then "Back"; there is no third button to skip with.
+    // The bottom holds only the primary button: "Back" is at the top (S34 decision 9), and there
+    // is no other button to skip with.
     const bar = screen.getByRole('button', { name: en.onboardingMaterials.continueWithout }).parentElement
     if (bar === null) throw new Error('no actions bar')
-    expect(within(bar).getAllByRole('button').map((button) => button.textContent)).toEqual([en.onboardingMaterials.continueWithout, en.common.back])
+    expect(within(bar).getAllByRole('button').map((button) => button.textContent)).toEqual([en.onboardingMaterials.continueWithout])
+    expect(screen.getByRole('button', { name: en.common.back })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: en.onboardingMaterials.continueWithout }))
 
     expect(router.state.location.pathname).toBe('/onboarding/schedule')

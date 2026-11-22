@@ -49,14 +49,14 @@ export function ScheduleStep() {
 
   if (me.isPending) {
     return (
-      <OnboardingLayout step={3} title={t.title}>
+      <OnboardingLayout step={3} mood="intentions" question={t.title} primary={null} bare>
         <LoadingState shape="card" />
       </OnboardingLayout>
     )
   }
   if (me.isError) {
     return (
-      <OnboardingLayout step={3} title={t.title}>
+      <OnboardingLayout step={3} mood="intentions" question={t.title} primary={null} bare>
         <ErrorState
           message={errorMessage(me.error)}
           onRetry={() => {
@@ -94,25 +94,17 @@ function ScheduleForm({ me }: { me: Me }) {
       })
   }
 
-  const actions = (
-    <>
-      {/* The button says what it starts, and keeps saying it while the answers are saved. */}
-      <Button className="flex-1 md:flex-none" isPending={updateMe.isPending} onPress={build}>
-        {t.build}
-      </Button>
-      <Button
-        variant="secondary"
-        onPress={() => {
-          void navigate(STEP_PATHS.materials)
-        }}
-      >
-        {en.common.back}
-      </Button>
-    </>
+  // The button says what it starts, and keeps saying it while the answers are saved. "Back" is at
+  // the top of the layout.
+  const primary = (
+    <Button className="flex-1 md:flex-none" isPending={updateMe.isPending} onPress={build}>
+      {t.build}
+    </Button>
   )
 
   return (
-    <OnboardingLayout step={3} title={t.title} intro={t.intro} actions={actions}>
+    <OnboardingLayout step={3} mood="intentions" question={t.title} context={t.intro} primary={primary}>
+      <div className="flex flex-col gap-6">
       <RadioCards
         label={t.hoursQuestion}
         options={HOUR_OPTIONS}
@@ -144,6 +136,7 @@ function ScheduleForm({ me }: { me: Me }) {
           {errorMessage(updateMe.error)}
         </p>
       ) : null}
+      </div>
     </OnboardingLayout>
   )
 }

@@ -225,9 +225,12 @@ export function BuildingStep() {
   return (
     <OnboardingLayout
       step={4}
-      title={done ? en.building.doneTitle : en.building.title}
-      {...(done ? {} : { intro: en.building.intro })}
-      actions={actions}
+      mood={done ? 'eureka' : 'wisdom'}
+      question={done ? en.building.doneTitle : en.building.title}
+      {...(done ? {} : { below: en.building.intro })}
+      primary={actions}
+      bare
+      onBack={null}
     >
       {body}
       {replan}

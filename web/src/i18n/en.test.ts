@@ -99,7 +99,7 @@ describe('en: user content in a sentence', () => {
   })
 
   it.each([
-    ['onboardingExams.deleteExam', en.onboardingExams.deleteExam(NAME), `Delete ${ISOLATED}`],
+    ['onboardingExams.deleteExam', en.onboardingExams.deleteExam(NAME), `Delete: ${ISOLATED}`],
     ['onboardingExams.deleted', en.onboardingExams.deleted(NAME), `Deleted ${ISOLATED}`],
     ['onboardingExams.restored', en.onboardingExams.restored(NAME), `Restored ${ISOLATED}`],
     ['onboardingMaterials.deleteNamed', en.onboardingMaterials.deleteNamed(NAME), `Delete: ${ISOLATED}`],

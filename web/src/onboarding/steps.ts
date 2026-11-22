@@ -4,6 +4,8 @@ export const STEP_PATHS = {
   exams: '/onboarding/exams',
   materials: '/onboarding/materials',
   schedule: '/onboarding/schedule',
+  // S34 decision 4: the fixed hours are step 4 of 4. The build after them is not a numbered step.
+  fixedHours: '/onboarding/fixed-hours',
   building: '/onboarding/building',
 } as const
 

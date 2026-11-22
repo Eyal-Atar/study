@@ -48,19 +48,18 @@ export function MaterialsStep() {
   return (
     <OnboardingLayout
       step={2}
-      title={t.title}
-      intro={t.intro}
-      actions={
-        <>
-          {/* One way forward. Without files the same button says that it skips them, so nobody
-              has to look for a second button. */}
-          <Button className="flex-1 md:flex-none" isDisabled={leaving} onPress={() => { leave(STEP_PATHS.schedule); }}>
-            {hasFiles ? en.onboarding.continue : t.continueWithout}
-          </Button>
-          <Button variant="secondary" isDisabled={leaving} onPress={() => { leave(STEP_PATHS.exams); }}>
-            {en.common.back}
-          </Button>
-        </>
+      mood="wisdom"
+      question={t.title}
+      below={t.intro}
+      bare
+      // "Back" is at the top of the layout; it too sends the waiting deletes before it leaves.
+      onBack={() => { leave(STEP_PATHS.exams); }}
+      primary={
+        // One way forward. Without files the same button says that it skips them, so nobody
+        // has to look for a second button.
+        <Button className="flex-1 md:flex-none" isDisabled={leaving} onPress={() => { leave(STEP_PATHS.schedule); }}>
+          {hasFiles ? en.onboarding.continue : t.continueWithout}
+        </Button>
       }
     >
       {/* Before the upload buttons: where the files go is said before a file is picked. */}

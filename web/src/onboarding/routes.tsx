@@ -1,6 +1,7 @@
 import { Navigate, type RouteObject } from 'react-router'
 import { BuildingStep } from './BuildingStep'
 import { ExamsStep } from './ExamsStep'
+import { FixedHoursStep } from './FixedHoursStep'
 import { MaterialsStep } from './MaterialsStep'
 import { ScheduleStep } from './ScheduleStep'
 import { STEP_PATHS } from './steps'
@@ -12,5 +13,6 @@ export const onboardingRoutes: RouteObject[] = [
   { path: STEP_PATHS.exams, Component: ExamsStep },
   { path: STEP_PATHS.materials, Component: MaterialsStep },
   { path: STEP_PATHS.schedule, Component: ScheduleStep },
+  { path: STEP_PATHS.fixedHours, Component: FixedHoursStep },
   { path: STEP_PATHS.building, Component: BuildingStep },
 ]

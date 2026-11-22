@@ -183,7 +183,8 @@ export const en = {
   onboarding: {
     stepOf: (step: number, total: number) => `Step ${String(step)} of ${String(total)}`,
     stepsLabel: 'Setup steps',
-    steps: ['Exams', 'Materials', 'Questions', 'Your plan'],
+    // S34 decision 4: the fourth step is the fixed hours; the build is not a numbered step.
+    steps: ['Exams', 'Materials', 'Questions', 'Busy time'],
     // S28: the one button of steps 1 and 2 (step 3 says what it starts: "Build my plan").
     continue: 'Continue',
   },
@@ -201,9 +202,9 @@ export const en = {
     difficulty: 'How hard does this exam feel to you?',
     difficultyLevels: ['Very easy', 'Easy', 'Medium', 'Hard', 'Very hard'],
     add: 'Add exam',
+    // The name of the list of added exams, for a screen reader.
     listTitle: 'Your exams',
-    empty: 'No exams yet',
-    deleteExam: (name: string) => `Delete ${isolate(name)}`,
+    deleteExam: (name: string) => `Delete: ${isolate(name)}`,
     deleted: (name: string) => `Deleted ${isolate(name)}`,
     restored: (name: string) => `Restored ${isolate(name)}`,
     difficultyOf: (label: string) => `Difficulty: ${label.toLowerCase()}`,

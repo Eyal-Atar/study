@@ -63,6 +63,9 @@ function renderSchedule(fake: FakeApi) {
 
 const windowName = (w: keyof typeof t.windows) => new RegExp(t.windows[w].label)
 
+const follows = (first: Element, second: Element) =>
+  (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+
 describe('ScheduleStep', () => {
   it('starts from the profile: 4 hours, morning and afternoon', async () => {
     renderSchedule(meApi())
@@ -162,7 +165,9 @@ describe('ScheduleStep', () => {
     const build = await screen.findByRole('button', { name: t.build })
     const bar = build.parentElement
     if (bar === null) throw new Error('no actions bar')
-    expect(within(bar).getAllByRole('button').map((button) => button.textContent)).toEqual([t.build, en.common.back])
+    // The bottom holds only the way forward; "Back" is at the top (S34 decision 9).
+    expect(within(bar).getAllByRole('button').map((button) => button.textContent)).toEqual([t.build])
+    expect(follows(screen.getByRole('button', { name: en.common.back }), screen.getByRole('heading', { level: 1 }))).toBe(true)
     // The page is LTR, so a range needs no isolate marks: it reads left to right as it is.
     expect(screen.getByText('06:00–12:00')).toBeInTheDocument()
     expect(screen.getByText('21:00–02:00')).toBeInTheDocument()
@@ -171,7 +176,9 @@ describe('ScheduleStep', () => {
   it('"back" goes to the materials step', async () => {
     const user = userEvent.setup()
     renderSchedule(meApi())
-    await user.click(await screen.findByRole('button', { name: en.common.back }))
+    // "Back" is part of the frame, so it is there before the profile is: wait for the form.
+    await screen.findByRole('radio', { name: t.hours(4) })
+    await user.click(screen.getByRole('button', { name: en.common.back }))
     expect(await screen.findByText('materials')).toBeInTheDocument()
   })
 

@@ -4,24 +4,30 @@ import { userEvent, type UserEvent } from '@testing-library/user-event'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { describe, expect, it } from 'vitest'
+import type { Me } from '../api/me'
 import { AppProviders } from '../app/AppProviders'
 import { en } from '../i18n/en'
 import { LOCALE } from '../i18n/locale'
 import { createFakeApi, problem, type ApiCall, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { createFakeStorage } from '../test/fakeStorage'
+import { meFixture } from '../test/onboardingFixtures'
+import { examColor } from '../ui/examColor'
 import { ToastRegion } from '../ui/toast'
 import { ExamsStep } from './ExamsStep'
 import { STEP_PATHS } from './steps'
 import type { Exam, ExamCreate } from './types'
 
 const t = en.onboardingExams
+const f = en.onboardingFlow.feasibility
 
-// An API with a list of exams that POST, DELETE and undo change, like the server does.
-function examsApi(initial: Exam[] = []) {
+// An API with a list of exams that POST, DELETE and undo change, like the server does, and the
+// profile the live estimate reads (4 hours a day, mornings and afternoons, 1 rest day).
+function examsApi(initial: Exam[] = [], me: Partial<Me> = {}) {
   let exams = [...initial]
   const fake = createFakeApi()
   fake
+    .on('GET /me', meFixture(me))
     .on('GET /exams', () => exams)
     .on('POST /exams', (call: ApiCall) => {
       const body = call.body as ExamCreate
@@ -94,19 +100,119 @@ async function fillExam(user: UserEvent, name: string, days = 30) {
   return date
 }
 
+// The exams were read: the place of the list is no longer busy. The step has no empty state: with
+// no exam there is only Archi's question and the form.
+async function loaded() {
+  const place = document.querySelector('[data-part="exams"]')
+  if (place === null) throw new Error('no place for the exams')
+  await waitFor(() => {
+    expect(place).toHaveAttribute('aria-busy', 'false')
+  })
+}
+
+const noExamRows = () => screen.queryByRole('list', { name: t.listTitle })
+
 describe('ExamsStep', () => {
-  it('shows the step, the title and the empty state', async () => {
+  it('shows the step and Archi’s question, and with no exam only the form under it', async () => {
     renderExams(examsApi())
     expect(screen.getByRole('heading', { level: 1, name: t.title })).toBeInTheDocument()
     expect(screen.getByText(en.onboarding.stepOf(1, 4))).toBeInTheDocument()
-    expect(await screen.findByText(t.empty)).toBeInTheDocument()
+    expect(screen.getByText(t.intro)).toBeInTheDocument()
+    await loaded()
+    expect(noExamRows()).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: t.name })).toBeInTheDocument()
+  })
+
+  it('Archi leads the real screen: he stands before his question, which is its only h1', async () => {
+    const exam: Exam = { id: 'e1', name: 'שפת C', exam_date: daysFromToday(20).iso, difficulty: 3, created_at: '2026-11-16T08:00:00Z', color_index: 0 }
+    renderExams(examsApi([exam]))
+    await screen.findByRole('list', { name: t.listTitle })
+
+    const headings = screen.getAllByRole('heading', { level: 1 })
+    expect(headings).toHaveLength(1)
+    const [heading] = headings
+    if (heading === undefined) throw new Error('no heading')
+    expect(heading).toHaveTextContent(t.title)
+    const archi = screen.getByRole('img', { name: en.archie.alt.joy })
+    expect(archi.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // Everything that answers him comes after the question, on one card.
+    const name = screen.getByRole('textbox', { name: t.name })
+    expect(heading.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const card = name.closest('.rounded-card')
+    expect(card).not.toBeNull()
+    expect(card).toContainElement(screen.getByRole('list', { name: t.listTitle }))
+    expect(card).toContainElement(screen.getByText(t.intro))
+  })
+
+  it('the first step has no "Back", at the top or at the bottom', async () => {
+    renderExams(examsApi())
+    await loaded()
+    expect(screen.queryByRole('button', { name: en.common.back })).not.toBeInTheDocument()
+    const bar = screen.getByRole('button', { name: en.onboarding.continue }).parentElement
+    if (bar === null) throw new Error('no actions bar')
+    expect(within(bar).getAllByRole('button')).toHaveLength(1)
+  })
+
+  it('Archi answers each exam at once: the estimate appears with the first exam, changes with the next, and goes with the last', async () => {
+    const user = userEvent.setup()
+    // 4 hours a day and 1 rest day: an exam in 60 days leaves 58 study days, 232 hours.
+    renderExams(examsApi())
+    await loaded()
+    const status = screen.getByRole('status')
+    expect(status).toBeEmptyDOMElement()
+
+    const far = await fillExam(user, 'אלגוריתמים', 60)
+    await user.click(screen.getByRole('button', { name: t.add }))
+    await waitFor(() => {
+      expect(status).toHaveTextContent(f.roomy(58 * 240, 'אלגוריתמים'))
+    })
+    expect(far.iso > daysFromToday(1).iso).toBe(true)
+    // The estimate is under the list, and before the form that adds the next exam.
+    const list = screen.getByRole('list', { name: t.listTitle })
+    expect(list.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(status.compareDocumentPosition(screen.getByRole('textbox', { name: t.name })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    // An exam the day after tomorrow, with a rest day before it: no study day is left for it.
+    await fillExam(user, 'הסתברות', 2)
+    await user.click(screen.getByRole('button', { name: t.add }))
+    await waitFor(() => {
+      expect(status).toHaveTextContent(f.none('הסתברות'))
+    })
+
+    await user.click(screen.getByRole('button', { name: t.deleteExam('הסתברות') }))
+    await waitFor(() => {
+      expect(status).toHaveTextContent(f.roomy(58 * 240, 'אלגוריתמים'))
+    })
+    await user.click(screen.getByRole('button', { name: t.deleteExam('אלגוריתמים') }))
+    await waitFor(() => {
+      expect(status).toBeEmptyDOMElement()
+    })
+  })
+
+  it('the estimate reads the profile: fewer hours a day make the same exam tight', async () => {
+    const exam: Exam = { id: 'e1', name: 'שפת C', exam_date: daysFromToday(20).iso, difficulty: 3, created_at: '2026-11-16T08:00:00Z', color_index: 0 }
+    // 18 study days of 30 minutes: 9 hours, under the 10 of a tight exam.
+    renderExams(examsApi([exam], { daily_study_minutes: 30 }))
+    expect(await screen.findByText(f.tight(18 * 30, 'שפת C'))).toBeInTheDocument()
+  })
+
+  it('each exam row has its initial in its colour, and a delete button named after it', async () => {
+    const exam: Exam = { id: 'e1', name: 'שפת C', exam_date: daysFromToday(20).iso, difficulty: 4, created_at: '2026-11-16T08:00:00Z', color_index: 2 }
+    renderExams(examsApi([exam]))
+    const item = within(await screen.findByRole('list', { name: t.listTitle })).getByRole('listitem')
+    const initial = within(item).getByText('ש')
+    expect(initial).toHaveAttribute('aria-hidden', 'true')
+    const colour = examColor(2)
+    expect(initial).toHaveClass(colour.soft, colour.text)
+    expect(t.deleteExam('שפת C')).toMatch(/^Delete: /)
+    expect(within(item).getByRole('button', { name: t.deleteExam('שפת C') })).toBeInTheDocument()
   })
 
   it('adds an exam: POST /exams, clears the form, and lists it with its date and difficulty', async () => {
     const user = userEvent.setup()
     const fake = examsApi()
     renderExams(fake)
-    await screen.findByText(t.empty)
+    await loaded()
 
     const date = await fillExam(user, 'אלגוריתמים')
     await user.click(screen.getByRole('radio', { name: t.difficultyLevels[3] }))
@@ -141,7 +247,7 @@ describe('ExamsStep', () => {
     const user = userEvent.setup()
     const fake = examsApi()
     renderExams(fake)
-    await screen.findByText(t.empty)
+    await loaded()
 
     await user.click(screen.getByRole('button', { name: t.add }))
 
@@ -155,7 +261,7 @@ describe('ExamsStep', () => {
     const user = userEvent.setup()
     const fake = examsApi()
     renderExams(fake)
-    await screen.findByText(t.empty)
+    await loaded()
 
     await fillExam(user, 'הסתברות', 0)
     await user.click(screen.getByRole('button', { name: t.add }))
@@ -168,7 +274,7 @@ describe('ExamsStep', () => {
     const user = userEvent.setup()
     const fake = examsApi().on('POST /exams', problem(422, 'exam_in_past'))
     renderExams(fake)
-    await screen.findByText(t.empty)
+    await loaded()
 
     await fillExam(user, 'הסתברות')
     await user.click(screen.getByRole('button', { name: t.add }))
@@ -188,7 +294,9 @@ describe('ExamsStep', () => {
     const region = await screen.findByRole('region', { name: en.common.notifications })
     await within(region).findByText(t.deleted('שפת C'))
     expect(fake.calls('DELETE', '/exams/e1')).toHaveLength(1)
-    expect(await screen.findByText(t.empty)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(noExamRows()).not.toBeInTheDocument()
+    })
 
     await user.click(within(region).getByRole('button', { name: en.common.undo }))
 
@@ -214,7 +322,7 @@ describe('ExamsStep', () => {
         }),
     )
     renderExams(fake)
-    await screen.findByText(t.empty)
+    await loaded()
 
     await fillExam(user, 'אלגוריתמים')
     const add = screen.getByRole('button', { name: t.add })
@@ -249,23 +357,26 @@ describe('ExamsStep', () => {
 
   it('a failed load of the exams shows the error with a retry, under the title', async () => {
     const user = userEvent.setup()
-    const fake = createFakeApi().on('GET /exams', problem(503, 'database_unavailable'))
+    const fake = createFakeApi().on('GET /me', meFixture()).on('GET /exams', problem(503, 'database_unavailable'))
     renderExams(fake)
     expect(screen.getByRole('heading', { level: 1, name: t.title })).toBeInTheDocument()
     expect(await screen.findByRole('alert')).toHaveTextContent(en.codes.database_unavailable)
     fake.on('GET /exams', [])
     await user.click(screen.getByRole('button', { name: en.common.retry }))
-    expect(await screen.findByText(t.empty)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+    await loaded()
   })
 
   it('"Continue" is disabled without an exam, and goes to the materials step with one', async () => {
     const user = userEvent.setup()
     renderExams(examsApi())
-    await screen.findByText(t.empty)
+    await loaded()
     const proceed = () => screen.getByRole('button', { name: en.onboarding.continue })
     expect(proceed()).toBeDisabled()
-    // One blue button at a time: adding the first exam is the next step, so it is the primary one.
-    expect(screen.getByRole('button', { name: t.add })).toHaveClass('bg-brand')
+    // One green button on the screen, and it is "Continue": "Add exam" is the secondary one of the card.
+    expect(screen.getByRole('button', { name: t.add })).not.toHaveClass('bg-brand')
 
     await fillExam(user, 'אלגוריתמים')
     await user.click(screen.getByRole('button', { name: t.add }))
@@ -274,7 +385,6 @@ describe('ExamsStep', () => {
     await waitFor(() => {
       expect(proceed()).toBeEnabled()
     })
-    // Now going on is the next step, and adding another exam is secondary.
     expect(proceed()).toHaveClass('bg-brand')
     expect(screen.getByRole('button', { name: t.add })).not.toHaveClass('bg-brand')
     await user.click(proceed())
