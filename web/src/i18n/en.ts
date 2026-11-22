@@ -4,6 +4,7 @@ import { enCommitments } from './enCommitments'
 import { enControls } from './enControls'
 import { enCrash } from './enCrash'
 import { enEntry } from './enEntry'
+import { enExams } from './enExams'
 import { enOnboardingFlow } from './enOnboardingFlow'
 import { enPwa } from './enPwa'
 
@@ -45,6 +46,7 @@ export const en = {
   commitments: enCommitments,
   controls: enControls,
   entry: enEntry,
+  exams: enExams,
   onboardingFlow: enOnboardingFlow,
   shell: {
     signOut: 'Sign out',
