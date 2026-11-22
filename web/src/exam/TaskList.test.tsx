@@ -3,6 +3,7 @@ import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { unscheduledText } from '../i18n/codes'
 import { en } from '../i18n/en'
+import { examColor } from '../ui/examColor'
 import { problem, type ApiCall } from '../test/fakeApi'
 import { momentIn } from './dates'
 import { BROWSER_ZONE } from '../test/onboardingFixtures'
@@ -143,11 +144,14 @@ describe('TaskList', () => {
     })
   })
 
-  it('shows the topic weight as text and the gaps', async () => {
+  it('shows the topic importance as five dots with an accessible name, and the gaps', async () => {
     await open()
-    // Visible words beside the dots: the weight is not carried by colour alone.
-    expect(screen.getByText(tp.weight(5))).toBeVisible()
-    expect(screen.getByText(tp.weight(5))).not.toHaveClass('sr-only')
+    // The dots are a picture named in words: 5 dots, the filled ones are the weight.
+    const five = screen.getByRole('img', { name: tp.weight(5) })
+    expect(five.children).toHaveLength(5)
+    expect(Array.from(five.children).filter((dot) => dot.classList.contains('bg-brand'))).toHaveLength(5)
+    const three = screen.getByRole('img', { name: tp.weight(3) })
+    expect(Array.from(three.children).filter((dot) => dot.classList.contains('bg-brand'))).toHaveLength(3)
     expect(screen.getByRole('region', { name: tp.gapsTitle })).toBeInTheDocument()
     const gaps = screen.getByRole('list', { name: tp.gapsTitle })
     expect(gaps).toHaveTextContent('אינטגרלים')
@@ -294,7 +298,7 @@ describe('TaskList', () => {
     openRoute(examServer({ tasks: [taskFixture()], topics }), '/exams/e1')
     const heading = await screen.findByRole('heading', { level: 3, name: LONG_TITLE })
     expect(heading).toHaveClass('break-words')
-    expect(heading.parentElement).toHaveClass('min-w-0', 'flex-1')
+    expect(heading).toHaveClass('min-w-0', 'flex-1')
     expect(screen.getByRole('button', { name: tp.editNamed(LONG_TITLE) })).toHaveClass('size-touch', 'shrink-0')
   })
 
@@ -458,6 +462,39 @@ describe('TaskList', () => {
     await waitFor(() => {
       expect(fake.calls('PATCH', '/topics/p2').map((c) => c.body)).toEqual([{ name: 'נגזרות וחקירה', weight: 5 }])
     })
+  })
+})
+
+describe('TaskList topic tiles', () => {
+  it('each topic is a tile of its own with its name, its count of finished tasks, and its tasks', async () => {
+    await open()
+    const tiles = within(screen.getByRole('list', { name: tp.title })).getAllByRole('listitem', {}).filter((li) => li.closest('ul') === screen.getByRole('list', { name: tp.title }))
+    expect(tiles).toHaveLength(3)
+    expect(within(tiles[0] as HTMLElement).getByRole('heading', { level: 3 })).toHaveTextContent('נגזרות')
+    expect(within(tiles[0] as HTMLElement).getByText(en.exams.exam.topic.progress(1, 1))).toBeInTheDocument()
+    expect(within(tiles[1] as HTMLElement).getByText(en.exams.exam.topic.progress(0, 1))).toBeInTheDocument()
+    expect(within(tiles[0] as HTMLElement).getByText('כלל השרשרת')).toBeInTheDocument()
+  })
+
+  it('a tile folds with its chevron button: the tasks go, and come back', async () => {
+    const user = userEvent.setup()
+    await open()
+    const fold = screen.getByRole('button', { name: en.exams.exam.topic.collapse('גבולות ורציפות') })
+    expect(fold).toHaveAttribute('aria-expanded', 'true')
+    await user.click(fold)
+    expect(screen.queryByText('גבולות')).not.toBeInTheDocument()
+    const unfold = screen.getByRole('button', { name: en.exams.exam.topic.expand('גבולות ורציפות') })
+    expect(unfold).toHaveAttribute('aria-expanded', 'false')
+    await user.click(unfold)
+    expect(screen.getByText('גבולות')).toBeInTheDocument()
+  })
+
+  it('a task carries the icon of its kind in the colour of the exam', async () => {
+    await open()
+    const colour = examColor(0)
+    const icon = row('גבולות').querySelector(`svg.${colour.text}`)
+    expect(icon).not.toBeNull()
+    expect(icon).toHaveClass(colour.text)
   })
 })
 

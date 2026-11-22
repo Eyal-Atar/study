@@ -67,14 +67,10 @@ function setup(fake: FakeApi) {
 
 const sectionButton = () => screen.findByRole('button', { name: new RegExp(`^${t.title}`) })
 
-// An analyzed exam keeps its materials closed: the test opens them like a user would. The summary
-// appears once the files are loaded.
-async function openSection(user: ReturnType<typeof userEvent.setup>) {
+// The materials are open from the start (S34): this waits for the files to be listed.
+async function openSection() {
   await screen.findByText(t.count(1))
-  const button = await sectionButton()
-  expect(button).toHaveAttribute('aria-expanded', 'false')
-  await user.click(button)
-  expect(button).toHaveAttribute('aria-expanded', 'true')
+  expect(await sectionButton()).toHaveAttribute('aria-expanded', 'true')
 }
 
 async function chooseKind(user: ReturnType<typeof userEvent.setup>, label: string) {
@@ -100,17 +96,15 @@ describe('MaterialsSection', () => {
     expect(screen.getAllByRole('heading')).toHaveLength(1)
   })
 
-  it('opens by itself for an exam that was not analyzed, and stays closed for one that was', async () => {
+  it('is open for every exam, analyzed or not, with the files and their number in view', async () => {
     const first = setup(server({ aiTasks: false }))
-    await waitFor(async () => {
-      expect(await sectionButton()).toHaveAttribute('aria-expanded', 'true')
-    })
+    expect(await sectionButton()).toHaveAttribute('aria-expanded', 'true')
     first.unmount()
 
     setup(server({ aiTasks: true }))
     await screen.findByText(t.count(1))
-    expect(await sectionButton()).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByRole('button', { name: new RegExp(t.kindLabel('מבחן 2024.pdf')) })).not.toBeInTheDocument()
+    expect(await sectionButton()).toHaveAttribute('aria-expanded', 'true')
+    expect(await screen.findByRole('button', { name: new RegExp(t.kindLabel('מבחן 2024.pdf')) })).toBeInTheDocument()
   })
 
   it('remembers what the user chose: a section they closed stays closed', async () => {
@@ -132,7 +126,7 @@ describe('MaterialsSection', () => {
   it('a kind change sends PATCH, shows the new kind, and hints at a reanalysis when the exam has AI tasks', async () => {
     const fake = server({ aiTasks: true })
     const { user } = setup(fake)
-    await openSection(user)
+    await openSection()
     await chooseKind(user, kinds.summary)
 
     await waitFor(() => {
@@ -165,8 +159,8 @@ describe('MaterialsSection', () => {
       aiTasks: true,
       materials: () => [material({ ingest_status: file.ready ? 'ready' : 'processing' })],
     })
-    const { user } = setup(fake)
-    await openSection(user)
+    setup(fake)
+    await openSection()
     expect(await screen.findByText(en.onboardingMaterials.processing)).toBeInTheDocument()
     expect(screen.queryByText(t.reanalyzeHint)).not.toBeInTheDocument()
     file.ready = true

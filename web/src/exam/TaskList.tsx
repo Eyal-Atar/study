@@ -4,6 +4,7 @@ import { errorMessage } from '../api/client'
 import { en } from '../i18n/en'
 import type { Block } from '../onboarding/types'
 import { List } from '../ui/List'
+import { TileList } from '../ui/TileList'
 import { SectionHeading } from '../ui/SectionHeading'
 import { EmptyState, ErrorState, LoadingState } from '../ui/states'
 import { useToast } from '../ui/useToast'
@@ -12,10 +13,16 @@ import { useDeleteTask, useExamTasks, useExamTopics } from './api'
 import { useTaskDeleteFeedback } from './placement'
 import { TaskRow } from './TaskRow'
 import { nextBlocks } from './timelineDays'
-import { GapList, TopicHeader } from './TopicList'
+import { GapList, NoTopicTile, TopicTile } from './TopicList'
 import type { ExamTask, Topic } from './types'
 
 const tp = en.exam.topics
+
+// The tasks that were not skipped, and how many of them are done: the count under the name of a tile.
+function countOf(tasks: readonly ExamTask[]) {
+  const counted = tasks.filter((task) => task.status !== 'skipped')
+  return { done: counted.filter((task) => task.status === 'done').length, total: counted.length }
+}
 
 function Group({
   topic,
@@ -27,28 +34,37 @@ function Group({
   render: (task: ExamTask) => React.ReactNode
 }) {
   const headingId = useId()
-  return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-2">
-      {topic === null ? (
-        <h3 id={headingId} className="text-body font-semibold text-ink">
-          {tp.noTopic}
-        </h3>
-      ) : (
-        <TopicHeader topic={topic} headingId={headingId} />
-      )}
-      {tasks.length === 0 ? null : (
-        // The line above the first row closes the head of the group, like the line under each row.
-        <List aria-label={topic === null ? tp.noTopic : topic.name} className="border-t border-line">
-          {tasks.map(render)}
-        </List>
-      )}
-    </section>
+  const list =
+    tasks.length === 0 ? null : (
+      // The line above the first row closes the head of the tile, like the line under each row.
+      <List aria-label={topic === null ? tp.noTopic : topic.name} className="border-t border-line pt-2">
+        {tasks.map(render)}
+      </List>
+    )
+  return topic === null ? (
+    <NoTopicTile headingId={headingId} progress={countOf(tasks)}>
+      {list}
+    </NoTopicTile>
+  ) : (
+    <TopicTile topic={topic} headingId={headingId} progress={countOf(tasks)}>
+      {list}
+    </TopicTile>
   )
 }
 
 // The exam's topics in order, each with its tasks, then the tasks with no topic; the gaps; and
 // "add task". Blocks come from the timeline's query, for "next on the board".
-export function TaskList({ examId, blocks, timeZone }: { examId: string; blocks: readonly Block[]; timeZone: string }) {
+export function TaskList({
+  examId,
+  colorIndex,
+  blocks,
+  timeZone,
+}: {
+  examId: string
+  colorIndex?: number | null | undefined
+  blocks: readonly Block[]
+  timeZone: string
+}) {
   const tasks = useExamTasks(examId)
   const topics = useExamTopics(examId)
   const remove = useDeleteTask()
@@ -89,7 +105,7 @@ export function TaskList({ examId, blocks, timeZone }: { examId: string; blocks:
   const orphan = visible.filter((task) => task.topic_id === null || !known.has(task.topic_id))
 
   const render = (task: ExamTask) => (
-    <TaskRow key={task.id} task={task} topics={topicList} nextBlock={next.get(task.id)} timeZone={timeZone} onDelete={onDelete} />
+    <TaskRow key={task.id} task={task} colorIndex={colorIndex} topics={topicList} nextBlock={next.get(task.id)} timeZone={timeZone} onDelete={onDelete} />
   )
 
   let body: React.ReactNode
@@ -115,12 +131,12 @@ export function TaskList({ examId, blocks, timeZone }: { examId: string; blocks:
   else if (visible.length === 0 && topicList.length === 0) body = <EmptyState icon={ListChecks} title={tp.empty} description={tp.emptyHint} />
   else
     body = (
-      <div className="flex flex-col gap-6">
+      <TileList aria-label={tp.title}>
         {topicList.map((topic) => (
           <Group key={topic.id} topic={topic} tasks={visible.filter((task) => task.topic_id === topic.id)} render={render} />
         ))}
         {orphan.length === 0 ? null : <Group topic={null} tasks={orphan} render={render} />}
-      </div>
+      </TileList>
     )
 
   return (

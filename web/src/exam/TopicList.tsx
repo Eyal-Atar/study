@@ -1,5 +1,5 @@
-import { Pencil } from '../ui/icons'
-import { useEffect, useRef, useState } from 'react'
+import { ChevronDown, ChevronUp, Pencil } from '../ui/icons'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Form } from 'react-aria-components'
 import { errorMessage } from '../api/client'
 import { en } from '../i18n/en'
@@ -11,6 +11,7 @@ import { List } from '../ui/List'
 import { RadioCards } from '../ui/RadioCards'
 import { ICON_STROKE } from '../ui/styles'
 import { TextField } from '../ui/TextField'
+import { TileRow } from '../ui/TileList'
 import { useToast } from '../ui/useToast'
 import { UserText } from '../ui/UserText'
 import { useUpdateTopic } from './api'
@@ -21,18 +22,15 @@ const tp = en.exam.topics
 const NAME_MAX = 120
 const WEIGHT_OPTIONS = [1, 2, 3, 4, 5].map((w) => ({ value: String(w), label: String(w) }))
 
-// 1–5 filled dots, and the same thing in words beside them: the dots alone would carry the weight
-// by colour only.
+// Five dots, the first `weight` of them filled: a picture that is named in words, so the weight
+// is not carried by colour alone ("Importance 4 of 5").
 function Weight({ weight }: { weight: number }) {
   return (
-    <p className="flex items-center gap-2 text-small text-ink-muted">
-      <span aria-hidden="true" className="flex gap-0.5">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <span key={n} className={`size-2 rounded-full ${n <= weight ? 'bg-brand' : 'bg-line-strong'}`} />
-        ))}
-      </span>
-      <span className="tabular-nums">{tp.weight(weight)}</span>
-    </p>
+    <span role="img" aria-label={tp.weight(weight)} className="flex shrink-0 gap-0.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <span key={n} className={`size-2 rounded-full ${n <= weight ? 'bg-brand' : 'bg-line-strong'}`} />
+      ))}
+    </span>
   )
 }
 
@@ -107,12 +105,28 @@ function TopicForm({ topic, onDone }: { topic: Topic; onDone: () => void }) {
   )
 }
 
-// The head of a topic group: name, weight and evidence, with "Edit" for name and weight.
-export function TopicHeader({ topic, headingId }: { topic: Topic; headingId: string }) {
+const chevron = { 'aria-hidden': true as const, size: 18, strokeWidth: ICON_STROKE }
+
+// A topic as a tile of its own (S34 decision 10): its name, its five dots, a fold button, and under
+// the name how many of its tasks are done; the tasks are the body of the tile. "Edit" opens the form
+// of name and weight in place of the tile. The tile starts open, and the choice to fold it is the
+// user's. `progress` is { done, total } of the tasks that were not skipped.
+export function TopicTile({
+  topic,
+  headingId,
+  progress,
+  children,
+}: {
+  topic: Topic
+  headingId: string
+  progress: { done: number; total: number }
+  children: ReactNode
+}) {
   const [editing, setEditing] = useState(false)
+  const [open, setOpen] = useState(true)
   // ui/IconButton takes no ref, so the ref is on the head and the button is found inside it.
   const head = useRef<HTMLDivElement>(null)
-  // The form replaces the head; when it closes, the keyboard goes back to the pencil.
+  // The form replaces the tile; when it closes, the keyboard goes back to the pencil.
   const returnFocus = useRef(false)
 
   useEffect(() => {
@@ -123,37 +137,78 @@ export function TopicHeader({ topic, headingId }: { topic: Topic; headingId: str
 
   if (editing) {
     return (
-      <TopicForm
-        topic={topic}
-        onDone={() => {
-          returnFocus.current = true
-          setEditing(false)
-        }}
-      />
+      <li className="mt-2 first:mt-0">
+        <TopicForm
+          topic={topic}
+          onDone={() => {
+            returnFocus.current = true
+            setEditing(false)
+          }}
+        />
+      </li>
     )
   }
+  const FoldChevron = open ? ChevronUp : ChevronDown
   return (
-    <div className="flex flex-col">
-      <div ref={head} className="flex items-start gap-2">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <h3 id={headingId} className="text-body font-semibold break-words text-ink">
+    <TileRow
+      title={
+        <div ref={head} className="flex items-center gap-2">
+          <h3 id={headingId} className="min-w-0 flex-1 text-body font-semibold break-words text-ink">
             <UserText>{topic.name}</UserText>
           </h3>
           <Weight weight={topic.weight} />
+          <IconButton
+            aria-label={tp.editNamed(topic.name)}
+            onPress={() => {
+              setEditing(true)
+            }}
+          >
+            <Pencil aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+          </IconButton>
+          <IconButton
+            aria-label={open ? en.exams.exam.topic.collapse(topic.name) : en.exams.exam.topic.expand(topic.name)}
+            aria-expanded={open}
+            onPress={() => {
+              setOpen((was) => !was)
+            }}
+          >
+            <FoldChevron {...chevron} className="text-ink-muted" />
+          </IconButton>
         </div>
-        <IconButton
-          aria-label={tp.editNamed(topic.name)}
-          onPress={() => {
-            setEditing(true)
-          }}
-        >
-          <Pencil aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-        </IconButton>
-      </div>
-      {topic.evidence === null || topic.evidence === '' ? null : <Disclosure label={tp.evidence}>
-          <UserText prose>{topic.evidence}</UserText>
-        </Disclosure>}
-    </div>
+      }
+      subtitle={<span className="tabular-nums">{progressText(progress)}</span>}
+      footer={
+        open ? (
+          <div className="flex flex-col gap-2">
+            {topic.evidence === null || topic.evidence === '' ? null : (
+              <Disclosure label={tp.evidence}>
+                <UserText prose>{topic.evidence}</UserText>
+              </Disclosure>
+            )}
+            {children}
+          </div>
+        ) : undefined
+      }
+    />
+  )
+}
+
+function progressText({ done, total }: { done: number; total: number }): string {
+  return total === 0 ? en.exams.exam.topic.noTasks : en.exams.exam.topic.progress(done, total)
+}
+
+// The tasks that have no topic: a tile with the same shape and no dots or edit.
+export function NoTopicTile({ headingId, progress, children }: { headingId: string; progress: { done: number; total: number }; children: ReactNode }) {
+  return (
+    <TileRow
+      title={
+        <h3 id={headingId} className="text-body font-semibold break-words text-ink">
+          {tp.noTopic}
+        </h3>
+      }
+      subtitle={<span className="tabular-nums">{progressText(progress)}</span>}
+      footer={children}
+    />
   )
 }
 

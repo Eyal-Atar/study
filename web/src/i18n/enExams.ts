@@ -20,4 +20,22 @@ export const enExams = {
     rowDetail: (date: string, progress: string) => `${date}. ${progress}`,
     progressLabel: (name: string) => `Progress: ${isolate(name)}`,
   },
+  // The exam screen (S34 Task 18): the progress of the plan, the topic tiles, the practice exam.
+  exam: {
+    timeline: {
+      progress: (percent: number) => `${String(percent)}% done`,
+    },
+    topic: {
+      // '1 of 3 tasks done'
+      progress: (done: number, total: number) => `${String(done)} of ${String(total)} ${total === 1 ? 'task' : 'tasks'} done`,
+      noTasks: 'No tasks yet',
+      collapse: (name: string) => `Collapse: ${isolate(name)}`,
+      expand: (name: string) => `Expand: ${isolate(name)}`,
+    },
+    practice: {
+      create: 'Create a practice exam',
+      // S30 builds it; until then the button is off and says so.
+      soon: 'Coming soon',
+    },
+  },
 } as const

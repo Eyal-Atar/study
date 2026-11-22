@@ -1,15 +1,16 @@
-import { CircleSlash, Ellipsis, Info, Pencil, RotateCcw, Trash2 } from '../ui/icons'
+import { CircleSlash, Ellipsis, Info, KIND_ICON, Pencil, RotateCcw, Trash2 } from '../ui/icons'
 import { useEffect, useRef, useState } from 'react'
 import { errorMessage } from '../api/client'
 import { en } from '../i18n/en'
 import type { Block } from '../onboarding/types'
+import { examColor } from '../ui/examColor'
 import { Badge } from '../ui/Badge'
 import { CheckButton } from '../ui/CheckButton'
 import { IconButton } from '../ui/IconButton'
 import { ListRow } from '../ui/List'
 import { Menu, MenuItem } from '../ui/Menu'
 import { Note } from '../ui/Note'
-import { ICON_STROKE } from '../ui/styles'
+import { cx, ICON_STROKE } from '../ui/styles'
 import { useToast } from '../ui/useToast'
 import { UserText } from '../ui/UserText'
 import { useUpdateTask } from './api'
@@ -25,17 +26,26 @@ function kindLabel(kind: string): string {
   return Object.hasOwn(t.kinds, kind) ? t.kinds[kind as keyof typeof t.kinds] : kind
 }
 
+// The icon of the kind of a task, in the colour of its exam (an unknown kind gets the plain task icon).
+function KindIcon({ kind, colorIndex }: { kind: string; colorIndex: number | null | undefined }) {
+  const Icon = Object.hasOwn(KIND_ICON, kind) ? KIND_ICON[kind as keyof typeof KIND_ICON] : KIND_ICON.custom
+  return <Icon size={18} strokeWidth={ICON_STROKE} className={cx('shrink-0', examColor(colorIndex).text)} />
+}
+
 // One task, as a row: its name, one line of details, why it is there, the check button and a menu
 // with the rest of the actions (design language 5.2). "Edit" turns the row into a form; nothing is
 // sent before "Save", and only the changed fields.
 export function TaskRow({
   task,
+  colorIndex,
   topics,
   nextBlock,
   timeZone,
   onDelete,
 }: {
   task: ExamTask
+  // The colour of the exam, for the icon of the task's kind.
+  colorIndex?: number | null | undefined
   topics: readonly Topic[]
   nextBlock: Block | undefined
   timeZone: string
@@ -109,6 +119,7 @@ export function TaskRow({
   const hasReason = task.reason !== null && task.reason !== ''
   return (
     <ListRow
+      leading={<KindIcon kind={task.kind} colorIndex={colorIndex} />}
       title={<UserText>{task.title}</UserText>}
       done={finished}
       subtitle={

@@ -10,7 +10,11 @@ const NAME = 'חדו"א 1 (מועד א)'
 const ISOLATED = `${FSI}${NAME}${PDI}`
 
 describe('enExams: the texts that carry an exam name', () => {
-  const NAMED: [string, string][] = [['list.progressLabel', enExams.list.progressLabel(NAME)]]
+  const NAMED: [string, string][] = [
+    ['list.progressLabel', enExams.list.progressLabel(NAME)],
+    ['exam.topic.collapse', enExams.exam.topic.collapse(NAME)],
+    ['exam.topic.expand', enExams.exam.topic.expand(NAME)],
+  ]
 
   it.each(NAMED)('%s isolates the name exactly once', (_path, text) => {
     expect(text).toContain(ISOLATED)
@@ -37,5 +41,19 @@ describe('enExams: the list', () => {
   it('joins the date and the progress', () => {
     expect(enExams.list.rowDetail('16 December 2026', enExams.list.progress(42))).toBe('16 December 2026. 42% of the plan done')
     expect(enExams.list.noTasks).toBe('No tasks yet')
+  })
+})
+
+describe('enExams: the exam screen', () => {
+  it('says the progress of the plan and of a topic', () => {
+    expect(enExams.exam.timeline.progress(42)).toBe('42% done')
+    expect(enExams.exam.topic.progress(1, 3)).toBe('1 of 3 tasks done')
+    expect(enExams.exam.topic.progress(1, 1)).toBe('1 of 1 task done')
+    expect(enExams.exam.topic.noTasks).toBe('No tasks yet')
+  })
+
+  it('the practice exam is named and not available yet', () => {
+    expect(enExams.exam.practice.create).toBe('Create a practice exam')
+    expect(enExams.exam.practice.soon).toBe('Coming soon')
   })
 })

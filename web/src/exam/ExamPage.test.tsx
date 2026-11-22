@@ -2,10 +2,11 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { en } from '../i18n/en'
+import { examColor } from '../ui/examColor'
 import { COMPLETED_AT, examFixture, meFixture } from '../test/onboardingFixtures'
 import { addDays, dayMonth, longDate, weekdayShort } from './dates'
 import { problem } from '../test/fakeApi'
-import { EXAM, TODAY, blockFixture, examServer, openRoute } from '../test/examFixtures'
+import { EXAM, TODAY, blockFixture, examServer, openRoute, taskFixture } from '../test/examFixtures'
 
 const t = en.exam
 const f = en.onboardingExams
@@ -107,15 +108,49 @@ describe('ExamPage', () => {
     expect(line).toHaveTextContent(
       `${longDate(EXAM.exam_date)}, ${t.inDays(5)}. ${f.difficultyOf(f.difficultyLevels[EXAM.difficulty - 1] ?? '')}`,
     )
-    expect(screen.getByRole('button', { name: t.header.editNamed })).toHaveTextContent(t.header.edit)
+    // An icon button named for what it opens, as in the prototype.
+    expect(screen.getByRole('button', { name: t.header.editLabel })).toHaveTextContent('')
+  })
+
+  it('the initial beside the name is in the colour of the exam, and the name is the only h1', async () => {
+    const { container } = openRoute(examServer(), '/exams/e1')
+    const heading = await screen.findByRole('heading', { level: 1, name: EXAM.name })
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    const colour = examColor(EXAM.color_index)
+    const initial = container.querySelector(`span[aria-hidden="true"].${colour.soft}.${colour.text}`)
+    expect(initial).toHaveTextContent('ח')
+    expect(initial).toHaveClass('size-[44px]')
+    expect(heading).not.toContainElement(initial as HTMLElement)
+  })
+
+  it('the plan card says how much is done, from the minutes of the tasks', async () => {
+    openRoute(
+      examServer({
+        tasks: [
+          taskFixture({ id: 't1', estimated_minutes: 60, status: 'done' }),
+          taskFixture({ id: 't2', estimated_minutes: 60 }),
+          taskFixture({ id: 't3', estimated_minutes: 600, status: 'skipped' }),
+        ],
+      }),
+      '/exams/e1',
+    )
+    expect(await screen.findByText(en.exams.exam.timeline.progress(50))).toBeInTheDocument()
+  })
+
+  it('the practice exam is a disabled button that says it is coming soon', async () => {
+    openRoute(examServer(), '/exams/e1')
+    const button = await screen.findByRole('button', { name: new RegExp(en.exams.exam.practice.create) })
+    expect(button).toBeDisabled()
+    expect(button).toHaveAccessibleDescription(en.exams.exam.practice.soon)
+    expect(button.querySelector('svg')).not.toBeNull()
   })
 
   it('while editing the h1 stays, the edit button goes, and the form opens under the title', async () => {
     const user = userEvent.setup()
     openRoute(examServer(), '/exams/e1')
-    await user.click(await screen.findByRole('button', { name: t.header.editNamed }))
+    await user.click(await screen.findByRole('button', { name: t.header.editLabel }))
     expect(screen.getByRole('heading', { level: 1, name: EXAM.name })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: t.header.editNamed })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: t.header.editLabel })).not.toBeInTheDocument()
     expect(screen.getByRole('form', { name: t.header.editLabel })).toBeInTheDocument()
   })
 
@@ -133,7 +168,7 @@ describe('ExamPage', () => {
       plan_affected: true,
     })
     openRoute(fake, '/exams/e1')
-    await user.click(await screen.findByRole('button', { name: t.header.editNamed }))
+    await user.click(await screen.findByRole('button', { name: t.header.editLabel }))
     expect(screen.getByRole('textbox', { name: f.name })).toHaveValue(EXAM.name)
     await user.click(screen.getByRole('radio', { name: f.difficultyLevels[4] }))
     await user.click(screen.getByRole('button', { name: en.common.save }))
@@ -151,9 +186,9 @@ describe('ExamPage', () => {
     const user = userEvent.setup()
     const fake = examServer()
     openRoute(fake, '/exams/e1')
-    await user.click(await screen.findByRole('button', { name: t.header.editNamed }))
+    await user.click(await screen.findByRole('button', { name: t.header.editLabel }))
     await user.click(screen.getByRole('button', { name: en.common.save }))
-    expect(await screen.findByRole('button', { name: t.header.editNamed })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: t.header.editLabel })).toBeInTheDocument()
     expect(fake.calls('PATCH')).toHaveLength(0)
   })
 
@@ -161,7 +196,7 @@ describe('ExamPage', () => {
     const user = userEvent.setup()
     const fake = examServer()
     openRoute(fake, '/exams/e1')
-    await user.click(await screen.findByRole('button', { name: t.header.editNamed }))
+    await user.click(await screen.findByRole('button', { name: t.header.editLabel }))
     await user.clear(screen.getByRole('textbox', { name: f.name }))
     await user.click(screen.getByRole('button', { name: en.common.cancel }))
     expect(screen.getByRole('heading', { level: 1, name: EXAM.name })).toBeInTheDocument()

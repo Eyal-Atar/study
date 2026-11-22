@@ -22,10 +22,9 @@ export interface MaterialsSectionProps {
 // analysis (plan decision 8), so an exam that already has AI tasks gets a hint to reanalyze. An exam
 // without them shows "Build a plan for this exam" below, which reads the files anyway.
 //
-// The section is collapsible (S28 decision 2): for an exam that already has a plan the files are
-// secondary, so it is closed, with the number of files in its heading. For an exam that was not
-// analyzed yet the files are the next thing to do, so it is open. Once the user opens or closes
-// it, their choice stays.
+// The section is collapsible but open from the start, for every exam (S34): the files and their
+// number are part of the screen, as in the prototype. Once the user closes or opens it, their
+// choice stays.
 export function MaterialsSection({ examId }: MaterialsSectionProps) {
   const exams = useExams()
   const tasks = useExamTasks(examId)
@@ -35,9 +34,7 @@ export function MaterialsSection({ examId }: MaterialsSectionProps) {
   const [changed, setChanged] = useState(false)
   const analyzed = tasks.isSuccess && hasAiTasks(tasks.data)
   const [userChoice, setUserChoice] = useState<boolean | null>(null)
-  // Closed until the tasks say whether the exam was analyzed: an analyzed exam (the common case)
-  // then never opens and shuts by itself.
-  const isExpanded = userChoice ?? (!tasks.isPending && !analyzed)
+  const isExpanded = userChoice ?? true
   // The files on screen, uploads on their way included, as ExamMaterials reports them.
   const [count, setCount] = useState(0)
   const onCountChange = useCallback((_examId: string, files: number) => {

@@ -3,7 +3,7 @@ import { useId } from 'react'
 import { errorMessage, type ApiError } from '../api/client'
 import { en } from '../i18n/en'
 import type { Block } from '../onboarding/types'
-import { SectionHeading } from '../ui/SectionHeading'
+import { examColor } from '../ui/examColor'
 import { ErrorState } from '../ui/states'
 import { cx, ICON_STROKE } from '../ui/styles'
 import { addDays, dayMonth, weekdayShort } from './dates'
@@ -16,10 +16,10 @@ const BAR_MAX_PX = 72
 // The shortest bar: its outline alone takes 2px, and the done part has to show inside it.
 const BAR_MIN_PX = 8
 
-// A planned day is an outline on white, and the part that was done fills it from the bottom in
-// green: the same language as the check circle of a task (empty = not yet, green = done). Both
-// have 3:1 against the surface, which the old brand-soft fill did not.
-const PLANNED = 'border border-line-strong bg-surface'
+// A planned day is a bar in the soft colour of the exam with its line, and the part that was done
+// fills it from the bottom in green: green is "done" everywhere, the exam's colour is "planned for
+// this exam". The green is bg-success (the brand-strong green); there is no brand-ink fill.
+const PLANNED_BASE = 'border'
 const DONE = 'bg-success'
 
 interface DayInfo {
@@ -40,7 +40,8 @@ function dayLabel(info: DayInfo): string {
   return `${t.day(weekdayShort(info.day), dayMonth(info.day))}: ${parts.join(', ')}`
 }
 
-function Day({ info, max }: { info: DayInfo; max: number }) {
+function Day({ info, max, colour }: { info: DayInfo; max: number; colour: ReturnType<typeof examColor> }) {
+  const planned = cx(PLANNED_BASE, colour.soft, colour.line)
   const plannedPx = info.planned === 0 ? 0 : Math.max(BAR_MIN_PX, Math.round((info.planned / max) * BAR_MAX_PX))
   const donePx = info.planned === 0 ? 0 : Math.round((info.done / info.planned) * plannedPx)
   return (
@@ -56,13 +57,13 @@ function Day({ info, max }: { info: DayInfo; max: number }) {
       <span aria-hidden="true" className="flex w-full items-end justify-center" style={{ height: BAR_MAX_PX }}>
         {info.isExam ? (
           // An icon and no words: "Exam day" does not fit a narrow column, and used to wrap.
-          <Flag aria-hidden="true" data-mark="exam" size={18} strokeWidth={ICON_STROKE} className="text-brand-strong" />
+          <Flag aria-hidden="true" data-mark="exam" size={18} strokeWidth={ICON_STROKE} className={colour.text} />
         ) : info.isRest ? (
           <span data-mark="rest" className="text-ink-muted">
             <TeaCupIcon size={18} />
           </span>
         ) : plannedPx > 0 ? (
-          <span data-mark="planned" className={cx('flex w-5 flex-col justify-end overflow-hidden rounded-badge', PLANNED)} style={{ height: plannedPx }}>
+          <span data-mark="planned" className={cx('flex w-5 flex-col justify-end overflow-hidden rounded-badge', planned)} style={{ height: plannedPx }}>
             {donePx > 0 ? <span data-mark="done" className={cx('w-full', DONE)} style={{ height: donePx }} /> : null}
           </span>
         ) : (
@@ -78,12 +79,12 @@ function Day({ info, max }: { info: DayInfo; max: number }) {
 
 // The four signs of the chart, with their words. Hidden from screen readers: every day carries
 // its full label.
-function Legend() {
+function Legend({ colour }: { colour: ReturnType<typeof examColor> }) {
   const item = 'flex items-center gap-1'
   return (
     <span aria-hidden="true" data-legend="" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-small text-ink-muted">
       <span className={item}>
-        <span className={cx('size-3 rounded-badge', PLANNED)} />
+        <span className={cx('size-3 rounded-badge', PLANNED_BASE, colour.soft, colour.line)} />
         {t.legendPlanned}
       </span>
       <span className={item}>
@@ -95,7 +96,7 @@ function Legend() {
         {t.legendRest}
       </span>
       <span className={item}>
-        <Flag aria-hidden="true" size={14} strokeWidth={ICON_STROKE} className="text-brand-strong" />
+        <Flag aria-hidden="true" size={14} strokeWidth={ICON_STROKE} className={colour.text} />
         {t.legendExam}
       </span>
     </span>
@@ -107,6 +108,8 @@ function Legend() {
 // days are in date order in the DOM, so in LTR today is at the left, where the scroll starts.
 export function Timeline({
   examId,
+  colorIndex,
+  percent,
   examDate,
   today,
   restDays,
@@ -116,6 +119,9 @@ export function Timeline({
   onRetry,
 }: {
   examId: string
+  // The colour of the exam (planned days, the flag), and how much of its plan is done, in percent.
+  colorIndex?: number | null | undefined
+  percent?: number | undefined
   examDate: string
   today: string
   restDays: number
@@ -125,6 +131,7 @@ export function Timeline({
   onRetry: () => void
 }) {
   const titleId = useId()
+  const colour = examColor(colorIndex)
   const minutes = minutesByDay(blocks, examId)
   const firstRest = addDays(examDate, -restDays)
   const days: DayInfo[] = range.days.map((day) => {
@@ -141,23 +148,28 @@ export function Timeline({
   const max = Math.max(1, ...days.map((d) => d.planned))
 
   return (
-    <section aria-labelledby={titleId} className="flex min-w-0 flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-        <SectionHeading id={titleId}>{t.title}</SectionHeading>
-        {days.length === 0 ? null : <Legend />}
+    <section aria-labelledby={titleId} className="flex min-w-0 flex-col gap-3 rounded-card border border-line bg-surface p-card">
+      <div className="flex items-baseline justify-between gap-x-4">
+        <h2 id={titleId} className="text-body font-semibold text-ink">
+          {t.title}
+        </h2>
+        {percent === undefined ? null : (
+          <span className="text-small text-ink-muted tabular-nums">{en.exams.exam.timeline.progress(percent)}</span>
+        )}
       </div>
       {error === null ? null : <ErrorState message={errorMessage(error)} onRetry={onRetry} />}
       {days.length === 0 ? (
         <p className="text-body text-ink-muted">{t.noDays}</p>
       ) : (
-        <div className="overflow-x-auto rounded-card border border-line bg-surface px-2 py-1">
+        <div className="overflow-x-auto">
           <ol aria-label={t.listLabel} className="flex">
             {days.map((info) => (
-              <Day key={info.day} info={info} max={max} />
+              <Day key={info.day} info={info} max={max} colour={colour} />
             ))}
           </ol>
         </div>
       )}
+      {days.length === 0 ? null : <Legend colour={colour} />}
       {range.far ? <p className="text-small text-ink-muted">{t.farNote}</p> : null}
     </section>
   )

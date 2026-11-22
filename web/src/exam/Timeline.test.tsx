@@ -2,12 +2,14 @@ import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/client'
 import { en } from '../i18n/en'
+import { examColor } from '../ui/examColor'
 import { addDays, dayMonth, weekdayShort } from './dates'
 import { blockFixture, TODAY } from '../test/examFixtures'
 import { Timeline } from './Timeline'
 import { timelineRange } from './timelineDays'
 
 const t = en.exam.timeline
+const COLOR = examColor(1)
 const EXAM_DATE = addDays(TODAY, 5)
 
 function dayName(day: string) {
@@ -19,6 +21,8 @@ function show(overrides: Partial<Parameters<typeof Timeline>[0]> = {}) {
   render(
     <Timeline
       examId="e1"
+      colorIndex={1}
+      percent={42}
       examDate={EXAM_DATE}
       today={TODAY}
       restDays={1}
@@ -58,11 +62,11 @@ describe('Timeline', () => {
     expect(screen.getByRole('heading', { level: 2, name: t.title })).toBeInTheDocument()
   })
 
-  it('a planned day is an outlined bar, and the done part fills it in green from the bottom', () => {
+  it('a planned day is a bar in the soft colour of the exam with its line, and the done part fills it in green from the bottom', () => {
     show()
     const today = dayItem(TODAY)
     const planned = today.querySelector('[data-mark="planned"]')
-    expect(planned).toHaveClass('border', 'border-line-strong', 'bg-surface', 'justify-end')
+    expect(planned).toHaveClass('border', COLOR.soft, COLOR.line, 'justify-end')
     const done = planned?.querySelector('[data-mark="done"]')
     expect(done).toHaveClass('bg-success')
     // 45 of 90 minutes: half of the bar.
@@ -84,7 +88,7 @@ describe('Timeline', () => {
     expect(within(dayItem(TODAY)).getByText(t.today)).toHaveClass('font-semibold', 'text-brand-strong')
 
     const exam = dayItem(EXAM_DATE)
-    expect(exam.querySelector('svg[data-mark="exam"]')).toHaveClass('text-brand-strong')
+    expect(exam.querySelector('svg[data-mark="exam"]')).toHaveClass(COLOR.text)
     expect(exam).not.toHaveTextContent(t.examDay)
     // Only the two short labels, each on one line.
     expect(exam.textContent).toBe(`${weekdayShort(EXAM_DATE)}${dayMonth(EXAM_DATE)}`)
@@ -98,7 +102,7 @@ describe('Timeline', () => {
 
   it('the legend lists the four signs with their words, hidden from screen readers', () => {
     const { container } = render(
-      <Timeline examId="e1" examDate={EXAM_DATE} today={TODAY} restDays={0} range={timelineRange(TODAY, EXAM_DATE)} blocks={[]} error={null} onRetry={vi.fn()} />,
+      <Timeline examId="e1" colorIndex={1} examDate={EXAM_DATE} today={TODAY} restDays={0} range={timelineRange(TODAY, EXAM_DATE)} blocks={[]} error={null} onRetry={vi.fn()} />,
     )
     const legend = container.querySelector('[data-legend]')
     expect(legend).toHaveAttribute('aria-hidden', 'true')
@@ -110,14 +114,22 @@ describe('Timeline', () => {
     ])
     // Each word has its sign beside it: two swatches and two icons.
     expect(legend?.querySelectorAll('svg')).toHaveLength(2)
-    expect(legend?.querySelector('.border-line-strong')).not.toBeNull()
+    expect(legend?.querySelector(`.${COLOR.line}`)).not.toBeNull()
     expect(legend?.querySelector('.bg-success')).not.toBeNull()
   })
 
   it('the chart scrolls inside its own box, never the page', () => {
     show()
     const box = screen.getByRole('list', { name: t.listLabel }).parentElement
-    expect(box).toHaveClass('overflow-x-auto', 'rounded-card', 'border', 'border-line', 'bg-surface')
+    expect(box).toHaveClass('overflow-x-auto')
+    // The card around it is the surface, so only the chart scrolls.
+    expect(screen.getByRole('region', { name: t.title })).toHaveClass('rounded-card', 'border', 'border-line', 'bg-surface')
+  })
+
+  it('the card says how much of the plan is done, beside its heading', () => {
+    show()
+    expect(screen.getByText(en.exams.exam.timeline.progress(42))).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: t.title })).getByRole('heading', { level: 2, name: t.title })).toBeInTheDocument()
   })
 
   it('in LTR today is the first day in the row, so the box opens on it at the left', () => {

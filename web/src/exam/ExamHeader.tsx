@@ -7,6 +7,8 @@ import type { Exam } from '../onboarding/types'
 import { useReplanOffer } from '../plan/replanOfferContext'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
+import { ExamInitial } from '../ui/ExamMark'
+import { IconButton } from '../ui/IconButton'
 import { PageHeader } from '../ui/PageHeader'
 import { ICON_STROKE } from '../ui/styles'
 import { useToast } from '../ui/useToast'
@@ -90,31 +92,33 @@ export function ExamHeader({ exam, today }: { exam: Exam; today: string }) {
   const difficulty = f.difficultyLevels[exam.difficulty - 1] ?? String(exam.difficulty)
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader
-        title={exam.name}
-        userTitle
-        subtitle={
-          <>
-            {t.header.dateThen(longDate(exam.exam_date))}
-            <span className="font-semibold text-ink">{t.inDays(daysBetween(today, exam.exam_date))}</span>
-            {t.header.thenDifficulty(f.difficultyOf(difficulty))}
-          </>
-        }
-        action={
-          editing ? null : (
-            <Button
-              variant="secondary"
-              aria-label={t.header.editNamed}
-              onPress={() => {
-                setEditing(true)
-              }}
-            >
-              <Pencil aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-              {t.header.edit}
-            </Button>
-          )
-        }
-      />
+      <div className="flex items-center gap-3">
+        <ExamInitial name={exam.name} colorIndex={exam.color_index} size="lg" />
+        <div className="min-w-0 flex-1">
+          <PageHeader
+            title={exam.name}
+            userTitle
+            subtitle={
+              <>
+                {t.header.dateThen(longDate(exam.exam_date))}
+                <span className="font-semibold text-ink">{t.inDays(daysBetween(today, exam.exam_date))}</span>
+                {t.header.thenDifficulty(f.difficultyOf(difficulty))}
+              </>
+            }
+          />
+        </div>
+        {editing ? null : (
+          <IconButton
+            variant="secondary"
+            aria-label={t.header.editLabel}
+            onPress={() => {
+              setEditing(true)
+            }}
+          >
+            <Pencil aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+          </IconButton>
+        )}
+      </div>
       {editing ? (
         <EditForm
           exam={exam}

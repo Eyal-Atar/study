@@ -8,11 +8,13 @@ import { useExams } from '../onboarding/api'
 import { PageHeader } from '../ui/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '../ui/states'
 import { ICON_STROKE } from '../ui/styles'
-import { TextLink } from '../ui/TextLink'
+import { ButtonLink } from '../ui/ButtonLink'
 import { AnalysisSection } from './AnalysisSection'
-import { useExamPlan, useToday } from './api'
+import { useExamPlan, useExamTasks, useToday } from './api'
+import { examProgress } from './examProgress'
 import { ExamHeader } from './ExamHeader'
 import { MaterialsSection } from './MaterialsSection'
+import { PracticeExamButton } from './PracticeExamButton'
 import { TaskList } from './TaskList'
 import { Timeline } from './Timeline'
 import { timelineRange } from './timelineDays'
@@ -22,10 +24,11 @@ const t = en.exam
 // In LTR "back" points left.
 function BackLink() {
   return (
-    <TextLink to="/exams" className="inline-flex min-h-touch items-center gap-1 self-start text-small">
-      <ChevronLeft aria-hidden="true" size={14} strokeWidth={ICON_STROKE} />
+    // The negative margin lines the arrow up with the edge of the page, as the quiet button of the prototype does.
+    <ButtonLink to="/exams" variant="quiet" className="gap-1 self-start -ms-2.5">
+      <ChevronLeft aria-hidden="true" size={17} strokeWidth={ICON_STROKE} />
       {t.backToList}
-    </TextLink>
+    </ButtonLink>
   )
 }
 
@@ -55,6 +58,8 @@ export function ExamPage() {
   const exam = exams.data?.find((e) => e.id === examId)
   const range = timelineRange(studyDay, exam?.exam_date ?? studyDay)
   const plan = useExamPlan(examId, exam === undefined ? null : range.query)
+  // The same query as the task list: one request, and the same minutes (S34 decision 11).
+  const tasks = useExamTasks(examId)
 
   if (exams.isPending) {
     return (
@@ -92,6 +97,8 @@ export function ExamPage() {
       </div>
       <Timeline
         examId={exam.id}
+        colorIndex={exam.color_index}
+        percent={tasks.isSuccess ? examProgress(tasks.data).percent : undefined}
         examDate={exam.exam_date}
         today={studyDay}
         restDays={me.data?.rest_days_before_exam ?? 0}
@@ -102,12 +109,13 @@ export function ExamPage() {
           void plan.refetch()
         }}
       />
-      <TaskList examId={exam.id} blocks={plan.data?.blocks ?? []} timeZone={timeZone} />
+      <TaskList examId={exam.id} colorIndex={exam.color_index} blocks={plan.data?.blocks ?? []} timeZone={timeZone} />
       {/* The two folding sections sit together: each draws its own line above, and this closes the last. */}
       <div className="border-b border-line">
         <MaterialsSection examId={exam.id} />
         <AnalysisSection examId={exam.id} />
       </div>
+      <PracticeExamButton />
     </div>
   )
 }
