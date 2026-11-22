@@ -61,7 +61,7 @@ Archi הוא מלווה לימודים רגוע: דמות אחת, שמדברת �
 |---|---|---|
 | Calendar | הלוח של המשתמש, מסך הבית | board, schedule |
 | Timetable | מערכת השעות של המוסד, שהמשתמש מצלם כדי למלא זמן תפוס (S35) | schedule, calendar |
-| Commitment | זמן תפוס שחוזר כל שבוע (עבודה, שיעור) | recurring event |
+| Commitment | שם בקוד בלבד לזמן תפוס שחוזר כל שבוע (עבודה, שיעור). בטקסט למשתמש כותבים Busy time | commitment, recurring event |
 | Event | זמן תפוס חד-פעמי | appointment |
 | Exam | מבחן | test, course |
 | Task | יחידת עבודה של מבחן | item, to-do |
