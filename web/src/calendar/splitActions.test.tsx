@@ -126,6 +126,29 @@ describe('useSplitActions split', () => {
     expect(queryClient.getQueryData<SplitOffers>(splitOffersKey(USER_ID))?.offers).toEqual([])
   })
 
+  // S44 final review, M1: the answer holds the task's live blocks, also one that has started and
+  // not ended; the split leaves it. The toast names the first part of the offer, not that block.
+  it('names the first part even when the answer has an earlier planned block that is running', async () => {
+    const running = makeBlock({ id: 'run', starts_at: '2026-11-24T09:00:00Z', ends_at: '2026-11-24T10:00:00Z', study_date: '2026-11-24' })
+    const { queryClient } = setup({ split: result({ blocks: [running, ...result().blocks] }) })
+    await ready()
+    queryClient.setQueryData(todayKey(USER_ID), makeToday())
+    act(() => {
+      actions.split(OFFER)
+    })
+    expect(await screen.findByText(DONE_3)).toBeInTheDocument()
+  })
+
+  it('takes the study day of the first part from the offer when the answer has no block at its start', async () => {
+    const { queryClient } = setup({ split: result({ blocks: [] }) })
+    await ready()
+    queryClient.setQueryData(todayKey(USER_ID), makeToday())
+    act(() => {
+      actions.split(OFFER)
+    })
+    expect(await screen.findByText(DONE_3)).toBeInTheDocument()
+  })
+
   it('counts the parts of the offer: two parts say 2', async () => {
     const two = makeSplitOffer({ parts: OFFER.parts.slice(0, 2), split_minutes: 60 })
     const { queryClient } = setup({ offers: { offers: [two] } })
@@ -311,6 +334,32 @@ describe('useSplitActions dismiss', () => {
       expect(screen.getByTestId('offers')).toHaveTextContent(OFFER.task_id)
     })
     expect(await screen.findByText(errorMessage(problem(500, 'internal')))).toBeInTheDocument()
+  })
+
+  // S44 final review, M2: only the dismissed offer comes back, not the whole answer from before.
+  it('a failed "Not now" puts back only its own offer, first', async () => {
+    const other = makeSplitOffer({ task_id: 'task-2', basis: 'basis-2' })
+    const reply = later<Error>()
+    const { fake, queryClient } = setup({ dismiss: () => reply.promise, offers: { offers: [OFFER, other] } })
+    await ready()
+    act(() => {
+      actions.dismiss(OFFER)
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('offers')).toHaveTextContent('task-2')
+    })
+    fake.on('GET /split-offers', () => new Promise(() => undefined))
+    // Meanwhile the other offer was split in another tab and left the cache.
+    act(() => {
+      queryClient.setQueryData<SplitOffers>(splitOffersKey(USER_ID), { offers: [] })
+    })
+    await act(async () => {
+      reply.resolve(problem(500, 'internal'))
+      await Promise.resolve()
+    })
+    await waitFor(() => {
+      expect(queryClient.getQueryData<SplitOffers>(splitOffersKey(USER_ID))?.offers.map((o) => o.task_id)).toEqual([OFFER.task_id])
+    })
   })
 
   it('no_split_offer shows no toast', async () => {

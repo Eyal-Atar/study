@@ -65,7 +65,7 @@ describe('enCalendar: counts', () => {
     ['side.banner.split.where', split.where(1), 'Here’s where the bite would go:'],
     ['side.banner.split.where', split.where(3), 'Here’s where the 3 bites would go:'],
     ['side.banner.split.part', split.part('Tue, 24 Nov', '18:00–18:30', '30 min'), 'Tue, 24 Nov, 18:00–18:30, 30 min'],
-    ['side.banner.split.whole', split.whole('3 hours'), 'That’s every block of this task that’s still ahead, 3 hours in all.'],
+    ['side.banner.split.whole', split.whole('3 hours'), 'I’d split every block of this task that’s still ahead, 3 hours in all.'],
     ['side.banner.split.done', split.done(2, 'Tomorrow', '09:00'), 'I split it into 2 bites. The first is tomorrow at 09:00.'],
     ['side.banner.split.done', split.done(3, 'Sun, 22 Nov', '18:00'), 'I split it into 3 bites. The first is Sun, 22 Nov at 18:00.'],
     ['side.banner.split.done', split.done(1, 'Today', '21:00'), 'I split it into 1 bite. It’s today at 21:00.'],
@@ -158,7 +158,7 @@ describe('enCalendar: the split offer of the banner', () => {
       expect(line).not.toContain('!')
       expect(line).not.toMatch(/Archi/)
     }
-    for (const line of [split.undone, split.dismissed, split.stale]) expect(line).toMatch(/\bI\b|\bI’ll\b/)
+    for (const line of [split.undone, split.dismissed, split.stale, split.whole('3 hours')]) expect(line).toMatch(/\bI\b|\bI’ll\b/)
   })
 
   it('no text of the offer holds a number of its own: every digit comes from the offer', () => {

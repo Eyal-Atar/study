@@ -33,10 +33,6 @@ interface Vars {
   offer: SplitOffer
 }
 
-interface DismissContext {
-  previous: SplitOffers | undefined
-}
-
 export function splitActionKey(userId: string | null) {
   return ['splitAction', userId] as const
 }
@@ -86,16 +82,17 @@ export function useSplitActions(): SplitActions {
       })
   }
 
-  // Where the first bite went: the earliest planned block of the answer. Without one, the offer's
-  // first part, on its study day.
+  // Where the first bite went: the offer's first part, which the server wrote exactly (else 409).
+  // Not the earliest planned block of the answer: that holds the task's live blocks, also one that has
+  // started and not ended, which the split leaves. The day is the answer's block at the part's start;
+  // without one, the part's study day.
   function firstBite(result: SplitResult, offer: SplitOffer): { date: string; startsAt: string } | undefined {
-    const first = result.blocks
-      .filter((b) => b.status === 'planned')
-      .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at))[0]
-    if (first !== undefined) return { date: first.study_date, startsAt: first.starts_at }
     const part = offer.parts[0]
     if (part === undefined) return undefined
-    return { date: studyDateOf(part.starts_at, queryClient.getQueryData<Me>(meKey(userId)), tz), startsAt: part.starts_at }
+    const start = Date.parse(part.starts_at)
+    const block = result.blocks.find((b) => Date.parse(b.starts_at) === start)
+    const date = block?.study_date ?? studyDateOf(part.starts_at, queryClient.getQueryData<Me>(meKey(userId)), tz)
+    return { date, startsAt: part.starts_at }
   }
 
   const splitMutation = useMutation<SplitResult, ApiError, Vars>({
@@ -136,22 +133,24 @@ export function useSplitActions(): SplitActions {
   })
 
   // Optimistic: the offer leaves at once; only another failure than "no offer" puts it back.
-  const dismissMutation = useMutation<undefined, ApiError, Vars, DismissContext>({
+  const dismissMutation = useMutation<undefined, ApiError, Vars>({
     mutationKey: dismissKey(userId),
     mutationFn: ({ offer }) => api.post<undefined>(`/tasks/${offer.task_id}/split/dismiss`),
     onMutate: async ({ offer }) => {
       await queryClient.cancelQueries({ queryKey: offersKey })
-      const previous = queryClient.getQueryData<SplitOffers>(offersKey)
       queryClient.setQueryData<SplitOffers>(offersKey, (data) => without(data, offer.task_id))
-      return { previous }
     },
     onSuccess: () => {
       toast.show({ text: s.dismissed, tone: 'info' })
     },
-    onError: (error, _vars, context) => {
+    onError: (error, { offer }) => {
       // The offer is gone already, which is what the student asked for.
       if (error instanceof ApiError && error.code === 'no_split_offer') return
-      if (context?.previous !== undefined) queryClient.setQueryData<SplitOffers>(offersKey, context.previous)
+      // Only this offer comes back, first, and only if it is not there: the rest of the answer from
+      // before the press may hold an offer that was split since.
+      queryClient.setQueryData<SplitOffers>(offersKey, (data) =>
+        data === undefined || data.offers.some((o) => o.task_id === offer.task_id) ? data : { ...data, offers: [offer, ...data.offers] },
+      )
       fail(error)
     },
     // The board did not change; only the offers did.

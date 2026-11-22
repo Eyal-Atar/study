@@ -19,6 +19,6 @@ export const enCalendarCodes = {
   timetable_unreadable: 'I couldn’t read a timetable in that file. Try a sharper photo or a PDF.',
   timetable_invalid: 'I couldn’t make sense of that timetable. Try again, or add your busy times by hand.',
   too_many_pages: 'That PDF has too many pages. Send me only the page with your timetable.',
-  // S44: the offer is gone (split, dismissed, or the task is no longer deferred that often).
+  // S44: the task has no offer now (split or dismissed, a deferral undone, a block done or started, or the bites no longer fit).
   no_split_offer: 'I don’t have a split to offer for this task right now.',
 } as const

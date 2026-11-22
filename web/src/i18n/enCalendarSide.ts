@@ -40,15 +40,15 @@ export const enCalendarSide = {
       // One part of the list: "Tue, 24 Nov, 18:00–18:30, 30 min".
       part: (day: string, range: string, duration: string) => [day, range, duration].join(JOINER),
       // When the split takes every block of the task that has not started yet, not only the deferred one.
-      whole: (duration: string) => `That’s every block of this task that’s still ahead, ${duration} in all.`,
+      whole: (duration: string) => `I’d split every block of this task that’s still ahead, ${duration} in all.`,
       // day: "Today", "Tomorrow" or a short date ("Sun, 22 Nov"), as dayLabel gives it.
       done: (count: number, day: string, time: string) =>
         count === 1
           ? `I split it into ${plural(count, 'bite', 'bites')}. It’s ${inSentence(day)} at ${time}.`
           : `I split it into ${plural(count, 'bite', 'bites')}. The first is ${inSentence(day)} at ${time}.`,
-      undone: 'I put the block back as it was.',
+      undone: 'I put it back as it was.',
       dismissed: 'I’ll leave it as it is.',
-      stale: 'Your plan changed, so I looked again.',
+      stale: 'That split was out of date, so I looked again.',
     },
   },
 } as const
