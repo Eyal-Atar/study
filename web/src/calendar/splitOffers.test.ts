@@ -109,6 +109,6 @@ describe('useSplitOffers', () => {
     const query = queryClient.getQueryCache().find({ queryKey: [...boardKey(USER_ID), 'splitOffers'], exact: true })
     expect(query?.state.data).toEqual(offers)
     // Decision 9: no polling.
-    expect(query?.options.refetchInterval).toBeUndefined()
+    expect(query?.observers[0]?.options.refetchInterval).toBeUndefined()
   })
 })
