@@ -228,6 +228,17 @@ export function TimeGrid({
     return Math.max(at.height, Math.min(MIN_BLOCK_PX, room))
   }
 
+  // The buttons of a swipe are SWIPE_WIDTH_PX wide, beside the end of the block, and at least
+  // SWIPE_MIN_PX tall. Where they would lie over a neighbour (a week column narrower than they are,
+  // or a short block with another item right under it), the block does not swipe: a press opens
+  // its actions sheet, which has the same two actions. A width of 0 is a column not laid out yet.
+  function swipeFits(date: string, at: { top: number; height: number }, target: Element): boolean {
+    const width = target.closest('[data-date]')?.getBoundingClientRect().width ?? 0
+    if (width > 0 && width < SWIPE_WIDTH_PX + 6) return false
+    const below = at.top + Math.max(at.height, SWIPE_MIN_PX)
+    return !(topsByDay.get(date) ?? []).some((top) => top > at.top && top < below)
+  }
+
   const busyByDay = new Map<string, Placed<BusyItem>[]>()
   for (const { item, date, top, height: own } of busySlots) {
     const list = busyByDay.get(date) ?? []
@@ -385,7 +396,8 @@ export function TimeGrid({
                         onPointerDown: (event) => {
                           // An open swipe takes the press: it closes, and does not lift the block.
                           if (swipe.openId !== block.id) moves.onPointerDown(event)
-                          swipes.onPointerDown(event)
+                          if (swipeFits(date, at, event.currentTarget)) swipes.onPointerDown(event)
+                          else swipe.clearClick()
                         },
                         onPointerMove: (event) => {
                           moves.onPointerMove(event)

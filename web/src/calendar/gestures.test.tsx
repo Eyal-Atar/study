@@ -16,7 +16,7 @@ import type { Ghost } from './ghost'
 import { makeBusy } from './testFixtures'
 import { TimeGrid } from './TimeGrid'
 
-// The gestures of the grid (S32 Task 8). The behaviour tests of today/DayTimeline.test.tsx, moved
+// The gestures of the grid (S32 Task 8). The behaviour tests of the old day timeline (S18), moved
 // to the calendar's grid, and the new gestures: the press that opens, the ghost, touch, the swipe,
 // and the empty space.
 
@@ -614,6 +614,27 @@ describe('the swipe of a block', () => {
     fireEvent.scroll(window)
     expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
     expect(spies.onSwipeAction).not.toHaveBeenCalled()
+  })
+
+  // S32 Task 13: the 132px of buttons would lie over the next column, or over the next block.
+  it('a week column narrower than the buttons does not swipe', async () => {
+    await setup()
+    const col = column(DAY)
+    col.getBoundingClientRect = () => ({ x: 0, y: 0, top: 0, left: 0, bottom: 0, right: 96, width: 96, height: 0, toJSON: () => ({}) })
+    swipe(blockEl(A), -80)
+    expect(screen.queryByRole('button', { name: en.board.deferLabel(blockName(A)) })).not.toBeInTheDocument()
+    expect(blockEl(A).style.transform).toBe('')
+  })
+
+  it('a short block with another right under it does not swipe, and the one under it does', async () => {
+    // 14:00–14:30 and 14:30–15:30 local: the buttons of the first would cover the second.
+    const short = makeBlock({ id: 's', task_id: 't-s', task_title: 'קצר', study_date: DAY, starts_at: '2026-11-25T12:00:00Z', ends_at: '2026-11-25T12:30:00Z' })
+    const after = makeBlock({ id: 'n', task_id: 't-n', task_title: 'אחריו', study_date: DAY, starts_at: '2026-11-25T12:30:00Z', ends_at: '2026-11-25T13:30:00Z' })
+    await setup([short, after])
+    swipe(blockEl(short), -80)
+    expect(screen.queryByRole('button', { name: en.board.deferLabel(blockName(short)) })).not.toBeInTheDocument()
+    swipe(blockEl(after), -80)
+    expect(screen.getByRole('button', { name: en.board.deferLabel(blockName(after)) })).toBeInTheDocument()
   })
 })
 
