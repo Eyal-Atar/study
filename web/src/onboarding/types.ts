@@ -117,6 +117,8 @@ export interface GenerateResult {
     shortfalls: Shortfall[]
     warnings: string[]
   }
+  // 50 only in the job that gave the first plan's XP; absent in jobs from before S34, read as 0.
+  first_plan_xp?: number
 }
 
 export interface UnscheduledTask {

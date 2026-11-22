@@ -1,8 +1,10 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { QueryClient } from '@tanstack/react-query'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { codeText, shortfallText } from '../i18n/codes'
 import { en } from '../i18n/en'
+import { progressKey } from '../progress/api'
 import { createFakeApi, problem, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
@@ -15,6 +17,7 @@ import {
   previewFixture,
   resultFixture,
 } from '../test/onboardingFixtures'
+import { STEP_PATHS } from './steps'
 import type { Job, GenerateResult, Material } from './types'
 
 // The poll is every 2 seconds, so a test that waits for a second answer waits a little longer.
@@ -63,6 +66,35 @@ const generateCalls = (fake: FakeApi) => fake.calls('POST', '/plans/generate')
 
 const JOB_KEY = 'studyflow:onboarding-job:user-a'
 
+// prefers-reduced-motion as the system answers it; every other query is false.
+function mockReducedMotion(reduce: boolean) {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((query: string) => ({
+      matches: reduce && query.includes('prefers-reduced-motion'),
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  )
+}
+
+// YYYY-MM-DD of the local day `days` from today.
+function dayFromToday(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  const two = (n: number) => String(n).padStart(2, '0')
+  return `${String(d.getFullYear())}-${two(d.getMonth() + 1)}-${two(d.getDate())}`
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
 beforeEach(() => {
   sessionStorage.clear()
 })
@@ -92,7 +124,11 @@ describe('BuildingStep', () => {
     await waitFor(() => {
       expect(bar).toHaveAttribute('aria-valuenow', '40')
     })
-    expect(screen.getByText(en.building.stages.analyzing)).toHaveAttribute('aria-live', 'polite')
+    // The stage is read aloud once, from the one live region; the list shows it as the current one.
+    expect(document.querySelector('[aria-live="polite"]')).toHaveTextContent(en.building.stages.analyzing)
+    const stages = screen.getByRole('list', { name: en.onboardingFlow.build.stagesLabel })
+    expect(within(stages).getByText(en.building.stages.analyzing).closest('li')).toHaveAttribute('aria-current', 'step')
+    expect(within(stages).getByText(en.building.stages.reading_materials).closest('li')).not.toHaveAttribute('aria-current')
     expect(generateCalls(fake)).toHaveLength(0)
     expect(fake.calls('GET', /\/materials$/)).toHaveLength(0)
   })
@@ -317,7 +353,7 @@ describe('BuildingStep', () => {
   it.each([
     ['a failed job', { jobs: [jobFixture({ status: 'failed', error: 'analysis_invalid' })] }, '/onboarding/building?job=j1'],
     ['an account failure', { jobs: [jobFixture({ status: 'failed', error: 'ai_no_credit' })] }, '/onboarding/building?job=j1'],
-  ])('%s offers "Back" to the schedule step', async (_name, options, path) => {
+  ])('%s offers "Back" to the fixed-hours step', async (_name, options, path) => {
     const user = userEvent.setup()
     const { fake } = server(options)
     const { router } = open(fake, path)
@@ -325,11 +361,11 @@ describe('BuildingStep', () => {
     await screen.findByRole('alert')
     await user.click(screen.getByRole('button', { name: en.common.back }))
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe('/onboarding/schedule')
+      expect(router.state.location.pathname).toBe(STEP_PATHS.fixedHours)
     })
   })
 
-  it('429 offers "Back" to the schedule step', async () => {
+  it('429 offers "Back" to the fixed-hours step', async () => {
     const user = userEvent.setup()
     const { fake } = server()
     fake.on('POST /plans/generate', () => problem(429, 'ai_quota_exceeded', { limit: 3, resets_at: new Date(Date.now() + 3600000).toISOString() }))
@@ -338,7 +374,125 @@ describe('BuildingStep', () => {
     await screen.findByRole('alert')
     await user.click(screen.getByRole('button', { name: en.common.back }))
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe('/onboarding/schedule')
+      expect(router.state.location.pathname).toBe(STEP_PATHS.fixedHours)
+    })
+  })
+
+  describe('as the build and the ready plan (not numbered steps)', () => {
+    const doneJob = (extra: Partial<GenerateResult> = {}, plan: Partial<GenerateResult['plan']> = { blocks: 46 }) =>
+      jobFixture({ status: 'done', percent: 100, result: { ...resultFixture(plan), ...extra } })
+
+    it('while building: no steps bar and no count, Archi at his scroll, the five stages as a list', async () => {
+      const { fake } = server({ jobs: [jobFixture({ stage: 'validating', percent: 55 })] })
+      open(fake, '/onboarding/building?job=j1')
+
+      expect(await screen.findByRole('heading', { level: 1, name: en.building.title })).toBeInTheDocument()
+      expect(screen.queryByRole('navigation', { name: en.onboarding.stepsLabel })).not.toBeInTheDocument()
+      expect(screen.queryByText(/Step \d of/)).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: en.common.back })).not.toBeInTheDocument()
+      expect(screen.getByAltText(en.archie.alt.wisdom)).toBeInTheDocument()
+      expect(screen.getByText(en.building.intro)).toBeInTheDocument()
+      const stages = screen.getByRole('list', { name: en.onboardingFlow.build.stagesLabel })
+      expect(within(stages).getAllByRole('listitem').map((li) => li.textContent)).toEqual(Object.values(en.building.stages))
+      await waitFor(() => {
+        expect(within(stages).getByText(en.building.stages.validating).closest('li')).toHaveAttribute('aria-current', 'step')
+      })
+    })
+
+    it('ready: eureka, one h1, no steps bar, the blocks and the days to the nearest exam', async () => {
+      const { fake } = server({ jobs: [doneJob()] })
+      fake.on('GET /exams', [
+        examFixture({ id: 'e1', exam_date: dayFromToday(40) }),
+        examFixture({ id: 'e2', name: 'פיזיקה', exam_date: dayFromToday(22), color_index: 1 }),
+        examFixture({ id: 'e3', name: 'עבר', exam_date: dayFromToday(-3), color_index: 2 }),
+      ])
+      open(fake, '/onboarding/building?job=j1')
+
+      expect(await screen.findByRole('heading', { level: 1, name: en.building.doneTitle })).toBeInTheDocument()
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+      expect(screen.getByAltText(en.archie.alt.eureka)).toBeInTheDocument()
+      expect(screen.queryByRole('navigation', { name: en.onboarding.stepsLabel })).not.toBeInTheDocument()
+      expect(screen.queryByText(/Step \d of/)).not.toBeInTheDocument()
+      expect(screen.getByText(en.onboardingFlow.ready.summary(46, 22))).toBeInTheDocument()
+    })
+
+    it('says "tomorrow", "today" and a single block correctly, and drops the exam half with no exam ahead', () => {
+      const t = en.onboardingFlow.ready
+      expect(t.summary(1, 1)).toBe('I placed 1 study block on your calendar. Your first exam is tomorrow.')
+      expect(t.summary(46, 0)).toContain('Your first exam is today.')
+      expect(t.summary(46, null)).toBe('I placed 46 study blocks on your calendar.')
+    })
+
+    it('first_plan_xp 50: the gold chip with its accessible text comes first, then the green one', async () => {
+      const { fake } = server({ jobs: [doneJob({ first_plan_xp: 50 })] })
+      open(fake, '/onboarding/building?job=j1')
+
+      const gold = await screen.findByText(en.onboardingFlow.ready.xpChip(50), undefined, POLL)
+      expect(gold).toHaveAttribute('aria-hidden', 'true')
+      const label = screen.getByText(en.onboardingFlow.ready.xpChipLabel(50))
+      expect(label).toHaveClass('sr-only')
+      const seed = screen.getByText(en.onboardingFlow.ready.seedChip)
+      const chips = gold.closest('span.rounded-full')
+      expect(chips).toHaveClass('bg-gold-soft', 'text-gold-ink')
+      expect(chips?.parentElement).toBe(seed.closest('span.rounded-full')?.parentElement)
+      expect(chips?.compareDocumentPosition(seed) ?? 0).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    })
+
+    it('the number on the chip is the number from the job, not a constant', async () => {
+      const { fake } = server({ jobs: [doneJob({ first_plan_xp: 75 })] })
+      open(fake, '/onboarding/building?job=j1')
+
+      expect(await screen.findByText(en.onboardingFlow.ready.xpChip(75), undefined, POLL)).toBeInTheDocument()
+      expect(screen.getByText(en.onboardingFlow.ready.xpChipLabel(75))).toBeInTheDocument()
+    })
+
+    it.each([
+      ['first_plan_xp 0', { first_plan_xp: 0 }],
+      ['no first_plan_xp (a job from before the XP)', {}],
+    ])('%s: no gold chip and no "XP" anywhere, the green one stays', async (_name, extra) => {
+      const { fake } = server({ jobs: [doneJob(extra)] })
+      open(fake, '/onboarding/building?job=j1')
+
+      expect(await screen.findByText(en.onboardingFlow.ready.seedChip, undefined, POLL)).toBeInTheDocument()
+      expect(screen.queryByText(/XP/)).not.toBeInTheDocument()
+      expect(document.querySelector('.bg-gold-soft')).toBeNull()
+    })
+
+    it('with the XP given, the progress of the user is refreshed; with none it is not', async () => {
+      const spy = async (extra: Partial<GenerateResult>) => {
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+        const { fake } = server({ jobs: [doneJob(extra)] })
+        const view = renderRoute('/onboarding/building?job=j1', { auth: createFakeAuth(fakeSession()), api: fake.api, queryClient })
+        await screen.findByText(en.onboardingFlow.ready.seedChip, undefined, POLL)
+        await waitFor(() => {
+          expect(invalidate.mock.calls.some(([filters]) => JSON.stringify(filters?.queryKey) === JSON.stringify(['me', 'user-a']))).toBe(true)
+        })
+        const refreshed = invalidate.mock.calls.some(([filters]) => JSON.stringify(filters?.queryKey) === JSON.stringify(progressKey('user-a')))
+        view.unmount()
+        return refreshed
+      }
+      expect(await spy({ first_plan_xp: 50 })).toBe(true)
+      expect(await spy({ first_plan_xp: 0 })).toBe(false)
+      expect(await spy({})).toBe(false)
+    })
+
+    it('the ready card enters with a small hop, and with reduced motion Archi is simply there', async () => {
+      mockReducedMotion(false)
+      const { fake } = server({ jobs: [doneJob()] })
+      const first = open(fake, '/onboarding/building?job=j1')
+      await screen.findByRole('heading', { level: 1, name: en.building.doneTitle })
+      const hop = first.container.querySelector('[data-part="hop"]')
+      expect(hop).toHaveAttribute('data-entering')
+      expect(hop?.className).toContain('motion-safe:starting:')
+      first.unmount()
+
+      mockReducedMotion(true)
+      const second = open(fake, '/onboarding/building?job=j1')
+      await screen.findByRole('heading', { level: 1, name: en.building.doneTitle })
+      const still = second.container.querySelector('[data-part="hop"]')
+      expect(still).not.toHaveAttribute('data-entering')
+      expect(still?.className ?? '').not.toMatch(/starting|transition|animate/)
     })
   })
 })

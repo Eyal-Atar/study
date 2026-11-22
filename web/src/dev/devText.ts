@@ -58,6 +58,7 @@ export const SECTIONS = [
   { id: 'ink-button', title: 'Ink button' },
   { id: 'archi-lead', title: 'Archi lead' },
   { id: 'recap-line', title: 'Recap line' },
+  { id: 'chip', title: 'Chip' },
   { id: 'week-painter', title: 'Week painter' },
   { id: 'weekday-picker', title: 'Weekday picker' },
   { id: 'commitment-dialog', title: 'Commitment dialog' },
@@ -544,6 +545,16 @@ export const devText = {
       plainText: '4 hours a day, in the morning and the evening',
       long: 'A long list of names is one value: the cut falls at the end of the list, in the direction of its text',
       longName: 'One long name is cut at its own end: its beginning stays',
+    },
+    // The chips of the ready plan (Task 16).
+    chip: {
+      caption:
+        'A statement of something that happened, with an icon: gold for XP, green for growth. It is not a control and not a state (that is a Badge). With a label, a screen reader says the label and skips the visible text.',
+      row: 'The ready plan: the gold one only when the server gave the XP',
+      gold: '+50 XP',
+      goldLabel: 'I gave you 50 XP for your first plan',
+      leaf: 'The first seed in your garden',
+      narrow: 'In a narrow place a chip wraps onto its own line',
     },
     // The small week of the onboarding (Task 5).
     weekPainter: {

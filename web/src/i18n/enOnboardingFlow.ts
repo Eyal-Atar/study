@@ -70,4 +70,25 @@ export const enOnboardingFlow = {
     none: (examName: string) =>
       `I can’t find any study time before ${isolate(examName)} yet. Is its date right? If it is, another time of day to study could open some up. You can also change your rest days before an exam later, in Settings.`,
   },
+  // The build and the plan that comes out of it are not numbered steps (S34 decision 4).
+  build: {
+    // The name of the list of the five stages of the build.
+    stagesLabel: 'What I’m doing now',
+    // Said once by the live region when the stage changes; the list shows the same words, so the
+    // live text carries a lead-in and is not a second copy of them.
+    now: (stage: string) => `Now: ${stage}`,
+  },
+  ready: {
+    // One sentence: what I placed and, when an exam is ahead, how far the nearest one is.
+    summary: (blocks: number, daysToFirstExam: number | null) => {
+      const placed = `I placed ${blocks === 1 ? '1 study block' : `${String(blocks)} study blocks`} on your calendar.`
+      if (daysToFirstExam === null) return placed
+      const when = daysToFirstExam === 0 ? 'today' : daysToFirstExam === 1 ? 'tomorrow' : `in ${String(daysToFirstExam)} days`
+      return `${placed} Your first exam is ${when}.`
+    },
+    // The gold chip. Shown only when the server really gave the XP; the number comes from the job.
+    xpChip: (xp: number) => `+${String(xp)} XP`,
+    xpChipLabel: (xp: number) => `I gave you ${String(xp)} XP for your first plan`,
+    seedChip: 'The first seed in your garden',
+  },
 } as const

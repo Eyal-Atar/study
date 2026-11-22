@@ -16,6 +16,7 @@ import { FeasibilityNote, type FeasibilityEstimate } from '../onboarding/Feasibi
 import { ArchiLead } from '../ui/ArchiLead'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
+import { Chip } from '../ui/Chip'
 import { ExamChip, ExamInitial, ExamProgressBar } from '../ui/ExamMark'
 import { EXAM_COLOR_COUNT } from '../ui/examColor'
 import { IconButton } from '../ui/IconButton'
@@ -23,7 +24,7 @@ import { IconChoiceCards } from '../ui/IconChoiceCards'
 import { InkButton } from '../ui/InkButton'
 import { RecapLine } from '../ui/RecapLine'
 import { Stepper } from '../ui/Stepper'
-import { ClassIcon, Ellipsis, EveningIcon, MorningIcon, NightIcon, NoonIcon, WorkIcon } from '../ui/icons'
+import { ClassIcon, Ellipsis, EveningIcon, MorningIcon, NightIcon, NoonIcon, SproutIcon, WorkIcon, XpSparkIcon } from '../ui/icons'
 import { ICON_STROKE } from '../ui/styles'
 import { TileList, TileRow } from '../ui/TileList'
 import { WeekdayPicker } from '../ui/WeekdayPicker'
@@ -266,7 +267,7 @@ const LEAD_MOODS: ArchieMood[] = ['joy', 'wisdom', 'intentions', 'flow', 'eureka
 // The three levels of the live feedback, for the exams of the sample.
 const ESTIMATES: FeasibilityEstimate[] = [
   { level: 'roomy', firstExamName: sample.exams[0], firstExamMinutes: 88 * 60 },
-  { level: 'tight', firstExamName: sample.exams[0], firstExamMinutes: 14 * 60, tightExamName: sample.exams[2], tightExamMinutes: 6 * 60 },
+  { level: 'tight', firstExamName: sample.exams[0], firstExamMinutes: 14 * 60, tightExamName: sample.exams[2], tightExamMinutes: 6 * 60, tightExamCount: 3 },
   { level: 'none', firstExamName: sample.exams[0], firstExamMinutes: 0 },
 ]
 
@@ -303,6 +304,34 @@ export function ArchiLeadSection() {
       <Example caption={lead.feasibilityEmpty} className={PHONE}>
         <FeasibilityNote estimate={null} />
       </Example>
+    </Section>
+  )
+}
+
+export function ChipSection() {
+  const chip = t.chip
+  return (
+    <Section id="chip">
+      <p className="text-small text-ink-muted">{chip.caption}</p>
+      <div className={FIELD_GRID}>
+        <Example caption={chip.row}>
+          <div className="flex flex-wrap gap-2">
+            <Chip tone="gold" icon={XpSparkIcon} label={chip.goldLabel}>
+              {chip.gold}
+            </Chip>
+            <Chip tone="leaf" icon={SproutIcon}>
+              {chip.leaf}
+            </Chip>
+          </div>
+        </Example>
+        <Example caption={chip.narrow} className="max-w-48">
+          <div className="flex flex-wrap gap-2">
+            <Chip tone="leaf" icon={SproutIcon}>
+              {chip.leaf}
+            </Chip>
+          </div>
+        </Example>
+      </div>
     </Section>
   )
 }
@@ -518,6 +547,7 @@ export function S34Sections() {
       <InkButtonSection />
       <ArchiLeadSection />
       <RecapLineSection />
+      <ChipSection />
       <WeekPainterSection />
       <WeekdayPickerSection />
       <CommitmentDialogSection />
