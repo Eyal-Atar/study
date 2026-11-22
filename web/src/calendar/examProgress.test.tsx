@@ -1,7 +1,9 @@
 import { screen, waitFor } from '@testing-library/react'
+import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { createFakeApi } from '../test/fakeApi'
-import { makePlan, makeToday, renderBoard } from '../test/boardFixtures'
+import { useBlockActions } from '../board/actions'
+import { makeBlock, makePlan, makeToday, renderBoard } from '../test/boardFixtures'
 import { useExamProgress } from './examProgress'
 import { useCalendarData } from './useCalendarData'
 import { makeBusy } from './testFixtures'
@@ -50,6 +52,38 @@ describe('useExamProgress', () => {
     await waitFor(() => { expect(screen.getByTestId('p').textContent).toBe('30/30') })
     await waitFor(() => { expect(screen.getByTestId('t').textContent).toBe('1') })
     expect(fake.calls('GET', '/exams/exam-1/tasks')).toHaveLength(1)
+  })
+})
+
+// S32 final review, M2: "Your exams" moves after a Done.
+describe('useExamProgress after an action', () => {
+  it('Done refetches the exam’s tasks', async () => {
+    const block = makeBlock({ exam_id: 'exam-1' })
+    let status = 'todo'
+    const fake = createFakeApi()
+      .on('GET /exams/exam-1/tasks', () => [task({ id: 'a', estimated_minutes: 60, status })])
+      .on(`POST /blocks/${block.id}/complete`, () => {
+        status = 'done'
+        return { block: { ...block, status: 'done', state: 'done' }, task_status: 'done', xp_awarded: 0, xp_total: 0, level: 1 }
+      })
+    function Done() {
+      const actions = useBlockActions()
+      return (
+        <button type="button" onClick={() => { actions.complete(block) }}>
+          done
+        </button>
+      )
+    }
+    renderBoard(
+      <>
+        <Progress />
+        <Done />
+      </>,
+      { api: fake.api },
+    )
+    await waitFor(() => { expect(screen.getByTestId('p').textContent).toBe('0/60') })
+    await userEvent.click(screen.getByRole('button', { name: 'done' }))
+    await waitFor(() => { expect(screen.getByTestId('p').textContent).toBe('60/60') })
   })
 })
 

@@ -4,6 +4,7 @@ import { useApi } from '../api/ApiContext'
 import { ApiError, errorMessage } from '../api/client'
 import type { DeferRequest } from '../availability/types'
 import { emitCompleted } from '../calendar/xpEvents'
+import { tasksKey } from '../exam/api'
 import { codeText, unscheduledText } from '../i18n/codes'
 import { en } from '../i18n/en'
 import { progressKey } from '../progress/api'
@@ -18,7 +19,7 @@ import { blockMinutes, dateIn, dayLabel, formatTime, useProfileTimezone } from '
 import type { Block, BlockState, CompleteResult, DeferResult, SkipResult, Today } from './types'
 import { undoOnce } from './undoOnce'
 
-// The actions on one block, shared by "today" and "week".
+// The actions on one block, shared by every part of the calendar that shows blocks.
 //
 // complete, uncomplete and pin are optimistic: their result is known (one block's status or pinned),
 // so every board query in the cache (today and every plan range) shows it at once. A failure puts
@@ -193,7 +194,13 @@ export function useBlockActions(): BlockActions {
   const key = boardKey(userId)
   const mutationKey = actionKey(userId)
 
-  const settle = () => queryClient.invalidateQueries({ queryKey: key })
+  // The exam's tasks are not under the board, but an action changes them too (a Done or a Skip
+  // moves "Your exams" and the exam screen's list).
+  const settle = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: key }),
+      queryClient.invalidateQueries({ queryKey: tasksKey(userId) }),
+    ])
   const fail = (error: unknown) => {
     toast.show({ text: errorMessage(error), tone: 'error' })
   }

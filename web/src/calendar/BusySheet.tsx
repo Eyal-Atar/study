@@ -2,7 +2,7 @@ import { parseDate } from '@internationalized/date'
 import { useEffect, useRef, useState } from 'react'
 import type { BusyItem } from '../availability/types'
 import { blockName } from '../board/blockName'
-import { dateIn, formatTime } from '../board/time'
+import { addDays, dateIn, formatTime } from '../board/time'
 import type { Block } from '../board/types'
 import { codeText } from '../i18n/codes'
 import { en } from '../i18n/en'
@@ -91,8 +91,13 @@ function BusyBody({
   // An event that began on an earlier day keeps its own day valid when edited.
   const eventDay = event === null ? today : dateIn(tz, new Date(event.starts_at))
   const minDate = eventDay < today ? eventDay : today
+  // An event over midnight or several days (S34's settings, the timetable import) keeps its
+  // length in days: the end is on the same number of days after the (possibly moved) start day.
+  const spanDays =
+    event === null ? 0 : Math.round((Date.parse(dateIn(tz, new Date(event.ends_at))) - Date.parse(eventDay)) / 86_400_000)
+  const endDate = addDays(date, spanDays)
   const startMs = instantOf(date, from, tz)
-  const endMs = instantOf(date, to, tz)
+  const endMs = instantOf(endDate, to, tz)
   const valid = startMs !== null && endMs !== null && endMs > startMs
   const overlapping =
     valid
@@ -164,8 +169,22 @@ function BusyBody({
     const name = title.trim() === '' ? null : title.trim()
     const startsAt = new Date(startMs).toISOString()
     const endsAt = new Date(endMs).toISOString()
-    if (event === null) write.create({ title: name, starts_at: startsAt, ends_at: endsAt }, options)
-    else write.update(event.id, { title: name, starts_at: startsAt, ends_at: endsAt }, options)
+    if (event === null) {
+      write.create({ title: name, starts_at: startsAt, ends_at: endsAt }, options)
+      return
+    }
+    // Only what changed: an edit of the title alone leaves the times as the server has them.
+    const timesChanged =
+      date !== eventDay || from !== formatTime(event.starts_at, tz) || to !== formatTime(event.ends_at, tz)
+    const titleChanged = name !== event.title
+    write.update(
+      event.id,
+      {
+        ...(titleChanged || !timesChanged ? { title: name } : {}),
+        ...(timesChanged ? { starts_at: startsAt, ends_at: endsAt } : {}),
+      },
+      options,
+    )
   }
 
   return (

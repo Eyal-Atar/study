@@ -83,9 +83,22 @@ function DeferBody({
     [],
   )
 
+  // The request outlives the sheet (Escape while it runs): an answer that comes after it is gone
+  // closes nothing, and a refusal is said in a toast, since there is no sheet to say it in.
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+
   const options: DeferOptions = {
-    onSuccess: onClose,
+    onSuccess: () => {
+      if (mounted.current) onClose()
+    },
     onError: (failure: ApiError) => {
+      if (!mounted.current) return false
       if (failure.code !== null && SHOWN_CODES.has(failure.code)) {
         setRunning(null)
         setError(codeText(failure.code))

@@ -1,5 +1,6 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { Block } from '../board/types'
 import { codeText } from '../i18n/codes'
@@ -204,6 +205,43 @@ describe('DeferSheet', () => {
     const dialog = await screen.findByRole('dialog')
     expect(await within(dialog).findByText(codeText('slot_busy'))).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: en.common.notifications })?.textContent ?? '').not.toContain(codeText('slot_busy'))
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  // S32 final review, M1: a refusal that comes after the sheet is gone is not silent, and closes nothing.
+  it('a slot_busy answered after the sheet is gone is a toast, and onClose is not called', async () => {
+    const block = makeBlock()
+    const fake = fakeFor(block)
+    fake.on(`GET /blocks/${block.id}/slots?date=${TODAY}`, SLOTS)
+    let reject!: (error: unknown) => void
+    fake.on(`POST /blocks/${block.id}/defer`, () => new Promise((_, rej) => { reject = rej }))
+    const onClose = vi.fn()
+    function Harness() {
+      const [open, setOpen] = useState(true)
+      return (
+        <>
+          <button type="button" onClick={() => { setOpen(false) }}>hide</button>
+          {open ? <DeferSheet block={block} tz={TZ} today={TODAY} onClose={onClose} onPreview={vi.fn()} /> : null}
+        </>
+      )
+    }
+    renderBoard(<Harness />, { api: fake.api })
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: en.calendar.sheets.defer.pick }))
+    const grid = await screen.findByRole('listbox', { name: en.calendar.sheets.defer.slots })
+    await user.click(within(grid).getByRole('option', { name: '14:15' }))
+    await user.click(await screen.findByRole('button', { name: en.calendar.sheets.defer.confirmAt('14:15') }))
+    await waitFor(() => {
+      expect(fake.calls('POST', `/blocks/${block.id}/defer`)).toHaveLength(1)
+    })
+    // The dialog makes the rest of the page inert, so the press goes in as a plain event.
+    fireEvent.click(screen.getByRole('button', { name: 'hide', hidden: true }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    reject(problem(409, 'slot_busy'))
+    const region = await screen.findByRole('region', { name: en.common.notifications })
+    expect(await within(region).findByText(codeText('slot_busy'))).toBeInTheDocument()
     expect(onClose).not.toHaveBeenCalled()
   })
 

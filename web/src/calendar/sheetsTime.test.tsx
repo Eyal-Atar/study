@@ -293,6 +293,38 @@ describe('BusySheet after the sheet is gone or on the way', () => {
     await userEvent.click(screen.getByRole('button', { name: s.busy.saveEdit }))
     await waitFor(() => { expect(fake.calls('PATCH', '/busy-events/ev-1')).toHaveLength(1) })
   })
+
+  // S32 final review, M4: an event over midnight or several days keeps its days.
+  // 22:00 on the 16th to 08:00 on the 18th, Jerusalem time.
+  const LONG = { source: 'event' as const, id: 'ev-1', kind: null, title: 'Trip', starts_at: '2026-11-16T20:00:00.000Z', ends_at: '2026-11-18T06:00:00.000Z' }
+
+  it('a title edit of an event over several days sends the title alone', async () => {
+    const fake = baseFake().on('PATCH /busy-events/ev-1', NEW_EVENT)
+    setupBusy({ draft: null, event: makeBusy(LONG) }, fake)
+    await screen.findByRole('dialog', { name: s.busy.titleEdit })
+    const what = screen.getByRole('textbox', { name: s.busy.what })
+    await userEvent.clear(what)
+    await userEvent.type(what, 'Trip north')
+    await userEvent.click(screen.getByRole('button', { name: s.busy.saveEdit }))
+    await waitFor(() => { expect(fake.calls('PATCH', '/busy-events/ev-1')).toHaveLength(1) })
+    expect(fake.calls('PATCH', '/busy-events/ev-1')[0]?.body).toEqual({ title: 'Trip north' })
+  })
+
+  it('a time edit of an event over several days keeps its last day for the end', async () => {
+    const fake = baseFake().on('PATCH /busy-events/ev-1', NEW_EVENT)
+    setupBusy({ draft: null, event: makeBusy(LONG) }, fake)
+    await screen.findByRole('dialog', { name: s.busy.titleEdit })
+    const to = screen.getByRole('group', { name: s.busy.to })
+    const hour = within(to).getAllByRole('spinbutton')[0] as HTMLElement
+    await userEvent.click(hour)
+    await userEvent.keyboard('{ArrowUp}')
+    await userEvent.click(screen.getByRole('button', { name: s.busy.saveEdit }))
+    await waitFor(() => { expect(fake.calls('PATCH', '/busy-events/ev-1')).toHaveLength(1) })
+    expect(fake.calls('PATCH', '/busy-events/ev-1')[0]?.body).toEqual({
+      starts_at: '2026-11-16T20:00:00.000Z',
+      ends_at: '2026-11-18T07:00:00.000Z',
+    })
+  })
 })
 
 describe('CommitmentSheet', () => {

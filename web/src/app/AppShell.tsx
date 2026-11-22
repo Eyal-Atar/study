@@ -150,7 +150,14 @@ export function AppShell() {
                 frame.fullBleed ? 'lg:pb-0' : 'mx-auto max-w-3xl px-page py-section lg:pb-12',
               )}
             >
-              {onboarding ? null : <InstallHint />}
+              {onboarding ? null : (
+                // A full-bleed screen has no gutter of <main>: the hint brings its own (and the
+                // wrapper takes no room when the hint is not shown). One place in the tree for both,
+                // so the hint does not mount again (and count as seen) when the frame changes.
+                <div className={frame.fullBleed ? 'px-page pt-3 empty:hidden' : undefined}>
+                  <InstallHint />
+                </div>
+              )}
               <Outlet />
             </main>
             <ToastRegion />
