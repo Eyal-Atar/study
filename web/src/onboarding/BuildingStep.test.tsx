@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { QueryClient } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { todayIn } from '../exam/dates'
 import { codeText, shortfallText } from '../i18n/codes'
 import { en } from '../i18n/en'
 import { progressKey } from '../progress/api'
@@ -17,6 +18,7 @@ import {
   previewFixture,
   resultFixture,
 } from '../test/onboardingFixtures'
+import { clearMarkedCells, markedCells, setMarkedCells } from './markedHours'
 import { STEP_PATHS } from './steps'
 import type { Job, GenerateResult, Material } from './types'
 
@@ -97,6 +99,7 @@ afterEach(() => {
 
 beforeEach(() => {
   sessionStorage.clear()
+  clearMarkedCells()
 })
 
 describe('BuildingStep', () => {
@@ -475,6 +478,54 @@ describe('BuildingStep', () => {
       expect(await spy({ first_plan_xp: 50 })).toBe(true)
       expect(await spy({ first_plan_xp: 0 })).toBe(false)
       expect(await spy({})).toBe(false)
+    })
+
+    it('a plan that is built forgets the hours still marked in step 4; a failed one keeps them', async () => {
+      setMarkedCells(new Set(['0-10']))
+      const failed = open(server({ jobs: [jobFixture({ status: 'failed', error: 'analysis_invalid' })] }).fake, '/onboarding/building?job=j1')
+      expect(await screen.findByText(codeText('analysis_invalid'))).toBeInTheDocument()
+      expect(markedCells().size).toBe(1)
+      failed.unmount()
+
+      open(server({ jobs: [doneJob()] }).fake, '/onboarding/building?job=j1')
+      await screen.findByRole('heading', { level: 1, name: en.building.doneTitle }, POLL)
+      await waitFor(() => {
+        expect(markedCells().size).toBe(0)
+      })
+    })
+
+    // The chip reads the job's answer at run time: anything but a positive whole number shows nothing.
+    it.each([
+      ['absent', {}, false],
+      ['null', { first_plan_xp: null }, false],
+      ['0', { first_plan_xp: 0 }, false],
+      ['the string "50"', { first_plan_xp: '50' }, false],
+      ['50', { first_plan_xp: 50 }, true],
+    ])('first_plan_xp %s: gold chip %s', async (_name, extra, shown) => {
+      const { fake } = server({ jobs: [doneJob(extra as Partial<GenerateResult>)] })
+      open(fake, '/onboarding/building?job=j1')
+      expect(await screen.findByText(en.onboardingFlow.ready.seedChip, undefined, POLL)).toBeInTheDocument()
+      expect(document.querySelector('.bg-gold-soft') !== null).toBe(shown)
+      expect(screen.queryAllByText(/XP/).length > 0).toBe(shown)
+    })
+
+    it('counts the days to the exam from today in the profile’s zone, not the device’s', async () => {
+      // At 21:30 UTC on 30 November it is already 1 December in Tokyo and still 30 November in
+      // Honolulu. The profile takes the zone whose day is not the device's, so the device's day would
+      // give the wrong count: 10 days from 1 December, 11 from 30 November.
+      const now = new Date('2026-11-30T21:30:00Z')
+      const deviceDay = todayIn(Intl.DateTimeFormat().resolvedOptions().timeZone, now)
+      const [zone, days] = deviceDay === '2026-12-01' ? ['Pacific/Honolulu', 11] : ['Asia/Tokyo', 10]
+      vi.useFakeTimers({ now, toFake: ['Date'] })
+      try {
+        const { fake } = server({ jobs: [doneJob()] })
+        fake.on('GET /me', meFixture({ timezone: zone, onboarding_completed_at: COMPLETED_AT }))
+        fake.on('GET /exams', [examFixture({ id: 'e1', exam_date: '2026-12-11' }), examFixture({ id: 'e2', name: 'פיזיקה', exam_date: '2027-01-20' })])
+        open(fake, '/onboarding/building?job=j1')
+        expect(await screen.findByText(en.onboardingFlow.ready.summary(46, days), undefined, POLL)).toBeInTheDocument()
+      } finally {
+        vi.useRealTimers()
+      }
     })
 
     it('the ready card enters with a small hop, and with reduced motion Archi is simply there', async () => {

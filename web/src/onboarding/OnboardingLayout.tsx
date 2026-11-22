@@ -7,6 +7,7 @@ import { Card } from '../ui/Card'
 import { IconButton } from '../ui/IconButton'
 import { ChevronLeft } from '../ui/icons'
 import { RecapLine, type RecapLineProps } from '../ui/RecapLine'
+import { prefersReducedMotion } from '../ui/reducedMotion'
 import { cx, ICON_STROKE } from '../ui/styles'
 import { STEP_COUNT, STEP_PATHS } from './steps'
 
@@ -43,13 +44,6 @@ const PREVIOUS = {
   3: STEP_PATHS.materials,
   4: STEP_PATHS.schedule,
 } as const
-
-const REDUCED_MOTION = '(prefers-reduced-motion: reduce)'
-
-// Read once, when the step arrives: the entrance happens only then.
-function prefersReducedMotion() {
-  return typeof window.matchMedia === 'function' && window.matchMedia(REDUCED_MOTION).matches
-}
 
 // A new step comes in (S34 decision 23): the answers fade in over 180ms while rising 8px, from
 // the first frame they are on the page (starting:). A browser without @starting-style shows

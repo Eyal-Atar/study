@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { createElement, useState } from 'react'
+import { createElement, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { errorMessage } from '../api/client'
 import { useMe } from '../api/me'
@@ -24,6 +24,7 @@ import { UserText } from '../ui/UserText'
 import { useExams } from './api'
 import { feasibility } from './feasibility'
 import { FeasibilityNote } from './FeasibilityNote'
+import { clearMarkedCells, markedCells, setMarkedCells, useMarkedCells, weekHours } from './markedHours'
 import { OnboardingLayout } from './OnboardingLayout'
 import { flushDeletes } from './pendingDeletes'
 import { STEP_PATHS } from './steps'
@@ -31,17 +32,6 @@ import { STEP_PATHS } from './steps'
 const t = en.onboardingFlow.fixedHours
 
 type Answer = 'no' | 'yes'
-
-// The rows of the week (S34 decision 6): whole hours from the wake hour up to the sleep hour, the
-// last row being the hour before sleep. A sleep time after midnight runs on past 24, and a sleep
-// time with minutes keeps the hour it falls in.
-function weekHours(wake: string, sleep: string): { firstHour: number; lastHour: number } {
-  const firstHour = Number(wake.slice(0, 2))
-  const sleepMinutes = Number(sleep.slice(0, 2)) * 60 + Number(sleep.slice(3, 5))
-  let lastHour = Math.ceil(sleepMinutes / 60)
-  if (lastHour <= firstHour) lastHour += 24
-  return { firstHour, lastHour }
-}
 
 // The two answers side by side, as toggle buttons. The chosen one has the brand's 2px border on
 // its soft fill (the prototype's step 4).
@@ -71,6 +61,8 @@ function AnswerButton({ pressed, disabled, onPress, children }: { pressed: boole
 // whole hours; exact hours go through the dialog, and a photo of the timetable through
 // TimetableImport. Both of those save at once; the marked hours are saved by "Build my plan".
 //
+// The marked hours live in the markedHours store, not in this component: "Back" saves nothing, and
+// they are still marked when the student returns (steps 1 and 3 count them too).
 // Marked hours are sent one range at a time. Each range that went through moves from marked to
 // saved, so after a failure a second press sends only what is still marked, never a duplicate.
 // Before the build, the material deletes still waiting from step 2 are sent (flushDeletes): the
@@ -86,10 +78,10 @@ export function FixedHoursStep() {
   const remove = useDeleteCommitment()
 
   const [chosen, setChosen] = useState<Answer | null>(null)
-  // Coming back to the step with busy times already saved chooses "Yes" for the student, once:
-  // deleting them all afterwards leaves the week open.
+  // Coming back to the step with busy times already saved, or hours still marked, chooses "Yes" for
+  // the student, once: deleting them all afterwards leaves the week open.
   const [seeded, setSeeded] = useState(false)
-  const [painted, setPainted] = useState<ReadonlySet<string>>(new Set())
+  const painted = useMarkedCells()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const [problem, setProblem] = useState<{ title?: string; text: string } | null>(null)
@@ -103,7 +95,7 @@ export function FixedHoursStep() {
   const groups = groupCommitments(saved ?? []).filter((group) => !group.isMeTime)
   if (!seeded && saved !== undefined) {
     setSeeded(true)
-    if (groups.length > 0) setChosen('yes')
+    if (groups.length > 0 || painted.size > 0) setChosen('yes')
   }
 
   const { firstHour, lastHour } = weekHours(profile?.wake_time ?? '08:00', profile?.sleep_time ?? '23:00')
@@ -115,7 +107,10 @@ export function FixedHoursStep() {
   // stops being marked for good: deleting that busy time later frees the hour, it does not mark it
   // again.
   const marked = new Set([...painted].filter((cell) => !savedCells.has(cell)))
-  if (marked.size !== painted.size) setPainted(marked)
+  const covered = marked.size !== painted.size
+  useEffect(() => {
+    if (covered) setMarkedCells(new Set([...markedCells()].filter((cell) => !savedCells.has(cell))))
+  })
   const ranges = chosen === 'yes' ? paintedRanges(marked, firstHour) : []
 
   // Decision 7: the saved busy times and the hours only marked, together.
@@ -136,7 +131,7 @@ export function FixedHoursStep() {
       old === undefined || old.some((c) => c.id === commitment.id) ? old : [...old, commitment],
     )
     const done = cellsOf([commitment], firstHour, lastHour)
-    setPainted((current) => new Set([...current].filter((cell) => !done.has(cell))))
+    setMarkedCells(new Set([...markedCells()].filter((cell) => !done.has(cell))))
   }
 
   // save: whether the marked hours are sent first. "No, I’m flexible" never sends them, whatever
@@ -161,6 +156,8 @@ export function FixedHoursStep() {
         return
       }
     }
+    // Every marked hour is saved now, or the student said they have none.
+    clearMarkedCells()
     if (!(await flushDeletes())) {
       setProblem({ text: t.deletesFailed })
       setLeaving(false)
@@ -242,7 +239,7 @@ export function FixedHoursStep() {
                 lastHour={lastHour}
                 painted={marked}
                 saved={savedCells}
-                onChange={setPainted}
+                onChange={setMarkedCells}
               />
               <div>
                 <Button

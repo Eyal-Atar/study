@@ -3,18 +3,21 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent, type UserEvent } from '@testing-library/user-event'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import type { Me } from '../api/me'
 import { AppProviders } from '../app/AppProviders'
+import type { Commitment } from '../availability/types'
+import { addDays, todayIn } from '../exam/dates'
 import { en } from '../i18n/en'
 import { LOCALE } from '../i18n/locale'
 import { createFakeApi, problem, type ApiCall, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { createFakeStorage } from '../test/fakeStorage'
-import { meFixture } from '../test/onboardingFixtures'
+import { BROWSER_ZONE, meFixture } from '../test/onboardingFixtures'
 import { examColor } from '../ui/examColor'
 import { ToastRegion } from '../ui/toast'
 import { ExamsStep } from './ExamsStep'
+import { clearMarkedCells, setMarkedCells } from './markedHours'
 import { STEP_PATHS } from './steps'
 import type { Exam, ExamCreate } from './types'
 
@@ -29,6 +32,7 @@ function examsApi(initial: Exam[] = [], me: Partial<Me> = {}) {
   fake
     .on('GET /me', meFixture(me))
     .on('GET /exams', () => exams)
+    .on('GET /commitments', { commitments: [] })
     .on('POST /exams', (call: ApiCall) => {
       const body = call.body as ExamCreate
       const exam: Exam = { id: `e${String(exams.length + 1)}`, ...body, created_at: '2026-11-16T08:00:00Z', color_index: 0 }
@@ -112,7 +116,49 @@ async function loaded() {
 
 const noExamRows = () => screen.queryByRole('list', { name: t.listTitle })
 
+// Hours marked in step 4 by an earlier test would count in this one's estimate.
+beforeEach(() => {
+  clearMarkedCells()
+})
+
+// An exam in three days with one rest day, in the profile's own zone: tomorrow is the only study
+// day, and its study hours are 09:00–17:00 (the morning and the afternoon, an hour after waking).
+const zoneToday = todayIn(BROWSER_ZONE)
+const soonExam: Exam = { id: 'e1', name: 'שפת C', exam_date: addDays(zoneToday, 3), difficulty: 3, created_at: '2026-11-16T08:00:00Z', color_index: 0 }
+const tomorrowWeekday = new Date(`${addDays(zoneToday, 1)}T00:00:00Z`).getUTCDay() as Commitment['weekday']
+const busyTomorrow: Commitment = {
+  id: 'c1',
+  title: 'משמרת עבודה',
+  kind: 'work',
+  weekday: tomorrowWeekday,
+  start_time: '09:00',
+  end_time: '17:00',
+  valid_from: '2026-11-01',
+  valid_until: null,
+  source_job_id: null,
+  created_at: '2026-11-01T08:00:00Z',
+}
+
 describe('ExamsStep', () => {
+  it('a saved busy time lowers the hours in the estimate', async () => {
+    renderExams(examsApi([soonExam]).on('GET /commitments', { commitments: [busyTomorrow] }))
+    expect(await screen.findByText(f.none('שפת C'))).toBeInTheDocument()
+  })
+
+  it('the hours marked in step 4 and not saved yet count in the estimate', async () => {
+    const cells = new Set<string>()
+    for (let hour = 9; hour < 17; hour += 1) cells.add(`${String(tomorrowWeekday)}-${String(hour)}`)
+    setMarkedCells(cells)
+    renderExams(examsApi([soonExam]))
+    expect(await screen.findByText(f.none('שפת C'))).toBeInTheDocument()
+  })
+
+  it('without busy time the same exam has study time', async () => {
+    renderExams(examsApi([soonExam]))
+    const status = await screen.findByText(/study hours/)
+    expect(status).not.toHaveTextContent(f.none('שפת C'))
+  })
+
   it('shows the step and Archi’s question, and with no exam only the form under it', async () => {
     renderExams(examsApi())
     expect(screen.getByRole('heading', { level: 1, name: t.title })).toBeInTheDocument()

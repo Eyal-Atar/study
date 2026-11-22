@@ -3,6 +3,7 @@ import { Form } from 'react-aria-components'
 import { useNavigate } from 'react-router'
 import { errorMessage } from '../api/client'
 import { useMe } from '../api/me'
+import { useCommitments } from '../availability/api'
 import { todayIn } from '../exam/dates'
 import { en } from '../i18n/en'
 import { LOCALE } from '../i18n/locale'
@@ -21,6 +22,7 @@ import { UserText } from '../ui/UserText'
 import { useCreateExam, useDeleteExam, useExams, useUndo, type Exam } from './api'
 import { feasibility } from './feasibility'
 import { FeasibilityNote } from './FeasibilityNote'
+import { markedRanges, useMarkedCells } from './markedHours'
 import { OnboardingLayout } from './OnboardingLayout'
 import { STEP_PATHS } from './steps'
 
@@ -77,6 +79,8 @@ export function ExamsStep() {
   const deleteExam = useDeleteExam()
   const undo = useUndo()
   const me = useMe()
+  const commitments = useCommitments()
+  const marked = useMarkedCells()
 
   const [name, setName] = useState('')
   const [date, setDate] = useState<DateValue | null>(null)
@@ -89,17 +93,19 @@ export function ExamsStep() {
     .filter((exam) => !deleting.has(exam.id))
     .sort((a, b) => a.exam_date.localeCompare(b.exam_date))
 
-  // What Archi makes of the exams so far (audit, guideline 9), from the profile's defaults and
-  // with no busy time yet: that is asked in step 4. It follows the list, so it changes the moment
-  // an exam is added or deleted.
+  // What Archi makes of the exams so far (audit, guideline 9), from the profile and the busy time
+  // as step 4 counts it (decision 7): the saved busy times and the hours marked there and not saved
+  // yet, so a student who comes back here reads the same estimate. Null until they load. It follows
+  // the list, so it changes the moment an exam is added or deleted.
+  const saved = commitments.data
   const estimate =
-    me.data === undefined
+    me.data === undefined || saved === undefined
       ? null
       : feasibility({
           today: todayIn(me.data.timezone),
           exams: visible.map((exam) => ({ name: exam.name, exam_date: exam.exam_date })),
           profile: me.data,
-          busy: [],
+          busy: [...saved, ...markedRanges(marked, me.data)],
         })
 
   function submit() {

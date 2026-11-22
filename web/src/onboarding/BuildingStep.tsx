@@ -5,7 +5,8 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { Archie } from '../archie/Archie'
 import { useApi } from '../api/ApiContext'
 import { errorMessage, type ApiError } from '../api/client'
-import { meKey, useUserId } from '../api/me'
+import { meKey, useMe, useUserId } from '../api/me'
+import { daysBetween, todayIn } from '../exam/dates'
 import { codeText, shortfallText } from '../i18n/codes'
 import { en } from '../i18n/en'
 import { ReplanOffer } from '../plan/ReplanOffer'
@@ -18,16 +19,24 @@ import { examColor } from '../ui/examColor'
 import { List, ListRow } from '../ui/List'
 import { Note } from '../ui/Note'
 import { ProgressBar } from '../ui/ProgressBar'
+import { prefersReducedMotion } from '../ui/reducedMotion'
 import { cx, ICON_STROKE } from '../ui/styles'
 import { UserText } from '../ui/UserText'
 import { forgetJob, rememberJob } from './activeJob'
 import { materialsKey, POLL_INTERVAL_MS, useExams, useGenerate, useJob } from './api'
+import { clearMarkedCells } from './markedHours'
 import { STEP_PATHS } from './steps'
 import type { Exam, GenerateResult, Job, Material } from './types'
 
 // A failed job of the account (no credit, no key) stops before every exam, but an exam analyzed
 // before it has tasks: they can still go on the board.
 const ACCOUNT_FAILURES = new Set(['ai_no_credit', 'ai_not_configured'])
+
+// The XP the job gave for the first plan, read at run time: the job's result comes from the server
+// as JSON, so anything but a positive finite number (absent, null, 0, a string) gives no XP.
+function givenXp(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0
+}
 
 function ingesting(materials: Material[] | undefined): boolean {
   return materials?.some((m) => m.ingest_status === 'queued' || m.ingest_status === 'processing') ?? false
@@ -74,6 +83,7 @@ export function BuildingStep() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const userId = useUserId()
+  const me = useMe()
   const [replanOpen, setReplanOpen] = useState(false)
 
   const { mutate: runGenerate } = generate
@@ -105,9 +115,11 @@ export function BuildingStep() {
   // When this very job gave the first plan's XP, the progress is stale too: the level chip of the
   // header must show the 50. A job that gave nothing (an old one, a returning user) leaves it alone.
   const status = job.data?.status
-  const firstPlanXp = job.data?.result?.first_plan_xp ?? 0
+  const firstPlanXp = givenXp(job.data?.result?.first_plan_xp)
   useEffect(() => {
     if (status !== 'done') return
+    // The plan is built: the hours still marked in step 4 are on it, or were dropped on purpose.
+    clearMarkedCells()
     void queryClient.invalidateQueries({ queryKey: meKey(userId) })
     if (firstPlanXp > 0) void queryClient.invalidateQueries({ queryKey: progressKey(userId) })
   }, [status, firstPlanXp, queryClient, userId])
@@ -191,7 +203,7 @@ export function BuildingStep() {
   } else if (ready !== null) {
     return (
       <>
-        <Ready result={ready} exams={exams.data ?? []} onContinue={() => void toToday()} />
+        <Ready result={ready} exams={exams.data ?? []} timezone={me.data?.timezone} onContinue={() => void toToday()} />
         {replan}
       </>
     )
@@ -233,13 +245,6 @@ export function BuildingStep() {
   )
 }
 
-const REDUCED_MOTION = '(prefers-reduced-motion: reduce)'
-
-// Read once, when the screen arrives: the entrance happens only then.
-function prefersReducedMotion() {
-  return typeof window.matchMedia === 'function' && window.matchMedia(REDUCED_MOTION).matches
-}
-
 // The page title follows the h1, as it does on the steps (WCAG 2.4.2), and the plain name comes back.
 function useDocumentTitle(title: string) {
   useEffect(() => {
@@ -275,20 +280,27 @@ function Frame({ title, children }: { title: string; children: ReactNode }) {
 const HOP =
   'motion-safe:transition-[translate] motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-safe:starting:translate-y-3'
 
-// Whole days from today to the date (YYYY-MM-DD), both as calendar days of this device.
-function daysUntil(date: string): number {
-  const [y, m, d] = date.split('-').map(Number)
-  const now = new Date()
-  return Math.round((Date.UTC(y ?? 0, (m ?? 1) - 1, d ?? 1) - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / 86_400_000)
-}
 
 // Archi sits on the card that holds his news. The gold chip is the XP the server really gave in this
 // job; the green one is always there.
-function Ready({ result, exams, onContinue }: { result: GenerateResult; exams: Exam[]; onContinue: () => void }) {
+// The days to the nearest exam count from today in the profile's zone, like the rest of the product;
+// until me has loaded (the gate has it already), the device's zone stands in.
+function Ready({
+  result,
+  exams,
+  timezone,
+  onContinue,
+}: {
+  result: GenerateResult
+  exams: Exam[]
+  timezone: string | undefined
+  onContinue: () => void
+}) {
   useDocumentTitle(en.building.doneTitle)
   const [enters] = useState(() => !prefersReducedMotion())
-  const xp = result.first_plan_xp ?? 0
-  const ahead = exams.map((exam) => daysUntil(exam.exam_date)).filter((days) => days >= 0)
+  const xp = givenXp(result.first_plan_xp)
+  const today = todayIn(timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone)
+  const ahead = exams.map((exam) => daysBetween(today, exam.exam_date)).filter((days) => days >= 0)
   const nearest = ahead.length === 0 ? null : Math.min(...ahead)
   return (
     <div className="flex flex-col gap-3 pt-2">

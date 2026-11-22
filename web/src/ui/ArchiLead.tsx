@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Archie, type ArchieMood } from '../archie/Archie'
+import { prefersReducedMotion } from './reducedMotion'
 import { cx } from './styles'
 
 export interface ArchiLeadProps {
@@ -25,13 +26,6 @@ const WIDTHS: Record<ArchieMood, string> = {
   flow: 'w-35',
   eureka: 'w-30',
   rest: 'w-40',
-}
-
-const REDUCED_MOTION = '(prefers-reduced-motion: reduce)'
-
-// Read once, when he arrives: the entrance happens only then.
-function prefersReducedMotion() {
-  return typeof window.matchMedia === 'function' && window.matchMedia(REDUCED_MOTION).matches
 }
 
 // His entrance: a 200ms fade from nothing, from the first frame he is on the page (starting:). A

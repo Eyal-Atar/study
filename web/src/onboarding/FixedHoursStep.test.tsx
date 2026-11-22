@@ -14,6 +14,7 @@ import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { createFakeStorage } from '../test/fakeStorage'
 import { BROWSER_ZONE, meFixture } from '../test/onboardingFixtures'
 import { FixedHoursStep } from './FixedHoursStep'
+import { clearMarkedCells, markedCells } from './markedHours'
 import { flushDeletes, sendDelete, waitToDelete } from './pendingDeletes'
 import { STEP_PATHS } from './steps'
 
@@ -98,8 +99,9 @@ const noteRegion = () => {
 }
 
 beforeEach(async () => {
-  // A delete left waiting by an earlier test would leak into this one.
+  // A delete left waiting by an earlier test would leak into this one, and so would marked hours.
   await flushDeletes()
+  clearMarkedCells()
 })
 
 describe('FixedHoursStep', () => {
@@ -409,6 +411,44 @@ describe('FixedHoursStep', () => {
       expect(motion.length).toBeGreaterThan(0)
       for (const c of motion) expect(c.startsWith('motion-safe:')).toBe(true)
     }
+  })
+
+  it('hours marked and not saved survive "Back" and the return, and nothing is sent', async () => {
+    const user = userEvent.setup()
+    const { fake } = server()
+    const router = renderStep(fake)
+    await user.click(await yes())
+    await user.click(screen.getByRole('button', { name: cellName(0, 10) }))
+    await user.click(screen.getByRole('button', { name: en.common.back }))
+    expect(await screen.findByText('schedule')).toBeInTheDocument()
+
+    await router.navigate(STEP_PATHS.fixedHours)
+    expect(await yes()).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: cellName(0, 10) })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: cellName(0, 11) })).toHaveAttribute('aria-pressed', 'false')
+    expect(fake.calls('POST')).toHaveLength(0)
+    expect(fake.calls('PATCH')).toHaveLength(0)
+  })
+
+  it('"No, I’m flexible" forgets the marked hours', async () => {
+    const user = userEvent.setup()
+    renderStep(server().fake)
+    await user.click(await yes())
+    await user.click(screen.getByRole('button', { name: cellName(0, 10) }))
+    expect(markedCells().size).toBe(1)
+    await user.click(screen.getByRole('button', { name: t.no }))
+    expect(await screen.findByText('building')).toBeInTheDocument()
+    expect(markedCells().size).toBe(0)
+  })
+
+  it('the marked hours that "Build my plan" saved are no longer marked', async () => {
+    const user = userEvent.setup()
+    renderStep(server().fake)
+    await user.click(await yes())
+    await user.click(screen.getByRole('button', { name: cellName(0, 10) }))
+    await user.click(build())
+    expect(await screen.findByText('building')).toBeInTheDocument()
+    expect(markedCells().size).toBe(0)
   })
 
   it('"Back" goes to step 3', async () => {

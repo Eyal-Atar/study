@@ -3,13 +3,16 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import type { Me, MePatch } from '../api/me'
 import { AppProviders } from '../app/AppProviders'
+import type { Commitment } from '../availability/types'
+import { addDays, todayIn } from '../exam/dates'
 import { en } from '../i18n/en'
 import { createFakeApi, problem, type ApiCall, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { createFakeStorage } from '../test/fakeStorage'
+import { clearMarkedCells, setMarkedCells } from './markedHours'
 import { ScheduleStep } from './ScheduleStep'
 import { STEP_PATHS } from './steps'
 
@@ -45,6 +48,7 @@ function meApi(profile: Me = me) {
   return createFakeApi()
     .on('GET /me', profile)
     .on('GET /exams', [exam])
+    .on('GET /commitments', { commitments: [] })
     .on('PATCH /me', (call: ApiCall) => ({ ...profile, ...(call.body as MePatch), plan_affected: false }))
 }
 
@@ -86,7 +90,61 @@ const hoursValue = (hours: number) => screen.getByText(t.hours(hours))
 const follows = (first: Element, second: Element) =>
   (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
 
+// Hours marked in step 4 by an earlier test would count in this one's note.
+beforeEach(() => {
+  clearMarkedCells()
+})
+
+// The exam is in three days with one rest day, in the profile's own zone: tomorrow is the only study
+// day, and its study hours are 09:00–17:00 (the morning and the afternoon, an hour after waking).
+const zoneToday = todayIn(me.timezone)
+const soonExam = { ...exam, exam_date: addDays(zoneToday, 3) }
+const tomorrowWeekday = new Date(`${addDays(zoneToday, 1)}T00:00:00Z`).getUTCDay() as Commitment['weekday']
+const busyTomorrow: Commitment = {
+  id: 'c1',
+  title: 'משמרת עבודה',
+  kind: 'work',
+  weekday: tomorrowWeekday,
+  start_time: '09:00',
+  end_time: '17:00',
+  valid_from: '2026-11-01',
+  valid_until: null,
+  source_job_id: null,
+  created_at: '2026-11-01T08:00:00Z',
+}
+
 describe('ScheduleStep', () => {
+  it('a saved busy time lowers the hours in Archi’s note', async () => {
+    renderSchedule(meApi().on('GET /exams', [soonExam]).on('GET /commitments', { commitments: [busyTomorrow] }))
+    await screen.findByText(t.hours(4))
+    const note = noteRegion()
+    await waitFor(() => {
+      expect(note).toHaveTextContent(en.onboardingFlow.feasibility.none('Calculus'))
+    })
+  })
+
+  it('the hours marked in step 4 and not saved yet count in the note', async () => {
+    const cells = new Set<string>()
+    for (let hour = 9; hour < 17; hour += 1) cells.add(`${String(tomorrowWeekday)}-${String(hour)}`)
+    setMarkedCells(cells)
+    renderSchedule(meApi().on('GET /exams', [soonExam]))
+    await screen.findByText(t.hours(4))
+    const note = noteRegion()
+    await waitFor(() => {
+      expect(note).toHaveTextContent(en.onboardingFlow.feasibility.none('Calculus'))
+    })
+  })
+
+  it('without busy time the same exam has study time', async () => {
+    renderSchedule(meApi().on('GET /exams', [soonExam]))
+    await screen.findByText(t.hours(4))
+    const note = noteRegion()
+    await waitFor(() => {
+      expect(note).not.toBeEmptyDOMElement()
+    })
+    expect(note).not.toHaveTextContent(en.onboardingFlow.feasibility.none('Calculus'))
+  })
+
   it('starts from the profile: 4 hours, morning and afternoon', async () => {
     renderSchedule(meApi())
     expect(await screen.findByText(t.hours(4))).toBeInTheDocument()

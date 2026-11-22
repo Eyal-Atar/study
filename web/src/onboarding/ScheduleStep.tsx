@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { errorMessage } from '../api/client'
 import { useMe, type StudyWindow } from '../api/me'
+import { useCommitments } from '../availability/api'
 import { todayIn } from '../exam/dates'
 import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
@@ -14,6 +15,7 @@ import { Stepper } from '../ui/Stepper'
 import { useExams, useUpdateMe } from './api'
 import { feasibility } from './feasibility'
 import { FeasibilityNote } from './FeasibilityNote'
+import { markedRanges, useMarkedCells } from './markedHours'
 import { OnboardingLayout } from './OnboardingLayout'
 import { STEP_PATHS } from './steps'
 
@@ -47,6 +49,8 @@ export function ScheduleStep() {
   const navigate = useNavigate()
   const me = useMe()
   const exams = useExams()
+  const commitments = useCommitments()
+  const marked = useMarkedCells()
   const updateMe = useUpdateMe()
   const errorId = useId()
   // What the student has chosen so far. Until they choose, the profile's own answer stands, so the
@@ -66,14 +70,17 @@ export function ScheduleStep() {
   // What I make of the exams from the values being chosen right now, so it answers every press.
   // Null without exams or a profile, and while no exam has a complete date.
   // Null too while no window is chosen: the issue then is the missing window, not a lack of time.
+  // The busy time counts as in step 4 (decision 7): the saved busy times and the hours marked there
+  // and not saved yet, so the note says the same here as there. Null until they load.
+  const saved = commitments.data
   const estimate =
-    profile === undefined || exams.data === undefined || windows.length === 0
+    profile === undefined || exams.data === undefined || saved === undefined || windows.length === 0
       ? null
       : feasibility({
           today: todayIn(profile.timezone),
           exams: exams.data.map((exam) => ({ name: exam.name, exam_date: exam.exam_date })),
           profile: { ...profile, daily_study_minutes: minutes, study_windows: windows },
-          busy: [],
+          busy: [...saved, ...markedRanges(marked, profile)],
         })
 
   function save() {
