@@ -86,7 +86,8 @@ export function SplitRow({ expanded, onToggle, onPreview, offer, blocks, exams, 
           </div>
           {/* The split also takes the task's other blocks that are still ahead: said, not left to the grid. */}
           {offer.split_minutes === offer.block.minutes ? null : <p>{s.whole(durationText(offer.split_minutes))}</p>}
-          <div className="grid grid-cols-[1.5fr_1fr] gap-2">
+          {/* Button-sized on a wide banner, left under the list; a phone's banner is narrower than the cap. */}
+          <div className="grid max-w-sm grid-cols-[1.5fr_1fr] gap-2">
             <Button
               isPending={splitting}
               onPress={() => {
