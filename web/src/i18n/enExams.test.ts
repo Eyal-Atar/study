@@ -35,7 +35,7 @@ describe('enExams: the list', () => {
     expect(enExams.list.chip(1)).toBe('Tomorrow')
     expect(enExams.list.chip(22)).toBe('in 22 days')
     expect(enExams.list.chip(-3)).toBe('Exam day passed')
-    expect(enExams.list.chip(-3)).toBe(enExams.list.passed)
+    expect(enExams.list.chip(-3)).toBe(enExams.list.chip(-1))
   })
 
   it('joins the date and the progress', () => {

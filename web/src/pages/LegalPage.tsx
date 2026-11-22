@@ -5,7 +5,7 @@ import { TextLink } from '../ui/TextLink'
 
 const TITLES = { terms: en.entry.legal.terms, privacy: en.entry.legal.privacy } as const
 
-// /terms and /privacy (decision 17), outside RequireAuth: the login screen links here before
+// /terms and /privacy (S34 decision 21), outside RequireAuth: the login screen links here before
 // anyone has signed in. A placeholder until the documents themselves arrive in S21.
 export function LegalPage({ kind }: { kind: 'terms' | 'privacy' }) {
   return (

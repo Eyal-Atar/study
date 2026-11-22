@@ -21,7 +21,7 @@ function initial(name: string): string {
 
 // The square of the mockup: the strong colour of the exam on its soft fill, 20px and 700. That is
 // large text by WCAG (18.66px bold and up), so 3:1 is the bar, and exam-N on exam-N-soft is
-// checked as a large-text pair (theme.test.ts, S34). Only at this size and weight (S34 decision 10).
+// checked as a large-text pair (theme.test.ts, S34). Only at this size and weight (S34 decision 13).
 // It repeats the name beside it, so it is hidden from a screen reader.
 export function ExamInitial({ name, colorIndex, size = 'md' }: ExamInitialProps) {
   const colour = examColor(colorIndex)
@@ -50,7 +50,7 @@ export interface ExamProgressBarProps {
 }
 
 // The 5px bar under the name of an exam in the list: the surface-muted track, filled in the strong
-// colour of the exam (exam-N is a checked 3:1 mark on surface; S34 decision 9: here the bar names
+// colour of the exam (exam-N is a checked 3:1 mark on surface; S34 decision 11: here the bar names
 // the exam, green stays "done"). With max 0 it is empty.
 export function ExamProgressBar({ colorIndex, value, max, 'aria-label': ariaLabel, valueText }: ExamProgressBarProps) {
   const top = max > 0 ? max : 0

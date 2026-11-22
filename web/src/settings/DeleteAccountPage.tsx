@@ -66,7 +66,7 @@ export function DeleteAccountPage() {
         {t.exportFirst} <TextLink to={`${SETTINGS_PATH}#${EXPORT_SECTION_ID}`}>{t.exportLink}</TextLink>
       </p>
 
-      {/* The only card of the screen, and its only red: the step that cannot be undone. */}
+      {/* The screen's only red: the step that cannot be undone. */}
       <Card tone="danger" className="max-w-xl">
         <form
           noValidate

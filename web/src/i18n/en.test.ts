@@ -19,8 +19,6 @@ describe('en: counts', () => {
     ['building.examTasks', en.building.examTasks, 0, '0 tasks'],
     ['building.examTasks', en.building.examTasks, 1, '1 task'],
     ['building.examTasks', en.building.examTasks, 2, '2 tasks'],
-    ['building.blocks', en.building.blocks, 1, '1 study block on your calendar.'],
-    ['building.blocks', en.building.blocks, 3, '3 study blocks on your calendar.'],
     ['building.unscheduled', en.building.unscheduled, 1, '1 task didn’t fit.'],
     ['building.unscheduled', en.building.unscheduled, 2, '2 tasks didn’t fit.'],
     ['replan.added', en.replan.added, 1, '1 new study block'],

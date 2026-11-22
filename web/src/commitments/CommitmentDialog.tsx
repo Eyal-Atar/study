@@ -67,8 +67,8 @@ function serverFieldErrors(error: ApiError): FieldErrors | null {
   return Object.keys(found).length > 0 ? found : null
 }
 
-// The text of a problem that is about the request and not about a field. describeCode (Task 8) will
-// replace this; until then a code without a text shows the title the server sent.
+// The text of a problem that is about the request and not about a field. A code without a text shows
+// the title the server sent; the texts of the S35 codes arrive from scope S32 at merge time.
 function problemText(error: unknown): string | null {
   if (!(error instanceof ApiError) || error.code === null) return null
   if (isKnownCode(error.code)) return codeText(error.code, error.details)

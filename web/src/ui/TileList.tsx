@@ -8,7 +8,7 @@ export interface TileListProps {
   className?: string | undefined
 }
 
-// A list that sits right on the canvas of the page (S34 decision 8): the exams, the fixed hours.
+// A list that sits right on the canvas of the page (S34 decision 10): the topics of the exam screen.
 // ListRow is a soft tile for a list inside a surface, and on the canvas it is swallowed; a TileRow
 // is the .card of the all-screens mockup, a white tile with a quiet line. The tiles space
 // themselves (8px), like the rows of a List.

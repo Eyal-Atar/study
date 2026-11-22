@@ -191,7 +191,7 @@ describe('CommitmentsSection', () => {
     expect(await screen.findByRole('heading', { name: en.replan.title })).toBeInTheDocument()
   })
 
-  it('an Undo that fails part way refreshes the list and says so', async () => {
+  it('an Undo that fails part way refreshes the list, says so, and offers a replan (part of the delete stands)', async () => {
     let posts = 0
     const fake = server([row('c0', 0), row('c2', 2)], (call) => {
       if (call.method !== 'POST' || call.path !== '/commitments') return false
@@ -205,6 +205,9 @@ describe('CommitmentsSection', () => {
     await user.click(await screen.findByRole('button', { name: en.common.undo }))
 
     expect(await screen.findByText(t.undoFailed)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: en.replan.title })).toBeInTheDocument()
+    expect(screen.getByText(t.replanReason)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: en.replan.notNow }))
     expect(await within(card()).findByRole('button', { name: new RegExp(WORK) })).toHaveTextContent('Sun, 14:00–17:00')
   })
 

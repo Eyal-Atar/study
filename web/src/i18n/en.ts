@@ -252,7 +252,6 @@ export const en = {
     },
   },
   onboardingSchedule: {
-    title: 'Two more questions',
     intro: 'I’ll use your answers to schedule study at the hours that suit you.',
     hoursQuestion: 'How many hours a day feels realistic for you?',
     hours: (hours: number) => plural(hours, 'hour', 'hours'),
@@ -290,7 +289,6 @@ export const en = {
     examFailed: 'Not analysed:',
     someFailed: 'I couldn’t analyse some of your exams. I built the plan from the rest, and you can try again later.',
     gapsTitle: 'Topics with no material',
-    blocks: (count: number) => `${plural(count, 'study block', 'study blocks')} on your calendar.`,
     unscheduled: (count: number) => (count === 1 ? '1 task didn’t fit.' : `${String(count)} tasks didn’t fit.`),
     toToday: 'Go to my calendar',
     failedTitle: 'I couldn’t build your plan',
@@ -520,7 +518,6 @@ export const en = {
     notFoundHint: 'It may have been deleted.',
     backToList: 'All exams',
     header: {
-      edit: 'Edit',
       editLabel: 'Edit exam details',
       // "23 November 2026, in 6 days. Difficulty: hard": the parts around the days left, which are emphasised.
       dateThen: (date: string) => `${date}, `,
@@ -665,13 +662,6 @@ export const en = {
     preferences: {
       title: 'Study preferences',
       intro: 'I schedule your study by these preferences. After you save, I’ll offer to update your plan.',
-      // The four groups of the form, each an h3.
-      groups: {
-        amount: 'How much and when',
-        routine: 'Daily routine',
-        hobby: 'Me time',
-        rest: 'Before an exam',
-      },
       hoursQuestion: 'How many hours a day feels realistic for you?',
       windowsQuestion: 'When do you like to study?',
       windowsHint: 'You can pick more than one.',
@@ -701,7 +691,6 @@ export const en = {
       button: 'Download the file',
     },
     danger: {
-      title: 'Delete your account',
       description: 'Deletes your account and all your data. This can’t be undone.',
       link: 'Delete my account',
     },

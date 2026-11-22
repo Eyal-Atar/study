@@ -65,6 +65,8 @@ export function CommitmentsSection() {
       // Some days may be back and some not: the list shows what is really there.
       await queryClient.invalidateQueries({ queryKey: commitmentsKey(userId) })
       toast.show({ text: t.undoFailed, tone: 'error' })
+      // The delete stands in part, so the board's free time changed.
+      offer(t.replanReason)
     }
   }
 

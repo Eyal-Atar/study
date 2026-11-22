@@ -88,7 +88,7 @@ describe('ExamsPage', () => {
     openRoute(fake, '/exams')
     const list = await screen.findByRole('list', { name: t.list.listTitle })
     const rows = within(list).getAllByRole('listitem')
-    expect(rows[0]).toHaveTextContent(x.list.passed)
+    expect(rows[0]).toHaveTextContent(x.list.chip(-1))
     expect(rows[0]).not.toHaveTextContent('-')
     expect(rows[1]).toHaveTextContent('Today')
     expect(rows[2]).toHaveTextContent('Tomorrow')

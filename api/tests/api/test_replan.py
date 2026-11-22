@@ -200,6 +200,13 @@ def test_apply_completes_the_onboarding_and_keeps_it(
     insert_task(db, user.id, exam, minutes=60, title="עוד משימה")
     replan_apply(api, user)
     assert _onboarded_at(db, user) == NOW
+    # The first plan's XP is the generate job's alone: a replan never awards it.
+    first_plan_rows = scalar(
+        db,
+        "SELECT count(*) FROM app.xp_events WHERE user_id = %s AND kind = 'first_plan'",
+        user.id,
+    )
+    assert first_plan_rows == 0
 
 
 def test_apply_on_a_board_without_tasks_leaves_the_onboarding_open(

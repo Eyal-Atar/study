@@ -13,7 +13,6 @@ export const enExams = {
       if (days === 1) return 'Tomorrow'
       return `in ${String(days)} days`
     },
-    passed: PASSED,
     progress: (percent: number) => `${String(percent)}% of the plan done`,
     noTasks: 'No tasks yet',
     // '16 December 2026. 42% of the plan done'
