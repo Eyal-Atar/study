@@ -33,8 +33,19 @@ function written(overrides: Partial<TaskWriteResponse> = {}): TaskWriteResponse 
   return { task: TASKS[0] ?? taskFixture(), placement: null, version_id: null, ...overrides }
 }
 
+// Opens every folded topic tile, the way a user reaches the rows of a topic that starts folded.
+async function unfold(list: HTMLElement | null = null) {
+  const user = userEvent.setup()
+  const scope = list ?? (await screen.findByRole('list', { name: tp.title }))
+  for (const fold of within(scope).queryAllByRole('button', { expanded: false })) {
+    if (fold.getAttribute('aria-label')?.startsWith('Expand: ')) await user.click(fold)
+  }
+}
+
 async function open(fake = server()) {
   openRoute(fake, '/exams/e1')
+  // Only the first topic starts open: a user reaches the rows of the others by opening their tiles.
+  await unfold()
   await screen.findByText('גבולות')
   return fake
 }
@@ -133,6 +144,7 @@ describe('TaskList', () => {
       written(),
     )
     openRoute(fake, '/exams/e1')
+    await unfold()
     await screen.findByText('חזרה כללית')
     const item = row('חזרה כללית')
     expect(item).toHaveTextContent(t.skipped)
@@ -275,6 +287,7 @@ describe('TaskList', () => {
   // column may shrink and breaks a word, and the controls at the end never shrink.
   it('a long title without spaces wraps, and the check and the menu stay in the row', async () => {
     openRoute(examServer({ tasks: [taskFixture({ id: 't8', title: LONG_TITLE, reason: 'כי כך' })], topics: TOPICS }), '/exams/e1')
+    await unfold()
     const title = await screen.findByText(LONG_TITLE)
     // The title is user text (a bdi); its parent carries the wrapping classes.
     expect(title.parentElement).toHaveClass('break-words')
@@ -381,6 +394,7 @@ describe('TaskList', () => {
     expect(within(section).getByRole('alert')).toHaveTextContent(en.codes.internal_error)
     fail = false
     await user.click(retry)
+    await unfold()
     expect(await within(section).findByText('גבולות')).toBeInTheDocument()
   })
 
@@ -468,12 +482,23 @@ describe('TaskList', () => {
 describe('TaskList topic tiles', () => {
   it('each topic is a tile of its own with its name, its count of finished tasks, and its tasks', async () => {
     await open()
-    const tiles = within(screen.getByRole('list', { name: tp.title })).getAllByRole('listitem', {}).filter((li) => li.closest('ul') === screen.getByRole('list', { name: tp.title }))
+    const tiles = Array.from(screen.getByRole('list', { name: tp.title }).children)
     expect(tiles).toHaveLength(3)
     expect(within(tiles[0] as HTMLElement).getByRole('heading', { level: 3 })).toHaveTextContent('נגזרות')
     expect(within(tiles[0] as HTMLElement).getByText(en.exams.exam.topic.progress(1, 1))).toBeInTheDocument()
     expect(within(tiles[1] as HTMLElement).getByText(en.exams.exam.topic.progress(0, 1))).toBeInTheDocument()
     expect(within(tiles[0] as HTMLElement).getByText('כלל השרשרת')).toBeInTheDocument()
+  })
+
+  it('the first topic starts open and the others folded, and each fold button says so', async () => {
+    openRoute(server(), '/exams/e1')
+    await screen.findByRole('list', { name: tp.title })
+    const first = screen.getByRole('button', { name: en.exams.exam.topic.collapse('נגזרות') })
+    expect(first).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('כלל השרשרת')).toBeInTheDocument()
+    const second = screen.getByRole('button', { name: en.exams.exam.topic.expand('גבולות ורציפות') })
+    expect(second).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('גבולות')).not.toBeInTheDocument()
   })
 
   it('a tile folds with its chevron button: the tasks go, and come back', async () => {

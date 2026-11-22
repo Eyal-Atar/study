@@ -26,14 +26,15 @@ function countOf(tasks: readonly ExamTask[]) {
 
 function Group({
   topic,
+  first,
   tasks,
   render,
 }: {
   topic: Topic | null
+  first: boolean
   tasks: readonly ExamTask[]
   render: (task: ExamTask) => React.ReactNode
 }) {
-  const headingId = useId()
   const list =
     tasks.length === 0 ? null : (
       // The line above the first row closes the head of the tile, like the line under each row.
@@ -42,11 +43,11 @@ function Group({
       </List>
     )
   return topic === null ? (
-    <NoTopicTile headingId={headingId} progress={countOf(tasks)}>
+    <NoTopicTile progress={countOf(tasks)}>
       {list}
     </NoTopicTile>
   ) : (
-    <TopicTile topic={topic} headingId={headingId} progress={countOf(tasks)}>
+    <TopicTile topic={topic} defaultOpen={first} progress={countOf(tasks)}>
       {list}
     </TopicTile>
   )
@@ -132,10 +133,10 @@ export function TaskList({
   else
     body = (
       <TileList aria-label={tp.title}>
-        {topicList.map((topic) => (
-          <Group key={topic.id} topic={topic} tasks={visible.filter((task) => task.topic_id === topic.id)} render={render} />
+        {topicList.map((topic, index) => (
+          <Group key={topic.id} topic={topic} first={index === 0} tasks={visible.filter((task) => task.topic_id === topic.id)} render={render} />
         ))}
-        {orphan.length === 0 ? null : <Group topic={null} tasks={orphan} render={render} />}
+        {orphan.length === 0 ? null : <Group topic={null} first={false} tasks={orphan} render={render} />}
       </TileList>
     )
 

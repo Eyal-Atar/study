@@ -109,21 +109,22 @@ const chevron = { 'aria-hidden': true as const, size: 18, strokeWidth: ICON_STRO
 
 // A topic as a tile of its own (S34 decision 10): its name, its five dots, a fold button, and under
 // the name how many of its tasks are done; the tasks are the body of the tile. "Edit" opens the form
-// of name and weight in place of the tile. The tile starts open, and the choice to fold it is the
-// user's. `progress` is { done, total } of the tasks that were not skipped.
+// of name and weight in place of the tile. The first tile starts open and the others folded, and the choice to fold
+// is then the user's. `progress` is { done, total } of the tasks that were not skipped.
 export function TopicTile({
   topic,
-  headingId,
+  defaultOpen,
   progress,
   children,
 }: {
   topic: Topic
-  headingId: string
+  // The first topic of the exam starts open and the rest folded, as in the prototype; after that it is the user's.
+  defaultOpen: boolean
   progress: { done: number; total: number }
   children: ReactNode
 }) {
   const [editing, setEditing] = useState(false)
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(defaultOpen)
   // ui/IconButton takes no ref, so the ref is on the head and the button is found inside it.
   const head = useRef<HTMLDivElement>(null)
   // The form replaces the tile; when it closes, the keyboard goes back to the pencil.
@@ -153,7 +154,7 @@ export function TopicTile({
     <TileRow
       title={
         <div ref={head} className="flex items-center gap-2">
-          <h3 id={headingId} className="min-w-0 flex-1 text-body font-semibold break-words text-ink">
+          <h3 className="min-w-0 flex-1 text-body font-semibold break-words text-ink">
             <UserText>{topic.name}</UserText>
           </h3>
           <Weight weight={topic.weight} />
@@ -198,11 +199,11 @@ function progressText({ done, total }: { done: number; total: number }): string 
 }
 
 // The tasks that have no topic: a tile with the same shape and no dots or edit.
-export function NoTopicTile({ headingId, progress, children }: { headingId: string; progress: { done: number; total: number }; children: ReactNode }) {
+export function NoTopicTile({ progress, children }: { progress: { done: number; total: number }; children: ReactNode }) {
   return (
     <TileRow
       title={
-        <h3 id={headingId} className="text-body font-semibold break-words text-ink">
+        <h3 className="text-body font-semibold break-words text-ink">
           {tp.noTopic}
         </h3>
       }
