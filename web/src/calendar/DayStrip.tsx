@@ -1,4 +1,5 @@
-import { useRef, type KeyboardEvent } from 'react'
+import { useEffect, useRef, type KeyboardEvent } from 'react'
+import { addDays } from '../board/time'
 import type { Block } from '../board/types'
 import { en } from '../i18n/en'
 import { examColor } from '../ui/examColor'
@@ -20,14 +21,33 @@ const counts = (block: Block) => block.state !== 'missed' && block.state !== 'sk
 
 // The week as seven buttons (the .strip of the prototype): the weekday, the date, and under them
 // the colours of that day's exams, or a leaf for a past day that kept the streak. One tab stop (the
-// selected day); the arrow keys move between days and select them.
+// selected day); the arrow keys move between days and select them, and past either end of the
+// week select the day beyond it (the strip then shows that day's week, and the focus follows).
 export function DayStrip({ days, selected, today, blocks, streakDays, onSelect }: DayStripProps) {
   const refs = useRef<(HTMLButtonElement | null)[]>([])
+  // The day an arrow key went to across the week's end: its button exists only once the strip
+  // shows the next week.
+  const pendingFocus = useRef<string | null>(null)
+  useEffect(() => {
+    if (pendingFocus.current === null) return
+    const index = days.indexOf(pendingFocus.current)
+    if (index === -1) return
+    pendingFocus.current = null
+    refs.current[index]?.focus()
+  }, [days])
   const move = (event: KeyboardEvent, index: number) => {
     if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
-    const target = days[index + (event.key === 'ArrowRight' ? 1 : -1)]
-    if (target === undefined) return
+    const step = event.key === 'ArrowRight' ? 1 : -1
+    const day = days[index]
+    if (day === undefined) return
     event.preventDefault()
+    const target = days[index + step]
+    if (target === undefined) {
+      const beyond = addDays(day, step)
+      pendingFocus.current = beyond
+      onSelect(beyond)
+      return
+    }
     refs.current[days.indexOf(target)]?.focus()
     onSelect(target)
   }

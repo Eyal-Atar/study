@@ -1,11 +1,13 @@
 import { screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { durationText } from '../board/time'
 import { en } from '../i18n/en'
 import { makeProgress } from '../progress/testFixtures'
 import { makeBlock, makeMe, makeToday, renderBoard } from '../test/boardFixtures'
 import { createFakeApi } from '../test/fakeApi'
+import { weekDays } from './days'
 import { DayStrip } from './DayStrip'
 import { PhoneHeader } from './PhoneHeader'
 import { TasksSheet } from './TasksSheet'
@@ -21,15 +23,24 @@ describe('PhoneHeader', () => {
   const api = () => createFakeApi().on('GET /me', makeMe()).on('GET /progress', makeProgress()).api
 
   it('says Today and the short date for today, with the chip linking to /progress', async () => {
-    renderBoard(<PhoneHeader date={TODAY} today={TODAY} />, { api: api() })
+    renderBoard(<PhoneHeader date={TODAY} today={TODAY} onWeek={vi.fn()} />, { api: api() })
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(en.board.today)
     expect(screen.getByText('Tue, 24 Nov')).toHaveClass('text-ink-muted')
     expect(await screen.findByRole('link', { name: /./ })).toHaveAttribute('href', '/progress')
   })
 
   it('names another day by its weekday', () => {
-    renderBoard(<PhoneHeader date="2026-11-26" today={TODAY} />, { api: api() })
+    renderBoard(<PhoneHeader date="2026-11-26" today={TODAY} onWeek={vi.fn()} />, { api: api() })
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Thursday')
+  })
+
+  // S32 final review, I2: a visible way to another week on a phone.
+  it('has a previous and a next week button', async () => {
+    const onWeek = vi.fn()
+    renderBoard(<PhoneHeader date="2026-11-26" today={TODAY} onWeek={onWeek} />, { api: api() })
+    await userEvent.click(screen.getByRole('button', { name: en.calendar.page.previousWeek }))
+    await userEvent.click(screen.getByRole('button', { name: en.calendar.page.nextWeek }))
+    expect(onWeek.mock.calls).toEqual([[-1], [1]])
   })
 })
 
@@ -97,11 +108,32 @@ describe('DayStrip', () => {
     expect(onSelect).toHaveBeenLastCalledWith('2026-11-23')
   })
 
-  it('does nothing past the last day', async () => {
+  // S32 final review, I2: the arrow keys cross the ends of the week.
+  it('past the last day selects the next Sunday', async () => {
     const { onSelect } = setup({ selected: '2026-11-28' })
     group().getAllByRole('button')[6]?.focus()
     await userEvent.keyboard('{ArrowRight}')
-    expect(onSelect).not.toHaveBeenCalled()
+    expect(onSelect).toHaveBeenLastCalledWith('2026-11-29')
+  })
+
+  it('before the first day selects the Saturday before', async () => {
+    const { onSelect } = setup({ selected: '2026-11-22' })
+    group().getAllByRole('button')[0]?.focus()
+    await userEvent.keyboard('{ArrowLeft}')
+    expect(onSelect).toHaveBeenLastCalledWith('2026-11-21')
+  })
+
+  it('keeps the focus on the selected day when the week changes under it', async () => {
+    function Harness() {
+      const [selected, setSelected] = useState('2026-11-28')
+      return <DayStrip days={weekDays(selected)} selected={selected} today={TODAY} blocks={[]} streakDays={new Set()} onSelect={setSelected} />
+    }
+    renderBoard(<Harness />, { api: createFakeApi().on('GET /me', makeMe()).api })
+    group().getAllByRole('button')[6]?.focus()
+    await userEvent.keyboard('{ArrowRight}')
+    const first = group().getAllByRole('button')[0]
+    expect(first).toHaveAttribute('aria-pressed', 'true')
+    expect(first).toHaveFocus()
   })
 
   it('selects a day on a press', async () => {

@@ -304,6 +304,32 @@ describe('the calendar on a phone', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Thursday' })).toBeInTheDocument()
   })
 
+  // S32 final review, I2: the swipe has visible buttons, and the strip's arrows cross the week.
+  it('the week buttons of the header write ?date= a week away', async () => {
+    const user = userEvent.setup()
+    const { router } = openCalendar('/calendar', { blocks: BLOCKS })
+    await user.click(await screen.findByRole('button', { name: en.calendar.page.nextWeek }))
+    await waitFor(() => {
+      expect(router.state.location.search).toBe('?date=2026-12-01')
+    })
+    await user.click(screen.getByRole('button', { name: en.calendar.page.previousWeek }))
+    await user.click(screen.getByRole('button', { name: en.calendar.page.previousWeek }))
+    await waitFor(() => {
+      expect(router.state.location.search).toBe('?date=2026-11-17')
+    })
+  })
+
+  it('the arrow key past the last day of the strip selects the next Sunday', async () => {
+    const user = userEvent.setup()
+    const { router } = openCalendar('/calendar?date=2026-11-28', { blocks: BLOCKS })
+    const strip = within(await screen.findByRole('group', { name: en.calendar.side.stripLabel }))
+    ;(strip.getAllByRole('button')[6] as HTMLElement).focus()
+    await user.keyboard('{ArrowRight}')
+    await waitFor(() => {
+      expect(router.state.location.search).toBe('?date=2026-11-29')
+    })
+  })
+
   it('a sideways swipe across empty space moves a day', async () => {
     const { router } = openCalendar('/calendar', { blocks: BLOCKS })
     await waitFor(() => {

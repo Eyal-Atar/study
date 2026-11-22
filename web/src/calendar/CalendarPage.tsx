@@ -325,7 +325,13 @@ export function CalendarPage() {
     // Room under the last hour for the tasks bar, which floats above the navigation.
     <div className="pb-16">
       <div {...{ [STICKY_ATTRIBUTE]: '' }} className="sticky top-0 z-30 bg-canvas">
-        <PhoneHeader date={phoneDate} today={today ?? phoneDate} />
+        <PhoneHeader
+          date={phoneDate}
+          today={today ?? phoneDate}
+          onWeek={(step) => {
+            move(step * 7)
+          }}
+        />
         {selected === undefined || today === undefined ? null : (
           <DayStrip
             days={week}
