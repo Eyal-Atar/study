@@ -1,18 +1,57 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
+import { useRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { blockName } from '../board/blockName'
+import { dayLabel, durationText, formatRange } from '../board/time'
+import type { Block } from '../board/types'
+import { isolate } from '../i18n/bidi'
 import { en } from '../i18n/en'
 import { makeBlock, makeMe, makePlan, makeToday, renderBoard } from '../test/boardFixtures'
 import { createFakeApi } from '../test/fakeApi'
-import { BANNER_ROWS, CalendarBanner } from './CalendarBanner'
+import { BANNER_ROWS, CalendarBanner, type CalendarBannerProps } from './CalendarBanner'
+import type { Ghost } from './ghost'
+import { studyDateOf, type SplitOffer, type SplitPart } from './splitOffers'
+import { CAL_NOW, CAL_TODAY, CAL_TZ, makeSplitOffer } from './testFixtures'
 
 const OVERDUE = makeBlock({ id: 'b1', task_title: 'Graphs', state: 'overdue' })
 
-function setup(props: Partial<React.ComponentProps<typeof CalendarBanner>> = {}, review = [OVERDUE]) {
+const s = en.calendar.side.banner.split
+const ME = makeMe(CAL_TZ)
+// The block the offer of makeSplitOffer is about: 16:00–17:30 in Jerusalem, today.
+const FRICTION = makeBlock({
+  id: 'block-1',
+  task_id: 'task-1',
+  task_title: 'Practice: malloc and free',
+  task_kind: 'practice',
+  exam_color_index: 2,
+  study_date: CAL_TODAY,
+  starts_at: '2026-11-24T14:00:00Z',
+  ends_at: '2026-11-24T15:30:00Z',
+})
+
+type BannerProps = Omit<CalendarBannerProps, 'focusAfter'>
+
+// The banner under the heading the calendar gives it (the place the focus goes when a row leaves).
+function Harness(props: BannerProps) {
+  const heading = useRef<HTMLHeadingElement>(null)
+  return (
+    <>
+      <h2 ref={heading} tabIndex={-1}>
+        {en.calendar.page.planHeading}
+      </h2>
+      <CalendarBanner {...props} focusAfter={heading} />
+    </>
+  )
+}
+
+// offers: what GET /split-offers answers (a dismissed offer leaves it); null leaves the route with no handler.
+function setup(props: Partial<BannerProps> = {}, review = [OVERDUE], offers: SplitOffer[] | null = []) {
   const unplaced = props.unplacedCount ?? 0
+  const server = { offers: offers ?? [] }
+  const onPreview = vi.fn<(ghosts: Ghost[]) => void>()
   const fake = createFakeApi()
-    .on('GET /me', makeMe())
+    .on('GET /me', ME)
     .on('GET /today', makeToday([]))
     .on('GET /review', { blocks: review })
     .on(
@@ -23,8 +62,42 @@ function setup(props: Partial<React.ComponentProps<typeof CalendarBanner>> = {},
     )
     .on('GET /exams', [])
     .on('POST /plan/replan', { unscheduled: [], shortfalls: [], blocks: [], moves: [] })
-  const view = renderBoard(<CalendarBanner unplacedCount={0} onPreview={vi.fn()} {...props} />, { api: fake.api })
-  return { fake, ...view }
+  if (offers !== null) {
+    fake
+      .on('GET /split-offers', () => ({ offers: server.offers }))
+      .on({ method: 'POST', path: /^\/tasks\/[^/]+\/split\/dismiss$/ }, (call: { path: string }) => {
+        server.offers = server.offers.filter((o) => !call.path.includes(`/${o.task_id}/`))
+        return undefined
+      })
+  }
+  const view = renderBoard(
+    <Harness unplacedCount={0} onPreview={onPreview} blocks={[FRICTION]} exams={[]} me={ME} tz={CAL_TZ} now={Date.parse(CAL_NOW)} today={CAL_TODAY} {...props} />,
+    { api: fake.api },
+  )
+  return { fake, onPreview, ...view }
+}
+
+function rowNames(container: HTMLElement) {
+  return Array.from(container.querySelectorAll('[data-banner-row]')).map((r) => r.getAttribute('data-banner-row'))
+}
+
+function splitRow(container: HTMLElement) {
+  const row = container.querySelector<HTMLElement>('[data-banner-row="split"]')
+  if (row === null) throw new Error('no split row')
+  return row
+}
+
+function partText(part: SplitPart) {
+  return s.part(dayLabel(studyDateOf(part.starts_at, ME, CAL_TZ), CAL_TODAY), formatRange(part, CAL_TZ), durationText(part.minutes))
+}
+
+function partTexts(container: HTMLElement) {
+  return within(within(splitRow(container)).getByRole('list')).getAllByRole('listitem').map((li) => li.textContent)
+}
+
+// The ghosts of the last preview, as [tone, date] or, for a block that leaves, [tone, id].
+function lastPreview(onPreview: ReturnType<typeof vi.fn<(ghosts: Ghost[]) => void>>) {
+  return (onPreview.mock.lastCall?.[0] ?? []).map((g) => [g.tone, g.tone === 'leaving' ? g.id : g.date])
 }
 
 describe('CalendarBanner', () => {
@@ -95,6 +168,168 @@ describe('CalendarBanner', () => {
   })
 
   it('lists the rows in order', () => {
-    expect([...BANNER_ROWS]).toEqual(['review', 'report'])
+    expect([...BANNER_ROWS]).toEqual(['review', 'report', 'split'])
+  })
+})
+
+describe('CalendarBanner: the split offer (S44)', () => {
+  it('renders nothing with no offer and no other row', async () => {
+    const { container, fake } = setup({}, [], [])
+    await waitFor(() => {
+      expect(fake.calls('GET', '/split-offers').length).toBeGreaterThan(0)
+    })
+    await waitFor(() => {
+      expect(fake.calls('GET', '/review').length).toBeGreaterThan(0)
+    })
+    expect(container.querySelector('[data-banner-row]')).toBeNull()
+  })
+
+  it('a failed GET /split-offers shows no row and says nothing', async () => {
+    const { container, fake } = setup({}, [], null)
+    await waitFor(() => {
+      expect(fake.calls('GET', '/split-offers').length).toBeGreaterThan(0)
+    })
+    await waitFor(() => {
+      expect(fake.calls('GET', '/review').length).toBeGreaterThan(0)
+    })
+    expect(container.querySelector('[data-banner-row]')).toBeNull()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('shows the offer closed, last after the review and the report, with nothing previewed', async () => {
+    const offer = makeSplitOffer()
+    const { container, onPreview } = setup({ unplacedCount: 1 }, [OVERDUE], [offer])
+    expect(await screen.findByText(s.say(offer.task_title, 90, 30))).toBeInTheDocument()
+    await screen.findByText(en.review.title)
+    expect(rowNames(container)).toEqual(['review', 'report', 'split'])
+    const toggle = within(splitRow(container)).getByRole('button', { name: s.show })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(toggle).not.toHaveAttribute('aria-controls')
+    expect(within(splitRow(container)).queryByRole('list')).not.toBeInTheDocument()
+    expect(onPreview.mock.calls.every(([ghosts]) => ghosts.length === 0)).toBe(true)
+  })
+
+  // Review Focus 7: the title is the student's own text, isolated inside Archi's sentence.
+  it('says a Hebrew task title inside the sentence, isolated', async () => {
+    const title = 'תרגול: הקצאת זיכרון'
+    setup({}, [], [makeSplitOffer({ task_title: title })])
+    const say = await screen.findByText(s.say(title, 90, 30))
+    expect(say.textContent).toContain(isolate(title))
+  })
+
+  it('opens to the parts in words, the two buttons and the ghosts; closing clears the ghosts', async () => {
+    const offer = makeSplitOffer()
+    const { container, onPreview } = setup({}, [], [offer])
+    await userEvent.click(await screen.findByRole('button', { name: s.show }))
+    const row = within(splitRow(container))
+    const close = row.getByRole('button', { name: en.calendar.side.banner.close })
+    expect(close).toHaveAttribute('aria-expanded', 'true')
+    expect(document.getElementById(close.getAttribute('aria-controls') ?? '')).not.toBeNull()
+    expect(row.getByText(s.where(3))).toBeInTheDocument()
+    expect(partTexts(container)).toEqual(offer.parts.map(partText))
+    expect(partTexts(container)[0]).toBe('Today, 16:00–16:30, 30 min')
+    expect(partTexts(container)[2]).toBe('Thu, 26 Nov, 09:00–09:30, 30 min')
+    expect(row.getByRole('button', { name: 'Split into 3×30m' })).toBeInTheDocument()
+    expect(row.getByRole('button', { name: s.notNow })).toBeInTheDocument()
+    expect(row.queryByText(s.whole(durationText(offer.split_minutes)))).not.toBeInTheDocument()
+    expect(lastPreview(onPreview)).toEqual([
+      ['target', '2026-11-24'],
+      ['target', '2026-11-25'],
+      ['target', '2026-11-26'],
+      ['leaving', 'block-1'],
+    ])
+    expect((onPreview.mock.lastCall?.[0] ?? []).filter((g) => g.tone === 'target').every((g) => g.colorIndex === 2 && g.front === true)).toBe(true)
+    await userEvent.click(close)
+    expect(onPreview).toHaveBeenLastCalledWith([])
+    expect(within(splitRow(container)).getByRole('button', { name: s.show })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('a refresh that changes nothing does not preview again', async () => {
+    const { onPreview, queryClient } = setup({}, [], [makeSplitOffer()])
+    await userEvent.click(await screen.findByRole('button', { name: s.show }))
+    const calls = onPreview.mock.calls.length
+    await queryClient.invalidateQueries()
+    await screen.findByRole('button', { name: 'Split into 3×30m' })
+    expect(onPreview.mock.calls).toHaveLength(calls)
+  })
+
+  // Review Focus 5: no number of parts and no length is fixed.
+  it('an offer of two parts has two lines and "Split into 2×30m"', async () => {
+    const base = makeSplitOffer()
+    const offer = makeSplitOffer({ block: { ...base.block, ends_at: '2026-11-24T15:00:00Z', minutes: 60 }, split_minutes: 60, parts: base.parts.slice(0, 2) })
+    const { container, onPreview } = setup({ blocks: [{ ...FRICTION, ends_at: '2026-11-24T15:00:00Z' }] }, [], [offer])
+    expect(await screen.findByText(s.say(offer.task_title, 60, 30))).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: s.show }))
+    expect(screen.getByText(s.where(2))).toBeInTheDocument()
+    expect(partTexts(container)).toEqual(offer.parts.map(partText))
+    expect(screen.getByRole('button', { name: 'Split into 2×30m' })).toBeInTheDocument()
+    expect(lastPreview(onPreview).filter(([tone]) => tone === 'target')).toHaveLength(2)
+  })
+
+  it('an offer of uneven parts (30 + 45) names only the bite', async () => {
+    const base = makeSplitOffer()
+    const parts: SplitPart[] = [
+      { starts_at: '2026-11-24T14:00:00Z', ends_at: '2026-11-24T14:30:00Z', minutes: 30 },
+      { starts_at: '2026-11-25T07:00:00Z', ends_at: '2026-11-25T07:45:00Z', minutes: 45 },
+    ]
+    const offer = makeSplitOffer({ block: { ...base.block, ends_at: '2026-11-24T15:15:00Z', minutes: 75 }, split_minutes: 75, parts })
+    const { container } = setup({}, [], [offer])
+    await userEvent.click(await screen.findByRole('button', { name: s.show }))
+    expect(screen.getByRole('button', { name: 'Split into 30m bites' })).toBeInTheDocument()
+    expect(partTexts(container)).toEqual(['Today, 16:00–16:30, 30 min', 'Tomorrow, 09:00–09:45, 45 min'])
+  })
+
+  it('says so when the split takes more than the deferred block', async () => {
+    const base = makeSplitOffer()
+    const more: SplitPart[] = [27, 28, 29].map((day) => ({ starts_at: `2026-11-${String(day)}T07:00:00Z`, ends_at: `2026-11-${String(day)}T07:30:00Z`, minutes: 30 }))
+    const offer = makeSplitOffer({ split_minutes: 180, parts: [...base.parts, ...more] })
+    const other: Block = { ...FRICTION, id: 'block-2', study_date: '2026-11-27', starts_at: '2026-11-27T07:00:00Z', ends_at: '2026-11-27T08:30:00Z' }
+    const { onPreview } = setup({ blocks: [FRICTION, other] }, [], [offer])
+    await userEvent.click(await screen.findByRole('button', { name: s.show }))
+    expect(screen.getByText(s.whole(durationText(180)))).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Split into 6×30m' })).toBeInTheDocument()
+    expect(lastPreview(onPreview).filter(([tone]) => tone === 'leaving')).toEqual([
+      ['leaving', 'block-1'],
+      ['leaving', 'block-2'],
+    ])
+  })
+
+  it('shows one offer at a time; after "Not now" the next one comes, closed, and the focus goes to the heading', async () => {
+    const first = makeSplitOffer()
+    const second = makeSplitOffer({ task_id: 'task-2', task_title: 'Read: pointers', basis: 'basis-2' })
+    const { container, fake, onPreview } = setup({}, [], [first, second])
+    expect(await screen.findByText(s.say(first.task_title, 90, 30))).toBeInTheDocument()
+    expect(screen.queryByText(s.say(second.task_title, 90, 30))).not.toBeInTheDocument()
+    expect(container.querySelectorAll('[data-banner-row="split"]')).toHaveLength(1)
+    await userEvent.click(screen.getByRole('button', { name: s.show }))
+    await userEvent.click(screen.getByRole('button', { name: s.notNow }))
+    expect(await screen.findByText(s.say(second.task_title, 90, 30))).toBeInTheDocument()
+    expect(fake.calls('POST', `/tasks/${first.task_id}/split/dismiss`)).toHaveLength(1)
+    expect(screen.queryByText(s.say(first.task_title, 90, 30))).not.toBeInTheDocument()
+    expect(within(splitRow(container)).getByRole('button', { name: s.show })).toHaveAttribute('aria-expanded', 'false')
+    expect(onPreview).toHaveBeenLastCalledWith([])
+    expect(screen.getByRole('heading', { name: en.calendar.page.planHeading })).toHaveFocus()
+  })
+
+  it('"Not now" on the only offer takes the row away, clears the ghosts and moves the focus to the heading', async () => {
+    const { container, onPreview } = setup({}, [], [makeSplitOffer()])
+    await userEvent.click(await screen.findByRole('button', { name: s.show }))
+    await userEvent.click(screen.getByRole('button', { name: s.notNow }))
+    await waitFor(() => {
+      expect(container.querySelector('[data-banner-row]')).toBeNull()
+    })
+    expect(onPreview).toHaveBeenLastCalledWith([])
+    expect(screen.getByRole('heading', { name: en.calendar.page.planHeading })).toHaveFocus()
+  })
+
+  it('only one row is open: opening the review closes the split and clears its ghosts', async () => {
+    const { container, onPreview } = setup({}, [OVERDUE], [makeSplitOffer()])
+    await userEvent.click(await screen.findByRole('button', { name: s.show }))
+    expect(lastPreview(onPreview)).toHaveLength(4)
+    await userEvent.click(await screen.findByRole('button', { name: en.calendar.side.banner.review }))
+    expect(onPreview).toHaveBeenLastCalledWith([])
+    expect(within(splitRow(container)).getByRole('button', { name: s.show })).toHaveAttribute('aria-expanded', 'false')
+    expect(within(splitRow(container)).queryByRole('list')).not.toBeInTheDocument()
   })
 })

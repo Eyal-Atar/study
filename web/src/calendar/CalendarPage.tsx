@@ -68,12 +68,15 @@ function nextHourDraft(date: string, today: string, now: number, tz: string): { 
 //   (ShellToolbar). The only h1 is out of sight: the title and the range.
 // - On a phone: the header (the h1) and the strip of days stay at the top, the grid of one day
 //   scrolls with the window, and the tasks bar sits above the navigation.
-// - One sheet at a time (CalendarSheets), and one list of ghosts: the sheets and the banner write
-//   it, the grid draws it. A move to another date or view closes the sheet and clears the ghosts.
+// - One sheet at a time (CalendarSheets), and two lists of ghosts, of which the grid draws one:
+//   `ghosts` is the open sheet's, and a move to another date or view closes the sheet and clears it;
+//   `bannerGhosts` is the banner's (the split offer of S44, while its row is open). The parts of a
+//   split spread over days, sometimes into the next week, so that list stays across a move, and
+//   only the row clears it. An open sheet has the grid to itself; when it closes, the banner's
+//   ghosts show again.
 //
-// The seams of the next scopes: S44's split offers are a row of CalendarBanner (BANNER_ROWS), and
-// show their preview through the same `ghosts` (setGhosts is the banner's onPreview); S45's
-// exam-closure sheet is a branch of SheetState in CalendarSheets, opened here with setSheet.
+// The seam of the next scope: S45's exam-closure sheet is a branch of SheetState in CalendarSheets,
+// opened here with setSheet.
 export function CalendarPage() {
   useShellFrame({ fullBleed: true, ownPhoneHeader: true })
   const desktop = useIsDesktop()
@@ -88,6 +91,9 @@ export function CalendarPage() {
   const location = useLocation()
   const [sheet, setSheet] = useState<SheetState>(null)
   const [ghosts, setGhosts] = useState<Ghost[]>([])
+  const [bannerGhosts, setBannerGhosts] = useState<Ghost[]>([])
+  // The heading above the banner: where the focus goes when the split row leaves from under it.
+  const planHeading = useRef<HTMLHeadingElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const gridBox = useRef<HTMLDivElement>(null)
 
@@ -210,7 +216,7 @@ export function CalendarPage() {
           hourPx={hourPx}
           blocks={blocks}
           busy={busy}
-          ghosts={ghosts}
+          ghosts={sheet === null ? bannerGhosts : ghosts}
           tz={tz}
           now={now}
           restDays={rest}
@@ -254,7 +260,14 @@ export function CalendarPage() {
     <CalendarBanner
       unplacedCount={unplacedCount}
       {...(location.hash === REPORT_HASH ? { expandTo: 'report' as const } : {})}
-      onPreview={setGhosts}
+      onPreview={setBannerGhosts}
+      blocks={blocks}
+      exams={data.exams.data ?? []}
+      me={me}
+      tz={tz}
+      now={now}
+      today={today}
+      focusAfter={planHeading}
     />
   ) : null
 
@@ -303,7 +316,9 @@ export function CalendarPage() {
           </div>
           <div className="relative flex min-h-0 min-w-0 flex-col">
             {/* The banner's rows are h3 (the review's blocks): their parent, out of sight. */}
-            <h2 className="sr-only">{en.calendar.page.planHeading}</h2>
+            <h2 ref={planHeading} tabIndex={-1} className="sr-only">
+              {en.calendar.page.planHeading}
+            </h2>
             {banner}
             {staleNote}
             <div ref={scroller} data-calendar-scroller="" className="min-h-0 flex-1 overflow-y-auto">
@@ -341,7 +356,9 @@ export function CalendarPage() {
           />
         )}
       </div>
-      <h2 className="sr-only">{en.calendar.page.planHeading}</h2>
+      <h2 ref={planHeading} tabIndex={-1} className="sr-only">
+        {en.calendar.page.planHeading}
+      </h2>
       {banner}
       {staleNote}
       {body(HOUR_PX.phone, move)}

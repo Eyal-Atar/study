@@ -106,6 +106,8 @@ export interface CalendarServer {
   busy: BusyItem[]
   review: Block[]
   unplaced: Plan['unplaced']
+  // GET /split-offers (S44).
+  splitOffers: SplitOffer[]
   // An error (or a promise that never settles) in place of the answer.
   today: Error | Promise<never> | null
   plan: Error | Promise<never> | null
@@ -118,7 +120,7 @@ export function openCalendar(path: string, init: Partial<CalendarServer> = {}) {
   if (!('scrollTo' in Element.prototype)) {
     Object.defineProperty(Element.prototype, 'scrollTo', { configurable: true, writable: true, value: () => undefined })
   }
-  const state: CalendarServer = { date: CAL_TODAY, blocks: [], busy: [], review: [], unplaced: [], today: null, plan: null, legacy: false, ...init }
+  const state: CalendarServer = { date: CAL_TODAY, blocks: [], busy: [], review: [], unplaced: [], splitOffers: [], today: null, plan: null, legacy: false, ...init }
   const withBusy = <T extends { busy: BusyItem[] }>(answer: T): T => {
     const copy: Partial<T> = { ...answer, busy: state.busy }
     if (state.legacy) Reflect.deleteProperty(copy, 'busy')
@@ -154,6 +156,7 @@ export function openCalendar(path: string, init: Partial<CalendarServer> = {}) {
     .on('GET /exams', [makeExam()])
     .on({ method: 'GET', path: /^\/exams\/[^/]+\/tasks$/ }, [])
     .on('GET /review', () => ({ blocks: state.review }))
+    .on('GET /split-offers', () => ({ offers: state.splitOffers }))
     .on('POST /plan/replan', makePreview())
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const rendered = renderRoute(path, { auth: createFakeAuth(fakeSession({ id: USER_ID })), api: fake.api, queryClient })
