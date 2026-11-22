@@ -29,16 +29,22 @@ export const enOnboardingFlow = {
   schedule: {
     hoursLabel: 'Hours a day',
   },
-  // What I say while you answer, before I build anything (audit, guideline 9). A first wording:
-  // Task 14 of S34 polishes it.
+  // What I say while you answer, before I build anything (audit, guideline 9). The estimate is
+  // approximate and errs toward less time, and I have not read the materials yet: so a number is
+  // always "about", the study hours are yours ("you", never "us"), and no sentence says the plan
+  // fits. Short time is a fact with something you can change next to it, never a fault.
   feasibility: {
     // minutes: the study time from tomorrow until the first exam.
     roomy: (minutes: number, examName: string) =>
-      `That gives us ${aboutStudyHours(minutes)} before ${isolate(examName)}. Plenty of room to pace ourselves.`,
-    // minutes: the study time for each exam, up to the exam where it gets tight.
+      `That gives you ${aboutStudyHours(minutes)} before ${isolate(examName)}. It looks like room for a steady pace.`,
+    // minutes: the study time for each exam among those up to examName, itself included, where
+    // examName is the earliest exam at which the time gets short. "before" alone would read as
+    // the exams that come before it.
     tight: (minutes: number, examName: string) =>
-      `That’s ${aboutStudyHours(minutes)} for each exam before ${isolate(examName)}. It’s tight. If you can, one more hour a day would help.`,
+      `That gives you ${aboutStudyHours(minutes)} for each exam up to and including ${isolate(examName)}. It’s tight. If you can, one more hour a day could give you more room.`,
+    // No study time at all before examName. More hours a day cannot open a day that has none, so
+    // what can change is the date, the study hours (how many and when) and the rest days.
     none: (examName: string) =>
-      `I can’t find study time before ${isolate(examName)}. Check its date, or your rest days before an exam.`,
+      `I can’t find any study time before ${isolate(examName)} yet. You can change its date, your study hours or your rest days before an exam.`,
   },
 } as const

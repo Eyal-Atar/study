@@ -81,7 +81,7 @@ describe('FeasibilityNote', () => {
     rerender(<FeasibilityNote estimate={TIGHT} />)
     expect(screen.getByRole('status')).toBe(region)
     expect(region).toHaveTextContent(t.tight(6 * 60, 'שפת C'))
-    expect(region).not.toHaveTextContent('Plenty of room')
+    expect(region).not.toHaveTextContent(t.roomy(ROOMY.firstExamMinutes, ROOMY.firstExamName))
 
     rerender(<FeasibilityNote estimate={null} />)
     expect(screen.getByRole('status')).toBe(region)
