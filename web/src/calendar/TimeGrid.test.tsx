@@ -307,6 +307,23 @@ describe('TimeGrid', () => {
     expect(bad).not.toHaveClass('border-exam-2')
   })
 
+  it('a front ghost lands over a leaving block in the same column; one without front stays at z-20', () => {
+    const block = makeBlock({ starts_at: '2026-11-24T10:00:00Z', ends_at: '2026-11-24T11:30:00Z', study_date: '2026-11-24' })
+    setup({
+      blocks: [block],
+      ghosts: [
+        ghost({ id: block.id, date: '2026-11-24', tone: 'leaving' }),
+        ghost({ id: 'front', date: '2026-11-24', startMin: 720, endMin: 750, front: true }),
+        ghost({ id: 'plain', date: '2026-11-25' }),
+      ],
+    })
+    const front = column('2026-11-24').querySelector('[data-ghost="front"]')
+    expect(front).not.toBeNull()
+    expect(front).toHaveClass('z-[31]')
+    expect(front).not.toHaveClass('z-20')
+    expect(column('2026-11-25').querySelector('[data-ghost="plain"]')).toHaveClass('z-20')
+  })
+
   it('a leaving ghost is drawn on its block, not as a ghost', () => {
     const block = makeBlock({ starts_at: '2026-11-24T10:00:00Z', ends_at: '2026-11-24T11:30:00Z', study_date: '2026-11-24' })
     setup({ blocks: [block], ghosts: [ghost({ id: block.id, date: '2026-11-24', tone: 'leaving' })] })

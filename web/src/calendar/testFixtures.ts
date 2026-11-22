@@ -6,10 +6,11 @@ import { addDays, blockMinutes } from '../board/time'
 import type { Block, Plan } from '../board/types'
 import type { Exam } from '../onboarding/types'
 import { makeProgress } from '../progress/testFixtures'
-import { makeMe as makeBoardMe, makePlan, makePreview, makeToday, USER_ID } from '../test/boardFixtures'
+import { EXAM_ID, makeMe as makeBoardMe, makePlan, makePreview, makeToday, USER_ID } from '../test/boardFixtures'
 import { createFakeApi, type ApiCall } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
+import type { SplitOffer } from './splitOffers'
 
 // Sample data for the calendar's tests. English names only: a test that needs user text in Hebrew
 // passes it in.
@@ -54,6 +55,30 @@ export function makeMe(overrides: Partial<Me> = {}): Me {
     hobby_start: null,
     hobby_minutes: null,
     onboarding_completed_at: '2026-11-10T08:00:00Z',
+    ...overrides,
+  }
+}
+
+// The offer of 7.7 on the tests' week: one 90-minute block on Tue 24 Nov (16:00 in Jerusalem), split into
+// three bites of 30 minutes.
+export function makeSplitOffer(overrides: Partial<SplitOffer> = {}): SplitOffer {
+  return {
+    task_id: 'task-1',
+    exam_id: EXAM_ID,
+    // Hebrew (sample user content) as escapes: sourceGuards allows no Hebrew letter in this file.
+    // It reads: "Practice: malloc and free", with a Hebrew title.
+    task_title: '\u05EA\u05E8\u05D2\u05D5\u05DC: malloc \u05D5-free',
+    task_kind: 'practice',
+    deferrals: 3,
+    block: { id: 'block-1', starts_at: '2026-11-24T14:00:00Z', ends_at: '2026-11-24T15:30:00Z', minutes: 90 },
+    bite_minutes: 30,
+    split_minutes: 90,
+    parts: [
+      { starts_at: '2026-11-24T14:00:00Z', ends_at: '2026-11-24T14:30:00Z', minutes: 30 },
+      { starts_at: '2026-11-25T07:00:00Z', ends_at: '2026-11-25T07:30:00Z', minutes: 30 },
+      { starts_at: '2026-11-26T07:00:00Z', ends_at: '2026-11-26T07:30:00Z', minutes: 30 },
+    ],
+    basis: 'basis-1',
     ...overrides,
   }
 }

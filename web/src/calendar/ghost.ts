@@ -13,6 +13,8 @@ export interface Ghost {
   kind?: TaskKind
   tone: 'target' | 'leaving' | 'problem'
   label?: string
+  // A ghost drawn above a block that is leaving: a split's part lands on the block it replaces.
+  front?: true
 }
 
 export function ghostOf(

@@ -36,8 +36,11 @@ export function GhostBlock({ ghost, top, height }: GhostBlockProps) {
       style={{ top, height }}
       className={cx(
         // The padding makes up for the thicker border, so the text sits where a block's text does.
-        '@container pointer-events-none absolute inset-x-[3px] z-20 overflow-hidden rounded-[10px] border-2 border-dashed bg-surface ps-[9px] pe-[6px] text-ink',
+        '@container pointer-events-none absolute inset-x-[3px] overflow-hidden rounded-[10px] border-2 border-dashed bg-surface ps-[9px] pe-[6px] text-ink',
         'text-[12px] leading-[15px] group-data-[view=day]/cal:text-[13.5px] group-data-[view=day]/cal:leading-[17px]',
+        // A leaving block is z-30 (CalendarBlock); the page's sticky header is z-30 too and is not in the grid's
+        // stacking context, so a front ghost goes one above them.
+        ghost.front === true ? 'z-[31]' : 'z-20',
         height < 25 ? 'flex flex-col justify-center py-0' : 'py-[3px]',
         border,
       )}
