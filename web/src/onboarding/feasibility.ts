@@ -51,6 +51,9 @@ export interface FeasibilityEstimate {
   // each exam up to it. Filled at both levels, also when it is the first exam.
   tightExamName?: string
   tightExamMinutes?: number
+  // At tight only: the exams up to the tight one, itself included, which the minutes were divided
+  // by. With 1 the sentence speaks of the time before that exam, not of "each exam".
+  tightExamCount?: number
 }
 
 type Span = [number, number]
@@ -185,7 +188,7 @@ export function feasibility(input: FeasibilityInput): FeasibilityEstimate | null
     const count = exams.filter((other) => other.exam_date <= exam.exam_date).length
     const each = minutesOf(exam.exam_date) / count
     if (each < TIGHT_HOURS_PER_EXAM * 60) {
-      return { level: 'tight', ...base, tightExamName: exam.name, tightExamMinutes: Math.floor(each) }
+      return { level: 'tight', ...base, tightExamName: exam.name, tightExamMinutes: Math.floor(each), tightExamCount: count }
     }
   }
   return { level: 'roomy', ...base }

@@ -28,7 +28,8 @@ describe('enOnboardingFlow: the recap of the exams', () => {
 describe('enOnboardingFlow: the live feasibility sentences', () => {
   const NAMED: [string, string][] = [
     ['feasibility.roomy', t.roomy(88 * 60, NAME)],
-    ['feasibility.tight', t.tight(6 * 60, NAME)],
+    ['feasibility.tight, one exam', t.tight(6 * 60, NAME, 1)],
+    ['feasibility.tight, several exams', t.tight(6 * 60, NAME, 3)],
     ['feasibility.none', t.none(NAME)],
     // The same check holds for a busy time's title.
     ['fixedHours.remove', enOnboardingFlow.fixedHours.remove(NAME, 'Sun, 14:00–17:00')],
@@ -51,43 +52,63 @@ describe('enOnboardingFlow: the live feasibility sentences', () => {
     expect(t.roomy(88 * 60 + 29, NAME)).toContain('about 88 study hours')
     expect(t.roomy(88 * 60 + 30, NAME)).toContain('about 89 study hours')
     expect(t.roomy(60, NAME)).toContain('about 1 study hour ')
-    expect(t.tight(60, NAME)).toContain('about 1 study hour ')
-    expect(t.tight(6 * 60, NAME)).toContain('about 6 study hours for each exam')
+    expect(t.tight(60, NAME, 1)).toContain('about 1 study hour ')
+    expect(t.tight(60, NAME, 2)).toContain('about 1 study hour ')
+    expect(t.tight(6 * 60, NAME, 2)).toContain('about 6 study hours for each exam')
   })
 
   it('under half an hour is never "about 0 study hours"', () => {
-    expect(t.tight(20, NAME)).toContain('less than 1 study hour ')
-    expect(t.tight(20, NAME)).not.toContain('about')
+    expect(t.tight(20, NAME, 2)).toContain('less than 1 study hour ')
+    expect(t.tight(20, NAME, 2)).not.toContain('about')
+    expect(t.tight(20, NAME, 1)).toContain(`less than 1 study hour before ${ISOLATED}.`)
   })
 
   it('roomy: the hours are yours, and the room is how it looks, not a promise', () => {
     expect(t.roomy(88 * 60, NAME)).toBe(
-      `That gives you about 88 study hours before ${ISOLATED}. It looks like room for a steady pace.`,
+      `That gives you about 88 study hours before ${ISOLATED}. It looks like there’s room for a steady pace.`,
     )
+  })
+
+  // What can add time is the hours a day and the time of day, and which of them is the limit is
+  // not known here: so both are named, without a number ("one more hour") that may not exist.
+  const TIGHT_ADVICE = 'It’s tight. More hours a day, or another time of day to study, could give you more room.'
+
+  it('tight at a single exam: the hours before it, with no "for each exam"', () => {
+    expect(t.tight(6 * 60, NAME, 1)).toBe(`That gives you about 6 study hours before ${ISOLATED}. ${TIGHT_ADVICE}`)
+    expect(t.tight(60, NAME, 1)).toBe(`That gives you about 1 study hour before ${ISOLATED}. ${TIGHT_ADVICE}`)
   })
 
   // The minutes are for each exam among those up to the named one, itself included: "before" alone
   // would read as the exams that come before it.
-  it('tight: the hours are for each exam up to and including the named one', () => {
-    expect(t.tight(6 * 60, NAME)).toBe(
-      `That gives you about 6 study hours for each exam up to and including ${ISOLATED}. It’s tight. If you can, one more hour a day could give you more room.`,
+  it('tight at several exams: the hours are for each exam up to and including the named one', () => {
+    expect(t.tight(6 * 60, NAME, 3)).toBe(
+      `That gives you about 6 study hours for each exam up to and including ${ISOLATED}. ${TIGHT_ADVICE}`,
     )
-    expect(t.tight(60, NAME)).toContain(`about 1 study hour for each exam up to and including ${ISOLATED}.`)
-    expect(t.tight(20, NAME)).toContain(`less than 1 study hour for each exam up to and including ${ISOLATED}.`)
+    expect(t.tight(60, NAME, 2)).toContain(`about 1 study hour for each exam up to and including ${ISOLATED}.`)
+    expect(t.tight(20, NAME, 2)).toContain(`less than 1 study hour for each exam up to and including ${ISOLATED}.`)
   })
 
-  it('none: names what you can change, without an order and without an alarm', () => {
+  it('tight never names a number of hours to add', () => {
+    for (const text of [t.tight(6 * 60, NAME, 1), t.tight(6 * 60, NAME, 3)]) expect(text).not.toMatch(/one more hour|\d+ more/)
+  })
+
+  // With no study time at all, more hours a day open nothing: the date, the time of day and the
+  // rest days can. The rest days are not on these screens, so the sentence says where they are.
+  it('none: asks about the date, and names only what can open time, and where', () => {
     expect(t.none(NAME)).toBe(
-      `I can’t find any study time before ${ISOLATED} yet. You can change its date, your study hours or your rest days before an exam.`,
+      `I can’t find any study time before ${ISOLATED} yet. Is its date right? If it is, another time of day to study could open some up. You can also change your rest days before an exam later, in Settings.`,
     )
+    expect(t.none(NAME)).not.toMatch(/more (study )?hours/)
   })
 
   const EVERY: string[] = [
     t.roomy(88 * 60, NAME),
     t.roomy(60, NAME),
-    t.tight(6 * 60, NAME),
-    t.tight(60, NAME),
-    t.tight(20, NAME),
+    t.tight(6 * 60, NAME, 1),
+    t.tight(60, NAME, 1),
+    t.tight(6 * 60, NAME, 3),
+    t.tight(60, NAME, 2),
+    t.tight(20, NAME, 2),
     t.none(NAME),
   ]
 

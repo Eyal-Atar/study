@@ -46,19 +46,28 @@ export const enOnboardingFlow = {
   // What I say while you answer, before I build anything (audit, guideline 9). The estimate is
   // approximate and errs toward less time, and I have not read the materials yet: so a number is
   // always "about", the study hours are yours ("you", never "us"), and no sentence says the plan
-  // fits. Short time is a fact with something you can change next to it, never a fault.
+  // fits. Short time is a fact with something you can change next to it, never a fault. The note
+  // does not know which limit was hit, so the advice names only what can add time in every state
+  // that reaches it, with "could" and without a number.
   feasibility: {
     // minutes: the study time from tomorrow until the first exam.
     roomy: (minutes: number, examName: string) =>
-      `That gives you ${aboutStudyHours(minutes)} before ${isolate(examName)}. It looks like room for a steady pace.`,
-    // minutes: the study time for each exam among those up to examName, itself included, where
-    // examName is the earliest exam at which the time gets short. "before" alone would read as
-    // the exams that come before it.
-    tight: (minutes: number, examName: string) =>
-      `That gives you ${aboutStudyHours(minutes)} for each exam up to and including ${isolate(examName)}. It’s tight. If you can, one more hour a day could give you more room.`,
-    // No study time at all before examName. More hours a day cannot open a day that has none, so
-    // what can change is the date, the study hours (how many and when) and the rest days.
+      `That gives you ${aboutStudyHours(minutes)} before ${isolate(examName)}. It looks like there’s room for a steady pace.`,
+    // examName is the earliest exam at which the time gets short, examCount the exams up to it,
+    // itself included, and minutes the study time for each of them. With one exam it is simply the
+    // time before it. With several, "before" alone would read as the exams that come before it.
+    // The hours a day and the time of day are the two answers that can add time: which of them is
+    // the limit is not known here, and the hour choices are not one hour apart.
+    tight: (minutes: number, examName: string, examCount = 1) => {
+      const advice = 'It’s tight. More hours a day, or another time of day to study, could give you more room.'
+      return examCount === 1
+        ? `That gives you ${aboutStudyHours(minutes)} before ${isolate(examName)}. ${advice}`
+        : `That gives you ${aboutStudyHours(minutes)} for each exam up to and including ${isolate(examName)}. ${advice}`
+    },
+    // No study time at all before examName. The likeliest cause is the date, so I ask about it.
+    // More hours a day cannot open a day that has none; another time of day can. The rest days
+    // are not on the onboarding screens (they default to 1), so I say where they are.
     none: (examName: string) =>
-      `I can’t find any study time before ${isolate(examName)} yet. You can change its date, your study hours or your rest days before an exam.`,
+      `I can’t find any study time before ${isolate(examName)} yet. Is its date right? If it is, another time of day to study could open some up. You can also change your rest days before an exam later, in Settings.`,
   },
 } as const

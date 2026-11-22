@@ -21,7 +21,7 @@ function sentence(estimate: FeasibilityEstimate): string {
     case 'roomy':
       return t.roomy(estimate.firstExamMinutes, estimate.firstExamName)
     case 'tight':
-      return t.tight(estimate.tightExamMinutes ?? estimate.firstExamMinutes, examName)
+      return t.tight(estimate.tightExamMinutes ?? estimate.firstExamMinutes, examName, estimate.tightExamCount ?? 1)
     case 'none':
       return t.none(examName)
   }

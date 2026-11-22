@@ -264,6 +264,7 @@ describe('feasibility', () => {
       firstExamMinutes: 120,
       tightExamName: 'הסתברות',
       tightExamMinutes: 120,
+      tightExamCount: 1,
     })
   })
 
@@ -284,6 +285,7 @@ describe('feasibility', () => {
       firstExamMinutes: 12 * 60,
       tightExamName: 'שפת C',
       tightExamMinutes: (13 * 60) / 2,
+      tightExamCount: 2,
     })
   })
 
@@ -300,6 +302,7 @@ describe('feasibility', () => {
     )
     expect(estimate?.level).toBe('tight')
     expect(estimate?.tightExamMinutes).toBe((15 * 60) / 2)
+    expect(estimate?.tightExamCount).toBe(2)
   })
 
   it('exactly the threshold for each exam is roomy', () => {
