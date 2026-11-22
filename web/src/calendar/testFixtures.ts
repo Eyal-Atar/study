@@ -65,9 +65,7 @@ export function makeSplitOffer(overrides: Partial<SplitOffer> = {}): SplitOffer 
   return {
     task_id: 'task-1',
     exam_id: EXAM_ID,
-    // Hebrew (sample user content) as escapes: sourceGuards allows no Hebrew letter in this file.
-    // It reads: "Practice: malloc and free", with a Hebrew title.
-    task_title: '\u05EA\u05E8\u05D2\u05D5\u05DC: malloc \u05D5-free',
+    task_title: 'Practice: malloc and free',
     task_kind: 'practice',
     deferrals: 3,
     block: { id: 'block-1', starts_at: '2026-11-24T14:00:00Z', ends_at: '2026-11-24T15:30:00Z', minutes: 90 },

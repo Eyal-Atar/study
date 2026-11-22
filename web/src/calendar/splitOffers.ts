@@ -46,7 +46,7 @@ export function splitOffersKey(userId: string | null) {
 }
 
 // No refetchInterval: each call runs the planner for every task in the offer; it is refreshed by
-// calendar actions and when the window regains focus.
+// calendar actions (they invalidate the board key) and by TanStack's default refetch on window focus.
 export function useSplitOffers(): UseQueryResult<SplitOffers, ApiError> {
   const api = useApi()
   const userId = useBoardUserId()

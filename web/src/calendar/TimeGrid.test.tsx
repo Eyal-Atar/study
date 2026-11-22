@@ -307,7 +307,7 @@ describe('TimeGrid', () => {
     expect(bad).not.toHaveClass('border-exam-2')
   })
 
-  it('a front ghost lands over a leaving block in the same column; one without front stays at z-20', () => {
+  it('a front ghost lands over a leaving block in the same column (z-30, later in the DOM); one without front stays at z-20', () => {
     const block = makeBlock({ starts_at: '2026-11-24T10:00:00Z', ends_at: '2026-11-24T11:30:00Z', study_date: '2026-11-24' })
     setup({
       blocks: [block],
@@ -319,8 +319,12 @@ describe('TimeGrid', () => {
     })
     const front = column('2026-11-24').querySelector('[data-ghost="front"]')
     expect(front).not.toBeNull()
-    expect(front).toHaveClass('z-[31]')
+    expect(front).toHaveClass('z-30')
     expect(front).not.toHaveClass('z-20')
+    // The tie with the leaving block (z-30) is won by DOM order: the ghost comes after the block.
+    const leaving = column('2026-11-24').querySelector('[data-block-id]')
+    expect(leaving).not.toBeNull()
+    expect(leaving?.compareDocumentPosition(front as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(column('2026-11-25').querySelector('[data-ghost="plain"]')).toHaveClass('z-20')
   })
 

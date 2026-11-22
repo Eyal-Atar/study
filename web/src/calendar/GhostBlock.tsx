@@ -38,9 +38,9 @@ export function GhostBlock({ ghost, top, height }: GhostBlockProps) {
         // The padding makes up for the thicker border, so the text sits where a block's text does.
         '@container pointer-events-none absolute inset-x-[3px] overflow-hidden rounded-[10px] border-2 border-dashed bg-surface ps-[9px] pe-[6px] text-ink',
         'text-[12px] leading-[15px] group-data-[view=day]/cal:text-[13.5px] group-data-[view=day]/cal:leading-[17px]',
-        // A leaving block is z-30 (CalendarBlock); the page's sticky header is z-30 too and is not in the grid's
-        // stacking context, so a front ghost goes one above them.
-        ghost.front === true ? 'z-[31]' : 'z-20',
+        // A front ghost has the z-index of a leaving block (z-30, CalendarBlock) and, being drawn after the
+        // blocks in TimeGrid, lands above it; it ties with the sticky header and the tasks bar as that block does.
+        ghost.front === true ? 'z-30' : 'z-20',
         height < 25 ? 'flex flex-col justify-center py-0' : 'py-[3px]',
         border,
       )}
