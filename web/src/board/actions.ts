@@ -27,7 +27,8 @@ import { undoOnce } from './undoOnce'
 // they create no plan version).
 //
 // defer is not optimistic: the planner on the server picks the new place, and may find none. The
-// button shows "Deferring…" until the answer; the undo is POST /plan/undo with the version it created.
+// defer sheet shows its choice as pending until the answer; the undo is POST /plan/undo with the
+// version it created.
 // S32: the calendar's defer sheet sends a choice (DeferRequest) and hears back through DeferOptions.
 //
 // skip (S32) is not optimistic either: the server removes the task's open blocks and writes a
@@ -35,7 +36,7 @@ import { undoOnce } from './undoOnce'
 // POST /blocks/{id}/skip; one that did not end yet skips its task (PATCH /tasks/{id}).
 //
 // complete also writes the new XP total and level into the progress cache at once, and tells the
-// calendar once that XP was earned (calendar/xpEvents.ts); the refetch then brings the rest.
+// calendar once that XP was earned (board/xpEvents.ts); the refetch then brings the rest.
 //
 // After every action the whole board (['board', userId]) is refetched.
 //
@@ -62,8 +63,6 @@ export interface BlockActions {
   setPinned(block: Block, pinned: boolean): void
   // True while an action on this block is running, in any screen.
   pending(blockId: string): boolean
-  // True while this block is being deferred (the button says "Deferring…").
-  deferring(blockId: string): boolean
   // True while this block's task is being skipped.
   skipping(blockId: string): boolean
 }
@@ -366,16 +365,11 @@ export function useBlockActions(): BlockActions {
     filters: { mutationKey, status: 'pending' },
     select: (mutation) => (mutation.state.variables as Vars | undefined)?.block.id,
   })
-  const deferringIds = useMutationState({
-    filters: { mutationKey: deferKey(userId), status: 'pending' },
-    select: (mutation) => (mutation.state.variables as Vars | undefined)?.block.id,
-  })
   const skippingIds = useMutationState({
     filters: { mutationKey: skipKey(userId), status: 'pending' },
     select: (mutation) => (mutation.state.variables as Vars | undefined)?.block.id,
   })
   const pending = useCallback((blockId: string) => pendingIds.includes(blockId), [pendingIds])
-  const deferring = useCallback((blockId: string) => deferringIds.includes(blockId), [deferringIds])
   const skipping = useCallback((blockId: string) => skippingIds.includes(blockId), [skippingIds])
 
   return {
@@ -395,7 +389,6 @@ export function useBlockActions(): BlockActions {
       pinMutation.mutate(started(block, pinned))
     },
     pending,
-    deferring,
     skipping,
   }
 }

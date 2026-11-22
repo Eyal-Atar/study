@@ -58,7 +58,10 @@ export function usePlan(
   const api = useApi()
   const userId = useBoardUserId()
   return useQuery<Plan, ApiError>({
-    queryKey: planKey(userId, from, to),
+    // A query held back has a key of its own: with no range yet (the calendar's week before
+    // GET /today answers) it would otherwise share the cache of the no-range query, and show (and
+    // later keep, as keepPrevious's placeholder) the seven days from today as if they were the week.
+    queryKey: enabled ? planKey(userId, from, to) : [...planKey(userId, from, to), 'waiting'],
     queryFn: ({ signal }) => {
       const params = new URLSearchParams()
       if (from !== undefined) params.set('from', from)

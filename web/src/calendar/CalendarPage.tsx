@@ -141,7 +141,9 @@ export function CalendarPage() {
     reviewCount === 0 &&
     (days[days.length - 1] ?? '') >= today
   const showGrid = ready && !empty
-  useAutoScroll(scroller, gridBox, `${view}|${days[0] ?? ''}`, showGrid)
+  // Not on the previous week kept on screen while the next one loads (placeholder data): that grid
+  // has no block of the new week, and would take the one scroll the new week gets (decision 13).
+  useAutoScroll(scroller, gridBox, `${view}|${days[0] ?? ''}`, showGrid && !data.plan.isPlaceholderData)
 
   const rest = ready ? restDays(week, blocks, today) : NO_DAYS
   const streak = streakDays(data.progress.data)

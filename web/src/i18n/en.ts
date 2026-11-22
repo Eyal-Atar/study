@@ -342,11 +342,9 @@ export const en = {
     nextMeta: (duration: string, exam: string, kind: string) => `, ${duration}. ${isolate(exam)}, ${kind}`,
     // A split task adds its part to either line: ". Part 1 of 2".
     metaPart: (part: string) => `. ${part}`,
-    pinned: 'Locked',
     complete: 'Done',
     uncomplete: 'Mark as not done',
     defer: 'Defer',
-    deferring: 'Deferring…',
     pin: 'Lock',
     unpin: 'Unlock',
     // Every list has several "Done" buttons, so the accessible name says which task.

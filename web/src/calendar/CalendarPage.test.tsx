@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { blockName } from '../board/blockName'
 import type { Block } from '../board/types'
 import { en } from '../i18n/en'
-import { makeBlock } from '../test/boardFixtures'
+import { makeBlock, makePlan } from '../test/boardFixtures'
 import { problem } from '../test/fakeApi'
 import { CAL_NOW, CAL_TODAY, makeBusy, openCalendar, stubMedia } from './testFixtures'
 
@@ -202,6 +202,40 @@ describe('the calendar on a computer', () => {
     expect(scrollTo).toHaveBeenLastCalledWith({ top: nowY, behavior: 'auto' })
     await act(() => queryClient.refetchQueries())
     expect(scrollTo.mock.contexts.filter((el) => el === box)).toHaveLength(1)
+  })
+
+  // Closing patch: the previous week kept on screen while the next loads (M13) is not the next
+  // week, so it does not take the one scroll of that week; the real answer does.
+  it('a newly visited week scrolls to its first block when its answer comes, not before', async () => {
+    const user = userEvent.setup()
+    const scrollTo = vi.fn()
+    const nextWeek = makeBlock({ id: 'b-next-week', task_id: 't-nw', task_title: 'Next week', study_date: '2026-12-01', starts_at: '2026-12-01T12:00:00Z', ends_at: '2026-12-01T13:00:00Z' })
+    const { fake } = openCalendar('/calendar', { blocks: BLOCKS })
+    Object.defineProperty(Element.prototype, 'scrollTo', { configurable: true, writable: true, value: scrollTo })
+    await waitFor(() => {
+      expect(columns()).toHaveLength(7)
+    })
+    const box = document.querySelector('[data-calendar-scroller]')
+    await waitFor(() => {
+      expect(scrollTo.mock.contexts.filter((el) => el === box)).toHaveLength(1)
+    })
+    const gate = deferred<undefined>()
+    fake.on({ method: 'GET', path: /^\/plan\?from=2026-11-29/ }, () =>
+      gate.promise.then(() => makePlan([nextWeek], { from: '2026-11-29', to: '2026-12-05' })),
+    )
+    await user.click(within(screen.getByRole('banner')).getByRole('button', { name: en.calendar.page.nextWeek }))
+    await waitFor(() => {
+      expect(fake.calls('GET', /^\/plan\?from=2026-11-29/).length).toBeGreaterThan(0)
+    })
+    expect(columns()).toHaveLength(7)
+    expect(scrollTo.mock.contexts.filter((el) => el === box)).toHaveLength(1)
+    gate.resolve(undefined)
+    await waitFor(() => {
+      expect(scrollTo.mock.contexts.filter((el) => el === box)).toHaveLength(2)
+    })
+    const firstY = Number(grid('29 November–5 December 2026').getAttribute('data-first-y'))
+    expect(firstY).toBeGreaterThan(0)
+    expect(scrollTo).toHaveBeenLastCalledWith({ top: firstY - 16, behavior: 'auto' })
   })
 
   it('a move to another week closes an open sheet and clears its ghosts (Review Focus 6)', async () => {

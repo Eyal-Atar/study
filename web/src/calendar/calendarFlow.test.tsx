@@ -255,6 +255,9 @@ describe('now, whatever week is on screen', () => {
     })
     const asked = new Set(fake.calls('GET', /^\/plan/).map((c) => c.path))
     expect([...asked].sort()).toEqual(['/plan', `/plan?from=${SUNDAY}&to=${SATURDAY}`])
+    // The no-range request is made as often as GET /today (once each, repeated alike by
+    // StrictMode): the week held back before today answers asks for nothing.
+    expect(fake.calls('GET', '/plan')).toHaveLength(fake.calls('GET', '/today').length)
   })
 })
 
