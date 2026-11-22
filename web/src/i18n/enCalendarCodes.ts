@@ -1,4 +1,5 @@
-// The texts of the S35 server codes: availability, through the calendar (S32) and the settings (S34). Part of en.codes (en.ts).
+// The texts of the server codes of the calendar. Part of en.codes (en.ts).
+// S35: availability, through the calendar (S32) and the settings (S34). S44: the split offer of the banner.
 export const enCalendarCodes = {
   slot_busy: 'That time overlaps busy time in your calendar.',
   event_in_past: 'That time has already passed.',
@@ -18,4 +19,6 @@ export const enCalendarCodes = {
   timetable_unreadable: 'I couldn’t read a timetable in that file. Try a sharper photo or a PDF.',
   timetable_invalid: 'I couldn’t make sense of that timetable. Try again, or add your busy times by hand.',
   too_many_pages: 'That PDF has too many pages. Send me only the page with your timetable.',
+  // S44: the offer is gone (split, dismissed, or the task is no longer deferred that often).
+  no_split_offer: 'I don’t have a split to offer for this task right now.',
 } as const

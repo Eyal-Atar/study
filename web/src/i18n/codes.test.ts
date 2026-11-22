@@ -17,6 +17,7 @@ const CODES = [
   'slot_busy', 'event_in_past', 'too_many_events', 'not_after_starts_at', 'too_long', 'nothing_to_place',
   'no_free_time', 'too_many_commitments', 'too_short', 'range_too_long', 'already_applied', 'job_not_ready',
   'timetable_unreadable', 'timetable_invalid', 'too_many_pages',
+  'no_split_offer',
 ]
 
 describe('codeText', () => {
@@ -29,6 +30,10 @@ describe('codeText', () => {
 
   it('no_study_time also names the daily time for yourself, which the planner subtracts too', () => {
     expect(codeText('no_study_time')).toMatch(/me time/)
+  })
+
+  it('no_split_offer speaks in the first person', () => {
+    expect(codeText('no_split_offer')).toBe('I don’t have a split to offer for this task right now.')
   })
 
   it('an unknown code gets the generic text, never the code', () => {

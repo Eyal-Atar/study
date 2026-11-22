@@ -14,6 +14,7 @@ import { enExams } from './enExams'
 import { enOnboardingFlow } from './enOnboardingFlow'
 import { enPwa } from './enPwa'
 import { enSettingsScreen } from './enSettingsScreen'
+import { inSentence } from './locale'
 
 // Every text the user reads or hears, in Archi's voice (docs/design/archi-voice.md): Archi speaks
 // in the first person (I / me / my) and addresses the user as "you". Never "Archi will", never the
@@ -25,10 +26,6 @@ const plural = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` :
 
 // A count of days: "1 day", "5 days". Shared by the progress board and the progress chip.
 const dayCount = (n: number) => plural(n, 'day', 'days')
-
-// "Today", "Tomorrow" and "Yesterday" are titles on their own and lower case inside a sentence
-// ("I moved it to tomorrow at 14:00."); a date ("Sun, 22 Nov") stays as it is.
-const inSentence = (day: string) => (/^(Today|Tomorrow|Yesterday)$/.test(day) ? day.toLowerCase() : day)
 
 export const en = {
   appName: PRODUCT_NAME,
