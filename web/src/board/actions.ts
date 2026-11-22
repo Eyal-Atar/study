@@ -72,6 +72,9 @@ interface Vars {
   pinned?: boolean
   // What had the focus when the action started (focus.ts).
   origin?: Element | null
+  // A complete that is the Undo of "Not done": it puts back a mark the user already had, so the
+  // calendar does not play its reward again (S32 Task 13, a manager ruling).
+  undo?: boolean
 }
 
 interface DeferVars extends Vars {
@@ -221,14 +224,14 @@ export function useBlockActions(): BlockActions {
       restore(block.id, snapshot)
       fail(error)
     },
-    onSuccess: (result) => {
+    onSuccess: (result, { undo }) => {
       const progress = result.progress
       if (progress !== undefined) {
         // An empty cache stays empty: the updater returns undefined, and nothing is written.
         queryClient.setQueryData<Progress>(progressKey(userId), (data) =>
           data === undefined ? undefined : { ...data, total_xp: progress.total_xp, level: progress.level },
         )
-        if (progress.xp_change > 0) emitCompleted({ blockId: result.block.id, xp: progress.xp_change })
+        if (progress.xp_change > 0 && undo !== true) emitCompleted({ blockId: result.block.id, xp: progress.xp_change })
       }
       undoToast(completeText(result, false), () => {
         uncompleteMutation.mutate(started(result.block))
@@ -247,7 +250,7 @@ export function useBlockActions(): BlockActions {
     },
     onSuccess: (result) => {
       undoToast(completeText(result, true), () => {
-        completeMutation.mutate(started(result.block))
+        completeMutation.mutate({ ...started(result.block), undo: true })
       })
     },
     onSettled: settleAndFocus,

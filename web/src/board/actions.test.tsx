@@ -719,6 +719,38 @@ describe('useBlockActions: the XP of a complete', () => {
     off()
   })
 
+  // A manager ruling (S32 Task 13): the Undo of "Not done" puts back a mark the user already had,
+  // so the reward is not played again; a press of Done after it plays it once.
+  it('the complete that undoes "Not done" tells no listener, and a later Done tells them once', async () => {
+    const user = userEvent.setup()
+    const done = makeBlock({ status: 'done', state: 'done' })
+    const { fake } = setupCalls({ block: done })
+    await loaded()
+    const listener = vi.fn()
+    const off = onCompleted(listener)
+    fake.on('POST /blocks/block-1/uncomplete', { block: makeBlock(), task_status: 'todo', progress: { ...change, xp_change: -20, total_xp: 1220 } })
+    fake.on('POST /blocks/block-1/complete', { block: done, task_status: 'done', progress: change })
+
+    await user.click(screen.getByRole('button', { name: 'uncomplete' }))
+    await user.click(await (await toasts()).findByRole('button', { name: en.common.undo }))
+    await waitFor(() => {
+      expect(fake.calls('POST', '/blocks/block-1/complete')).toHaveLength(1)
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('pending')).toHaveTextContent('false')
+    })
+    expect(listener).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'complete' }))
+    await waitFor(() => {
+      expect(fake.calls('POST', '/blocks/block-1/complete')).toHaveLength(2)
+    })
+    await waitFor(() => {
+      expect(listener).toHaveBeenCalledExactlyOnceWith({ blockId: 'block-1', xp: 20 })
+    })
+    off()
+  })
+
   it('an empty progress cache stays empty', async () => {
     const user = userEvent.setup()
     const { fake, queryClient } = setupCalls()
