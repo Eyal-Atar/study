@@ -487,3 +487,74 @@ def test_another_user_sees_and_changes_none_of_it(
 
 def test_progress_needs_a_token(api: TestClient) -> None:
     assert api.get("/progress").status_code == 401
+
+
+# --- S34 decision 8: the first plan's XP is XP, not a block or a study day ------------------
+
+
+def _first_plan_xp(db: psycopg.Connection, user: ApiUser, day: str = "2026-11-16") -> None:
+    db.execute(
+        "INSERT INTO app.xp_events (user_id, block_id, xp, study_date, kind) "
+        "VALUES (%s, NULL, 50, %s, 'first_plan')",
+        (user.id, day),
+    )
+
+
+def test_the_first_plan_xp_counts_in_the_total_only(
+    api: TestClient, db: psycopg.Connection, user: ApiUser
+) -> None:
+    _first_plan_xp(db, user)
+
+    progress = _progress(api, user)
+
+    assert progress["total_xp"] == 50
+    assert progress["blocks_done"] == 0
+    assert progress["streak"] == {
+        "current": 0,
+        "longest": 0,
+        "studied_today": False,
+        "today": "2026-11-16",
+    }
+    assert [day["xp"] for day in progress["days"]] == [0] * 14
+    first_task = next(badge for badge in progress["badges"] if badge["key"] == "first_task")
+    assert first_task["earned"] is False
+
+
+def test_a_block_after_the_first_plan_adds_to_it_and_its_undo_keeps_it(
+    api: TestClient, db: psycopg.Connection, user: ApiUser
+) -> None:
+    _first_plan_xp(db, user)
+    block = _block(db, user, Z(2026, 11, 16, 9), focus=5)
+
+    done = _act(api, user, block, "complete")["progress"]
+
+    assert done["xp_change"] == 50
+    assert done["total_xp"] == 100
+    assert done["badges_earned"] == ["first_task"]
+    progress = _progress(api, user)
+    assert progress["blocks_done"] == 1
+    assert progress["streak"]["current"] == 1
+    assert progress["days"][-1]["xp"] == 50  # the block's, not the plan's
+
+    undone = _act(api, user, block, "uncomplete")["progress"]
+
+    assert undone["total_xp"] == 50
+    assert undone["badges_lost"] == ["first_task"]
+    assert _progress(api, user)["blocks_done"] == 0
+    assert (
+        scalar(
+            db,
+            "SELECT count(*) FROM app.xp_events WHERE user_id = %s AND kind = 'first_plan'",
+            user.id,
+        )
+        == 1
+    )
+
+
+def test_a_completed_block_is_written_as_a_block(
+    api: TestClient, db: psycopg.Connection, user: ApiUser
+) -> None:
+    block = _block(db, user, Z(2026, 11, 16, 9), focus=5)
+    _act(api, user, block, "complete")
+
+    assert scalar(db, "SELECT kind FROM app.xp_events WHERE block_id = %s", block) == "block"

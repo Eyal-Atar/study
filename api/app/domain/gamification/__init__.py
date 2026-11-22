@@ -9,10 +9,11 @@ without a database.
 from app.domain.gamification.badges import BADGES, Badge, BadgeGroup, Stats, earned
 from app.domain.gamification.levels import MAX_LEVEL, XP_PER_LEVEL, level_bounds, level_for
 from app.domain.gamification.streak import Streak, streak
-from app.domain.gamification.xp import MIN_MINUTES, block_xp
+from app.domain.gamification.xp import FIRST_PLAN_XP, MIN_MINUTES, block_xp
 
 __all__ = [
     "BADGES",
+    "FIRST_PLAN_XP",
     "MAX_LEVEL",
     "MIN_MINUTES",
     "XP_PER_LEVEL",

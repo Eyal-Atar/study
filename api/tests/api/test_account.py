@@ -386,6 +386,7 @@ def test_export_has_the_documented_shape(
         "block_id": str(filled.block_id),
         "xp": 50,
         "study_date": "2026-11-16",
+        "kind": "block",
         "created_at": event["created_at"],
     }
     (badge,) = body["badges"]

@@ -144,7 +144,7 @@ _EXPORTED: Final[Mapping[str, tuple[tuple[str, ...], tuple[str, ...]]]] = {
     ),
     # S19: the XP ledger and the badges.
     "xp_events": (
-        ("id", "block_id", "xp", "study_date", "created_at"),
+        ("id", "block_id", "xp", "study_date", "kind", "created_at"),
         ("created_at", "id"),
     ),
     "badges": (

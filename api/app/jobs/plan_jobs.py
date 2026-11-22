@@ -5,6 +5,8 @@ topics and tasks), then plans the whole board in one transaction of the user and
 as a `plan_generated` version. The same transaction ends the user's onboarding
 (`profiles.onboarding_completed_at`, written only while it is still null) at the planning
 time, so a student who closed the browser during the job finds the plan when back.
+When that write ends the onboarding, the same transaction writes the first plan's 50 XP
+(`award_first_plan`), and the result says so in `first_plan_xp` (50, or 0 for any later plan).
 Failures fall in three groups:
 
 - the account's (`ai_not_configured`, `ai_no_credit`): the job fails at once with that code,
@@ -63,6 +65,7 @@ from app.services.analysis import (
     record_failed_analysis,
 )
 from app.services.board import load_board
+from app.services.gamification import award_first_plan
 from app.services.plan_writes import VersionReason, apply_result
 from app.services.profiles import Conn, complete_onboarding
 
@@ -404,10 +407,14 @@ def generate_plan(ctx: JobContext) -> dict[str, Any]:
         logger.info("job %s plan took %d ms", ctx.job.id, (time.perf_counter() - started) * 1000)
         version_id = apply_result(conn, user_id, board, result, VersionReason.PLAN_GENERATED)
         # Only a board with a task ends the onboarding: a job whose exams were all deleted
-        # or past (all skipped) plans nothing.
-        if board.tasks:
-            complete_onboarding(conn, user_id, now)
-    return fit_result({"exams": exams, "plan": _plan_result(version_id, result)})
+        # or past (all skipped) plans nothing. The plan that ends it earns the first plan's
+        # XP, in this transaction: if it rolls back, the XP goes with it.
+        first_plan_xp = 0
+        if board.tasks and complete_onboarding(conn, user_id, now):
+            first_plan_xp = award_first_plan(conn, user_id, board.profile, now).xp_change
+    return fit_result(
+        {"exams": exams, "plan": _plan_result(version_id, result), "first_plan_xp": first_plan_xp}
+    )
 
 
 def reanalyze_exam(ctx: JobContext) -> dict[str, Any]:

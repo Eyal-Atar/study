@@ -87,6 +87,8 @@ def test_columns(db: psycopg.Connection) -> None:
         ("xp_events", "xp", "integer", "NO", None),
         ("xp_events", "study_date", "date", "NO", None),
         ("xp_events", "created_at", "timestamp with time zone", "NO", "clock_timestamp()"),
+        # 0018 (S34): the row's kind, after the columns of 0011.
+        ("xp_events", "kind", "text", "NO", "'block'::text"),
     ]
 
 
@@ -287,6 +289,7 @@ def test_column_grants(db: psycopg.Connection) -> None:
         ("badges", "badge_key", "INSERT"),
         ("badges", "user_id", "INSERT"),
         ("xp_events", "block_id", "INSERT"),
+        ("xp_events", "kind", "INSERT"),
         ("xp_events", "study_date", "INSERT"),
         ("xp_events", "user_id", "INSERT"),
         ("xp_events", "xp", "INSERT"),

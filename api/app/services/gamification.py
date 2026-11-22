@@ -1,11 +1,15 @@
 """XP, the study-day streak and badges (S19), inside the transaction of complete and uncomplete.
 
-`app.xp_events` is the ledger: at most one row per block (`block_id` unique), written when a
-block becomes done and deleted when it is uncompleted (plan S19 decision 2). The total, the
-level, the number of blocks done and the streak are always computed from it, never kept as
-counters. `app.badges` is the one derived table: after every change `sync_badges` makes it
-exactly the set the ledger earns now (adds the new ones, deletes the ones no longer met), so a
-complete followed by an undo leaves no badge behind (decision 3).
+`app.xp_events` is the ledger: at most one row per block (`kind = 'block'`, `block_id`
+unique), written when a block becomes done and deleted when it is uncompleted (plan S19
+decision 2), and at most one row per user of the first plan's XP (`kind = 'first_plan'`,
+no block, S34 decision 8). The total, the level, the number of blocks done and the streak
+are always computed from it, never kept as counters: the total counts every row, while
+`blocks_done`, the streak and the days count only blocks.
+
+`app.badges` is the one derived table: after every change `sync_badges` makes it exactly the
+set the ledger earns now (adds the new ones, deletes the ones no longer met), so a complete
+followed by an undo leaves no badge behind (decision 3).
 
 Callers hold the user's lock (`lock_user`), so two completions of one user run one after the
 other; the unique `block_id` with `ON CONFLICT DO NOTHING` is the database's own guard.
@@ -20,6 +24,7 @@ from uuid import UUID
 
 from app.domain.gamification import (
     BADGES,
+    FIRST_PLAN_XP,
     Badge,
     Stats,
     Streak,
@@ -105,7 +110,8 @@ class _Totals:
 
 def _totals(conn: Conn, user_id: UUID) -> _Totals:
     row = conn.execute(
-        "SELECT coalesce(sum(xp), 0)::int AS total, count(*)::int AS blocks "
+        "SELECT coalesce(sum(xp), 0)::int AS total, "
+        "count(*) FILTER (WHERE kind = 'block')::int AS blocks "
         "FROM app.xp_events WHERE user_id = %s",
         (user_id,),
     ).fetchone()
@@ -116,7 +122,8 @@ def _totals(conn: Conn, user_id: UUID) -> _Totals:
 
 def _study_days(conn: Conn, user_id: UUID) -> list[dt.date]:
     rows = conn.execute(
-        "SELECT DISTINCT study_date FROM app.xp_events WHERE user_id = %s", (user_id,)
+        "SELECT DISTINCT study_date FROM app.xp_events WHERE user_id = %s AND kind = 'block'",
+        (user_id,),
     ).fetchall()
     return [row["study_date"] for row in rows]
 
@@ -210,8 +217,8 @@ def record_completion(
     minutes = int((block.ends_at - block.starts_at).total_seconds() // 60)
     xp = _split_xp(conn, user_id, block, focus, minutes) if split else block_xp(focus, minutes)
     row = conn.execute(
-        "INSERT INTO app.xp_events (user_id, block_id, xp, study_date) "
-        "VALUES (%s, %s, %s, %s) ON CONFLICT (block_id) DO NOTHING RETURNING xp",
+        "INSERT INTO app.xp_events (user_id, block_id, xp, study_date, kind) "
+        "VALUES (%s, %s, %s, %s, 'block') ON CONFLICT (block_id) DO NOTHING RETURNING xp",
         (user_id, block.id, xp, completion_day(profile, block, now)),
     ).fetchone()
     return _change(conn, user_id, before, 0 if row is None else row["xp"], sync=True)
@@ -239,6 +246,26 @@ def revoke_completion(conn: Conn, user_id: UUID, block_id: UUID) -> ProgressChan
         (user_id, block_id),
     ).fetchone()
     return _change(conn, user_id, before, 0 if row is None else -row["xp"], sync=True)
+
+
+def award_first_plan(
+    conn: Conn, user_id: UUID, profile: Profile, now: dt.datetime
+) -> ProgressChange:
+    """The first plan's XP (S34 decision 8): once per user.
+
+    Called in the transaction that ends the onboarding.
+
+    The partial unique index xp_events_first_plan_key is the database's guard: a second call
+    writes nothing and returns xp_change 0.
+    """
+    before = _totals(conn, user_id)
+    row = conn.execute(
+        "INSERT INTO app.xp_events (user_id, block_id, xp, study_date, kind) "
+        "VALUES (%s, NULL, %s, %s, 'first_plan') "
+        "ON CONFLICT (user_id) WHERE kind = 'first_plan' DO NOTHING RETURNING xp",
+        (user_id, FIRST_PLAN_XP, study_date(profile, now)),
+    ).fetchone()
+    return _change(conn, user_id, before, 0 if row is None else row["xp"], sync=True)
 
 
 def unchanged(conn: Conn, user_id: UUID) -> ProgressChange:
@@ -283,7 +310,8 @@ def progress(conn: Conn, user_id: UUID, profile: Profile, now: dt.datetime) -> P
         row["study_date"]: row["xp"]
         for row in conn.execute(
             "SELECT study_date, sum(xp)::int AS xp FROM app.xp_events "
-            "WHERE user_id = %s AND study_date BETWEEN %s AND %s GROUP BY study_date",
+            "WHERE user_id = %s AND kind = 'block' AND study_date BETWEEN %s AND %s "
+            "GROUP BY study_date",
             (user_id, first, today),
         ).fetchall()
     }

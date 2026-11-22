@@ -128,13 +128,17 @@ def update_profile(
     return after, plan_affected
 
 
-def complete_onboarding(conn: Conn, user_id: UUID, now: dt.datetime) -> None:
-    """Mark the onboarding done at `now`, the time of the first plan; a later plan keeps it."""
-    conn.execute(
+def complete_onboarding(conn: Conn, user_id: UUID, now: dt.datetime) -> bool:
+    """Mark the onboarding done at `now`, the time of the first plan; a later plan keeps it.
+
+    True when this call ended the onboarding (the first plan); False when it had already ended.
+    """
+    cursor = conn.execute(
         "UPDATE app.profiles SET onboarding_completed_at = %(now)s "
         "WHERE id = %(user_id)s AND onboarding_completed_at IS NULL",
         {"now": now, "user_id": user_id},
     )
+    return cursor.rowcount == 1
 
 
 def to_planner_profile(

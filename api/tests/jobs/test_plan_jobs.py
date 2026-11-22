@@ -2,6 +2,7 @@
 
 import datetime as dt
 import json
+import threading
 import time
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
@@ -9,18 +10,21 @@ from uuid import UUID, uuid4
 
 import psycopg
 import pytest
-from psycopg.rows import DictRow
+from psycopg.conninfo import make_conninfo
+from psycopg.rows import DictRow, dict_row
 
 import app.jobs.plan_jobs as plan_jobs
 import app.services.analysis as analysis_module
 from app.ai.client import AiError, AnalysisReply
 from app.config import Settings
+from app.db.session import user_transaction
 from app.domain.materials import JOB_GENERATE_PLAN, JOB_REANALYZE_EXAM
 from app.domain.planner import Exam, exam_budgets
 from app.jobs.ingest import HANDLERS, ON_CRASHED
 from app.jobs.queue import JobRow
-from app.jobs.worker import JobContext, Worker
-from app.services.profiles import ensure_profile, to_planner_profile
+from app.jobs.worker import JobContext, JobFailed, Worker
+from app.services.gamification import award_first_plan
+from app.services.profiles import complete_onboarding, ensure_profile, to_planner_profile
 from tests.ai.fake_client import FakeAnalysisClient, reply
 from tests.ai.samples import valid_output_dict
 from tests.api.factories import NOW, TEST_PROFILE, insert_exam, scalar, set_profile
@@ -1120,3 +1124,204 @@ def test_generate_with_only_deleted_exams_leaves_the_onboarding_open(
 
     assert job.status == "done", job.error
     assert _onboarded_at(db, user) is None
+
+
+# --- S34 decision 8: the first plan's 50 XP, once -----------------------------------------
+
+# NOW is 05:00 UTC, before the 06:00 wake-up: the study day is the 15th, not the 16th.
+NOW_STUDY_DAY = dt.date(2026, 11, 15)
+
+
+def _first_plan_rows(db: psycopg.Connection, user: Any) -> list[tuple[Any, ...]]:
+    return db.execute(
+        "SELECT kind, xp, block_id, study_date FROM app.xp_events "
+        "WHERE user_id = %s AND kind = 'first_plan'",
+        (user.id,),
+    ).fetchall()
+
+
+def test_the_first_plan_awards_50_xp(
+    run: Callable[..., JobRow], new_exam: Callable[..., UUID], db: psycopg.Connection, user: Any
+) -> None:
+    job = run(FakeAnalysisClient([valid()]), _generate(new_exam(EXAM_A)))
+
+    assert job.status == "done", job.error
+    assert job.result is not None
+    assert job.result["first_plan_xp"] == 50
+    assert _first_plan_rows(db, user) == [("first_plan", 50, None, NOW_STUDY_DAY)]
+    assert _count(db, "SELECT count(*) FROM app.xp_events WHERE user_id = %s", user.id) == 1
+
+
+def test_a_second_plan_awards_nothing(
+    run: Callable[..., JobRow], new_exam: Callable[..., UUID], db: psycopg.Connection, user: Any
+) -> None:
+    first = run(FakeAnalysisClient([valid()]), _generate(new_exam(EXAM_A)))
+    second = run(FakeAnalysisClient([valid()]), _generate(new_exam(EXAM_B)))
+
+    assert first.result is not None and second.result is not None
+    assert second.status == "done", second.error
+    assert (first.result["first_plan_xp"], second.result["first_plan_xp"]) == (50, 0)
+    assert len(_first_plan_rows(db, user)) == 1
+
+
+def test_an_onboarded_user_gets_no_first_plan_xp(
+    run: Callable[..., JobRow], new_exam: Callable[..., UUID], db: psycopg.Connection, user: Any
+) -> None:
+    # A user who finished the onboarding before 0018: no XP now, none retroactively.
+    db.execute(
+        "UPDATE app.profiles SET onboarding_completed_at = %s WHERE id = %s",
+        (NOW - dt.timedelta(days=3), user.id),
+    )
+
+    job = run(FakeAnalysisClient([valid()]), _generate(new_exam(EXAM_A)))
+
+    assert job.status == "done", job.error
+    assert job.result is not None
+    assert job.result["first_plan_xp"] == 0
+    assert _first_plan_rows(db, user) == []
+
+
+def test_a_plan_of_only_skipped_exams_awards_nothing(
+    run: Callable[..., JobRow], new_exam: Callable[..., UUID], db: psycopg.Connection, user: Any
+) -> None:
+    gone = new_exam(EXAM_A)
+    db.execute("UPDATE app.exams SET deleted_at = now() WHERE id = %s", (gone,))
+
+    job = run(FakeAnalysisClient([]), _generate(gone))
+
+    assert job.status == "done", job.error
+    assert job.result is not None
+    assert job.result["first_plan_xp"] == 0
+    assert _first_plan_rows(db, user) == []
+    assert _onboarded_at(db, user) is None
+
+
+def test_a_retry_after_the_plan_was_saved_awards_nothing_more(
+    run: Callable[..., JobRow],
+    new_exam: Callable[..., UUID],
+    db: psycopg.Connection,
+    clock: FrozenClock,
+    user: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The planning transaction committed, then the attempt failed before its result was
+    # saved: the retry plans again and finds the onboarding already ended.
+    real = plan_jobs.fit_result
+    calls: list[dict[str, Any]] = []
+
+    def lost_once(result: dict[str, Any]) -> dict[str, Any]:
+        calls.append(result)
+        if len(calls) == 1:
+            raise JobFailed("ai_unavailable", retry=True)
+        return real(result)
+
+    monkeypatch.setattr(plan_jobs, "fit_result", lost_once)
+    first = run(FakeAnalysisClient([valid()]), _generate(new_exam(EXAM_A)))
+    assert first.status == "queued"
+    assert calls[0]["first_plan_xp"] == 50
+
+    _retry(clock)
+    second = run(FakeAnalysisClient([]), {}, job_id=first.id)
+
+    assert second.status == "done", second.error
+    assert second.result is not None
+    assert second.result["first_plan_xp"] == 0
+    assert _first_plan_rows(db, user) == [("first_plan", 50, None, NOW_STUDY_DAY)]
+
+
+def test_a_failure_in_the_planning_transaction_writes_no_xp_and_the_retry_awards_it(
+    run: Callable[..., JobRow],
+    new_exam: Callable[..., UUID],
+    db: psycopg.Connection,
+    clock: FrozenClock,
+    user: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real = award_first_plan
+    calls: list[int] = []
+
+    def broken_once(*args: Any, **kwargs: Any) -> Any:
+        change = real(*args, **kwargs)
+        calls.append(change.xp_change)
+        if len(calls) == 1:  # after the row was written, inside the same transaction
+            raise JobFailed("ai_unavailable", retry=True)
+        return change
+
+    monkeypatch.setattr(plan_jobs, "award_first_plan", broken_once)
+    first = run(FakeAnalysisClient([valid()]), _generate(new_exam(EXAM_A)))
+
+    assert first.status == "queued"
+    assert calls == [50]
+    assert _first_plan_rows(db, user) == []
+    assert _onboarded_at(db, user) is None
+
+    _retry(clock)
+    second = run(FakeAnalysisClient([]), {}, job_id=first.id)
+
+    assert second.status == "done", second.error
+    assert second.result is not None
+    assert second.result["first_plan_xp"] == 50
+    assert len(_first_plan_rows(db, user)) == 1
+
+
+def test_award_first_plan_twice_writes_once(
+    user_db: psycopg.Connection[DictRow], db: psycopg.Connection, user: Any
+) -> None:
+    changes = []
+    for _ in range(2):
+        with user_transaction(user_db, user) as conn:
+            profile = to_planner_profile(ensure_profile(conn, user.id))
+            changes.append(award_first_plan(conn, user.id, profile, NOW))
+
+    assert [change.xp_change for change in changes] == [50, 0]
+    assert [change.total_xp for change in changes] == [50, 50]
+    assert all(change.badges_earned == () for change in changes)
+    assert len(_first_plan_rows(db, user)) == 1
+
+
+def test_two_first_plans_at_once_award_the_xp_once(
+    migrated_database_url: str,
+    user_db: psycopg.Connection[DictRow],
+    db: psycopg.Connection,
+    user: Any,
+) -> None:
+    # Two planning transactions of one user: the second's UPDATE of the profile waits for
+    # the first to commit, then finds the onboarding ended and awards nothing.
+    url = make_conninfo(migrated_database_url, user="studyflow_api")
+    second_result: list[tuple[bool, int]] = []
+    errors: list[BaseException] = []
+
+    def second() -> None:
+        try:
+            with psycopg.connect(url, row_factory=dict_row, autocommit=True) as other:
+                with user_transaction(other, user) as conn:
+                    ended = complete_onboarding(conn, user.id, NOW)
+                    profile = to_planner_profile(ensure_profile(conn, user.id))
+                    xp = award_first_plan(conn, user.id, profile, NOW).xp_change if ended else 0
+                    second_result.append((ended, xp))
+        except BaseException as error:  # reported by the main thread
+            errors.append(error)
+
+    thread = threading.Thread(target=second)
+    with user_transaction(user_db, user) as conn:
+        assert complete_onboarding(conn, user.id, NOW) is True
+        profile = to_planner_profile(ensure_profile(conn, user.id))
+        assert award_first_plan(conn, user.id, profile, NOW).xp_change == 50
+        thread.start()
+        deadline = time.monotonic() + 10
+        while not _waiting_on_a_lock(db):
+            assert time.monotonic() < deadline, "the second transaction never waited"
+            time.sleep(0.02)
+    thread.join(timeout=30)
+
+    assert errors == []
+    assert second_result == [(False, 0)]
+    assert _first_plan_rows(db, user) == [("first_plan", 50, None, NOW_STUDY_DAY)]
+
+
+def _waiting_on_a_lock(db: psycopg.Connection) -> bool:
+    row = db.execute(
+        "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
+        "AND usename = 'studyflow_api' AND wait_event_type = 'Lock'"
+    ).fetchone()
+    return row is not None and row[0] > 0

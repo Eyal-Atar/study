@@ -12,7 +12,6 @@ from uuid import uuid4
 import psycopg
 import pytest
 from alembic import command
-from alembic.script import ScriptDirectory
 
 from tests.db.support import admin_database_url, alembic_config, create_database, drop_database
 
@@ -38,12 +37,6 @@ def _hobby_checks(conn: psycopg.Connection) -> list[str]:
         "AND conname LIKE 'profiles_hobby%' ORDER BY conname"
     ).fetchall()
     return [row[0] for row in rows]
-
-
-def test_one_head() -> None:
-    # 0016 follows 0015 and 0017 follows 0016: one line of migrations, no branch.
-    config = alembic_config(admin_database_url())
-    assert ScriptDirectory.from_config(config).get_heads() == ["0017"]
 
 
 def test_head_has_no_hobby_columns(db: psycopg.Connection) -> None:

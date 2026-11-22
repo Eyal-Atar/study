@@ -11,6 +11,9 @@ from typing import Final
 # review block is worth marking done; it also keeps the smallest award above 0.
 MIN_MINUTES: Final = 15
 
+# The XP of the first plan after the onboarding, once per user (S34 decision 8).
+FIRST_PLAN_XP: Final = 50
+
 _MIN_FOCUS: Final = 1
 _MAX_FOCUS: Final = 10
 
