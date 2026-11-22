@@ -12,7 +12,7 @@ import { Dialog } from '../ui/Dialog'
 import { Note } from '../ui/Note'
 import { TextField } from '../ui/TextField'
 import { TimeField } from '../ui/TimeField'
-import { useBusyWrite } from './busyActions'
+import { useBusyWrite, type BusyWrite } from './busyActions'
 import { instantOf } from './busyTime'
 import { ghostOf, type Ghost } from './ghost'
 
@@ -40,6 +40,7 @@ function minutesOf(time: string): number {
 
 // "What should I keep free?" (new) and the edit of an event. Open while draft or event is set.
 export function BusySheet(props: BusySheetProps) {
+  const write = useBusyWrite()
   const open = props.draft !== null || props.event !== null
   function close() {
     props.onPreview([])
@@ -49,18 +50,35 @@ export function BusySheet(props: BusySheetProps) {
     <Dialog
       title={props.event === null ? en.calendar.sheets.busy.titleNew : en.calendar.sheets.busy.titleEdit}
       isOpen={open}
+      isDismissable={!write.pending}
+      isKeyboardDismissDisabled={write.pending}
       onOpenChange={(isOpen) => {
         if (!isOpen) close()
       }}
     >
-      {open ? <BusyBody key={props.event?.id ?? 'new'} {...props} onClose={close} /> : null}
+      {open ? <BusyBody key={props.event?.id ?? 'new'} {...props} write={write} onClose={close} /> : null}
     </Dialog>
   )
 }
 
-function BusyBody({ draft, event, blocks, tz, today, onClose, onPreview }: BusySheetProps) {
+function BusyBody({
+  draft,
+  event,
+  blocks,
+  tz,
+  today,
+  onClose,
+  onPreview,
+  write,
+}: BusySheetProps & { write: BusyWrite }) {
   const b = en.calendar.sheets.busy
-  const write = useBusyWrite()
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   const [title, setTitle] = useState(event?.title ?? '')
   const [date, setDate] = useState(() =>
     event === null ? (draft?.date ?? today) : dateIn(tz, new Date(event.starts_at)),
@@ -70,6 +88,9 @@ function BusyBody({ draft, event, blocks, tz, today, onClose, onPreview }: BusyS
   const [fieldError, setFieldError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // An event that began on an earlier day keeps its own day valid when edited.
+  const eventDay = event === null ? today : dateIn(tz, new Date(event.starts_at))
+  const minDate = eventDay < today ? eventDay : today
   const startMs = instantOf(date, from, tz)
   const endMs = instantOf(date, to, tz)
   const valid = startMs !== null && endMs !== null && endMs > startMs
@@ -95,7 +116,7 @@ function BusyBody({ draft, event, blocks, tz, today, onClose, onPreview }: BusyS
           title: title.trim() === '' ? en.calendar.grid.newBusy : title.trim(),
           tone: 'target',
         },
-        ...overlapping.map((block) => ghostOf(block, block.starts_at, block.ends_at, date, tz, 'leaving')),
+        ...overlapping.map((block) => ghostOf(block, block.starts_at, block.ends_at, block.study_date, tz, 'leaving')),
       ]
     : []
   useEffect(() => {
@@ -121,8 +142,17 @@ function BusyBody({ draft, event, blocks, tz, today, onClose, onPreview }: BusyS
     setFieldError(null)
     setError(null)
     const options = {
-      onSuccess: onClose,
+      // The write outlives this sheet: once it is gone, the toast says the result and nothing
+      // here closes whatever sheet is open now.
+      onSuccess: () => {
+        if (mounted.current) onClose()
+      },
       onError: (failure: { code: string | null }) => {
+        if (!mounted.current) return false
+        if (failure.code === 'not_after_starts_at') {
+          setFieldError(en.codes.not_after_starts_at)
+          return true
+        }
         if (failure.code !== null && SHOWN_CODES.has(failure.code)) {
           setError(codeText(failure.code))
           return true
@@ -150,7 +180,7 @@ function BusyBody({ draft, event, blocks, tz, today, onClose, onPreview }: BusyS
       <DatePicker
         label={b.day}
         value={parseDate(date)}
-        minValue={parseDate(today)}
+        minValue={parseDate(minDate)}
         onChange={(value) => {
           if (value !== null) setDate(value.toString())
         }}

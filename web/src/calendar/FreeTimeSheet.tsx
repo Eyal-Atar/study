@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Archie } from '../archie/Archie'
 import { blockName } from '../board/blockName'
-import { blockMinutes, durationText, formatTime } from '../board/time'
+import { blockMinutes, durationText, formatRange, formatTime } from '../board/time'
 import type { Block } from '../board/types'
 import { codeText } from '../i18n/codes'
 import { en } from '../i18n/en'
@@ -14,9 +14,8 @@ import { OptionGrid } from '../ui/OptionGrid'
 import { Select } from '../ui/Select'
 import { ICON_STROKE } from '../ui/styles'
 import { UserText } from '../ui/UserText'
-import { useFreeTimeWrite } from './freeTimeActions'
+import { useFreeTimeWrite, type FreeTimeWrite } from './freeTimeActions'
 import { ghostOf, type Ghost } from './ghost'
-import { formatRange } from '../board/time'
 
 export interface FreeTimeSheetProps {
   isOpen: boolean
@@ -35,6 +34,7 @@ const FIXED: Record<string, number> = { m30: 30, m60: 60, m90: 90 }
 
 // "Good, some free time. How much do you have?": the next blocks come forward to now.
 export function FreeTimeSheet(props: FreeTimeSheetProps) {
+  const write = useFreeTimeWrite()
   function close() {
     props.onPreview([])
     props.onClose()
@@ -43,11 +43,13 @@ export function FreeTimeSheet(props: FreeTimeSheetProps) {
     <Dialog
       title={en.calendar.sheets.freeTime.title}
       isOpen={props.isOpen}
+      isDismissable={!write.pending}
+      isKeyboardDismissDisabled={write.pending}
       onOpenChange={(open) => {
         if (!open) close()
       }}
     >
-      {props.isOpen ? <FreeTimeBody {...props} onClose={close} /> : null}
+      {props.isOpen ? <FreeTimeBody {...props} write={write} onClose={close} /> : null}
     </Dialog>
   )
 }
@@ -73,9 +75,23 @@ function fitBlocks(upcoming: Block[], minutes: number, now: number, tz: string):
   return fits
 }
 
-function FreeTimeBody({ onClose, upcoming, now, today, tz, onPreview }: FreeTimeSheetProps) {
+function FreeTimeBody({
+  onClose,
+  upcoming,
+  now,
+  today,
+  tz,
+  onPreview,
+  write,
+}: FreeTimeSheetProps & { write: FreeTimeWrite }) {
   const f = en.calendar.sheets.freeTime
-  const write = useFreeTimeWrite()
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   const [choice, setChoice] = useState('m60')
   const [other, setOther] = useState('120')
   const [error, setError] = useState<string | null>(null)
@@ -105,8 +121,11 @@ function FreeTimeBody({ onClose, upcoming, now, today, tz, onPreview }: FreeTime
   function start() {
     setError(null)
     write.start(minutes, {
-      onSuccess: onClose,
+      onSuccess: () => {
+        if (mounted.current) onClose()
+      },
       onError: (failure) => {
+        if (!mounted.current) return false
         if (failure.code !== null && SHOWN_CODES.has(failure.code)) {
           setError(codeText(failure.code))
           return true

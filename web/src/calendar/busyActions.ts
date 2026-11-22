@@ -127,7 +127,7 @@ export function useBusyWrite(): BusyWrite {
         if (error instanceof ApiError && options.onError(error)) return
         fail(error)
       },
-    )
+    ).catch(fail)
   }
 
   return {

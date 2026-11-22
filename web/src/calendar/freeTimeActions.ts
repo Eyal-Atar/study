@@ -78,7 +78,7 @@ export function useFreeTimeWrite(): FreeTimeWrite {
           if (error instanceof ApiError && options.onError(error)) return
           fail(error)
         },
-      )
+      ).catch(fail)
     },
     pending: mutation.isPending,
   }

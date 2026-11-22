@@ -1,4 +1,5 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { useState } from 'react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { blockName } from '../board/blockName'
@@ -212,6 +213,85 @@ describe('BusySheet', () => {
     onPreview.mockClear()
     await userEvent.keyboard('{Escape}')
     expect(onPreview).toHaveBeenCalledWith([])
+  })
+})
+
+function Wrap({ onClose, onPreview }: { onClose: () => void; onPreview: (g: Ghost[]) => void }) {
+  const [open, setOpen] = useState(true)
+  return (
+    <>
+      <button type="button" data-testid="hide" onClick={() => { setOpen(false) }} />
+      <BusySheet draft={open ? DRAFT : null} event={null} blocks={[]} tz={TZ} today={TODAY} onClose={onClose} onPreview={onPreview} />
+    </>
+  )
+}
+
+describe('BusySheet after the sheet is gone or on the way', () => {
+  it('a late error shows the toast, and a late success does not close', async () => {
+    let release: (value: unknown) => void = () => undefined
+    const fake = baseFake().on('POST /busy-events', () => new Promise((resolve) => { release = resolve }))
+    const onClose = vi.fn()
+    renderBoard(<Wrap onClose={onClose} onPreview={vi.fn()} />, { api: fake.api })
+    await screen.findByRole('dialog')
+    await userEvent.click(screen.getByRole('button', { name: s.busy.save }))
+    await waitFor(() => { expect(fake.calls('POST', '/busy-events')).toHaveLength(1) })
+    fireEvent.click(screen.getByTestId('hide'))
+    await waitFor(() => { expect(screen.queryByRole('dialog')).not.toBeInTheDocument() })
+    release(problem(422, 'too_many_events'))
+    expect(await screen.findByText(en.codes.too_many_events)).toBeInTheDocument()
+  })
+
+  it('a late success does not call onClose', async () => {
+    let release: (value: unknown) => void = () => undefined
+    const fake = baseFake().on('POST /busy-events', () => new Promise((resolve) => { release = resolve }))
+    const onClose = vi.fn()
+    renderBoard(<Wrap onClose={onClose} onPreview={vi.fn()} />, { api: fake.api })
+    await screen.findByRole('dialog')
+    await userEvent.click(screen.getByRole('button', { name: s.busy.save }))
+    await waitFor(() => { expect(fake.calls('POST', '/busy-events')).toHaveLength(1) })
+    fireEvent.click(screen.getByTestId('hide'))
+    await waitFor(() => { expect(screen.queryByRole('dialog')).not.toBeInTheDocument() })
+    release(NEW_EVENT)
+    expect(await screen.findByText(s.busy.saved)).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('Escape does nothing while the request runs', async () => {
+    const fake = baseFake().on('POST /busy-events', () => new Promise(() => undefined))
+    const { onClose } = setupBusy({}, fake)
+    await screen.findByRole('dialog')
+    await userEvent.click(screen.getByRole('button', { name: s.busy.save }))
+    await waitFor(() => { expect(fake.calls('POST', '/busy-events')).toHaveLength(1) })
+    await userEvent.keyboard('{Escape}')
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('a leaving ghost sits in the column of the block\u2019s study day', async () => {
+    const late = makeBlock({ id: 'o1', study_date: '2026-11-15', starts_at: '2026-11-16T10:15:00Z', ends_at: '2026-11-16T10:45:00Z' })
+    const { onPreview } = setupBusy({ blocks: [late] })
+    await screen.findByRole('dialog')
+    const ghost = (onPreview.mock.calls.at(-1)?.[0] ?? []).find((g) => g.id === 'o1')
+    expect(ghost?.date).toBe('2026-11-15')
+    expect(ghost?.startMin).toBeGreaterThan(1440)
+  })
+
+  it('a server not_after_starts_at is the field error, and the sheet stays open', async () => {
+    const fake = baseFake().on('POST /busy-events', problem(422, 'not_after_starts_at'))
+    const { onClose } = setupBusy({}, fake)
+    await screen.findByRole('dialog')
+    await userEvent.click(screen.getByRole('button', { name: s.busy.save }))
+    expect(await screen.findByText(en.codes.not_after_starts_at)).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('editing an event from an earlier day keeps the date valid', async () => {
+    const event = makeBusy({ source: 'event', id: 'ev-1', kind: null, title: 'Trip', starts_at: '2026-11-10T08:00:00.000Z', ends_at: '2026-11-10T09:00:00.000Z' })
+    const fake = baseFake().on('PATCH /busy-events/ev-1', NEW_EVENT)
+    setupBusy({ draft: null, event }, fake)
+    await screen.findByRole('dialog', { name: s.busy.titleEdit })
+    await userEvent.click(screen.getByRole('button', { name: s.busy.saveEdit }))
+    await waitFor(() => { expect(fake.calls('PATCH', '/busy-events/ev-1')).toHaveLength(1) })
   })
 })
 
