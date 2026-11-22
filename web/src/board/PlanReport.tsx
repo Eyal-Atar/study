@@ -12,7 +12,7 @@ import { durationText } from './time'
 // them, so the preview runs only when something is missing.
 // It is a warning card: something needs attention and nothing failed. Every text in it is ink,
 // because ink-muted is not a checked pair on the soft fill of a state (design language 2), so the
-// hierarchy inside comes from weight alone. The id is what TodayPage scrolls to.
+// hierarchy inside comes from weight alone. The id is what #report scrolls to (the calendar's banner).
 // `bare` (the calendar's banner, S32): the same content with no Card and no title, since the banner
 // row above it says what the title says.
 export function PlanReport({ bare = false }: { bare?: boolean } = {}) {

@@ -41,7 +41,7 @@ export function Sidebar({ todayData, plan, exams, tz, moment, onFreeTime, onMark
     done: counted.filter((block) => block.state === 'done').length,
     next: next === undefined ? null : formatTime(next.starts_at, tz),
   })
-  // Only on a day that has no block at all (as pages/TodayPage does): a finished day had blocks. On a
+  // Only on a day that has no block at all (as the old today screen did): a finished day had blocks. On a
   // rest day and on an open day Archi's own line already says it, so it is not said twice.
   const noBlocksLine =
     later !== undefined && todayData.blocks.length === 0 && moment !== 'restDay' && moment !== 'openDay'

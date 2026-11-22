@@ -33,12 +33,17 @@ describe('routes', () => {
     const api = createFakeApi().on('GET /me', meFixture({ onboarding_completed_at: COMPLETED_AT })).api
     const { router } = renderRoute('/', { auth: createFakeAuth(fakeSession()), api })
 
-    expect(await screen.findByRole('heading', { name: en.today.title })).toBeInTheDocument()
+    // Below lg (jsdom has no matchMedia) the h1 is the calendar's phone header: the day's name.
+    expect(await screen.findByRole('heading', { level: 1, name: en.board.today })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe(CALENDAR_PATH)
     expect(router.state.historyAction).toBe('REPLACE')
-    expect(screen.getByRole('banner')).toHaveTextContent(en.appName)
-    // Sign out moved into the profile menu (S26).
-    expect(screen.getByRole('button', { name: en.shell.profile })).toBeInTheDocument()
+    // The first banner is the shell's; the calendar's own phone header (a <header> inside <main>)
+    // is counted as a second one by the test library, though not by the HTML mapping.
+    const shell = screen.getAllByRole('banner')[0] as HTMLElement
+    expect(shell).toHaveTextContent(en.appName)
+    // Sign out moved into the profile menu (S26). The calendar's phone header has one too (the
+    // shell's is hidden below lg by CSS, which jsdom does not apply).
+    expect(within(shell).getByRole('button', { name: en.shell.profile })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: en.shell.signOut })).not.toBeInTheDocument()
   })
 

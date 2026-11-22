@@ -124,9 +124,12 @@ export function installFakePush(options: FakePushOptions = {}): FakePush {
   define('userAgent', userAgent)
   define('maxTouchPoints', maxTouchPoints)
   if (standalone) define('standalone', true)
+  // With listeners: the calendar (S32) listens to its media queries (the width, reduced motion).
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: query === '(display-mode: standalone)' && displayModeStandalone,
     media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
   }))
 
   if (supported) {

@@ -1,7 +1,6 @@
 import { CalendarDays, FileText, SproutIcon, type IconType } from '../ui/icons'
 import { useRef, useState, type MouseEvent } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
-import { DAY_CHOSEN } from '../calendar/calendarState'
 import { en } from '../i18n/en'
 import { InstallHint } from '../notifications/InstallHint'
 import { PushSync } from '../notifications/PushSync'
@@ -18,12 +17,11 @@ import { useRouteFocus } from './useRouteFocus'
 
 // The three destinations of the redesign (S31): the calendar, the exams and the progress. Settings
 // and sign out are not destinations: they live in the profile menu. The paths are literals because
-// routes.tsx imports this file. The calendar is current also on ?view=week: NavLink compares the
-// pathname only. "Calendar" asks for the day (DAY_CHOSEN): from the week, CalendarPage would otherwise
-// take the move for one of the week's own and put ?view=week back (S31 decision 30). The progress
-// is Archi's sprout, the leaf of the mockup's bottom bar (decision 29).
-const DESTINATIONS: readonly { to: string; label: string; icon: IconType; state?: unknown }[] = [
-  { to: '/calendar', label: en.shell.calendar, icon: CalendarDays, state: DAY_CHOSEN },
+// routes.tsx imports this file. The calendar is current also on ?view=day and ?date=: NavLink
+// compares the pathname only. The progress is Archi's sprout, the leaf of the mockup's bottom bar
+// (decision 29).
+const DESTINATIONS: readonly { to: string; label: string; icon: IconType }[] = [
+  { to: '/calendar', label: en.shell.calendar, icon: CalendarDays },
   { to: '/exams', label: en.shell.exams, icon: FileText },
   { to: '/progress', label: en.shell.progress, icon: SproutIcon },
 ]
@@ -120,8 +118,8 @@ export function AppShell() {
                     {/* Before <main> in the DOM at both widths, so the Tab order is the same on a
                         phone and on a computer. */}
                     <nav aria-label={en.shell.mainNav} className={NAV}>
-                      {DESTINATIONS.map(({ to, label, icon: Icon, state }) => (
-                        <NavLink key={to} to={to} state={state} className={destinationClass}>
+                      {DESTINATIONS.map(({ to, label, icon: Icon }) => (
+                        <NavLink key={to} to={to} className={destinationClass}>
                           {/* In the bar only: the tabs of the top bar are words, as in the prototype. */}
                           <Icon aria-hidden="true" strokeWidth={ICON_STROKE} className="size-[22px] shrink-0 lg:hidden" />
                           <span className="max-w-full truncate">{label}</span>

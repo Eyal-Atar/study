@@ -1,6 +1,15 @@
+import { QueryClient } from '@tanstack/react-query'
+import { vi } from 'vitest'
 import type { Me } from '../api/me'
 import type { BusyItem } from '../availability/types'
+import { blockMinutes } from '../board/time'
+import type { Block, Plan } from '../board/types'
 import type { Exam } from '../onboarding/types'
+import { makeProgress } from '../progress/testFixtures'
+import { makeMe as makeBoardMe, makePlan, makePreview, makeToday, USER_ID } from '../test/boardFixtures'
+import { createFakeApi, type ApiCall } from '../test/fakeApi'
+import { createFakeAuth, fakeSession } from '../test/fakeAuth'
+import { renderRoute } from '../test/renderRoute'
 
 // Sample data for the calendar's tests. English names only: a test that needs user text in Hebrew
 // passes it in.
@@ -47,4 +56,80 @@ export function makeMe(overrides: Partial<Me> = {}): Me {
     onboarding_completed_at: '2026-11-10T08:00:00Z',
     ...overrides,
   }
+}
+
+// The calendar screen through the real routes (S32 Task 13): a fake server whose answers follow
+// `state`, a clock, and the media the screen asks for. Every test that uses it restores the globals.
+
+export const CAL_TZ = 'Asia/Jerusalem'
+// Tuesday, in the week of 22–28 November 2026.
+export const CAL_TODAY = '2026-11-24'
+// 11:25 in Jerusalem (UTC+2).
+export const CAL_NOW = '2026-11-24T09:25:00Z'
+
+export function stubMedia({ desktop = false, reducedMotion = false }: { desktop?: boolean; reducedMotion?: boolean } = {}): void {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: (query === '(min-width: 1024px)' && desktop) || (query === '(prefers-reduced-motion: reduce)' && reducedMotion),
+    media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }))
+}
+
+export interface CalendarServer {
+  blocks: Block[]
+  busy: BusyItem[]
+  review: Block[]
+  unplaced: Plan['unplaced']
+  // An error (or a promise that never settles) in place of the answer.
+  today: Error | Promise<never> | null
+  plan: Error | Promise<never> | null
+  // Old answers from before S35: no `busy` at all.
+  legacy: boolean
+}
+
+export function openCalendar(path: string, init: Partial<CalendarServer> = {}) {
+  // jsdom has no Element.scrollTo, which the grid's box scrolls with on a computer.
+  if (!('scrollTo' in Element.prototype)) {
+    Object.defineProperty(Element.prototype, 'scrollTo', { configurable: true, writable: true, value: () => undefined })
+  }
+  const state: CalendarServer = { blocks: [], busy: [], review: [], unplaced: [], today: null, plan: null, legacy: false, ...init }
+  const withBusy = <T extends { busy: BusyItem[] }>(answer: T): T => {
+    const copy: Partial<T> = { ...answer, busy: state.busy }
+    if (state.legacy) Reflect.deleteProperty(copy, 'busy')
+    return copy as T
+  }
+  const fake = createFakeApi()
+    .on('GET /me', makeBoardMe(CAL_TZ))
+    .on('GET /today', () => {
+      if (state.today !== null) return state.today
+      const blocks = state.blocks.filter((b) => b.study_date === CAL_TODAY)
+      const today = makeToday(blocks, {
+        date: CAL_TODAY,
+        planned_minutes: blocks.filter((b) => b.status === 'planned').reduce((sum, b) => sum + blockMinutes(b), 0),
+        done_minutes: blocks.filter((b) => b.status === 'done').reduce((sum, b) => sum + blockMinutes(b), 0),
+        day_starts_at: '2026-11-24T06:00:00Z',
+        day_ends_at: '2026-11-24T21:00:00Z',
+      })
+      return withBusy(today)
+    })
+    .on({ method: 'GET', path: /^\/plan/ }, (call: ApiCall) => {
+      if (state.plan !== null) return state.plan
+      const params = new URLSearchParams(call.path.slice(call.path.indexOf('?') + 1))
+      const from = params.get('from') ?? CAL_TODAY
+      const to = params.get('to') ?? CAL_TODAY
+      const plan = makePlan(
+        state.blocks.filter((b) => b.study_date >= from && b.study_date <= to),
+        { from, to, unplaced: state.unplaced },
+      )
+      return withBusy(plan)
+    })
+    .on('GET /progress', makeProgress())
+    .on('GET /exams', [makeExam()])
+    .on({ method: 'GET', path: /^\/exams\/[^/]+\/tasks$/ }, [])
+    .on('GET /review', () => ({ blocks: state.review }))
+    .on('POST /plan/replan', makePreview())
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const rendered = renderRoute(path, { auth: createFakeAuth(fakeSession({ id: USER_ID })), api: fake.api, queryClient })
+  return { fake, state, queryClient, ...rendered }
 }

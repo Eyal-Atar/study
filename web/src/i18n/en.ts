@@ -61,7 +61,7 @@ export const en = {
     progressChip: (streak: number, level: number) =>
       streak === 0 ? `No streak yet, level ${String(level)}` : `${String(streak)}-day streak, level ${String(level)}`,
   },
-  // S31: the temporary /calendar, which shows the day or the week (S32 replaces it).
+  // S31: the switch of the calendar between the day and the week.
   calendar: {
     view: 'View',
     day: 'Day',
@@ -412,9 +412,6 @@ export const en = {
     toExams: 'Go to exams',
     // Nothing is planned from now on: the title of an empty state with no action.
     noMoreTasks: 'Nothing else is planned',
-    noMoreTasksHint: 'There are no blocks planned for the coming week.',
-    planFailed: 'I couldn’t check the coming days.',
-    stale: 'I couldn’t refresh, so your calendar may be out of date.',
   },
   // S18: the morning review card (web/src/today/ReviewCard.tsx).
   review: {
@@ -462,38 +459,11 @@ export const en = {
     loadFailed: 'I couldn’t load the free times.',
     empty: 'There’s no other free time that day.',
     confirm: 'Move',
-    // The view switch above today's blocks.
-    viewLabel: 'Blocks view',
-    list: 'List',
-    timeline: 'Timeline',
-    // DayTimeline: the day from waking to sleep; an upcoming block has a drag handle.
-    timelineLabel: 'Today’s timeline',
-    handleLabel: (name: string) => `Move ${isolate(name)}`,
-    instructions:
-      'Drag the handle up or down. With a keyboard: Enter or Space starts a move, the up and down arrows move by 15 minutes, Page Up and Page Down move by an hour, Enter confirms and Escape cancels.',
-    // The live region while moving: "14:30–15:30, free".
-    candidate: (range: string, free: boolean): string => `${range}, ${free ? 'free' : 'taken'}`,
-    // The parts alone, for the ghost on the timeline, which draws the range itself.
-    candidateJoiner: ', ',
-    candidateState: (free: boolean) => (free ? 'free' : 'taken'),
-    // Between the details of a block on the timeline: "14:00–15:00. Now. Locked".
+    // Between the details of the next block's card (today/NextBlock): "14:00–15:00. Now. Locked".
     detailsJoiner: '. ',
     cancelled: 'Move cancelled. The block stays where it was.',
     // The live region after a release on a time the block cannot take (the toast says why).
     refused: 'The block went back to its place.',
-  },
-  // S14: the week screen (web/src/week).
-  week: {
-    title: 'Week',
-    range: (first: string, last: string) => `${first} to ${last}`,
-    moves: 'Move between weeks',
-    previous: 'Previous week',
-    thisWeek: 'This week',
-    next: 'Next week',
-    free: 'Free day',
-    empty: 'No blocks this week',
-    total: (duration: string) => `${duration} in total`,
-    stale: 'I couldn’t refresh your calendar, so it may be out of date. I’ll try again in a minute.',
   },
   // S15: the exams list and the exam screen (Task 6); analysis and materials (Task 7).
   exam: {

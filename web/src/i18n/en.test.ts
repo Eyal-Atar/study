@@ -154,7 +154,6 @@ describe('en: user content in a sentence', () => {
     ['review.skipped', en.review.skipped, [NAME]],
     ['move.moveLabel', en.move.moveLabel, [NAME]],
     ['move.dialogTitle', en.move.dialogTitle, [NAME]],
-    ['move.handleLabel', en.move.handleLabel, [NAME]],
     ['exam.topics.editNamed', en.exam.topics.editNamed, [NAME]],
     ['exam.tasks.markDoneNamed', en.exam.tasks.markDoneNamed, [NAME]],
     ['exam.tasks.actionsNamed', en.exam.tasks.actionsNamed, [NAME]],

@@ -119,7 +119,7 @@ export function useBlockDrag({ blocks, busy, tz, now, hourPx, dayBounds, rootRef
   // A pointer drag began since the last press: its release (or cancel) arms the click guard.
   const lifted = useRef(false)
   const listeners = useRef<(() => void)[]>([])
-  // After a keyboard move the focus stays on the block (the mechanism of today/DayTimeline): if the
+  // After a keyboard move the focus stays on the block (the mechanism of the old day timeline, S18): if the
   // block's element is replaced and the focus falls to <body>, it takes it back, until the move
   // settled with the focus on it. Focus anywhere else is the user's, and ends the request.
   const refocus = useRef<{ id: string; seen: boolean } | null>(null)
