@@ -81,8 +81,9 @@ function NewExamForm({ today, onCancel }: { today: string; onCancel: () => void 
 // the row shows the date alone then, and an empty bar.
 function ExamRow({ exam, today, tasks }: { exam: Exam; today: string; tasks: ExamTask[] | undefined }) {
   const x = en.exams.list
-  const progress = tasks === undefined ? null : examProgress(tasks)
-  const detail = progress === null ? null : progress.total === 0 ? x.noTasks : x.progress(progress.percent)
+  // The progress and its words arrive together, so the bar never exists without its text.
+  const shown = tasks === undefined ? null : examProgress(tasks)
+  const detail = shown === null ? null : shown.total === 0 ? x.noTasks : x.progress(shown.percent)
   const date = longDate(exam.exam_date)
   return (
     <ListRow
@@ -92,13 +93,13 @@ function ExamRow({ exam, today, tasks }: { exam: Exam; today: string; tasks: Exa
       subtitle={
         <>
           <span>{detail === null ? date : x.rowDetail(date, detail)}</span>
-          {progress === null ? (
+          {shown === null || detail === null ? (
             <div className="h-[5px]" />
           ) : (
             <ExamProgressBar
               colorIndex={exam.color_index}
-              value={progress.done}
-              max={progress.total}
+              value={shown.done}
+              max={shown.total}
               aria-label={x.progressLabel(exam.name)}
               valueText={detail}
             />
