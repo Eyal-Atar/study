@@ -6,7 +6,7 @@ import type { Block } from '../board/types'
 import { en } from '../i18n/en'
 import type { Exam } from '../onboarding/types'
 import { ReviewCard } from '../today/ReviewCard'
-import { Row, type RowProps } from './BannerRow'
+import { Row, type BannerRow, type RowProps } from './BannerRow'
 import type { Ghost } from './ghost'
 import { useSplitOffers } from './splitOffers'
 import { SplitRow } from './SplitRow'
@@ -22,9 +22,10 @@ import { SplitRow } from './SplitRow'
 // `onPreview` is the banner's own list of ghosts on the grid (bannerGhosts of CalendarPage), apart
 // from the one the sheets write: only the split row (S44) calls it, while it is open.
 // The task fixes this array as an export of this file (a plain constant next to the components).
+// The names are typed in BannerRow.tsx (so the row imports nothing from here); the test of the order
+// also keeps every name in the array.
 // eslint-disable-next-line react-refresh/only-export-components
-export const BANNER_ROWS = ['review', 'report', 'split'] as const
-export type BannerRow = (typeof BANNER_ROWS)[number]
+export const BANNER_ROWS = ['review', 'report', 'split'] as const satisfies readonly BannerRow[]
 
 function ReviewRow({ expanded, onToggle, count }: RowProps & { count: number }) {
   return (
@@ -85,9 +86,29 @@ export function CalendarBanner({ unplacedCount, expandTo, onPreview, blocks, exa
   const review = useReview()
   // One offer at a time, the server's first. While the offers load, or if they fail, there is no
   // row and no message: the offer is an extra, not a state of the screen.
-  const offer = useSplitOffers().data?.offers[0]
+  const offers = useSplitOffers()
+  const offer = offers.data?.offers[0]
   const offerId = offer?.task_id
   const [open, setOpen] = useState<BannerRow | null>(expandTo ?? null)
+  // While the split row is open, the offer on it follows the clock (S44 I1): the server places the
+  // first bite from the running minute when today has free time, so the offer it gives (and its
+  // basis) is another one once the first part, or the block, has started. At that moment the offers
+  // are asked for again, once. Closed or absent, there is no timer (no refetch by the minute, decision
+  // 9). An answer with the same basis arms nothing, so a browser clock that runs ahead makes no loop.
+  const refetchOffers = offers.refetch
+  const basis = offer?.basis
+  const expiresAt = offer === undefined ? null : Math.min(Date.parse(offer.block.starts_at), ...offer.parts.map((p) => Date.parse(p.starts_at)))
+  useEffect(() => {
+    if (open !== 'split' || expiresAt === null) return
+    // A second past the start, so the server's running minute has moved on; an offer already past
+    // asks at once.
+    const timer = setTimeout(() => {
+      void refetchOffers()
+    }, Math.max(0, expiresAt - Date.now()) + 1000)
+    return () => {
+      clearTimeout(timer)
+    }
+  }, [open, basis, expiresAt, refetchOffers])
   // The offer left or gave way to the next one: that one shows closed (during the render, so no
   // frame shows it open).
   const [shownOffer, setShownOffer] = useState(offerId)

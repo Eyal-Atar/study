@@ -1,7 +1,7 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { useRef } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { blockName } from '../board/blockName'
 import { dayLabel, durationText, formatRange } from '../board/time'
 import type { Block } from '../board/types'
@@ -274,10 +274,13 @@ describe('CalendarBanner: the split offer (S44)', () => {
       { starts_at: '2026-11-25T07:00:00Z', ends_at: '2026-11-25T07:45:00Z', minutes: 45 },
     ]
     const offer = makeSplitOffer({ block: { ...base.block, ends_at: '2026-11-24T15:15:00Z', minutes: 75 }, split_minutes: 75, parts })
-    const { container } = setup({}, [], [offer])
+    const { container, onPreview } = setup({}, [], [offer])
     await userEvent.click(await screen.findByRole('button', { name: s.show }))
     expect(screen.getByRole('button', { name: 'Split into 30m bites' })).toBeInTheDocument()
     expect(partTexts(container)).toEqual(['Today, 16:00–16:30, 30 min', 'Tomorrow, 09:00–09:45, 45 min'])
+    // The ghosts draw the same two lengths.
+    const targets = (onPreview.mock.lastCall?.[0] ?? []).filter((g) => g.tone === 'target')
+    expect(targets.map((g) => g.endMin - g.startMin)).toEqual([30, 45])
   })
 
   it('says so when the split takes more than the deferred block', async () => {
@@ -323,6 +326,35 @@ describe('CalendarBanner: the split offer (S44)', () => {
     expect(screen.getByRole('heading', { name: en.calendar.page.planHeading })).toHaveFocus()
   })
 
+  // S44 final review, M3 (Review Focus 3): a refresh that takes the offer away under the open row.
+  it('a refresh that takes the offer away removes the open row and clears the ghosts', async () => {
+    const { container, fake, onPreview, queryClient } = setup({}, [], [makeSplitOffer()])
+    await userEvent.click(await screen.findByRole('button', { name: s.show }))
+    expect(lastPreview(onPreview)).toHaveLength(4)
+    fake.on('GET /split-offers', { offers: [] })
+    await queryClient.invalidateQueries()
+    await waitFor(() => {
+      expect(container.querySelector('[data-banner-row="split"]')).toBeNull()
+    })
+    expect(onPreview).toHaveBeenLastCalledWith([])
+  })
+
+  // S44 final review, M3 (decision 12): the focus moves to the heading only when it fell to the body.
+  it('when the offer leaves, a focus on another control stays there', async () => {
+    const { container, fake, queryClient } = setup({}, [OVERDUE], [makeSplitOffer()])
+    await userEvent.click(await screen.findByRole('button', { name: s.show }))
+    const review = await screen.findByRole('button', { name: en.calendar.side.banner.review })
+    act(() => {
+      review.focus()
+    })
+    fake.on('GET /split-offers', { offers: [] })
+    await queryClient.invalidateQueries()
+    await waitFor(() => {
+      expect(container.querySelector('[data-banner-row="split"]')).toBeNull()
+    })
+    expect(review).toHaveFocus()
+  })
+
   it('only one row is open: opening the review closes the split and clears its ghosts', async () => {
     const { container, onPreview } = setup({}, [OVERDUE], [makeSplitOffer()])
     await userEvent.click(await screen.findByRole('button', { name: s.show }))
@@ -331,5 +363,104 @@ describe('CalendarBanner: the split offer (S44)', () => {
     expect(onPreview).toHaveBeenLastCalledWith([])
     expect(within(splitRow(container)).getByRole('button', { name: s.show })).toHaveAttribute('aria-expanded', 'false')
     expect(within(splitRow(container)).queryByRole('list')).not.toBeInTheDocument()
+  })
+})
+
+// S44 final review, I1: the server places the first bite at the running minute when today has free
+// time, so the offer on screen is stale a minute later. While the row is open, the offers are asked
+// for again once the first part's start has passed; never while it is closed.
+describe('CalendarBanner: the open offer follows the clock (S44 I1)', () => {
+  const NOW = Date.parse(CAL_NOW)
+  const at = (ms: number) => new Date(ms).toISOString().replace('.000Z', 'Z')
+  // The first part 40 seconds from now, the other two as in makeSplitOffer.
+  function soon(shift: number, basis: string): SplitOffer {
+    const base = makeSplitOffer()
+    const first: SplitPart = { starts_at: at(NOW + shift), ends_at: at(NOW + shift + 30 * 60_000), minutes: 30 }
+    return makeSplitOffer({ parts: [first, ...base.parts.slice(1)], basis })
+  }
+  const user = () => userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(NOW)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  async function offersAsked(fake: ReturnType<typeof setup>['fake'], before: number) {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    return fake.calls('GET', '/split-offers').length - before
+  }
+
+  it('an open row asks again when its first part starts, and shows the new times', async () => {
+    const first = soon(40_000, 'basis-a')
+    const next = soon(100_000, 'basis-b')
+    const { container, fake, onPreview } = setup({}, [], [first])
+    await user().click(await screen.findByRole('button', { name: s.show }))
+    expect(partTexts(container)[0]).toBe(partText(first.parts[0] as SplitPart))
+    fake.on('GET /split-offers', { offers: [next] })
+    const before = fake.calls('GET', '/split-offers').length
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000)
+    })
+    expect(fake.calls('GET', '/split-offers')).toHaveLength(before)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(12_000)
+    })
+    await waitFor(() => {
+      expect(partTexts(container)[0]).toBe(partText(next.parts[0] as SplitPart))
+    })
+    expect(fake.calls('GET', '/split-offers')).toHaveLength(before + 1)
+    expect(within(splitRow(container)).getByRole('button', { name: en.calendar.side.banner.close })).toHaveAttribute('aria-expanded', 'true')
+    expect((onPreview.mock.lastCall?.[0] ?? []).find((g) => g.tone === 'target')?.label).toBe(formatRange(next.parts[0] as SplitPart, CAL_TZ))
+  })
+
+  it('an offer that comes back the same does not ask again', async () => {
+    const first = soon(40_000, 'basis-a')
+    const { fake } = setup({}, [], [first])
+    await user().click(await screen.findByRole('button', { name: s.show }))
+    const before = fake.calls('GET', '/split-offers').length
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60_000)
+    })
+    // One refetch at the expiry; the same answer arms no second timer.
+    expect(await offersAsked(fake, before)).toBe(1)
+  })
+
+  it('a closed row does not ask, also after it was open and closed', async () => {
+    const { fake } = setup({}, [], [soon(40_000, 'basis-a')])
+    const toggle = await screen.findByRole('button', { name: s.show })
+    const u = user()
+    await u.click(toggle)
+    await u.click(screen.getByRole('button', { name: en.calendar.side.banner.close }))
+    const before = fake.calls('GET', '/split-offers').length
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60_000)
+    })
+    expect(await offersAsked(fake, before)).toBe(0)
+  })
+
+  it('an open row whose offer is hours ahead does not ask within five minutes', async () => {
+    const { fake } = setup({}, [], [makeSplitOffer()])
+    await user().click(await screen.findByRole('button', { name: s.show }))
+    const before = fake.calls('GET', '/split-offers').length
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60_000)
+    })
+    expect(await offersAsked(fake, before)).toBe(0)
+  })
+
+  it('unmounting the banner clears the timer', async () => {
+    const { fake, unmount } = setup({}, [], [soon(40_000, 'basis-a')])
+    await user().click(await screen.findByRole('button', { name: s.show }))
+    const before = fake.calls('GET', '/split-offers').length
+    unmount()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60_000)
+    })
+    expect(fake.calls('GET', '/split-offers')).toHaveLength(before)
   })
 })

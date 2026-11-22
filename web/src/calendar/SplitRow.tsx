@@ -74,7 +74,7 @@ export function SplitRow({ expanded, onToggle, onPreview, offer, blocks, exams, 
             <p>{s.where(offer.parts.length)}</p>
             <ul className="flex flex-col gap-1">
               {offer.parts.map((part) => (
-                <li key={part.starts_at} className="flex items-start gap-2">
+                <li key={`${part.starts_at}/${part.ends_at}`} className="flex items-start gap-2">
                   {/* On the first line of the text, also when it wraps. */}
                   <KindIcon aria-hidden size={16} strokeWidth={ICON_STROKE} className={cx('mt-0.5 shrink-0', tint)} />
                   <span className="min-w-0 font-semibold tabular-nums">

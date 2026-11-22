@@ -4,13 +4,15 @@ import { Button } from '../ui/Button'
 import { ChevronRight } from '../ui/icons'
 import { ICON_STROKE } from '../ui/styles'
 import { ArchiSays } from './ArchiSays'
-// A type alone: the rows are listed in CalendarBanner (BANNER_ROWS), and nothing of it runs here.
-import type { BannerRow } from './CalendarBanner'
 import type { Ghost } from './ghost'
 
 // One row of the calendar's banner (CalendarBanner): Archi, his sentence and a quiet button that
 // opens the row's panel in place. Every row of the banner is built from it, so they look and
 // behave alike.
+
+// The names of the banner's rows. Their order is CalendarBanner's (BANNER_ROWS, which must list
+// every one); the type is here so that this file imports nothing from the banner.
+export type BannerRow = 'review' | 'report' | 'split'
 
 // What the banner gives every row.
 export interface RowProps {
