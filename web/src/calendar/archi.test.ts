@@ -60,13 +60,22 @@ describe('archiMoment', () => {
       }),
     ).toBe('day')
   })
-  it('only a skipped block is not dayDone', () => {
+  it('only a skipped block is not dayDone: nothing is left to count, so the day is open', () => {
     expect(
       archiMoment({
         ...base,
         todayBlocks: [block('skipped', at('08:00'), at('09:00'))],
       }),
-    ).toBe('day')
+    ).toBe('openDay')
+  })
+  it('openDay for a day with no block that is not a rest day, at any hour', () => {
+    expect(archiMoment({ ...base, hour: 9 })).toBe('openDay')
+    expect(archiMoment({ ...base, hour: 15 })).toBe('openDay')
+    expect(archiMoment({ ...base, todayBlocks: [block('missed', at('08:00'), at('09:00'))] })).toBe('openDay')
+    // A rest day, a review and a report still come first.
+    expect(archiMoment({ ...base, todayIsRest: true })).toBe('restDay')
+    expect(archiMoment({ ...base, reviewCount: 1 })).toBe('review')
+    expect(archiMoment({ ...base, unplacedCount: 1 })).toBe('report')
   })
   it('deepWork needs an in-progress block of 60 minutes', () => {
     expect(
@@ -83,8 +92,9 @@ describe('archiMoment', () => {
     ).toBe('day')
   })
   it('morning before 12, day from 12', () => {
-    expect(archiMoment({ ...base, hour: 11 })).toBe('morning')
-    expect(archiMoment({ ...base, hour: 12 })).toBe('day')
+    const todayBlocks = [block('upcoming', at('15:00'), at('16:00'))]
+    expect(archiMoment({ ...base, todayBlocks, hour: 11 })).toBe('morning')
+    expect(archiMoment({ ...base, todayBlocks, hour: 12 })).toBe('day')
   })
 })
 
@@ -94,6 +104,7 @@ describe('MOMENT_MOOD', () => {
       review: 'intentions',
       report: 'flow',
       restDay: 'rest',
+      openDay: 'joy',
       dayDone: 'eureka',
       deepWork: 'wisdom',
       morning: 'intentions',
@@ -109,6 +120,17 @@ describe('archiLine', () => {
     expect(archiLine('restDay', '2026-11-24', summary)).toBe(a)
     expect(a).not.toBe(archiLine('restDay', '2026-11-25', summary))
     expect(en.calendar.archi.restDay).toContain(a)
+  })
+  it('never counts zero blocks: a summary of nothing is the line of an open day', () => {
+    const none = { total: 0, done: 0, next: null }
+    for (const moment of ['morning', 'day'] as const) {
+      for (const date of ['2026-11-24', '2026-11-25', '2026-11-26']) {
+        const line = archiLine(moment, date, none)
+        expect(line).not.toMatch(/\b0\b/)
+        expect(line).toBe(archiLine('openDay', date, none))
+        expect(en.calendar.archi.openDay).toContain(line)
+      }
+    }
   })
   it('uses the summary for morning and day', () => {
     expect(archiLine('morning', '2026-11-24', summary)).toBe(en.calendar.archi.summary(4, 1, '12:00'))

@@ -3,7 +3,7 @@ import type { Block } from '../board/types'
 import { en } from '../i18n/en'
 
 // Archi's moments on the calendar: which line and mood she shows, and when she may speak up (S32 Task 6).
-export type ArchiMoment = 'review' | 'report' | 'restDay' | 'dayDone' | 'deepWork' | 'morning' | 'day'
+export type ArchiMoment = 'review' | 'report' | 'restDay' | 'openDay' | 'dayDone' | 'deepWork' | 'morning' | 'day'
 
 const MINUTE = 60_000
 const DEEP_WORK_MINUTES = 60
@@ -26,7 +26,10 @@ export function archiMoment(input: {
   if (input.unplacedCount > 0) return 'report'
   if (input.todayIsRest) return 'restDay'
   const counted = input.todayBlocks.filter((b) => b.state !== 'missed' && b.state !== 'skipped')
-  if (counted.length > 0 && counted.every((b) => b.state === 'done')) return 'dayDone'
+  // Nothing to count and not a rest day of the plan (a week with no blocks at all, or a day whose
+  // blocks were all skipped or missed): the summary would count zero, so the day has its own line.
+  if (counted.length === 0) return 'openDay'
+  if (counted.every((b) => b.state === 'done')) return 'dayDone'
   if (input.todayBlocks.some((b) => b.state === 'in_progress' && minutesOf(b) >= DEEP_WORK_MINUTES)) {
     return 'deepWork'
   }
@@ -37,6 +40,7 @@ export const MOMENT_MOOD: Record<ArchiMoment, ArchieMood> = {
   review: 'intentions',
   report: 'flow',
   restDay: 'rest',
+  openDay: 'joy',
   dayDone: 'eureka',
   deepWork: 'wisdom',
   morning: 'intentions',
@@ -54,10 +58,13 @@ export function archiLine(
   date: string,
   summary: { total: number; done: number; next: string | null },
 ): string {
+  const pick = (lines: readonly string[]) => lines[dayOfYear(date) % 3] ?? ''
   if (moment === 'morning' || moment === 'day') {
+    // Archi never counts zero blocks, whatever moment the caller worked out.
+    if (summary.total <= 0) return pick(en.calendar.archi.openDay)
     return en.calendar.archi.summary(summary.total, summary.done, summary.next)
   }
-  return en.calendar.archi[moment][dayOfYear(date) % 3] ?? ''
+  return pick(en.calendar.archi[moment])
 }
 
 function defaultStorage(): Pick<Storage, 'getItem' | 'setItem'> | undefined {

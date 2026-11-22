@@ -108,7 +108,7 @@ describe('enCalendar: user content in a sentence', () => {
 })
 
 describe('enCalendar: the fixed moments of Archi', () => {
-  it.each(['review', 'report', 'restDay', 'dayDone', 'deepWork'] as const)('%s has three different lines', (moment) => {
+  it.each(['review', 'report', 'restDay', 'openDay', 'dayDone', 'deepWork'] as const)('%s has three different lines', (moment) => {
     const lines: readonly string[] = archi[moment]
     expect(lines).toHaveLength(3)
     expect(new Set(lines).size).toBe(3)

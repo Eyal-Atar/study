@@ -41,8 +41,10 @@ export function Sidebar({ todayData, plan, exams, tz, moment, onFreeTime, onMark
     done: counted.filter((block) => block.state === 'done').length,
     next: next === undefined ? null : formatTime(next.starts_at, tz),
   })
-  // On a free day Archi's own line may already open with these words: they are not said twice.
-  const noBlocksLine = later !== undefined && !line.includes(en.today.noBlocksToday)
+  // Only on a day that has no block at all (as pages/TodayPage does): a finished day had blocks. On a
+  // rest day and on an open day Archi's own line already says it, so it is not said twice.
+  const noBlocksLine =
+    later !== undefined && todayData.blocks.length === 0 && moment !== 'restDay' && moment !== 'openDay'
   const done = todayData.done_minutes
   // planned_minutes is what is left (plan_views.py sums the planned blocks only), so the day is both.
   const total = todayData.planned_minutes + todayData.done_minutes

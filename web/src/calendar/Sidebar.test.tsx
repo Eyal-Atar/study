@@ -142,12 +142,56 @@ describe('Sidebar: Archi and the card he stands on', () => {
     expect(fake.calls('POST')).toHaveLength(0)
   })
 
-  it('with nothing left today, shows the next block of a later day', () => {
-    setup({ today: makeToday([], { planned_minutes: 0, done_minutes: 0 }), plan: makePlan([TOMORROW]), moment: 'day' })
+  it('on a day with no blocks, before a morning review, says so above the next block of a later day', () => {
+    setup({ today: makeToday([], { planned_minutes: 0, done_minutes: 0 }), plan: makePlan([TOMORROW]), moment: 'review' })
     expect(screen.getByText(en.today.noBlocksToday)).toBeInTheDocument()
     const card = screen.getByRole('region', { name: en.today.next })
     expect(within(card).getByText('Tomorrow, 09:00')).toBeInTheDocument()
     expect(within(card).queryByText(/09:00–10:00/)).not.toBeInTheDocument()
+  })
+
+  it('on an open day Archi says it himself: no count of zero, and the words are not said twice', () => {
+    setup({ today: makeToday([], { planned_minutes: 0, done_minutes: 0 }), plan: makePlan([TOMORROW]), moment: 'openDay' })
+    const line = archiLine('openDay', TODAY, { total: 0, done: 0, next: null })
+    expect(en.calendar.archi.openDay).toContain(line)
+    expect(screen.getByText(line)).toBeInTheDocument()
+    expect(screen.queryByText(/\b0 blocks\b/)).not.toBeInTheDocument()
+    expect(screen.queryByText(en.today.noBlocksToday)).not.toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: en.today.next })).getByText('Tomorrow, 09:00')).toBeInTheDocument()
+  })
+
+  it('never counts zero blocks, even when handed the moment of a day with blocks', () => {
+    setup({ today: makeToday([SKIPPED], { planned_minutes: 0, done_minutes: 0 }), plan: makePlan([SKIPPED]), moment: 'day' })
+    expect(screen.queryByText(/\b0 blocks\b/)).not.toBeInTheDocument()
+    expect(screen.getByText(archiLine('openDay', TODAY, { total: 0, done: 0, next: null }))).toBeInTheDocument()
+  })
+
+  it('on a finished day shows tomorrow\u2019s block without saying the day had no blocks', () => {
+    const done = [DONE, { ...NEXT, status: 'done', state: 'done' } as Block]
+    setup({ today: makeToday(done, { planned_minutes: 0, done_minutes: 150 }), plan: makePlan([...done, TOMORROW]), moment: 'dayDone' })
+    const card = screen.getByRole('region', { name: en.today.next })
+    expect(within(card).getByText('Tomorrow, 09:00')).toBeInTheDocument()
+    expect(screen.queryByText(en.today.noBlocksToday)).not.toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: en.today.moreBlocks })).getAllByRole('listitem')).toHaveLength(2)
+  })
+
+  it('when what is left of today was missed, does not say the day had no blocks', () => {
+    const missed = { ...NEXT, status: 'missed', state: 'missed' } as Block
+    setup({ today: makeToday([DONE, missed], { planned_minutes: 0, done_minutes: 90 }), plan: makePlan([DONE, missed, TOMORROW]), moment: 'dayDone' })
+    expect(screen.getByRole('region', { name: en.today.next })).toBeInTheDocument()
+    expect(screen.queryByText(en.today.noBlocksToday)).not.toBeInTheDocument()
+  })
+
+  it('on a rest day adds nothing to what Archi says, whichever wording the day drew', () => {
+    // 17 November draws another wording than the one that opens with "No blocks today."
+    const date = '2026-11-17'
+    const line = archiLine('restDay', date, { total: 0, done: 0, next: null })
+    expect(line).not.toContain(en.today.noBlocksToday)
+    const dayAfter = { ...TOMORROW, id: 'block-after', starts_at: '2026-11-18T07:00:00Z', ends_at: '2026-11-18T08:00:00Z', study_date: '2026-11-18' }
+    setup({ today: makeToday([], { date, planned_minutes: 0, done_minutes: 0 }), plan: makePlan([dayAfter]), moment: 'restDay' })
+    expect(screen.getByText(line)).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: en.today.next })).getByText('Tomorrow, 09:00')).toBeInTheDocument()
+    expect(screen.queryByText(en.today.noBlocksToday)).not.toBeInTheDocument()
   })
 
   it('with no block today or later, has no card', () => {

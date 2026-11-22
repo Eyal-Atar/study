@@ -18,6 +18,13 @@ export const enCalendarArchi = {
     'Today is a free day. I’ve put the kettle on.',
     'No blocks today. Rest is part of the plan.',
   ],
+  // A day with nothing to count that is not a rest day of the plan: a week with no blocks at all, or
+  // a day whose blocks were all skipped or missed. No line here speaks of rest or of a plan.
+  openDay: [
+    'Nothing is waiting for you today.',
+    'Today is open. I have no blocks for you.',
+    'I have nothing for you to do today. The day is yours.',
+  ],
   dayDone: [
     'That’s every block for today. Well done.',
     'Today is complete. The rest of the day is yours.',
