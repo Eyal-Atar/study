@@ -79,8 +79,8 @@ describe('Timeline', () => {
     // A day with nothing planned is a short tick, not a bar.
     expect(dayItem(addDays(TODAY, 2)).querySelector('[data-mark="none"]')).toHaveClass('bg-line')
     // The width of a column.
-    // A week (seven columns) fits a 390px phone without scrolling: at least 44px each, growing to share the box.
-    expect(today).toHaveClass('min-w-11', 'flex-1')
+    // Seven whole columns fill the box at rest (a share of its width, never shrunk), and each is a snap point.
+    expect(today).toHaveClass('basis-1/7', 'shrink-0', 'snap-start')
   })
 
   it('today says "Today" in words; the exam day and the rest day are icons with no text that can wrap', () => {
@@ -121,7 +121,9 @@ describe('Timeline', () => {
   it('the chart scrolls inside its own box, never the page', () => {
     show()
     const box = screen.getByRole('list', { name: t.listLabel }).parentElement
-    expect(box).toHaveClass('overflow-x-auto')
+    expect(box).toHaveClass('overflow-x-auto', 'snap-x', 'snap-mandatory')
+    // A soft edge on the side that has more days is the cue that the row scrolls.
+    expect(box).toHaveAttribute('data-scroll-cue')
     // The card around it is the surface, so only the chart scrolls.
     expect(screen.getByRole('region', { name: t.title })).toHaveClass('rounded-card', 'border', 'border-line', 'bg-surface')
   })

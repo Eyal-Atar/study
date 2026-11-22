@@ -46,7 +46,7 @@ function Day({ info, max, colour }: { info: DayInfo; max: number; colour: Return
   const donePx = info.planned === 0 ? 0 : Math.round((info.done / info.planned) * plannedPx)
   return (
     // The visible column is a picture of the label; a screen reader reads the label once.
-    <li aria-label={dayLabel(info)} className="flex max-w-16 min-w-11 flex-1 flex-col items-center gap-1 py-2">
+    <li aria-label={dayLabel(info)} className="flex shrink-0 basis-1/7 snap-start flex-col items-center gap-1 py-2">
       {/* "Today" in words, not only in colour. */}
       <span
         aria-hidden="true"
@@ -106,6 +106,17 @@ function Legend({ colour }: { colour: ReturnType<typeof examColor> }) {
 // The days from today to the exam (plan decision 13): this exam's planned and done minutes per day,
 // the rest days, the exam day and today. Scrolls sideways inside its own box, never the page. The
 // days are in date order in the DOM, so in LTR today is at the left, where the scroll starts.
+// Soft edges that show only on the side that has more days (the "local" background scrolls with the
+// content and covers the shade, the "scroll" one stays on the box edge): the cue that the row scrolls.
+const SCROLL_CUE = {
+  backgroundImage:
+    'linear-gradient(to right, var(--color-surface), var(--color-surface)), linear-gradient(to left, var(--color-surface), var(--color-surface)), linear-gradient(to right, rgb(0 0 0 / 0.14), transparent), linear-gradient(to left, rgb(0 0 0 / 0.14), transparent)',
+  backgroundPosition: '0 50%, 100% 50%, 0 50%, 100% 50%',
+  backgroundRepeat: 'no-repeat',
+  backgroundSize: '24px 100%, 24px 100%, 12px 100%, 12px 100%',
+  backgroundAttachment: 'local, local, scroll, scroll',
+} as const
+
 export function Timeline({
   examId,
   colorIndex,
@@ -161,7 +172,7 @@ export function Timeline({
       {days.length === 0 ? (
         <p className="text-body text-ink-muted">{t.noDays}</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div data-scroll-cue="" className="snap-x snap-mandatory overflow-x-auto overscroll-x-contain" style={SCROLL_CUE}>
           <ol aria-label={t.listLabel} className="flex">
             {days.map((info) => (
               <Day key={info.day} info={info} max={max} colour={colour} />
