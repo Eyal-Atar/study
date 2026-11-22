@@ -4,6 +4,8 @@ import { isolate } from './bidi'
 const plural = (n: number, one: string, many: string) => `${String(n)} ${n === 1 ? one : many}`
 
 export const enCalendarSide = {
+  // Between the parts of a detail line: "14:00–15:00, 1 hour".
+  joiner: ', ',
   freeTime: 'I have free time now',
   markBusy: 'Mark busy time',
   exams: 'Your exams',

@@ -79,7 +79,9 @@ function ReviewRow({ expanded, onToggle, count }: RowProps & { count: number }) 
       panel={<ReviewCard bare />}
     >
       <span className="font-semibold">{en.review.title}</span>
-      {`. ${count === 0 ? en.review.allDone : en.review.lead(count)}`}
+      {/* At nothing left the open card under the line says it is all done, next to where the
+          focus falls; said here too, it would be said twice. */}
+      {count === 0 ? null : `. ${en.review.lead(count)}`}
     </Row>
   )
 }

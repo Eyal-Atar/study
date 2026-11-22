@@ -54,7 +54,7 @@ export function NextCard({ block, tz, when, onDefer }: NextCardProps) {
       </UserText>
       <p className="text-small tabular-nums">
         <span>{when ?? formatRange(block, tz)}</span>
-        {en.move.candidateJoiner}
+        {en.calendar.side.joiner}
         {durationText(blockMinutes(block))}
         {partSuffix(block)}
       </p>
@@ -62,7 +62,7 @@ export function NextCard({ block, tz, when, onDefer }: NextCardProps) {
         <KindIcon aria-hidden="true" size={15} strokeWidth={ICON_STROKE} className="shrink-0" />
         <span className="min-w-0 truncate">
           <UserText>{block.exam_name}</UserText>
-          {en.move.candidateJoiner}
+          {en.calendar.side.joiner}
           {en.board.kinds[block.task_kind]}
         </span>
       </p>

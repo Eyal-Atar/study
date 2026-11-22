@@ -57,7 +57,7 @@ function TaskRow({ block, tz, onOpenBlock }: { block: Block; tz: string; onOpenB
           <span className="flex items-center gap-1 text-caption whitespace-nowrap text-ink-muted">
             <KindIcon aria-hidden="true" size={14} strokeWidth={ICON_STROKE} className={cx('shrink-0', color.text)} />
             {en.board.kinds[block.task_kind]}
-            {en.move.candidateJoiner}
+            {en.calendar.side.joiner}
             {durationText(blockMinutes(block))}
           </span>
         </span>
