@@ -25,6 +25,10 @@ export const enOnboardingFlow = {
     question: 'Do you have work, classes or other fixed hours?',
     below: 'Mark your busy hours, and I’ll schedule around them.',
   },
+  // Step 3 of 4: the name of the hours control. The question above it is the screen's own.
+  schedule: {
+    hoursLabel: 'Hours a day',
+  },
   // What I say while you answer, before I build anything (audit, guideline 9). A first wording:
   // Task 14 of S34 polishes it.
   feasibility: {

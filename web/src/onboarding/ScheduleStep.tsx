@@ -1,17 +1,20 @@
 import { useId, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { errorMessage } from '../api/client'
-import { useMe, type Me, type StudyWindow } from '../api/me'
+import { useMe, type StudyWindow } from '../api/me'
+import { todayIn } from '../exam/dates'
 import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
-import { CheckboxCards } from '../ui/CheckboxCards'
+import { Card } from '../ui/Card'
 import { DAYPART_ICON } from '../ui/icons'
+import { IconChoiceCards } from '../ui/IconChoiceCards'
 import { Note } from '../ui/Note'
-import { RadioCards } from '../ui/RadioCards'
 import { ErrorState, LoadingState } from '../ui/states'
-import { useUpdateMe } from './api'
+import { Stepper } from '../ui/Stepper'
+import { useExams, useUpdateMe } from './api'
+import { feasibility } from './feasibility'
+import { FeasibilityNote } from './FeasibilityNote'
 import { OnboardingLayout } from './OnboardingLayout'
-import { flushDeletes } from './pendingDeletes'
 import { STEP_PATHS } from './steps'
 
 const t = en.onboardingSchedule
@@ -20,123 +23,135 @@ const t = en.onboardingSchedule
 // 30–960 minutes. The default is the profile's own (240), so an untouched answer changes nothing.
 const HOURS = [1, 2, 3, 4, 5, 6, 8] as const
 const DEFAULT_MINUTES = 240
-const HOUR_OPTIONS = HOURS.map((hours) => ({ value: String(hours * 60), label: t.hours(hours) }))
+const HOUR_OPTIONS = HOURS.map((hours) => ({ value: hours * 60, label: t.hours(hours) }))
 
 const WINDOWS: readonly StudyWindow[] = ['morning', 'afternoon', 'evening', 'night']
 // Each time of day carries its icon (audit section 2: designed sun and moon icons, never emoji).
-const WINDOW_OPTIONS = WINDOWS.map((window) => {
-  const Icon = DAYPART_ICON[window]
-  return {
-    value: window,
-    label: t.windows[window].label,
-    description: t.windows[window].range,
-    icon: <Icon size={18} />,
-  }
-})
+const WINDOW_OPTIONS = WINDOWS.map((window) => ({
+  value: window,
+  label: t.windows[window].label,
+  description: t.windows[window].range,
+  icon: DAYPART_ICON[window],
+}))
 
 function isWindow(value: string): value is StudyWindow {
   return (WINDOWS as readonly string[]).includes(value)
 }
 
-function initialMinutes(me: Me): string {
-  return HOURS.some((hours) => hours * 60 === me.daily_study_minutes) ? String(me.daily_study_minutes) : String(DEFAULT_MINUTES)
-}
-
 // Onboarding step 3: the two questions of spec 7.9 (how many hours a day, and when). Wake and sleep
 // times are not asked; the profile's 08:00–23:00 stays (S13 decisions 8–9).
+//
+// The layout is rendered once, from here, and only its children change while the profile loads: a
+// layout that was swapped for another would mount again and replay its entrance.
 export function ScheduleStep() {
+  const navigate = useNavigate()
   const me = useMe()
+  const exams = useExams()
+  const updateMe = useUpdateMe()
+  const errorId = useId()
+  // What the student has chosen so far. Until they choose, the profile's own answer stands, so the
+  // state needs no copy of the profile and no effect.
+  const [chosenMinutes, setChosenMinutes] = useState<number | null>(null)
+  const [chosenWindows, setChosenWindows] = useState<StudyWindow[] | null>(null)
+  const [missingWindow, setMissingWindow] = useState(false)
 
-  if (me.isPending) {
-    return (
-      <OnboardingLayout step={3} mood="intentions" question={t.title} primary={null} bare>
-        <LoadingState shape="card" />
-      </OnboardingLayout>
-    )
+  const profile = me.data
+  const minutes =
+    chosenMinutes ??
+    (profile !== undefined && HOURS.some((hours) => hours * 60 === profile.daily_study_minutes)
+      ? profile.daily_study_minutes
+      : DEFAULT_MINUTES)
+  const windows = chosenWindows ?? (profile === undefined ? [] : profile.study_windows.filter(isWindow))
+
+  // What I make of the exams from the values being chosen right now, so it answers every press.
+  // Null without exams or a profile, and while no exam has a complete date.
+  const estimate =
+    profile === undefined || exams.data === undefined
+      ? null
+      : feasibility({
+          today: todayIn(profile.timezone),
+          exams: exams.data.map((exam) => ({ name: exam.name, exam_date: exam.exam_date })),
+          profile: { ...profile, daily_study_minutes: minutes, study_windows: windows },
+          busy: [],
+        })
+
+  function save() {
+    if (windows.length === 0) {
+      setMissingWindow(true)
+      return
+    }
+    updateMe
+      .mutateAsync({ daily_study_minutes: minutes, study_windows: windows })
+      .then(() => navigate(STEP_PATHS.fixedHours))
+      .catch(() => {
+        // The error is shown from updateMe.error.
+      })
   }
-  if (me.isError) {
-    return (
-      <OnboardingLayout step={3} mood="intentions" question={t.title} primary={null} bare>
+
+  // isPending keeps the text and ignores presses, so a double press saves once. "Back" is at the
+  // top of the layout.
+  const primary =
+    profile === undefined ? null : (
+      <Button className="flex-1 md:flex-none" isPending={updateMe.isPending} onPress={save}>
+        {en.onboarding.continue}
+      </Button>
+    )
+
+  return (
+    <OnboardingLayout
+      step={3}
+      mood="intentions"
+      question={t.hoursQuestion}
+      context={t.intro}
+      primary={primary}
+      bare
+    >
+      {me.isPending ? (
+        <LoadingState shape="card" />
+      ) : profile === undefined ? (
         <ErrorState
           message={errorMessage(me.error)}
           onRetry={() => {
             void me.refetch()
           }}
         />
-      </OnboardingLayout>
-    )
-  }
-  // The form starts from the profile once it is loaded.
-  return <ScheduleForm me={me.data} />
-}
-
-function ScheduleForm({ me }: { me: Me }) {
-  const navigate = useNavigate()
-  const updateMe = useUpdateMe()
-  const errorId = useId()
-  const [minutes, setMinutes] = useState(() => initialMinutes(me))
-  const [windows, setWindows] = useState<StudyWindow[]>(() => me.study_windows.filter(isWindow))
-  const [missingWindow, setMissingWindow] = useState(false)
-
-  function build() {
-    if (windows.length === 0) {
-      setMissingWindow(true)
-      return
-    }
-    updateMe
-      .mutateAsync({ daily_study_minutes: Number(minutes), study_windows: windows })
-      // Material deletes sent when the materials step went away may still be on their way; the plan
-      // must not be built while the deleted files still exist.
-      .then(() => flushDeletes())
-      .then(() => navigate(STEP_PATHS.building))
-      .catch(() => {
-        // The error is shown from updateMe.error.
-      })
-  }
-
-  // The button says what it starts, and keeps saying it while the answers are saved. "Back" is at
-  // the top of the layout.
-  const primary = (
-    <Button className="flex-1 md:flex-none" isPending={updateMe.isPending} onPress={build}>
-      {t.build}
-    </Button>
-  )
-
-  return (
-    <OnboardingLayout step={3} mood="intentions" question={t.title} context={t.intro} primary={primary}>
-      <div className="flex flex-col gap-6">
-      <RadioCards
-        label={t.hoursQuestion}
-        options={HOUR_OPTIONS}
-        value={minutes}
-        onChange={setMinutes}
-        columns="grid-cols-4"
-      />
-      <div className="flex flex-col gap-2">
-        <CheckboxCards
-          label={t.windowsQuestion}
-          description={t.windowsHint}
-          options={WINDOW_OPTIONS}
-          value={windows}
-          onChange={(value) => {
-            setWindows(value.filter(isWindow))
-            if (value.length > 0) setMissingWindow(false)
-          }}
-          {...(missingWindow ? { errorId } : {})}
-        />
-        {missingWindow ? (
-          <p id={errorId} role="alert" className="text-small text-danger">
-            {t.windowsRequired}
-          </p>
-        ) : null}
-        {windows.includes('night') ? <Note>{t.nightNote}</Note> : null}
-      </div>
-      {updateMe.isError ? (
-        <p role="alert" className="text-small text-danger">
-          {errorMessage(updateMe.error)}
-        </p>
-      ) : null}
-      </div>
+      ) : (
+        <>
+          <Card>
+            <Stepper
+              label={en.onboardingFlow.schedule.hoursLabel}
+              value={minutes}
+              options={HOUR_OPTIONS}
+              onChange={setChosenMinutes}
+            />
+            <FeasibilityNote estimate={estimate} />
+          </Card>
+          <div className="flex flex-col gap-2">
+            <IconChoiceCards
+              label={t.windowsQuestion}
+              description={t.windowsHint}
+              options={WINDOW_OPTIONS}
+              value={windows}
+              onChange={(value) => {
+                setChosenWindows(value.filter(isWindow))
+                if (value.length > 0) setMissingWindow(false)
+              }}
+              {...(missingWindow ? { errorId } : {})}
+            />
+            {missingWindow ? (
+              <p id={errorId} role="alert" className="text-small text-danger">
+                {t.windowsRequired}
+              </p>
+            ) : null}
+            {windows.includes('night') ? <Note>{t.nightNote}</Note> : null}
+          </div>
+          {updateMe.isError ? (
+            <p role="alert" className="text-small text-danger">
+              {errorMessage(updateMe.error)}
+            </p>
+          ) : null}
+        </>
+      )}
     </OnboardingLayout>
   )
 }

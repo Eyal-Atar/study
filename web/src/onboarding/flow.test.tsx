@@ -78,13 +78,19 @@ describe('the onboarding, end to end', { timeout: 15_000 }, () => {
     // The one button says that it goes on without them.
     await user.click(await screen.findByRole('button', { name: en.onboardingMaterials.continueWithout }))
 
-    // Step 3: the defaults, then build.
+    // Step 3: the defaults, then on.
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/onboarding/schedule')
     })
+    await user.click(await screen.findByRole('button', { name: en.onboarding.continue }))
+
+    // Step 4 (the fixed hours): its button starts the build.
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/onboarding/fixed-hours')
+    })
     await user.click(await screen.findByRole('button', { name: en.onboardingSchedule.build }))
 
-    // Step 4: the job runs, then is done.
+    // The build: the job runs, then is done.
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/onboarding/building')
     })
