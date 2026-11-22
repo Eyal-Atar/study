@@ -65,8 +65,9 @@ export function ScheduleStep() {
 
   // What I make of the exams from the values being chosen right now, so it answers every press.
   // Null without exams or a profile, and while no exam has a complete date.
+  // Null too while no window is chosen: the issue then is the missing window, not a lack of time.
   const estimate =
-    profile === undefined || exams.data === undefined
+    profile === undefined || exams.data === undefined || windows.length === 0
       ? null
       : feasibility({
           today: todayIn(profile.timezone),

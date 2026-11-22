@@ -24,6 +24,20 @@ export const enOnboardingFlow = {
   fixedHours: {
     question: 'Do you have work, classes or other fixed hours?',
     below: 'Mark your busy hours, and I’ll schedule around them.',
+    // The two answers. "No" goes on to the build at once; "Yes" opens the small week.
+    no: 'No, I’m flexible',
+    yes: 'Yes, I do',
+    addExact: 'Add exact hours',
+    // The busy times already saved, under the week. A group's delete button is named by its title
+    // (user content) and its days and hours, so two groups with one title still differ.
+    savedLabel: 'Your busy times',
+    remove: (title: string, when: string) => `Delete: ${isolate(title)}, ${when}`,
+    removeFailed: 'I couldn’t delete that busy time. I’ve refreshed the list, so check it and try again.',
+    // "Build my plan" after some of the marked hours didn't save. What saved shows as saved; the
+    // rest stays marked, and the next press sends only that.
+    saveFailed: 'I couldn’t save all your busy hours. The ones still marked aren’t saved yet, so you can try again.',
+    // A file removed in step 2 that the server didn't delete: it's back there, so the build waits.
+    deletesFailed: 'I couldn’t delete a file you removed from your materials. Go back to check it, then try again.',
   },
   // Step 3 of 4: the name of the hours control. The question above it is the screen's own.
   schedule: {

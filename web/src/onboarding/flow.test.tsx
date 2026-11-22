@@ -26,6 +26,7 @@ function server() {
       return { exam, plan_affected: false }
     })
     .on('GET /exams/e1/materials', [])
+    .on('GET /commitments', { commitments: [] })
     .on('POST /plans/generate', { job_id: 'j1', created: true })
     .on('GET /jobs/j1', () => {
       state.jobReads += 1
@@ -84,17 +85,19 @@ describe('the onboarding, end to end', { timeout: 15_000 }, () => {
     })
     await user.click(await screen.findByRole('button', { name: en.onboarding.continue }))
 
-    // Step 4 (the fixed hours): its button starts the build.
+    // Step 4 (the fixed hours): "No, I’m flexible" starts the build at once, and saves nothing.
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/onboarding/fixed-hours')
     })
-    await user.click(await screen.findByRole('button', { name: en.onboardingSchedule.build }))
+    expect(await screen.findByRole('heading', { level: 1, name: en.onboardingFlow.fixedHours.question })).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: en.onboardingFlow.fixedHours.no }))
 
     // The build: the job runs, then is done.
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/onboarding/building')
     })
     expect(fake.calls('PATCH', '/me').at(-1)?.body).toEqual({ daily_study_minutes: 240, study_windows: ['morning', 'afternoon'] })
+    expect(fake.calls('POST', '/commitments')).toHaveLength(0)
     expect(await screen.findByText(en.building.stages.analyzing)).toBeInTheDocument()
     expect(router.state.location.search).toBe('?job=j1')
     expect(await screen.findByRole('heading', { name: en.building.doneTitle }, { timeout: 4000 })).toBeInTheDocument()

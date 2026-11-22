@@ -30,6 +30,8 @@ describe('enOnboardingFlow: the live feasibility sentences', () => {
     ['feasibility.roomy', t.roomy(88 * 60, NAME)],
     ['feasibility.tight', t.tight(6 * 60, NAME)],
     ['feasibility.none', t.none(NAME)],
+    // The same check holds for a busy time's title.
+    ['fixedHours.remove', enOnboardingFlow.fixedHours.remove(NAME, 'Sun, 14:00–17:00')],
   ]
 
   it.each(NAMED)('%s isolates the exam name exactly once', (_path, text) => {

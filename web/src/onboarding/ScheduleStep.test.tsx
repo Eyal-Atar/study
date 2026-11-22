@@ -258,6 +258,24 @@ describe('ScheduleStep', () => {
     expect(fake.calls('PATCH')).toHaveLength(0)
   })
 
+  it('with no window chosen the note is empty, not a sentence about having no time', async () => {
+    const user = userEvent.setup()
+    renderSchedule(meApi())
+    await screen.findByText(t.hours(4))
+    const note = noteRegion()
+    await waitFor(() => {
+      expect(note).not.toBeEmptyDOMElement()
+    })
+
+    await user.click(screen.getByRole('checkbox', { name: windowName('morning') }))
+    await user.click(screen.getByRole('checkbox', { name: windowName('afternoon') }))
+    expect(note).toBeEmptyDOMElement()
+
+    // A window again, and the note is back.
+    await user.click(screen.getByRole('checkbox', { name: windowName('evening') }))
+    expect(note).not.toBeEmptyDOMElement()
+  })
+
   it('shows the windows question with its hint, and no note when there are no exams', async () => {
     renderSchedule(meApi().on('GET /exams', []))
     await screen.findByText(t.hours(4))
