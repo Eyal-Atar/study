@@ -80,12 +80,12 @@ function renderStep(fake: FakeApi) {
     ],
     { initialEntries: [STEP_PATHS.fixedHours] },
   )
-  render(
+  const view = render(
     <AppProviders auth={createFakeAuth(fakeSession()).client} api={fake.api} storage={createFakeStorage().client} queryClient={queryClient}>
       <RouterProvider router={router} />
     </AppProviders>,
   )
-  return router
+  return Object.assign(router, { unmount: view.unmount })
 }
 
 const yes = () => screen.findByRole('button', { name: t.yes })
@@ -301,6 +301,114 @@ describe('FixedHoursStep', () => {
     await user.click(build())
     expect(await screen.findByText('building')).toBeInTheDocument()
     expect(fake.calls('POST', '/commitments')).toHaveLength(1)
+  })
+
+  it('"Yes", hours marked, then "No": nothing is saved and the build starts', async () => {
+    const user = userEvent.setup()
+    const { fake } = server()
+    const router = renderStep(fake)
+    await user.click(await yes())
+    await user.click(screen.getByRole('button', { name: cellName(0, 10) }))
+    await user.click(screen.getByRole('button', { name: t.no }))
+    expect(await screen.findByText('building')).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe(STEP_PATHS.building)
+    expect(fake.calls('POST')).toHaveLength(0)
+  })
+
+  it('after a partial failure, "No" sends no further POST', async () => {
+    const user = userEvent.setup()
+    const { fake, state } = server()
+    renderStep(fake)
+    state.postReply = (call) => ((call.body as CommitmentInput).weekday === 1 ? problem(409, 'too_many_commitments') : null)
+    await user.click(await yes())
+    await user.click(screen.getByRole('button', { name: cellName(0, 10) }))
+    await user.click(screen.getByRole('button', { name: cellName(1, 14) }))
+    await user.click(build())
+    expect(await screen.findByRole('alert')).toHaveTextContent(t.saveFailed)
+    expect(fake.calls('POST', '/commitments')).toHaveLength(2)
+
+    state.postReply = () => null
+    await user.click(screen.getByRole('button', { name: t.no }))
+    expect(await screen.findByText('building')).toBeInTheDocument()
+    expect(fake.calls('POST', '/commitments')).toHaveLength(2)
+  })
+
+  it('a returning user’s Me time counts in the estimate, but is neither a saved cell nor a row', async () => {
+    const meTime = ([0, 1, 2, 3, 4, 5, 6] as const).map((d) =>
+      row(`m${String(d)}`, d, { title: 'Me time', kind: 'other', start_time: '09:00', end_time: '13:00' }),
+    )
+    // The exam is in three days with one rest day: tomorrow is the only study day.
+    const examDate = isoInDays(3)
+    // A day of 8 study hours, so 4 hours of Me time leave less than the daily amount.
+    const profile = meFixture({ daily_study_minutes: 480 })
+    const first = renderStep(server([], examDate).fake.on('GET /me', profile))
+    await no()
+    const note = noteRegion()
+    await waitFor(() => {
+      expect(note).not.toBeEmptyDOMElement()
+    })
+    const without = note.textContent
+    first.unmount()
+
+    const user = userEvent.setup()
+    renderStep(server(meTime, examDate).fake.on('GET /me', profile))
+    // Nothing but Me time is saved, so "Yes" is not chosen for the student.
+    expect(await screen.findByRole('button', { name: t.yes })).toHaveAttribute('aria-pressed', 'false')
+    await waitFor(() => {
+      expect(noteRegion()).not.toBeEmptyDOMElement()
+    })
+    expect(noteRegion().textContent).not.toBe(without)
+
+    await user.click(screen.getByRole('button', { name: t.yes }))
+    expect(screen.getByRole('button', { name: cellName(0, 10) })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('button', { name: savedName(0, 10) })).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: t.savedLabel })).not.toBeInTheDocument()
+  })
+
+  it('hours marked, then saved through the dialog and deleted from the list, are not sent by "Build my plan"', async () => {
+    const user = userEvent.setup()
+    const { fake } = server()
+    renderStep(fake)
+    await user.click(await yes())
+    await user.click(screen.getByRole('button', { name: cellName(0, 10) }))
+
+    // The same hour, saved with exact hours.
+    const dialogText = en.commitments.dialog
+    await user.click(screen.getByRole('button', { name: t.addExact }))
+    const dialog = await screen.findByRole('dialog', { name: dialogText.titleAdd })
+    await user.type(within(dialog).getByRole('textbox', { name: dialogText.name }), WORK)
+    await user.click(within(dialog).getByRole('checkbox', { name: en.commitments.weekdayLong[0] }))
+    for (const [label, hh] of [[dialogText.from, '10'], [dialogText.to, '11']] as const) {
+      const [hour, minute] = within(within(dialog).getByRole('group', { name: label })).getAllByRole('spinbutton') as [HTMLElement, HTMLElement]
+      await user.click(hour)
+      await user.keyboard(hh)
+      await user.click(minute)
+      await user.keyboard('00')
+    }
+    await user.click(within(dialog).getByRole('button', { name: en.common.save }))
+    expect(await screen.findByRole('button', { name: savedName(0, 10) })).toBeInTheDocument()
+    expect(fake.calls('POST', '/commitments')).toHaveLength(1)
+
+    // Deleted from the list: the hour is free, and no longer marked either.
+    const list = screen.getByRole('list', { name: t.savedLabel })
+    await user.click(within(list).getByRole('button'))
+    await waitFor(() => {
+      expect(screen.queryByRole('list', { name: t.savedLabel })).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: cellName(0, 10) })).toHaveAttribute('aria-pressed', 'false')
+
+    await user.click(build())
+    expect(await screen.findByText('building')).toBeInTheDocument()
+    expect(fake.calls('POST', '/commitments')).toHaveLength(1)
+  })
+
+  it('the answer buttons change colour only inside motion-safe, so reduced motion has no transition', async () => {
+    renderStep(server().fake)
+    for (const button of [await no(), await yes()]) {
+      const motion = (button.getAttribute('class') ?? '').split(/\s+/).filter((c) => /transition|duration|ease|animate/.test(c))
+      expect(motion.length).toBeGreaterThan(0)
+      for (const c of motion) expect(c.startsWith('motion-safe:')).toBe(true)
+    }
   })
 
   it('"Back" goes to step 3', async () => {

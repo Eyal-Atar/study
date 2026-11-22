@@ -107,9 +107,15 @@ export function FixedHoursStep() {
   }
 
   const { firstHour, lastHour } = weekHours(profile?.wake_time ?? '08:00', profile?.sleep_time ?? '23:00')
-  const savedCells = cellsOf(saved ?? [], firstHour, lastHour)
-  // A marked hour that a busy time from the dialog or the photo now covers is saved already.
+  // The week shows only the busy times listed under it (decision 2: Me time is never a busy time
+  // on screen), so every saved cell can be freed from the list.
+  const listedIds = new Set(groups.flatMap((group) => group.ids))
+  const savedCells = cellsOf((saved ?? []).filter((c) => listedIds.has(c.id)), firstHour, lastHour)
+  // A marked hour that a busy time from the dialog or the photo now covers is saved already, and
+  // stops being marked for good: deleting that busy time later frees the hour, it does not mark it
+  // again.
   const marked = new Set([...painted].filter((cell) => !savedCells.has(cell)))
+  if (marked.size !== painted.size) setPainted(marked)
   const ranges = chosen === 'yes' ? paintedRanges(marked, firstHour) : []
 
   // Decision 7: the saved busy times and the hours only marked, together.
@@ -133,12 +139,14 @@ export function FixedHoursStep() {
     setPainted((current) => new Set([...current].filter((cell) => !done.has(cell))))
   }
 
-  async function leave() {
+  // save: whether the marked hours are sent first. "No, I’m flexible" never sends them, whatever
+  // was marked before the student changed their mind.
+  async function leave(save: boolean) {
     if (leaving || profile === undefined) return
     setLeaving(true)
     setProblem(null)
     const today = todayIn(profile.timezone)
-    for (const range of ranges) {
+    for (const range of save ? ranges : []) {
       try {
         const answer = await create.mutateAsync({
           title: en.commitments.defaultTitle,
@@ -187,7 +195,7 @@ export function FixedHoursStep() {
       bare
       primary={
         profile === undefined || saved === undefined ? null : (
-          <Button className="flex-1 md:flex-none" isPending={leaving} onPress={() => void leave()}>
+          <Button className="flex-1 md:flex-none" isPending={leaving} onPress={() => void leave(true)}>
             {en.onboardingSchedule.build}
           </Button>
         )
@@ -211,7 +219,7 @@ export function FixedHoursStep() {
               disabled={leaving}
               onPress={() => {
                 setChosen('no')
-                void leave()
+                void leave(false)
               }}
             >
               {t.no}
