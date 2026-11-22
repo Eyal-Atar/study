@@ -400,7 +400,10 @@ export function TimeGrid({
                           swipes.onPointerCancel(event)
                         },
                         onLostPointerCapture: moves.onLostPointerCapture,
-                        onKeyDown: moves.onKeyDown,
+                        onKeyDown: (event) => {
+                          swipe.clearClick()
+                          moves.onKeyDown(event)
+                        },
                         onBlur: moves.onBlur,
                       }}
                     />

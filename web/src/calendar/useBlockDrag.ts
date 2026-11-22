@@ -7,6 +7,7 @@ import type { Block } from '../board/types'
 import { codeText } from '../i18n/codes'
 import { en } from '../i18n/en'
 import { useToast } from '../ui/useToast'
+import { createClickGuard } from './clickGuard'
 import { ghostOf, type Ghost } from './ghost'
 
 // Moving a block on the calendar's grid (S32 decisions 8–9), by mouse, pen, touch or keyboard,
@@ -114,8 +115,9 @@ export function useBlockDrag({ blocks, busy, tz, now, hourPx, dayBounds, rootRef
   const [announcement, setAnnouncementState] = useState('')
   const announced = useRef('')
   const [returning, setReturning] = useState<string | null>(null)
-  const swallowClick = useRef(false)
-  const clickTimer = useRef<number | null>(null)
+  const [clickGuard] = useState(createClickGuard)
+  // A pointer drag began since the last press: its release (or cancel) arms the click guard.
+  const lifted = useRef(false)
   const listeners = useRef<(() => void)[]>([])
   // After a keyboard move the focus stays on the block (the mechanism of today/DayTimeline): if the
   // block's element is replaced and the focus falls to <body>, it takes it back, until the move
@@ -160,7 +162,6 @@ export function useBlockDrag({ blocks, busy, tz, now, hourPx, dayBounds, rootRef
       const current = pending.current
       if (current?.timer != null) window.clearTimeout(current.timer)
       pending.current = null
-      if (clickTimer.current !== null) window.clearTimeout(clickTimer.current)
     },
     [],
   )
@@ -177,17 +178,6 @@ export function useBlockDrag({ blocks, busy, tz, now, hourPx, dayBounds, rootRef
       root.removeEventListener('touchmove', lock)
     }
   }, [rootRef])
-
-  // The click that ends a drag comes right after the pointerup, in the same task. After a touch
-  // drag a browser sends none, so the guard ends on the next task: a click alone later (a screen
-  // reader's double tap) is a press on the block.
-  function releaseClickSoon() {
-    if (clickTimer.current !== null) window.clearTimeout(clickTimer.current)
-    clickTimer.current = window.setTimeout(() => {
-      clickTimer.current = null
-      swallowClick.current = false
-    }, 0)
-  }
 
   // The dragged block may stop being movable under the drag: a refetch turns it in_progress, or it
   // is gone. The drag then ends here, with no request (Review Focus 2).
@@ -276,7 +266,8 @@ export function useBlockDrag({ blocks, busy, tz, now, hourPx, dayBounds, rootRef
 
   function beginPointer(block: Block, press: Pending) {
     const origin = Date.parse(block.starts_at)
-    swallowClick.current = true
+    lifted.current = true
+    clickGuard.arm()
     setReturning(null)
     setDrag({ id: block.id, origin, candidate: origin, mode: 'pointer', touch: press.touch, pointerId: press.pointerId, startY: press.startY, dy: 0 })
     listen(document, 'keydown', (event) => {
@@ -319,7 +310,8 @@ export function useBlockDrag({ blocks, busy, tz, now, hourPx, dayBounds, rootRef
   function handlers(block: Block): BlockDragHandlers {
     return {
       onPointerDown: (event) => {
-        swallowClick.current = false
+        clickGuard.reset()
+        lifted.current = false
         if (event.button !== 0 || !canStart(block)) return
         clearPending()
         const press: Pending = {
@@ -370,23 +362,23 @@ export function useBlockDrag({ blocks, busy, tz, now, hourPx, dayBounds, rootRef
       onPointerUp: (event) => {
         if (pointerDrag(block, event) !== null) finish(block)
         else if (pendingOf(block, event) !== null) clearPending()
-        // Also after a drag that Escape ended before the release.
-        if (swallowClick.current) releaseClickSoon()
+        // Also after a drag that Escape ended before the release: its click is still to come.
+        if (lifted.current) clickGuard.arm()
       },
       onPointerCancel: (event) => {
         if (pointerDrag(block, event) !== null) cancel()
         else if (pendingOf(block, event) !== null) clearPending()
-        if (swallowClick.current) releaseClickSoon()
+        if (lifted.current) clickGuard.arm()
       },
       // The capture can go without a pointerup (another element took it, the window lost focus);
       // after a pointerup the drag is already over.
       onLostPointerCapture: (event) => {
         if (pointerDrag(block, event) === null) return
         cancel()
-        releaseClickSoon()
+        clickGuard.arm()
       },
       onKeyDown: (event) => {
-        swallowClick.current = false
+        clickGuard.reset()
         if (event.target !== event.currentTarget) return
         const current = dragRef.current
         const active = current?.id === block.id && current.mode === 'keyboard' ? current : null
@@ -404,7 +396,8 @@ export function useBlockDrag({ blocks, busy, tz, now, hourPx, dayBounds, rootRef
         }
         if (steps !== undefined) {
           event.preventDefault()
-          step(block, active, steps)
+          // At the edge every press is said again (setAnnouncement makes the repeat heard).
+          if (!step(block, active, steps)) say(block, active, active.candidate)
           return
         }
         switch (event.key) {
@@ -453,10 +446,6 @@ export function useBlockDrag({ blocks, busy, tz, now, hourPx, dayBounds, rootRef
     offsetY: (blockId) => (drag?.id === blockId && drag.mode === 'pointer' ? drag.dy : 0),
     returning,
     busy: () => dragRef.current !== null || pending.current !== null,
-    consumeClick: () => {
-      const swallow = swallowClick.current
-      swallowClick.current = false
-      return swallow
-    },
+    consumeClick: clickGuard.consume,
   }
 }

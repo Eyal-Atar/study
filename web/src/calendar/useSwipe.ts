@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import type { Block } from '../board/types'
+import { createClickGuard } from './clickGuard'
 
 // The swipe of a block on a phone (S32 decision 10): a finger that moves the block to the left
 // uncovers Defer and Skip behind its end. Touch only: a mouse drags (useBlockDrag.ts) and has
@@ -48,6 +49,8 @@ export interface Swipe {
   act: (block: Block, action: SwipeAction) => void
   // The click that ends a swipe is not a press on the block: true once after a swipe.
   consumeClick: () => boolean
+  // A key on the block: the next click is the user's.
+  clearClick: () => void
 }
 
 export function useSwipe(blocks: Block[], onAction: (block: Block, action: SwipeAction) => void): Swipe {
@@ -55,27 +58,7 @@ export function useSwipe(blocks: Block[], onAction: (block: Block, action: Swipe
   const [settledId, setSettledId] = useState<string | null>(null)
   const [track, setTrackState] = useState<Track | null>(null)
   const trackRef = useRef<Track | null>(null)
-  const swallowClick = useRef(false)
-  const clickTimer = useRef<number | null>(null)
-
-  useEffect(
-    () => () => {
-      if (clickTimer.current !== null) window.clearTimeout(clickTimer.current)
-    },
-    [],
-  )
-
-  // The click that ends a swipe comes right after the pointerup, in the same task; a finger that
-  // moved gets none. The guard ends on the next task, so a click alone later (a screen reader's
-  // double tap) is a press on the block.
-  function swallowNextClick() {
-    swallowClick.current = true
-    if (clickTimer.current !== null) window.clearTimeout(clickTimer.current)
-    clickTimer.current = window.setTimeout(() => {
-      clickTimer.current = null
-      swallowClick.current = false
-    }, 0)
-  }
+  const [clickGuard] = useState(createClickGuard)
 
   function setTrack(next: Track | null) {
     trackRef.current = next
@@ -125,7 +108,7 @@ export function useSwipe(blocks: Block[], onAction: (block: Block, action: Swipe
   function handlers(block: Block): SwipeHandlers {
     return {
       onPointerDown: (event) => {
-        swallowClick.current = false
+        clickGuard.reset()
         if (event.pointerType !== 'touch' || block.status === 'done' || block.state === 'done') return
         const base = openId === block.id ? SWIPE_WIDTH_PX : 0
         setTrack({ id: block.id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, base, offset: base, swiping: null })
@@ -154,13 +137,13 @@ export function useSwipe(blocks: Block[], onAction: (block: Block, action: Swipe
         if (current === null) return
         setTrack(null)
         if (current.swiping === true) {
-          swallowNextClick()
+          clickGuard.arm()
           setOpenId(current.offset >= OPEN_AT_PX ? block.id : null)
           return
         }
         // A tap on an open block closes it, and does not open the block's actions.
         if (current.base > 0) {
-          swallowNextClick()
+          clickGuard.arm()
           close()
         }
       },
@@ -184,10 +167,7 @@ export function useSwipe(blocks: Block[], onAction: (block: Block, action: Swipe
       setSettledId(block.id)
       onAction(block, action)
     },
-    consumeClick: () => {
-      const swallow = swallowClick.current
-      swallowClick.current = false
-      return swallow
-    },
+    consumeClick: clickGuard.consume,
+    clearClick: clickGuard.reset,
   }
 }

@@ -680,24 +680,94 @@ describe('the empty space of a column', () => {
 })
 
 describe('fixes of the review', () => {
-  it('a click with no press before it, after a drag that ended with no click, opens the block', async () => {
+  // A touch click comes in a later task than its pointerup (a tap is recognised after touchend), so
+  // the guard lasts a time, not a task. The clock of performance.now is the fake timers' here.
+  function fakeClock() {
+    vi.useFakeTimers({ toFake: ['Date', 'performance', 'setTimeout', 'clearTimeout'] })
+    vi.setSystemTime(new Date(NOW))
+  }
+
+  function later(ms: number) {
+    act(() => {
+      vi.advanceTimersByTime(ms)
+    })
+  }
+
+  it('the click 50ms after a drag is swallowed, and a click alone 700ms after one opens the block', async () => {
     const { spies } = await setup()
+    fakeClock()
     const el = blockEl(A)
     mouseDrag(el, 120 * PX)
     fireEvent.pointerUp(el, { ...mouse, clientX: 100, clientY: 500 + 120 * PX })
-    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+    later(50)
+    fireEvent.click(el)
+    expect(spies.onOpenBlock).not.toHaveBeenCalled()
+
+    mouseDrag(el, 120 * PX)
+    fireEvent.pointerUp(el, { ...mouse, clientX: 100, clientY: 500 + 120 * PX })
+    later(700)
     // A screen reader's double tap: a click alone.
     fireEvent.click(el)
     expect(spies.onOpenBlock).toHaveBeenCalledWith(A)
   })
 
-  it('a click alone after a swipe that closed opens the block', async () => {
+  it('a long press released in place swallows its late click', async () => {
     const { spies } = await setup()
+    fakeClock()
+    const el = blockEl(A)
+    fireEvent.pointerDown(el, { ...touch, clientX: 100, clientY: 500 })
+    later(400)
+    expect(el).toHaveAttribute('data-lifted')
+    fireEvent.pointerUp(el, { ...touch, clientX: 100, clientY: 500 })
+    later(80)
+    fireEvent.click(el)
+    expect(spies.onOpenBlock).not.toHaveBeenCalled()
+  })
+
+  it('the click 50ms after a swipe is swallowed, and one 700ms after it is not', async () => {
+    const { spies } = await setup()
+    fakeClock()
+    // A tap on an open swipe closes it, and its late click does not open the block.
+    swipe(blockEl(A), -80)
+    fireEvent.pointerDown(blockEl(A), { ...touch, clientX: 100, clientY: 500 })
+    fireEvent.pointerUp(blockEl(A), { ...touch, clientX: 100, clientY: 500 })
+    later(50)
+    fireEvent.click(blockEl(A))
+    expect(spies.onOpenBlock).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: en.board.deferLabel(blockName(A)) })).not.toBeInTheDocument()
+
     swipe(blockEl(A), -40)
-    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+    later(700)
     fireEvent.click(blockEl(A))
     expect(spies.onOpenBlock).toHaveBeenCalledWith(A)
   })
+
+  it('a new press or a key ends the guard at once', async () => {
+    const { spies } = await setup()
+    fakeClock()
+    const el = blockEl(A)
+    mouseDrag(el, 120 * PX)
+    fireEvent.pointerUp(el, { ...mouse, clientX: 100, clientY: 500 + 120 * PX })
+    later(50)
+    fireEvent.pointerDown(el, { ...mouse, clientX: 100, clientY: 500 })
+    fireEvent.pointerUp(el, { ...mouse, clientX: 100, clientY: 500 })
+    fireEvent.click(el)
+    expect(spies.onOpenBlock).toHaveBeenCalledTimes(1)
+
+    mouseDrag(el, 120 * PX)
+    fireEvent.pointerUp(el, { ...mouse, clientX: 100, clientY: 500 + 120 * PX })
+    later(50)
+    fireEvent.keyDown(el, { key: 'Shift' })
+    fireEvent.click(el)
+    expect(spies.onOpenBlock).toHaveBeenCalledTimes(2)
+
+    swipe(blockEl(A), -40)
+    later(50)
+    fireEvent.keyDown(blockEl(A), { key: 'Shift' })
+    fireEvent.click(blockEl(A))
+    expect(spies.onOpenBlock).toHaveBeenCalledTimes(3)
+  })
+
 
   it('a refresh that moves the dragged block on the server ends the drag', async () => {
     const { fake, state, queryClient } = await setup()
@@ -732,7 +802,7 @@ describe('fixes of the review', () => {
     mouseUp(el, 5)
   })
 
-  it('a first arrow that cannot move the block says where it is', async () => {
+  it('an arrow that cannot move the block says where it is, first or later', async () => {
     const user = userEvent.setup()
     // 11:30–12:30 today, and now is 11:25: 11:30 is the earliest start.
     const early = makeBlock({ id: 'e', task_id: 't-e', task_title: 'מוקדם', study_date: TODAY, starts_at: '2026-11-24T09:30:00Z', ends_at: '2026-11-24T10:30:00Z' })
@@ -743,6 +813,11 @@ describe('fixes of the review', () => {
     })
     await user.keyboard('{ArrowUp}')
     expect(live()).toHaveTextContent(candidate('11:30–12:30'))
+    // Every later press at the edge is said again, not only the first.
+    const first = live().textContent
+    await user.keyboard('{ArrowUp}')
+    expect(live()).toHaveTextContent(candidate('11:30–12:30'))
+    expect(live().textContent).not.toBe(first)
     await user.keyboard('{Escape}')
     expect(live()).toHaveTextContent(en.move.cancelled)
   })
