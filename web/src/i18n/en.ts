@@ -7,6 +7,7 @@ import { enEntry } from './enEntry'
 import { enExams } from './enExams'
 import { enOnboardingFlow } from './enOnboardingFlow'
 import { enPwa } from './enPwa'
+import { enSettingsScreen } from './enSettingsScreen'
 
 // Every text the user reads or hears, in Archi's voice (docs/design/archi-voice.md): Archi speaks
 // in the first person (I / me / my) and addresses the user as "you". Never "Archi will", never the
@@ -48,6 +49,7 @@ export const en = {
   entry: enEntry,
   exams: enExams,
   onboardingFlow: enOnboardingFlow,
+  settingsScreen: enSettingsScreen,
   shell: {
     signOut: 'Sign out',
     mainNav: 'Main navigation',

@@ -8,6 +8,7 @@ import { Card } from '../ui/Card'
 import { PageHeader } from '../ui/PageHeader'
 import { SectionHeading } from '../ui/SectionHeading'
 import { ErrorState, LoadingState } from '../ui/states'
+import { CommitmentsSection } from './CommitmentsSection'
 import { ExportSection } from './ExportSection'
 import { PreferencesForm } from './PreferencesForm'
 import { NotificationSettings } from '../notifications/NotificationSettings'
@@ -72,6 +73,9 @@ export function SettingsPage() {
           <PreferencesForm key={preferencesKey(me.data)} me={me.data} />
         )}
       </Section>
+
+      {/* S34, decision 15: Busy time after the preferences and their Save, since it saves at once. */}
+      <CommitmentsSection />
 
       {/* S16: reminders on this device and the lead time. The component draws its own two cards;
           the section gives them the heading and the line every other part of the screen has. */}
