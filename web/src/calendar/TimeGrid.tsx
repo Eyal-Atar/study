@@ -1,10 +1,11 @@
-import { Fragment, useRef, useSyncExternalStore, type CSSProperties } from 'react'
+import { Fragment, useRef, type CSSProperties } from 'react'
 import type { BusyItem } from '../availability/types'
 import { blockName } from '../board/blockName'
 import { formatTime } from '../board/time'
 import type { Block } from '../board/types'
 import { en } from '../i18n/en'
 import { StreakLeafIcon, TeaCupIcon } from '../ui/icons'
+import { useReducedMotion } from '../ui/reducedMotion'
 import { cx, FOCUS_RING_NATIVE } from '../ui/styles'
 import { BusyBlock } from './BusyBlock'
 import './calendar.css'
@@ -31,24 +32,6 @@ const FREE_DAY_HOURS = 4.5
 const SWIPE_MIN_PX = 44
 // A block on the move slides back to its place, unless the system asked for less motion.
 const SLIDE = 'transform, color, background-color, border-color'
-const REDUCED_MOTION = '(prefers-reduced-motion: reduce)'
-
-function subscribeReducedMotion(onChange: () => void) {
-  if (typeof window.matchMedia !== 'function') return () => undefined
-  const query = window.matchMedia(REDUCED_MOTION)
-  query.addEventListener('change', onChange)
-  return () => {
-    query.removeEventListener('change', onChange)
-  }
-}
-
-function useReducedMotion(): boolean {
-  return useSyncExternalStore(
-    subscribeReducedMotion,
-    () => typeof window.matchMedia === 'function' && window.matchMedia(REDUCED_MOTION).matches,
-    () => true,
-  )
-}
 
 export interface TimeGridProps {
   days: string[]

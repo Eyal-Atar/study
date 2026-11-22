@@ -68,8 +68,8 @@ export const enCalendarSheets = {
     undone: 'Change undone',
   },
   commitment: {
-    lead: 'This is one of your weekly commitments. I plan around it every week.',
+    lead: 'This is one of your weekly busy times. I plan around it every week.',
     edit: 'Edit in settings',
-    kinds: { work: 'Work', class: 'Class', other: 'Commitment' },
+    kinds: { work: 'Work', class: 'Class', other: 'Busy time' },
   },
 } as const

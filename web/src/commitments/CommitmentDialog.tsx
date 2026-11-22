@@ -11,7 +11,7 @@ import {
 import type { CommitmentInput, CommitmentKind, Weekday } from '../availability/types'
 import { useBoardUserId } from '../board/api'
 import { en } from '../i18n/en'
-import { codeText, isKnownCode } from '../i18n/codes'
+import { codeText } from '../i18n/codes'
 import { Button } from '../ui/Button'
 import { DatePicker } from '../ui/DatePicker'
 import { Dialog } from '../ui/Dialog'
@@ -67,12 +67,11 @@ function serverFieldErrors(error: ApiError): FieldErrors | null {
   return Object.keys(found).length > 0 ? found : null
 }
 
-// The text of a problem that is about the request and not about a field. A code without a text shows
-// the title the server sent; the texts of the S35 codes arrive from scope S32 at merge time.
+// The text of a problem that is about the request and not about a field. A code without a text of
+// ours gets the generic one (codeText), never the server's English title.
 function problemText(error: unknown): string | null {
   if (!(error instanceof ApiError) || error.code === null) return null
-  if (isKnownCode(error.code)) return codeText(error.code, error.details)
-  return error.title
+  return codeText(error.code, error.details)
 }
 
 // The group as it stands in the database after some of the writes of a save went through: a retry

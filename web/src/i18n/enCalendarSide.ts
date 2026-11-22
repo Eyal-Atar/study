@@ -10,8 +10,7 @@ export const enCalendarSide = {
   markBusy: 'Mark busy time',
   exams: 'Your exams',
   examProgress: (percent: number) => `${String(percent)}% of the plan done`,
-  examLabel: (name: string, when: string, percent: number) =>
-    `${isolate(name)}, ${when}, ${String(percent)}% of the plan done`,
+  examLabel: (name: string, when: string) => `${isolate(name)}, ${when}`,
   peekLeft: (left: number, duration: string) =>
     left === 0 ? 'All done for today' : `${String(left)} left, ${duration}`,
   stripLabel: 'Days of the week',

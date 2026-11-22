@@ -12,7 +12,7 @@ import { useExamTasks } from '../exam/api'
 function Progress() {
   const map = useExamProgress(['exam-1'])
   const p = map.get('exam-1')
-  return <output data-testid="p">{p === undefined ? 'none' : `${String(p.done)}/${String(p.total)}`}</output>
+  return <output data-testid="p">{p === undefined ? 'none' : `${String(p.done)}/${String(p.total)} ${String(p.percent)}%`}</output>
 }
 
 function Both() {
@@ -38,7 +38,7 @@ describe('useExamProgress', () => {
       task({ id: 'c', estimated_minutes: 30, status: 'skipped' }),
     ])
     renderBoard(<Progress />, { api: fake.api })
-    await waitFor(() => { expect(screen.getByTestId('p').textContent).toBe('60/150') })
+    await waitFor(() => { expect(screen.getByTestId('p').textContent).toBe('60/150 40%') })
   })
   it('shares the cache of the exam screen: one request for both', async () => {
     const fake = createFakeApi().on('GET /exams/exam-1/tasks', [task({ status: 'done' })])
@@ -49,7 +49,7 @@ describe('useExamProgress', () => {
       </>,
       { api: fake.api },
     )
-    await waitFor(() => { expect(screen.getByTestId('p').textContent).toBe('30/30') })
+    await waitFor(() => { expect(screen.getByTestId('p').textContent).toBe('30/30 100%') })
     await waitFor(() => { expect(screen.getByTestId('t').textContent).toBe('1') })
     expect(fake.calls('GET', '/exams/exam-1/tasks')).toHaveLength(1)
   })
@@ -81,9 +81,9 @@ describe('useExamProgress after an action', () => {
       </>,
       { api: fake.api },
     )
-    await waitFor(() => { expect(screen.getByTestId('p').textContent).toBe('0/60') })
+    await waitFor(() => { expect(screen.getByTestId('p').textContent).toBe('0/60 0%') })
     await userEvent.click(screen.getByRole('button', { name: 'done' }))
-    await waitFor(() => { expect(screen.getByTestId('p').textContent).toBe('60/60') })
+    await waitFor(() => { expect(screen.getByTestId('p').textContent).toBe('60/60 100%') })
   })
 })
 

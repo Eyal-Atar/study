@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AppProviders } from '../app/AppProviders'
 import type { TimetableApply, TimetableProposal } from '../availability/types'
 import { codeText, resetTime } from '../i18n/codes'
+import { ApiError } from '../api/client'
 import { en } from '../i18n/en'
 import { createFakeApi, problem, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
@@ -355,6 +356,16 @@ describe('TimetableImport', () => {
     expect(await screen.findByText(t.quota(5, resetTime(details, new Date())))).toBeInTheDocument()
     expect(t.quota(5, null)).toContain('5 timetable photos')
     expect(screen.getByText(t.manual)).toBeInTheDocument()
+  })
+
+  it('a code it has no text for shows the generic message, never the server title', async () => {
+    const fake = server().on('POST /timetables', new ApiError(409, 'some_new_code', 'Server says no', {}))
+    const { user } = setup({ fake })
+
+    await user.upload(fileInput(), pdf())
+
+    expect(await screen.findByText(en.errors.generic)).toBeInTheDocument()
+    expect(screen.queryByText('Server says no')).not.toBeInTheDocument()
   })
 
   it('refuses a HEIC photo with a clear message and no request', async () => {

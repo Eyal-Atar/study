@@ -6,6 +6,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { ApiContext } from '../api/ApiContext'
 import { AuthProvider } from '../auth/AuthProvider'
 import type { Commitment } from '../availability/types'
+import { ApiError } from '../api/client'
+import { codeText } from '../i18n/codes'
 import { en } from '../i18n/en'
 import { LOCALE } from '../i18n/locale'
 import { createFakeApi, problem } from '../test/fakeApi'
@@ -163,7 +165,20 @@ describe('CommitmentDialog', () => {
     await typeTime(user, t.from, '0900', '00')
     await typeTime(user, t.to, '1000', '00')
     await user.click(save())
-    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(codeText('too_many_commitments'))
+  })
+
+  it('a code it has no text for shows the generic message, never the server title', async () => {
+    const { fake, user } = setup()
+    fake.on('POST /commitments', new ApiError(409, 'some_new_code', 'Server says no', {}))
+    await user.type(screen.getByRole('textbox', { name: t.name }), 'Shift')
+    await user.click(day(en.commitments.weekdayLong[1]))
+    await typeTime(user, t.from, '0900', '00')
+    await typeTime(user, t.to, '1000', '00')
+    await user.click(save())
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(en.errors.generic)
+    expect(alert).not.toHaveTextContent('Server says no')
   })
 
   it('draft mode sends nothing and hands the draft over', async () => {

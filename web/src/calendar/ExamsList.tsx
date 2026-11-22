@@ -1,7 +1,7 @@
 import { daysBetween } from '../exam/dates'
 import { en } from '../i18n/en'
+import { ExamProgressBar } from '../ui/ExamMark'
 import { examColor } from '../ui/examColor'
-import { ProgressBar } from '../ui/ProgressBar'
 import { SectionHeading } from '../ui/SectionHeading'
 import { cx } from '../ui/styles'
 import { UserText } from '../ui/UserText'
@@ -33,12 +33,8 @@ export function ExamsList({ exams, today }: { exams: SidebarExam[]; today: strin
       </SectionHeading>
       <ul className="flex flex-col gap-2.5">
         {coming.map((exam) => {
-          const minutes = progress.get(exam.id)
-          // Until the tasks arrive, and for an exam with no minutes: 0, never a division by zero.
-          const percent =
-            minutes === undefined || minutes.total <= 0
-              ? 0
-              : Math.min(100, Math.max(0, Math.round((minutes.done / minutes.total) * 100)))
+          // Until the tasks arrive: 0 of 0, an empty bar.
+          const shown = progress.get(exam.id) ?? { done: 0, total: 0, percent: 0 }
           const when = en.exam.inDays(daysBetween(today, exam.exam_date))
           return (
             <li key={exam.id} className="grid grid-cols-[10px_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1">
@@ -48,10 +44,13 @@ export function ExamsList({ exams, today }: { exams: SidebarExam[]; today: strin
               </UserText>
               <span className="text-small text-ink-muted tabular-nums">{when}</span>
               <div className="col-start-2 col-end-[-1]">
-                <ProgressBar
-                  aria-label={en.calendar.side.examLabel(exam.name, when, percent)}
-                  value={percent}
-                  valueText={en.calendar.side.examProgress(percent)}
+                {/* The name is the exam and its days, the value the sentence: the percent is heard once. */}
+                <ExamProgressBar
+                  colorIndex={exam.color_index}
+                  value={shown.done}
+                  max={shown.total}
+                  aria-label={en.calendar.side.examLabel(exam.name, when)}
+                  valueText={en.calendar.side.examProgress(shown.percent)}
                 />
               </div>
             </li>

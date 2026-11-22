@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { en } from '../i18n/en'
 import { XpSparkIcon } from '../ui/icons'
+import { prefersReducedMotion } from '../ui/reducedMotion'
 import { onCompleted, type CompletedEvent } from '../board/xpEvents'
 
-const REDUCED_MOTION = '(prefers-reduced-motion: reduce)'
 const FLY_MS = 600
 const GLOW_MS = 400
 
@@ -30,10 +30,6 @@ function centre(el: Element): { x: number; y: number } {
   return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
 }
 
-function quiet(): boolean {
-  return typeof window.matchMedia === 'function' && window.matchMedia(REDUCED_MOTION).matches
-}
-
 let nextId = 0
 
 // The moment a block is marked done (S32 decision 12): a gold chip of the XP rises from the block's
@@ -45,7 +41,7 @@ export function XpBurst() {
 
   useEffect(() => {
     return onCompleted((event: CompletedEvent) => {
-      if (quiet() || typeof Element.prototype.animate !== 'function') return
+      if (prefersReducedMotion() || typeof Element.prototype.animate !== 'function') return
       const box = firstShown(`[data-check="${CSS.escape(event.blockId)}"]`)
       const ring = firstShown('[data-part="level"]')
       if (box === null || ring === null) return

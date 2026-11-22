@@ -9,13 +9,13 @@ export const enCalendarCodes = {
   no_free_time: 'That time is already taken in your calendar.',
   too_many_commitments: (limit: number | null) =>
     limit === null
-      ? 'You’ve reached the limit of weekly commitments. Delete one to add another.'
-      : `You can have up to ${String(limit)} weekly commitments. Delete one to add another.`,
-  too_short: 'A commitment needs to be at least 15 minutes long.',
+      ? 'You’ve reached the limit of weekly busy times. Delete one to add another.'
+      : `You can have up to ${String(limit)} weekly busy times. Delete one to add another.`,
+  too_short: 'A busy time needs to be at least 15 minutes long.',
   range_too_long: 'That’s too long a range for me to show at once.',
   already_applied: 'I’ve already saved that timetable.',
   job_not_ready: 'I haven’t finished reading that yet. Give me a moment.',
   timetable_unreadable: 'I couldn’t read a timetable in that file. Try a sharper photo or a PDF.',
-  timetable_invalid: 'I couldn’t make sense of that timetable. Try again, or add your commitments by hand.',
+  timetable_invalid: 'I couldn’t make sense of that timetable. Try again, or add your busy times by hand.',
   too_many_pages: 'That PDF has too many pages. Send me only the page with your timetable.',
 } as const

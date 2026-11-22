@@ -80,7 +80,7 @@ describe('enCalendar: user content in a sentence', () => {
     ['grid.busyLabel', grid.busyLabel(NAME, '09:00–10:30')],
     ['sheets.defer.skipped', sheets.defer.skipped(NAME)],
     ['sheets.busy.willMove', sheets.busy.willMove(1, NAME)],
-    ['side.examLabel', side.examLabel(NAME, 'Sun, 22 Nov', 40)],
+    ['side.examLabel', side.examLabel(NAME, 'Sun, 22 Nov')],
   ]
 
   it.each(NAMED)('%s isolates the name exactly once', (_path, text) => {

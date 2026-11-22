@@ -1,6 +1,6 @@
 // @vitest-environment node
 /// <reference types="node" />
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { en } from './en'
 
@@ -180,5 +180,19 @@ describe('en: a day inside a sentence', () => {
     expect(en.board.deferred('Tomorrow', '14:00')).toBe('I moved it to tomorrow at 14:00.')
     expect(en.board.deferred('Today', '09:00')).toBe('I moved it to today at 09:00.')
     expect(en.board.deferred('Sun, 22 Nov', '14:00')).toBe('I moved it to Sun, 22 Nov at 14:00.')
+  })
+})
+
+// The prototype and the glossary (archi-voice.md) name the hours a student cannot study "busy time",
+// in the calendar and in the settings alike: no student-facing text says "commitment".
+describe('en: one word for busy time', () => {
+  const files = readdirSync(new URL('.', import.meta.url)).filter((name) => /^en[A-Za-z]*\.ts$/.test(name))
+  it('reads every text file of the dictionary', () => {
+    expect(files).toEqual(expect.arrayContaining(['en.ts', 'enCalendarCodes.ts', 'enCalendarSheets.ts', 'enCommitments.ts', 'enSettingsScreen.ts']))
+  })
+  it.each(files)('%s has no "commitment" inside a text', (name) => {
+    const source = readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/^\s*\/\/.*$/gm, '')
+    const literals = source.match(/'[^'\n]*'|`[^`]*`/g) ?? []
+    expect(literals.filter((text) => /\bcommitments?\b/i.test(text))).toEqual([])
   })
 })

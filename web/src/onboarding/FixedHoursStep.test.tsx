@@ -8,6 +8,7 @@ import { AppProviders } from '../app/AppProviders'
 import type { Commitment, CommitmentInput } from '../availability/types'
 import { groupCommitments, groupSubtitle } from '../commitments/model'
 import { todayIn } from '../exam/dates'
+import { codeText } from '../i18n/codes'
 import { en } from '../i18n/en'
 import { createFakeApi, problem, type ApiCall, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
@@ -326,7 +327,10 @@ describe('FixedHoursStep', () => {
     await user.click(screen.getByRole('button', { name: cellName(0, 10) }))
     await user.click(screen.getByRole('button', { name: cellName(1, 14) }))
     await user.click(build())
-    expect(await screen.findByRole('alert')).toHaveTextContent(t.saveFailed)
+    const alert = await screen.findByRole('alert')
+    // The title says what happened to the marked hours; S32's text of the code says why.
+    expect(alert).toHaveTextContent(t.saveFailed)
+    expect(alert).toHaveTextContent(codeText('too_many_commitments'))
     expect(fake.calls('POST', '/commitments')).toHaveLength(2)
 
     state.postReply = () => null

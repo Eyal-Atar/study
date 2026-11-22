@@ -12,7 +12,7 @@ import type {
   Weekday,
 } from '../availability/types'
 import { en } from '../i18n/en'
-import { codeText, isKnownCode, resetTime } from '../i18n/codes'
+import { codeText, resetTime } from '../i18n/codes'
 import { useJob } from '../onboarding/api'
 import { ACCEPTED_FILE_TYPES, UploadError } from '../onboarding/upload'
 import { Button } from '../ui/Button'
@@ -104,8 +104,8 @@ function apiText(error: ApiError): string {
     const limit = error.details.limit
     return t.quota(typeof limit === 'number' && Number.isFinite(limit) ? limit : null, resetTime(error.details, new Date()))
   }
-  if (error.code !== null && isKnownCode(error.code)) return codeText(error.code, error.details)
-  return error.title ?? en.errors.generic
+  // A code without a text of ours gets the generic one (codeText), never the server's title.
+  return error.code === null ? en.errors.generic : codeText(error.code, error.details)
 }
 
 // Why a file did not get as far as the job. Everything here is said before any request, except the

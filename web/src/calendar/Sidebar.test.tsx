@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { blockName } from '../board/blockName'
 import type { Block, Plan, Today } from '../board/types'
 import { en } from '../i18n/en'
+import { examColor } from '../ui/examColor'
 import { makeBlock, makeMe, makePlan, makeToday, renderBoard } from '../test/boardFixtures'
 import { createFakeApi } from '../test/fakeApi'
 import { archiLine, type ArchiMoment } from './archi'
@@ -277,8 +278,14 @@ describe('Sidebar: the exams', () => {
     setup()
     expect(screen.getByRole('heading', { name: 'Your exams' })).toBeInTheDocument()
     expect(screen.getByText('in 22 days')).toBeInTheDocument()
-    const bar = await screen.findByRole('progressbar', { name: en.calendar.side.examLabel(EXAM_NAME, 'in 22 days', 42) })
-    expect(bar).toHaveAttribute('aria-valuetext', '42% of the plan done')
+    // The name is the exam and its days; the value is the sentence, so the percent is heard once.
+    const bar = await screen.findByRole('progressbar', { name: en.calendar.side.examLabel(EXAM_NAME, 'in 22 days') })
+    await waitFor(() => {
+      expect(bar).toHaveAttribute('aria-valuetext', '42% of the plan done')
+    })
+    expect(bar.getAttribute('aria-label')).not.toContain('%')
+    // The bar of the exams screen (ui/ExamMark): filled in the exam's own colour.
+    expect(bar.querySelector('[data-fill]')).toHaveClass(examColor(1).solid)
     expect(screen.getAllByText(EXAM_NAME).some((el) => el.hasAttribute('data-user-text'))).toBe(true)
   })
 
