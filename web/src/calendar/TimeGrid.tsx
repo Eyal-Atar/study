@@ -162,7 +162,13 @@ export function TimeGrid({
   for (let min = Math.ceil(span.startMin / 60) * 60; min < span.endMin; min += 60) lines.push(min)
 
   const leaving = new Set(ghosts.filter((g) => g.tone === 'leaving').map((g) => g.id))
-  const drawnGhosts = [...ghosts, ...(drag.ghost === null ? [] : [drag.ghost]), ...(empty.ghost === null ? [] : [empty.ghost])]
+  // The ghosts of the grid's own gestures have keys of their own: the page may preview a ghost of
+  // the same block in the same tone.
+  const drawnGhosts = [
+    ...ghosts.map((ghost) => ({ ghost, key: `${ghost.id}-${ghost.tone}` })),
+    ...(drag.ghost === null ? [] : [{ ghost: drag.ghost, key: `drag-${drag.ghost.id}-${drag.ghost.tone}` }]),
+    ...(empty.ghost === null ? [] : [{ ghost: empty.ghost, key: `press-${empty.ghost.id}` }]),
+  ]
 
   // A click that ends a drag or a swipe is not a press on the block. Both are asked, so both forget it.
   function openBlock(block: Block) {
@@ -403,10 +409,10 @@ export function TimeGrid({
               })}
 
             {drawnGhosts
-              .filter((ghost) => ghost.date === date && ghost.tone !== 'leaving')
-              .map((ghost) => {
+              .filter(({ ghost }) => ghost.date === date && ghost.tone !== 'leaving')
+              .map(({ ghost, key }) => {
                 const at = place(ghost.startMin, ghost.endMin)
-                return <GhostBlock key={`${ghost.id}-${ghost.tone}`} ghost={ghost} top={at.top} height={at.height} />
+                return <GhostBlock key={key} ghost={ghost} top={at.top} height={at.height} />
               })}
 
             {showNow && date === today ? (

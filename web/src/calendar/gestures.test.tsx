@@ -12,6 +12,7 @@ import { makeBlock, makeMe, makePlan, makeToday, renderBoard } from '../test/boa
 import { createFakeApi, type ApiCall } from '../test/fakeApi'
 import { weekDays } from './days'
 import { toPx, type GridSpan } from './geometry'
+import type { Ghost } from './ghost'
 import { makeBusy } from './testFixtures'
 import { TimeGrid } from './TimeGrid'
 
@@ -63,7 +64,7 @@ type Spies = ReturnType<typeof makeSpies>
 
 // The grid can be taken away alone, so a test sees what the grid leaves behind, apart from the
 // providers around it.
-function Harness({ spies }: { spies: Spies }) {
+function Harness({ spies, ghosts }: { spies: Spies; ghosts: Ghost[] }) {
   const today = useToday()
   const [shown, setShown] = useState(true)
   if (today.data === undefined) return null
@@ -77,12 +78,12 @@ function Harness({ spies }: { spies: Spies }) {
       >
         hide the grid
       </button>
-      {shown ? <Grid spies={spies} blocks={today.data.blocks} /> : null}
+      {shown ? <Grid spies={spies} blocks={today.data.blocks} ghosts={ghosts} /> : null}
     </>
   )
 }
 
-function Grid({ spies, blocks }: { spies: Spies; blocks: Block[] }) {
+function Grid({ spies, blocks, ghosts }: { spies: Spies; blocks: Block[]; ghosts: Ghost[] }) {
   return (
     <TimeGrid
       days={WEEK}
@@ -92,7 +93,7 @@ function Grid({ spies, blocks }: { spies: Spies; blocks: Block[] }) {
       hourPx={HOUR}
       blocks={blocks}
       busy={[BUSY]}
-      ghosts={[]}
+      ghosts={ghosts}
       tz={TZ}
       now={Date.parse(NOW)}
       restDays={new Set()}
@@ -109,7 +110,7 @@ function Grid({ spies, blocks }: { spies: Spies; blocks: Block[] }) {
   )
 }
 
-async function setup(blocks: Block[] = [A, B, DONE]) {
+async function setup(blocks: Block[] = [A, B, DONE], ghosts: Ghost[] = []) {
   const state: { today: Today } = { today: makeToday(blocks) }
   const fake = createFakeApi()
     .on('GET /me', makeMe(TZ))
@@ -130,9 +131,9 @@ async function setup(blocks: Block[] = [A, B, DONE]) {
       return moved
     })
   const spies = makeSpies()
-  const rendered = renderBoard(<Harness spies={spies} />, { api: fake.api })
+  const rendered = renderBoard(<Harness spies={spies} ghosts={ghosts} />, { api: fake.api })
   await waitFor(() => {
-    expect(document.querySelector(`[data-block-id="${A.id}"]`)).not.toBeNull()
+    expect(document.querySelector(`[data-block-id="${blocks[0]?.id ?? A.id}"]`)).not.toBeNull()
   })
   return { fake, state, spies, ...rendered }
 }
@@ -467,13 +468,21 @@ describe('a refresh in the middle of a drag', () => {
 })
 
 describe('touch', () => {
-  it('a long press of 350ms without moving starts the drag, and turns off scrolling while it lasts', async () => {
+  it('a long press of 350ms without moving starts the drag, and stops the scroll only while it lasts', async () => {
     const { fake } = await setup()
-    const added = vi.spyOn(document, 'addEventListener')
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
     vi.setSystemTime(new Date(NOW))
     const el = blockEl(A)
+    // The listener is there before the finger comes down: a browser decides at the start of a touch
+    // whether its touchmoves can be cancelled, and iOS ignores a listener added during the touch.
+    const touchmove = () => {
+      const event = new Event('touchmove', { cancelable: true, bubbles: true })
+      el.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    expect(touchmove()).toBe(false)
     fireEvent.pointerDown(el, { ...touch, clientX: 100, clientY: 500 })
+    expect(touchmove()).toBe(false)
     act(() => {
       vi.advanceTimersByTime(349)
     })
@@ -482,23 +491,37 @@ describe('touch', () => {
       vi.advanceTimersByTime(1)
     })
     expect(el).toHaveAttribute('data-lifted')
-    const touchmove = added.mock.calls.find(([type]) => type === 'touchmove')
-    expect(touchmove?.[2]).toEqual({ passive: false })
-    const event = new Event('touchmove', { cancelable: true })
-    document.dispatchEvent(event)
-    expect(event.defaultPrevented).toBe(true)
+    expect(touchmove()).toBe(true)
 
     fireEvent.pointerMove(el, { ...touch, clientX: 100, clientY: 500 + 60 * PX })
     expect(ghostEl()).not.toBeNull()
     fireEvent.pointerUp(el, { ...touch, clientX: 100, clientY: 500 + 60 * PX })
     vi.useFakeTimers({ toFake: ['Date'] })
     // Scrolling is back.
-    const after = new Event('touchmove', { cancelable: true })
-    document.dispatchEvent(after)
-    expect(after.defaultPrevented).toBe(false)
+    expect(touchmove()).toBe(false)
     await waitFor(() => {
       expect(patches(fake)).toEqual([{ starts_at: '2026-11-25T13:00:00.000Z' }])
     })
+  })
+
+  it('the touchmove listener is not passive, and a mouse drag does not stop the scroll', async () => {
+    const added = vi.spyOn(HTMLElement.prototype, 'addEventListener')
+    await setup()
+    const options = added.mock.calls.filter(([type]) => type === 'touchmove').map(([, , opts]) => opts)
+    expect(options).toContainEqual({ passive: false })
+    const el = blockEl(A)
+    mouseDrag(el, 60 * PX)
+    const event = new Event('touchmove', { cancelable: true, bubbles: true })
+    el.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(false)
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    // Taken off with the grid. The last one: StrictMode mounts the effect twice.
+    const lock = added.mock.calls.filter(([type, , opts]) => type === 'touchmove' && JSON.stringify(opts) === '{"passive":false}').at(-1)?.[1]
+    expect(lock).toBeDefined()
+    const removed = vi.spyOn(HTMLElement.prototype, 'removeEventListener')
+    fireEvent.click(screen.getByRole('button', { name: 'hide the grid' }))
+    expect(removed.mock.calls.some(([type, listener]) => type === 'touchmove' && listener === lock)).toBe(true)
   })
 
   it('a finger that scrolls over a block starts neither a drag nor a swipe', async () => {
@@ -653,6 +676,85 @@ describe('the empty space of a column', () => {
     expect(spies.onSwipeDay).toHaveBeenLastCalledWith(-1)
     expect(spies.onSwipeDay).toHaveBeenCalledTimes(2)
     expect(spies.onCreateBusy).not.toHaveBeenCalled()
+  })
+})
+
+describe('fixes of the review', () => {
+  it('a click with no press before it, after a drag that ended with no click, opens the block', async () => {
+    const { spies } = await setup()
+    const el = blockEl(A)
+    mouseDrag(el, 120 * PX)
+    fireEvent.pointerUp(el, { ...mouse, clientX: 100, clientY: 500 + 120 * PX })
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+    // A screen reader's double tap: a click alone.
+    fireEvent.click(el)
+    expect(spies.onOpenBlock).toHaveBeenCalledWith(A)
+  })
+
+  it('a click alone after a swipe that closed opens the block', async () => {
+    const { spies } = await setup()
+    swipe(blockEl(A), -40)
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+    fireEvent.click(blockEl(A))
+    expect(spies.onOpenBlock).toHaveBeenCalledWith(A)
+  })
+
+  it('a refresh that moves the dragged block on the server ends the drag', async () => {
+    const { fake, state, queryClient } = await setup()
+    const el = blockEl(A)
+    mouseDrag(el, 60 * PX)
+    expect(ghostEl()).not.toBeNull()
+    state.today = {
+      ...state.today,
+      blocks: state.today.blocks.map((b) => (b.id === A.id ? { ...b, starts_at: '2026-11-25T11:00:00Z', ends_at: '2026-11-25T12:00:00Z' } : b)),
+    }
+    await act(() => queryClient.invalidateQueries())
+    await waitFor(() => {
+      expect(ghostEl()).toBeNull()
+    })
+    expect(live()).toHaveTextContent(en.move.cancelled)
+    mouseUp(blockEl(A), 60 * PX)
+    expect(patches(fake)).toEqual([])
+  })
+
+  it('the same words twice in a row are a new announcement', async () => {
+    await setup()
+    const el = blockEl(A)
+    // 5px: lifted, still at its own place, so nothing is said until Escape.
+    mouseDrag(el, 5)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    const first = live().textContent
+    mouseUp(el, 5)
+    mouseDrag(el, 5)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(live()).toHaveTextContent(en.move.cancelled)
+    expect(live().textContent).not.toBe(first)
+    mouseUp(el, 5)
+  })
+
+  it('a first arrow that cannot move the block says where it is', async () => {
+    const user = userEvent.setup()
+    // 11:30–12:30 today, and now is 11:25: 11:30 is the earliest start.
+    const early = makeBlock({ id: 'e', task_id: 't-e', task_title: 'מוקדם', study_date: TODAY, starts_at: '2026-11-24T09:30:00Z', ends_at: '2026-11-24T10:30:00Z' })
+    await setup([early])
+    const el = blockEl(early)
+    act(() => {
+      el.focus()
+    })
+    await user.keyboard('{ArrowUp}')
+    expect(live()).toHaveTextContent(candidate('11:30–12:30'))
+    await user.keyboard('{Escape}')
+    expect(live()).toHaveTextContent(en.move.cancelled)
+  })
+
+  it('a drag ghost never shares a key with a ghost the page previews for the same block', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const preview: Ghost = { id: A.id, date: DAY, startMin: 1200, endMin: 1260, colorIndex: 0, title: A.task_title, tone: 'target' }
+    await setup([A, B, DONE], [preview])
+    mouseDrag(blockEl(A), 60 * PX)
+    expect(column(DAY).querySelectorAll('[data-ghost]')).toHaveLength(2)
+    expect(errors.mock.calls.some((args) => args.some((arg) => typeof arg === 'string' && arg.includes('same key')))).toBe(false)
+    fireEvent.keyDown(document, { key: 'Escape' })
   })
 })
 

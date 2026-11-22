@@ -18,8 +18,10 @@ import { ghostOf, type Ghost } from './ghost'
 // - Mouse and pen: the drag starts after 4px of vertical travel from the press; less is a press,
 //   and the click that follows opens the block.
 // - Touch: a long press of 350ms that moved no more than 8px; a finger that moves before that is
-//   scrolling (or swiping, useSwipe.ts). Once the drag started, a non-passive touchmove listener
-//   on the document stops the page from scrolling under it.
+//   scrolling (or swiping, useSwipe.ts). A non-passive touchmove listener on the grid, there from
+//   mount, stops the page from scrolling while a touch drag is on. It must exist before the touch
+//   begins: a browser decides at touchstart whether the touch's moves can be cancelled, and iOS
+//   ignores preventDefault from a listener added during the touch.
 // - Keyboard: an arrow or Page key on a focused block starts the move and takes the first step.
 //
 // The pointer is read as clientY deltas from the press and the grid's px per hour, never the
@@ -40,6 +42,8 @@ interface Drag {
   origin: number
   candidate: number
   mode: 'pointer' | 'keyboard'
+  // A pointer drag by a finger: the scroll is stopped while it lasts.
+  touch: boolean
   pointerId?: number
   startY?: number
   // How far the pointer moved the lifted block, in px.
@@ -107,14 +111,25 @@ export function useBlockDrag({ blocks, busy, tz, now, hourPx, dayBounds, rootRef
   const [drag, setDragState] = useState<Drag | null>(null)
   const dragRef = useRef<Drag | null>(null)
   const pending = useRef<Pending | null>(null)
-  const [announcement, setAnnouncement] = useState('')
+  const [announcement, setAnnouncementState] = useState('')
+  const announced = useRef('')
   const [returning, setReturning] = useState<string | null>(null)
   const swallowClick = useRef(false)
+  const clickTimer = useRef<number | null>(null)
   const listeners = useRef<(() => void)[]>([])
   // After a keyboard move the focus stays on the block (the mechanism of today/DayTimeline): if the
   // block's element is replaced and the focus falls to <body>, it takes it back, until the move
   // settled with the focus on it. Focus anywhere else is the user's, and ends the request.
   const refocus = useRef<{ id: string; seen: boolean } | null>(null)
+
+  // The same words twice in a row would not change the live region, and a screen reader would not
+  // read them again: a repeat alternates a trailing no-break space, which changes the text and not
+  // what is heard.
+  function setAnnouncement(text: string) {
+    const next = text !== '' && announced.current === text ? `${text}\u00a0` : text
+    announced.current = next
+    setAnnouncementState(next)
+  }
 
   function setDrag(next: Drag | null) {
     dragRef.current = next
@@ -145,14 +160,39 @@ export function useBlockDrag({ blocks, busy, tz, now, hourPx, dayBounds, rootRef
       const current = pending.current
       if (current?.timer != null) window.clearTimeout(current.timer)
       pending.current = null
+      if (clickTimer.current !== null) window.clearTimeout(clickTimer.current)
     },
     [],
   )
 
+  // The scroll lock of a touch drag, registered once (see the top of the file).
+  useEffect(() => {
+    const root = rootRef.current
+    if (root === null) return
+    const lock = (event: Event) => {
+      if (dragRef.current?.touch === true) event.preventDefault()
+    }
+    root.addEventListener('touchmove', lock, { passive: false })
+    return () => {
+      root.removeEventListener('touchmove', lock)
+    }
+  }, [rootRef])
+
+  // The click that ends a drag comes right after the pointerup, in the same task. After a touch
+  // drag a browser sends none, so the guard ends on the next task: a click alone later (a screen
+  // reader's double tap) is a press on the block.
+  function releaseClickSoon() {
+    if (clickTimer.current !== null) window.clearTimeout(clickTimer.current)
+    clickTimer.current = window.setTimeout(() => {
+      clickTimer.current = null
+      swallowClick.current = false
+    }, 0)
+  }
+
   // The dragged block may stop being movable under the drag: a refetch turns it in_progress, or it
   // is gone. The drag then ends here, with no request (Review Focus 2).
-  const draggedId = drag?.id
-  const draggable = draggedId === undefined || blocks.some((b) => b.id === draggedId && movable(b))
+  // A refetch that moved the block on the server ends it too: the drag is measured from the old start.
+  const draggable = drag === null || blocks.some((b) => b.id === drag.id && movable(b) && Date.parse(b.starts_at) === drag.origin)
   useEffect(() => {
     if (draggable || dragRef.current === null) return
     unlisten()
@@ -238,24 +278,13 @@ export function useBlockDrag({ blocks, busy, tz, now, hourPx, dayBounds, rootRef
     const origin = Date.parse(block.starts_at)
     swallowClick.current = true
     setReturning(null)
-    setDrag({ id: block.id, origin, candidate: origin, mode: 'pointer', pointerId: press.pointerId, startY: press.startY, dy: 0 })
+    setDrag({ id: block.id, origin, candidate: origin, mode: 'pointer', touch: press.touch, pointerId: press.pointerId, startY: press.startY, dy: 0 })
     listen(document, 'keydown', (event) => {
       if ((event as globalThis.KeyboardEvent).key !== 'Escape') return
       event.preventDefault()
       event.stopPropagation()
       cancel()
     })
-    if (press.touch) {
-      // The page must not scroll under a finger that holds a block.
-      listen(
-        document,
-        'touchmove',
-        (event) => {
-          event.preventDefault()
-        },
-        { passive: false },
-      )
-    }
   }
 
   function earliestStart(block: Block) {
@@ -265,13 +294,16 @@ export function useBlockDrag({ blocks, busy, tz, now, hourPx, dayBounds, rootRef
     return grid < from ? grid + STEP_MS : grid
   }
 
-  function step(block: Block, current: Drag, steps: number) {
+  // False when the block cannot go further that way.
+  function step(block: Block, current: Drag, steps: number): boolean {
     // Not before now or the start of the day, nor past its end: the block stops there.
     const next = Math.max(snapToGrid(current.candidate + steps * STEP_MS, tz), earliestStart(block))
-    if (steps < 0 && next > current.candidate) return
+    if (steps < 0 && next > current.candidate) return false
     const { dayEnd } = dayBounds(block.study_date)
-    if (dayEnd !== null && next + blockMinutes(block) * MINUTE_MS > dayEnd) return
+    if (dayEnd !== null && next + blockMinutes(block) * MINUTE_MS > dayEnd) return false
+    if (next === current.candidate) return false
     propose(block, current, next)
+    return true
   }
 
   function pointerDrag(block: Block, event: PointerEvent): Drag | null {
@@ -338,15 +370,20 @@ export function useBlockDrag({ blocks, busy, tz, now, hourPx, dayBounds, rootRef
       onPointerUp: (event) => {
         if (pointerDrag(block, event) !== null) finish(block)
         else if (pendingOf(block, event) !== null) clearPending()
+        // Also after a drag that Escape ended before the release.
+        if (swallowClick.current) releaseClickSoon()
       },
       onPointerCancel: (event) => {
         if (pointerDrag(block, event) !== null) cancel()
         else if (pendingOf(block, event) !== null) clearPending()
+        if (swallowClick.current) releaseClickSoon()
       },
       // The capture can go without a pointerup (another element took it, the window lost focus);
       // after a pointerup the drag is already over.
       onLostPointerCapture: (event) => {
-        if (pointerDrag(block, event) !== null) cancel()
+        if (pointerDrag(block, event) === null) return
+        cancel()
+        releaseClickSoon()
       },
       onKeyDown: (event) => {
         swallowClick.current = false
@@ -358,10 +395,11 @@ export function useBlockDrag({ blocks, busy, tz, now, hourPx, dayBounds, rootRef
           if (steps === undefined || !canStart(block)) return
           event.preventDefault()
           const origin = Date.parse(block.starts_at)
-          const started: Drag = { id: block.id, origin, candidate: origin, mode: 'keyboard', dy: 0 }
+          const started: Drag = { id: block.id, origin, candidate: origin, mode: 'keyboard', touch: false, dy: 0 }
           setReturning(null)
           setDrag(started)
-          step(block, started, steps)
+          // Already as far as it goes that way: the move is on, so say where the block is.
+          if (!step(block, started, steps)) say(block, started, origin)
           return
         }
         if (steps !== undefined) {

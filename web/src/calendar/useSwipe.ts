@@ -56,6 +56,26 @@ export function useSwipe(blocks: Block[], onAction: (block: Block, action: Swipe
   const [track, setTrackState] = useState<Track | null>(null)
   const trackRef = useRef<Track | null>(null)
   const swallowClick = useRef(false)
+  const clickTimer = useRef<number | null>(null)
+
+  useEffect(
+    () => () => {
+      if (clickTimer.current !== null) window.clearTimeout(clickTimer.current)
+    },
+    [],
+  )
+
+  // The click that ends a swipe comes right after the pointerup, in the same task; a finger that
+  // moved gets none. The guard ends on the next task, so a click alone later (a screen reader's
+  // double tap) is a press on the block.
+  function swallowNextClick() {
+    swallowClick.current = true
+    if (clickTimer.current !== null) window.clearTimeout(clickTimer.current)
+    clickTimer.current = window.setTimeout(() => {
+      clickTimer.current = null
+      swallowClick.current = false
+    }, 0)
+  }
 
   function setTrack(next: Track | null) {
     trackRef.current = next
@@ -134,13 +154,13 @@ export function useSwipe(blocks: Block[], onAction: (block: Block, action: Swipe
         if (current === null) return
         setTrack(null)
         if (current.swiping === true) {
-          swallowClick.current = true
+          swallowNextClick()
           setOpenId(current.offset >= OPEN_AT_PX ? block.id : null)
           return
         }
         // A tap on an open block closes it, and does not open the block's actions.
         if (current.base > 0) {
-          swallowClick.current = true
+          swallowNextClick()
           close()
         }
       },
