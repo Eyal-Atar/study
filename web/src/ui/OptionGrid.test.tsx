@@ -47,6 +47,14 @@ describe('OptionGrid', () => {
     expect(listbox.className).toMatch(/\bmax-h-/)
   })
 
+  it('columns={4} is four columns at every width, and the chosen one still has its check', () => {
+    render(<OptionGrid aria-label={NAME} options={OPTIONS} value="09:30" onChange={vi.fn()} columns={4} />)
+    const listbox = screen.getByRole('listbox', { name: NAME })
+    expect(listbox).toHaveClass('grid-cols-4')
+    expect(listbox).not.toHaveClass('grid-cols-3')
+    expect(within(listbox).getByRole('option', { name: '09:30' }).querySelector('svg')).not.toBeNull()
+  })
+
   it('an option is a 44px lined box with tabular numbers and the focus ring', () => {
     render(<OptionGrid aria-label={NAME} options={OPTIONS} value={null} onChange={vi.fn()} />)
     const option = screen.getByRole('option', { name: '09:30' })

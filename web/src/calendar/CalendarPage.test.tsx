@@ -293,6 +293,13 @@ describe('the calendar on a phone', () => {
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
   })
 
+  // S32 screenshot pass, S3: an empty calendar has no tasks bar (as in the prototype).
+  it('the empty calendar has no tasks bar', async () => {
+    openCalendar('/calendar', { blocks: [] })
+    expect(await screen.findByText(en.today.noTasks)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: new RegExp(en.today.blocks) })).not.toBeInTheDocument()
+  })
+
   it('a day of the strip writes ?date=', async () => {
     const user = userEvent.setup()
     const { router } = openCalendar('/calendar', { blocks: BLOCKS })

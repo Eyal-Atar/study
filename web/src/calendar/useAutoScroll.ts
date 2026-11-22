@@ -9,7 +9,8 @@ export const STICKY_ATTRIBUTE = 'data-calendar-sticky'
 // is drawn with its data (`ready`), "now" a third of the way down the visible part, or, without
 // today on screen, the first block just under the top. The grid says both, in px from the top of its
 // columns (data-now-y, data-first-y). On a computer the grid scrolls in its own box (`scroller`); on
-// a phone (no box) the window scrolls, under the sticky header. A refresh of the data does not
+// a phone (no box) the window scrolls, under the sticky header, and never so far that the banner
+// goes under it (S32 screenshot pass). A refresh of the data does not
 // scroll again: the user may have scrolled since. `behavior: 'auto'`: the page opens where it is,
 // with no motion.
 export function useAutoScroll(
@@ -41,6 +42,10 @@ export function useAutoScroll(
     const sticky = document.querySelector(`[${STICKY_ATTRIBUTE}]`)?.getBoundingClientRect().height ?? 0
     const offset = columns.getBoundingClientRect().top + window.scrollY
     const lead = nowY === null ? FIRST_MARGIN_PX : (window.innerHeight - sticky) / 3
-    window.scrollTo({ top: Math.max(0, offset + y - sticky - lead), behavior: 'auto' })
+    // The banner (the review, the report) sits between the sticky header and the grid: when it is
+    // there, the first scroll stops where its top meets the header, so it is never half hidden.
+    const banner = document.querySelector('[data-banner-row]')
+    const limit = banner === null ? Number.POSITIVE_INFINITY : banner.getBoundingClientRect().top + window.scrollY - sticky
+    window.scrollTo({ top: Math.max(0, Math.min(offset + y - sticky - lead, limit)), behavior: 'auto' })
   }, [scroller, grid, key, ready])
 }

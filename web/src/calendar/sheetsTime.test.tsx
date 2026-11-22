@@ -63,6 +63,17 @@ describe('FreeTimeSheet', () => {
     expect(last[0]?.endMin).toBe(last[1]?.startMin)
   })
 
+  // S32 screenshot pass, S1: a small Archi stands on the sheet's top edge, outside its content, and
+  // the four amounts are one row.
+  it('Archi stands above the sheet, small, and the four amounts are one row', async () => {
+    setupFree([half('a', 60)])
+    const dialog = await screen.findByRole('dialog', { name: s.freeTime.title })
+    expect(dialog.querySelector('[data-mood]')).toBeNull()
+    const archi = document.querySelector('[data-mood="joy"]')
+    expect(archi?.closest('.bottom-full')).not.toBeNull()
+    expect(screen.getByRole('listbox', { name: s.freeTime.amount })).toHaveClass('grid-cols-4')
+  })
+
   it('shows no box when the first block is longer than the time', async () => {
     const long = half('a', 60, { ends_at: new Date(NOW + 60 * 60_000 + 90 * 60_000).toISOString() })
     const { onPreview } = setupFree([long])

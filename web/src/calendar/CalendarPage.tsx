@@ -343,7 +343,8 @@ export function CalendarPage() {
       {banner}
       {staleNote}
       {body(HOUR_PX.phone, move)}
-      {todayData === undefined ? null : (
+      {/* The empty calendar has no tasks bar (as in the prototype): there is no block to list. */}
+      {todayData === undefined || empty ? null : (
         <TasksSheet todayData={todayData} tz={tz} onFreeTime={freeTime} onMarkBusy={markBusy} onOpenBlock={openBlock} />
       )}
       {breakNotice}

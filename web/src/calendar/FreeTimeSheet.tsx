@@ -48,6 +48,13 @@ export function FreeTimeSheet(props: FreeTimeSheetProps) {
       onOpenChange={(open) => {
         if (!open) close()
       }}
+      // About 110px of Archi (joy is 702 by 654), standing on the sheet's top edge as in the
+      // prototype, so the amounts and "Start now" fit on a phone without scrolling.
+      figure={
+        <div className="w-[118px]">
+          <Archie mood="joy" decorative />
+        </div>
+      }
     >
       {props.isOpen ? <FreeTimeBody {...props} write={write} onClose={close} /> : null}
     </Dialog>
@@ -138,9 +145,9 @@ function FreeTimeBody({
 
   return (
     <>
-      <Archie mood="joy" decorative className="w-28" />
       <OptionGrid
         aria-label={f.amount}
+        columns={4}
         options={[
           { id: 'm30', label: f.options.m30 },
           { id: 'm60', label: f.options.m60 },

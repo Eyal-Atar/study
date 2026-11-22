@@ -25,6 +25,9 @@ export interface DialogProps {
   // The actions row: the primary Button first (it sits at the start side and grows, with
   // className="flex-1"), then the others.
   footer?: ReactNode
+  // A picture (Archi) standing on the top edge of the sheet at the start side, outside the box
+  // that scrolls, so it is never cut by it. Decorative: hidden from assistive technology.
+  figure?: ReactNode
 }
 
 // The gap between the parts of the dialog. The form (when there is one) repeats it, so the layout
@@ -46,8 +49,13 @@ const OVERLAY =
 // why that is the property in transition.
 // The height limit is 85% of the same visual viewport (the variable is inherited from the overlay):
 // 85dvh ignores the keyboard, and would push the top of a long sheet off the screen.
-const MODAL =
-  'max-h-[calc(var(--visual-viewport-height)*0.85)] w-full overflow-y-auto rounded-t-sheet bg-surface pb-[env(safe-area-inset-bottom)] shadow-sheet md:max-w-md md:rounded-card md:border md:border-line md:shadow-overlay transition-[translate,opacity] duration-(--duration-slow) data-[entering]:translate-y-2 data-[entering]:opacity-0 data-[exiting]:translate-y-2 data-[exiting]:opacity-0'
+// The shape (what the eye sees) and the box that scrolls are one element, unless the dialog has a
+// figure: then the shape is the frame the figure stands on, and the box that scrolls is inside it.
+const SHAPE =
+  'w-full rounded-t-sheet bg-surface shadow-sheet md:max-w-md md:rounded-card md:border md:border-line md:shadow-overlay transition-[translate,opacity] duration-(--duration-slow) data-[entering]:translate-y-2 data-[entering]:opacity-0 data-[exiting]:translate-y-2 data-[exiting]:opacity-0'
+const SCROLLER = 'max-h-[calc(var(--visual-viewport-height)*0.85)] overflow-y-auto pb-[env(safe-area-inset-bottom)]'
+const MODAL = cx(SCROLLER, SHAPE)
+const FIGURE = 'pointer-events-none absolute bottom-full start-4'
 
 // The handle at the top of the sheet (38x5, the .grab of the prototype). It only draws: the sheet
 // is not dragged, it closes with its close button, Escape or a press on the scrim, so the handle is
@@ -68,6 +76,7 @@ export function Dialog({
   onSubmit,
   children,
   footer,
+  figure,
 }: DialogProps) {
   const dismissable = isDismissable ?? role === 'dialog'
   // React Aria links a description by itself only for an alertdialog, so it is linked here for both.
@@ -78,6 +87,50 @@ export function Dialog({
       {footer === undefined || footer === null ? null : <div className="flex flex-wrap gap-2">{footer}</div>}
     </>
   )
+  const sheet = (
+    <>
+      <div aria-hidden="true" data-grab="" className={GRAB} />
+      <AriaDialog
+        role={role}
+        aria-describedby={description === undefined ? undefined : descriptionId}
+        // The dialog itself takes the focus when it opens. It is not a control and Tab cannot
+        // reach it, so it has no ring; every control inside has its own.
+        className={cx(COLUMN, 'p-card outline-none')}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <Heading slot="title" className="min-w-0 break-words text-title font-semibold text-ink">
+            {title}
+          </Heading>
+          {dismissable ? (
+            // slot="close": React Aria's Dialog wires the press to onOpenChange(false).
+            // The negative margins keep the 44px target from pushing the title down and in.
+            <IconButton slot="close" aria-label={en.common.close} className="-me-2 -mt-2">
+              <X aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+            </IconButton>
+          ) : null}
+        </div>
+        {description === undefined ? null : (
+          <p id={descriptionId} className="text-small text-ink-muted">
+            {description}
+          </p>
+        )}
+        {onSubmit === undefined ? (
+          body
+        ) : (
+          <form
+            className={COLUMN}
+            onSubmit={(event) => {
+              // The submit is handled here: the browser must not load a page.
+              event.preventDefault()
+              onSubmit()
+            }}
+          >
+            {body}
+          </form>
+        )}
+      </AriaDialog>
+    </>
+  )
   return (
     <ModalOverlay
       isOpen={isOpen}
@@ -86,48 +139,16 @@ export function Dialog({
       isKeyboardDismissDisabled={isKeyboardDismissDisabled}
       className={OVERLAY}
     >
-      <Modal className={MODAL}>
-        <div aria-hidden="true" data-grab="" className={GRAB} />
-        <AriaDialog
-          role={role}
-          aria-describedby={description === undefined ? undefined : descriptionId}
-          // The dialog itself takes the focus when it opens. It is not a control and Tab cannot
-          // reach it, so it has no ring; every control inside has its own.
-          className={cx(COLUMN, 'p-card outline-none')}
-        >
-          <div className="flex items-start justify-between gap-2">
-            <Heading slot="title" className="min-w-0 break-words text-title font-semibold text-ink">
-              {title}
-            </Heading>
-            {dismissable ? (
-              // slot="close": React Aria's Dialog wires the press to onOpenChange(false).
-              // The negative margins keep the 44px target from pushing the title down and in.
-              <IconButton slot="close" aria-label={en.common.close} className="-me-2 -mt-2">
-                <X aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-              </IconButton>
-            ) : null}
+      {figure === undefined ? (
+        <Modal className={MODAL}>{sheet}</Modal>
+      ) : (
+        <Modal className={cx(SHAPE, 'relative')}>
+          <div aria-hidden="true" className={FIGURE}>
+            {figure}
           </div>
-          {description === undefined ? null : (
-            <p id={descriptionId} className="text-small text-ink-muted">
-              {description}
-            </p>
-          )}
-          {onSubmit === undefined ? (
-            body
-          ) : (
-            <form
-              className={COLUMN}
-              onSubmit={(event) => {
-                // The submit is handled here: the browser must not load a page.
-                event.preventDefault()
-                onSubmit()
-              }}
-            >
-              {body}
-            </form>
-          )}
-        </AriaDialog>
-      </Modal>
+          <div className={cx(SCROLLER, 'rounded-[inherit]')}>{sheet}</div>
+        </Modal>
+      )}
     </ModalOverlay>
   )
 }
