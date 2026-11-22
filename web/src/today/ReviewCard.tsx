@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useToday } from '../board/api'
 import { blockName } from '../board/blockName'
 import { useReview, useReviewActions } from '../board/review'
@@ -14,6 +14,8 @@ type Action = 'complete' | 'moveToday' | 'skip'
 // The morning review (S18): every planned block that ended without a mark, with "Done", "Move to
 // today" and "Skip". Nothing shows while there is nothing to decide (or the review did not load):
 // the card is a question, not a status.
+// `bare` (the calendar's banner, S32): only the rows, with no Card and no heading or lead, since the
+// banner row above them says both in Archi's place; the focus then falls back to the section.
 //
 // Focus (decision 14a): an action takes its row off the card, so the focus moves to the first button
 // of the next row, else of the one before, else to the heading. The card stays (with a short line)
@@ -21,7 +23,7 @@ type Action = 'complete' | 'moveToday' | 'skip'
 // A move or skip that fails leaves its row: the press is forgotten (a later success from the toast
 // must not pull the focus from wherever the user is), and the focus, which the disabled buttons
 // dropped to <body>, goes back to the row's first button once they are enabled again.
-export function ReviewCard() {
+export function ReviewCard({ bare = false }: { bare?: boolean } = {}) {
   const review = useReview()
   const today = useToday()
   const tz = useProfileTimezone()
@@ -49,7 +51,7 @@ export function ReviewCard() {
     const at = before.indexOf(target)
     const next = before.slice(at + 1).find((id) => ids.includes(id)) ?? before.slice(0, at).reverse().find((id) => ids.includes(id))
     const element =
-      next === undefined ? headingRef.current : (sectionRef.current?.querySelector<HTMLElement>(`[data-review-row="${next}"] button`) ?? null)
+      next === undefined ? (headingRef.current ?? sectionRef.current) : (sectionRef.current?.querySelector<HTMLElement>(`[data-review-row="${next}"] button`) ?? null)
     element?.focus()
   }, [ids])
 
@@ -87,16 +89,20 @@ export function ReviewCard() {
   return (
     // Card takes no ref, so the element the focus effects search in wraps it. A real box and not
     // display: contents, which would drop the margin the screen puts between its sections.
-    <div ref={sectionRef}>
+    <div ref={sectionRef} tabIndex={bare ? -1 : undefined} className={bare ? 'outline-none' : undefined}>
       {/* A plain white card with no primary button (S27 decision 4): the one primary button of the
           screen is "Done" of the next task, above this card. */}
-      <Card role="region" aria-labelledby="review-title" className="space-y-3">
+      <Shell bare={bare}>
+        {bare ? (
+          blocks.length === 0 ? <p className="text-small text-ink-muted">{en.review.allDone}</p> : null
+        ) : (
         <div className="space-y-1">
           <h2 id="review-title" ref={headingRef} tabIndex={-1} className="text-body font-semibold outline-none">
             {en.review.title}
           </h2>
           <p className="text-small text-ink-muted">{blocks.length === 0 ? en.review.allDone : en.review.lead(blocks.length)}</p>
         </div>
+        )}
         {blocks.length === 0 ? null : (
           <ul>
             {blocks.map((block) => {
@@ -154,7 +160,17 @@ export function ReviewCard() {
             })}
           </ul>
         )}
-      </Card>
+      </Shell>
     </div>
+  )
+}
+
+// The card of the screen, or (bare) a plain box whose first row has no line above it.
+function Shell({ bare, children }: { bare: boolean; children: ReactNode }) {
+  if (bare) return <div className="space-y-3 [&>ul>li:first-child]:border-t-0">{children}</div>
+  return (
+    <Card role="region" aria-labelledby="review-title" className="space-y-3">
+      {children}
+    </Card>
   )
 }

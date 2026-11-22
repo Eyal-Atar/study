@@ -13,7 +13,9 @@ import { durationText } from './time'
 // It is a warning card: something needs attention and nothing failed. Every text in it is ink,
 // because ink-muted is not a checked pair on the soft fill of a state (design language 2), so the
 // hierarchy inside comes from weight alone. The id is what TodayPage scrolls to.
-export function PlanReport() {
+// `bare` (the calendar's banner, S32): the same content with no Card and no title, since the banner
+// row above it says what the title says.
+export function PlanReport({ bare = false }: { bare?: boolean } = {}) {
   const plan = usePlan()
   const unplaced = plan.data?.unplaced ?? []
   const missing = unplaced.length > 0
@@ -30,8 +32,7 @@ export function PlanReport() {
   const daily = shortfalls.map((s) => s.daily_minutes).filter((m): m is number => m !== null)
   const target = daily.length > 0 ? Math.max(...daily) : null
 
-  return (
-    <Card id="report" role="region" tone="warning" title={en.board.report.title}>
+  const content = (
       <div className="flex flex-col gap-3 text-small">
         {report.isPending ? <p role="status">{en.board.report.loading}</p> : null}
         {report.isError ? (
@@ -94,6 +95,11 @@ export function PlanReport() {
           </Button>
         )}
       </div>
+  )
+  if (bare) return <div id="report">{content}</div>
+  return (
+    <Card id="report" role="region" tone="warning" title={en.board.report.title}>
+      {content}
     </Card>
   )
 }

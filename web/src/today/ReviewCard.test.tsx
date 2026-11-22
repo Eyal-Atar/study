@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
+import { blockName } from '../board/blockName'
 import { codeText, unscheduledText } from '../i18n/codes'
 import { en } from '../i18n/en'
 import { makeBlock, makeMe, makeToday, renderBoard } from '../test/boardFixtures'
@@ -333,5 +334,22 @@ describe('ReviewCard', () => {
     expect(
       row.getByText(paragraph(`${en.review.when(en.board.yesterday)}16:00–17:00${en.review.details(YESTERDAY.exam_name, en.board.part(2, 2))}`)),
     ).toBeInTheDocument()
+  })
+})
+
+describe('ReviewCard bare', () => {
+  it('has no card, heading or lead around the rows, and the same controls', async () => {
+    const fake = createFakeApi()
+      .on('GET /me', makeMe())
+      .on('GET /today', makeToday([]))
+      .on('GET /review', { blocks: [YESTERDAY, THIS_MORNING] })
+    renderBoard(<ReviewCard bare />, { api: fake.api })
+    const first = await screen.findByRole('listitem', { name: YESTERDAY.task_title })
+    expect(screen.queryByRole('region', { name: en.review.title })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()
+    expect(screen.queryByText(en.review.lead(2))).not.toBeInTheDocument()
+    for (const label of [en.review.completeLabel, en.review.moveTodayLabel, en.review.skipLabel]) {
+      expect(within(first).getByRole('button', { name: label(blockName(YESTERDAY)) })).toBeInTheDocument()
+    }
   })
 })

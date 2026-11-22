@@ -180,3 +180,18 @@ describe('PlanReport', () => {
     expect(fake.calls('POST', '/plan/replan')).toHaveLength(2)
   })
 })
+
+describe('PlanReport bare', () => {
+  it('has no card or title, and the same list and button', async () => {
+    const fake = createFakeApi()
+      .on('GET /me', makeMe())
+      .on({ method: 'GET', path: /^\/plan/ }, makePlan([], { unplaced: UNPLACED }))
+      .on('GET /exams', exams)
+      .on('POST /plan/replan', withReasons)
+    renderBoard(<PlanReport bare />, { api: fake.api })
+    expect(await screen.findByText(shortfallText('אלגוריתמים', 270, 300))).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: en.board.report.title })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: en.board.report.title })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.board.report.raise(durationText(300)) })).toBeInTheDocument()
+  })
+})
