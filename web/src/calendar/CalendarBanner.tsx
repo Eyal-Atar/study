@@ -30,6 +30,7 @@ interface RowProps {
 }
 
 function Row({
+  ref,
   name,
   mood,
   expanded,
@@ -38,6 +39,7 @@ function Row({
   children,
   panel,
 }: {
+  ref?: React.Ref<HTMLDivElement>
   name: BannerRow
   mood: ArchieMood
   expanded: boolean
@@ -47,14 +49,13 @@ function Row({
   panel: React.ReactNode
 }) {
   const panelId = useId()
-  const ref = useRef<HTMLDivElement>(null)
   return (
     <div ref={ref} data-banner-row={name} className="border-b border-sand px-3 pt-2">
       <ArchiSays mood={mood} size="sm">
         {children}
       </ArchiSays>
       <div className="flex justify-end pb-1">
-        <Button variant="quiet" aria-expanded={expanded} aria-controls={panelId} onPress={onToggle}>
+        <Button variant="quiet" aria-expanded={expanded} aria-controls={expanded ? panelId : undefined} onPress={onToggle}>
           {label}
           <ChevronRight aria-hidden="true" size={16} strokeWidth={ICON_STROKE} className={expanded ? 'rotate-90' : undefined} />
         </Button>
@@ -92,18 +93,17 @@ function ReportRow({ expanded, onToggle, count, scrollOnMount }: RowProps & { co
     if (scrollOnMount) ref.current?.scrollIntoView({ block: 'nearest' })
   }, [scrollOnMount])
   return (
-    <div ref={ref}>
-      <Row
-        name="report"
-        mood="flow"
-        expanded={expanded}
-        onToggle={onToggle}
-        label={expanded ? en.calendar.side.banner.close : en.calendar.side.banner.details}
-        panel={<PlanReport bare />}
-      >
-        {en.calendar.side.banner.report(count)}
-      </Row>
-    </div>
+    <Row
+      ref={ref}
+      name="report"
+      mood="flow"
+      expanded={expanded}
+      onToggle={onToggle}
+      label={expanded ? en.calendar.side.banner.close : en.calendar.side.banner.details}
+      panel={<PlanReport bare />}
+    >
+      {en.calendar.side.banner.report(count)}
+    </Row>
   )
 }
 

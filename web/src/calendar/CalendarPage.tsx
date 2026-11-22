@@ -286,21 +286,17 @@ export function CalendarPage() {
         <div className="grid h-[calc(100dvh-var(--spacing-topbar))] grid-cols-[300px_1fr]">
           <div className="flex min-h-0">
             {todayData === undefined ? null : (
-              <>
-                {/* The side panel's headings are h3: this one, out of sight, is their parent. */}
-                <h2 className="sr-only">{en.today.title}</h2>
-                <Sidebar
-                  todayData={todayData}
-                  ahead={data.ahead.data}
-                  exams={data.exams.data ?? []}
-                  tz={tz}
-                  moment={moment}
-                  onFreeTime={freeTime}
-                  onMarkBusy={markBusy}
-                  onDefer={deferBlock}
-                  onOpenBlock={openBlock}
-                />
-              </>
+              <Sidebar
+                todayData={todayData}
+                ahead={data.ahead.data}
+                exams={data.exams.data ?? []}
+                tz={tz}
+                moment={moment}
+                onFreeTime={freeTime}
+                onMarkBusy={markBusy}
+                onDefer={deferBlock}
+                onOpenBlock={openBlock}
+              />
             )}
           </div>
           <div className="relative flex min-h-0 min-w-0 flex-col">

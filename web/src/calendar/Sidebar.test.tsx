@@ -89,9 +89,14 @@ function setup({
 }
 
 describe('Sidebar: Archi and the card he stands on', () => {
-  it('is a landmark named Today', () => {
+  // S32 final review, M9: named once, by its own heading inside it.
+  it('is a landmark named Today by the h2 inside it', () => {
     setup()
-    expect(screen.getByRole('complementary', { name: en.today.title })).toBeInTheDocument()
+    const aside = screen.getByRole('complementary', { name: en.today.title })
+    const heading = screen.getByRole('heading', { level: 2, name: en.today.title })
+    expect(aside).toContainElement(heading)
+    expect(aside).toHaveAttribute('aria-labelledby', heading.id)
+    expect(aside).not.toHaveAttribute('aria-label')
   })
 
   it('says the line of the moment, with the mood named in the picture', () => {
@@ -100,6 +105,13 @@ describe('Sidebar: Archi and the card he stands on', () => {
     expect(line).toContain('12:00')
     expect(screen.getByText(line)).toBeInTheDocument()
     expect(screen.getByRole('img', { name: en.archie.alt.intentions })).toBeInTheDocument()
+  })
+
+  // S32 final review, M10: a block in progress has started, so it is not "the next".
+  it('with a block in progress, the summary names no time for the next', () => {
+    const running = { ...NEXT, state: 'in_progress' as const }
+    setup({ today: makeToday([DONE, running], { planned_minutes: 60, done_minutes: 90 }), plan: makePlan([DONE, running]) })
+    expect(screen.getByText(archiLine('morning', TODAY, { total: 2, done: 1, next: null }))).toBeInTheDocument()
   })
 
   it('draws Archi with nothing behind him and no gap to the card', () => {
@@ -301,7 +313,7 @@ describe('ArchiSays', () => {
       <>
         <ArchiSays mood="joy">{en.today.noBlocksToday}</ArchiSays>
         <ArchiSays mood="rest" size="sm">
-          {en.today.noMoreTasks}
+          {en.today.moreBlocks}
         </ArchiSays>
       </>,
       { api: fake.api },
@@ -313,6 +325,6 @@ describe('ArchiSays', () => {
     expect((small.closest('[data-archi-says]') as HTMLElement).style.width).toBe('75px')
     expect(screen.getByText(en.today.noBlocksToday).tagName).toBe('P')
     expect(screen.getByText(en.today.noBlocksToday)).toHaveClass('font-semibold')
-    expect(screen.getByText(en.today.noMoreTasks)).not.toHaveClass('font-semibold')
+    expect(screen.getByText(en.today.moreBlocks)).not.toHaveClass('font-semibold')
   })
 })

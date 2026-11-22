@@ -337,10 +337,8 @@ export const en = {
     part: (index: number, count: number) => `Part ${String(index)} of ${String(count)}`,
     // blockName (blockName.ts): two parts of one task on one day must not share a button name.
     partName: (title: string, part: string) => `${isolate(title)} (${part})`,
-    // S27: the subtitle of a block's row (BlockRow): "Probability, Practice. 1 hour". Commas and full
-    // stops, never a middle dot (design language 5.2).
-    meta: (exam: string, kind: string, duration: string) => `${isolate(exam)}, ${kind}. ${duration}`,
-    // The same in the "next" card (NextBlock), after the time range: ", 1.5 hours. Algorithms, Learning".
+    // The details of a block's card (calendar/BlockCard), after the time range: ", 1.5 hours.
+    // Algorithms, Learning". Commas and full stops, never a middle dot (design language 5.2).
     nextMeta: (duration: string, exam: string, kind: string) => `, ${duration}. ${isolate(exam)}, ${kind}`,
     // A split task adds its part to either line: ". Part 1 of 2".
     metaPart: (part: string) => `. ${part}`,
@@ -410,8 +408,6 @@ export const en = {
     noTasks: 'Your calendar is empty',
     noTasksHint: 'I build it from your exams and their materials.',
     toExams: 'Go to exams',
-    // Nothing is planned from now on: the title of an empty state with no action.
-    noMoreTasks: 'Nothing else is planned',
   },
   // S18: the morning review card (web/src/today/ReviewCard.tsx).
   review: {
@@ -459,8 +455,6 @@ export const en = {
     loadFailed: 'I couldn’t load the free times.',
     empty: 'There’s no other free time that day.',
     confirm: 'Move',
-    // Between the details of the next block's card (today/NextBlock): "14:00–15:00. Now. Locked".
-    detailsJoiner: '. ',
     cancelled: 'Move cancelled. The block stays where it was.',
     // The live region after a release on a time the block cannot take (the toast says why).
     refused: 'The block went back to its place.',

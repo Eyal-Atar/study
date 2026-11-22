@@ -14,7 +14,7 @@ export interface ProgressRingProps {
 
 const STROKE = 6
 
-// A ring that fills as the week's study minutes are done (design language 5.8). The value is clipped
+// A ring that fills as the day's study minutes are done (design language 5.8; the calendar's side panel). The value is clipped
 // to 0..max, and a max of 0 is an empty ring and 0%, with no division by zero.
 export function ProgressRing({ value, max, size = 56, 'aria-label': label, valueText, children }: ProgressRingProps) {
   const top = max > 0 ? max : 0

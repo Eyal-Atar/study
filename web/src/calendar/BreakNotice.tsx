@@ -9,19 +9,9 @@ import { examColor } from '../ui/examColor'
 import { KIND_ICON } from '../ui/icons'
 import { cx, ICON_STROKE } from '../ui/styles'
 import { UserText } from '../ui/UserText'
-import { archiMayInterrupt, needsBreak } from './archi'
+import { archiMayInterrupt, breakRun } from './archi'
 
 const SHOWN_MS = 20_000
-
-// The run of done blocks a break is for, named by the done block that ended last (before now).
-function runOf(blocks: Block[], now: number): string | null {
-  let last: Block | null = null
-  for (const block of blocks) {
-    if (block.state !== 'done' || Date.parse(block.ends_at) > now) continue
-    if (last === null || Date.parse(block.ends_at) > Date.parse(last.ends_at)) last = block
-  }
-  return last?.id ?? null
-}
 
 export interface BreakNoticeProps {
   todayBlocks: Block[]
@@ -35,8 +25,8 @@ export interface BreakNoticeProps {
 // with its button. Once for each run, and only when Archi may speak up (archiMayInterrupt: not
 // within 20 minutes of the last time he did).
 export function BreakNotice({ todayBlocks, now, tz }: BreakNoticeProps) {
-  const due = needsBreak(todayBlocks, now)
-  const run = due ? runOf(todayBlocks, now) : null
+  // The run is named by its first block, so a further Done in the same run is not a new one.
+  const run = breakRun(todayBlocks, now)
   const [shown, setShown] = useState<string | null>(null)
   // The runs already decided: asked once each, so a refetch or StrictMode never asks again.
   const asked = useRef(new Set<string>())

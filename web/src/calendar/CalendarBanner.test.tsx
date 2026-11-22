@@ -51,6 +51,18 @@ describe('CalendarBanner', () => {
     expect(screen.getByRole('button', { name: en.review.skipLabel(name) })).toBeInTheDocument()
   })
 
+  // S32 final review, M8: the toggle points at its panel only while the panel is there.
+  it('aria-controls names the panel only while it is open', async () => {
+    setup()
+    const toggle = await screen.findByRole('button', { name: en.calendar.side.banner.review })
+    expect(toggle).not.toHaveAttribute('aria-controls')
+    await userEvent.click(toggle)
+    const open = screen.getByRole('button', { name: en.calendar.side.banner.close })
+    const id = open.getAttribute('aria-controls')
+    expect(id).not.toBeNull()
+    expect(document.getElementById(id ?? '')).not.toBeNull()
+  })
+
   it('shows the report row for unplaced tasks', async () => {
     setup({ unplacedCount: 1 }, [])
     expect(await screen.findByText(en.calendar.side.banner.report(1))).toBeInTheDocument()

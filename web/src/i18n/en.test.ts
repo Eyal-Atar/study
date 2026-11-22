@@ -142,7 +142,6 @@ describe('en: user content in a sentence', () => {
     ['board.pinLabel', en.board.pinLabel, [NAME]],
     ['board.actionsLabel', en.board.actionsLabel, [NAME]],
     ['board.partName', en.board.partName, [NAME, 'Part 1 of 2']],
-    ['board.meta', en.board.meta, [NAME, 'Practice', '1.5 hours']],
     ['board.nextMeta', en.board.nextMeta, ['1.5 hours', NAME, 'Practice']],
     ['board.uncompleteLabel', en.board.uncompleteLabel, [NAME]],
     ['board.unpinLabel', en.board.unpinLabel, [NAME]],

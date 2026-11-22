@@ -128,6 +128,18 @@ describe('TimeGrid', () => {
     expect(parseFloat(el?.style.height ?? '0')).toBeGreaterThanOrEqual(18)
   })
 
+  // S32 final review, M12: on that night a block can end before it starts on the wall clock; with
+  // another item right under its top, it still keeps a height above zero.
+  it('a block that ends before it starts on the wall clock, with an item right under it, has a height', () => {
+    const days = weekDays('2026-10-24')
+    // 01:30 summer time to 01:25 winter time, and 01:32–02:00 winter time.
+    const back = makeBlock({ id: 'back', starts_at: '2026-10-24T22:30:00Z', ends_at: '2026-10-24T23:25:00Z', study_date: '2026-10-24' })
+    const under = makeBlock({ id: 'under', starts_at: '2026-10-24T23:32:00Z', ends_at: '2026-10-25T00:00:00Z', study_date: '2026-10-24' })
+    setup({ days, today: '2026-10-20', blocks: [back, under], now: Date.parse('2026-10-20T09:00:00Z') })
+    const el = document.querySelector<HTMLElement>('[data-block-id="back"]')
+    expect(parseFloat(el?.style.height ?? '0')).toBeGreaterThan(0)
+  })
+
   it('a short block raised to the minimum height stops at the next block', () => {
     // 12:00–12:15 and 12:15–13:15 in Jerusalem: 15 minutes are 9px, under the minimum of 18.
     const short = makeBlock({ id: 'short', starts_at: '2026-11-24T10:00:00Z', ends_at: '2026-11-24T10:15:00Z', study_date: '2026-11-24' })

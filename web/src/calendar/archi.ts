@@ -2,7 +2,7 @@ import type { ArchieMood } from '../archie/Archie'
 import type { Block } from '../board/types'
 import { en } from '../i18n/en'
 
-// Archi's moments on the calendar: which line and mood she shows, and when she may speak up (S32 Task 6).
+// Archi's moments on the calendar: which line and mood he shows, and when he may speak up (S32 Task 6).
 export type ArchiMoment = 'review' | 'report' | 'restDay' | 'openDay' | 'dayDone' | 'deepWork' | 'morning' | 'day'
 
 const MINUTE = 60_000
@@ -93,20 +93,32 @@ export function archiMayInterrupt(
   }
 }
 
-// A run of done blocks (gaps of at most 15 minutes) of 90 minutes or more that ended in the last 30 minutes.
-export function needsBreak(todayBlocks: Block[], now: number): boolean {
+// A run of done blocks (gaps of at most 15 minutes) of 90 minutes or more that ended in the last 30
+// minutes: the id of its first block (the run's name, which a further Done in it does not change),
+// or null.
+export function breakRun(todayBlocks: Block[], now: number): string | null {
   const done = todayBlocks
     .filter((b) => b.state === 'done')
     .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at))
   let runMinutes = 0
   let runEnd = Number.NEGATIVE_INFINITY
+  let runStart: string | null = null
   for (const b of done) {
     const start = Date.parse(b.starts_at)
     const end = Date.parse(b.ends_at)
-    runMinutes = start - runEnd <= BREAK_MAX_GAP_MS ? runMinutes + minutesOf(b) : minutesOf(b)
+    if (start - runEnd <= BREAK_MAX_GAP_MS) {
+      runMinutes += minutesOf(b)
+    } else {
+      runMinutes = minutesOf(b)
+      runStart = b.id
+    }
     runEnd = Math.max(runEnd, end)
     const since = now - runEnd
-    if (runMinutes >= BREAK_RUN_MINUTES && since >= 0 && since <= BREAK_WINDOW_MS) return true
+    if (runMinutes >= BREAK_RUN_MINUTES && since >= 0 && since <= BREAK_WINDOW_MS) return runStart
   }
-  return false
+  return null
+}
+
+export function needsBreak(todayBlocks: Block[], now: number): boolean {
+  return breakRun(todayBlocks, now) !== null
 }

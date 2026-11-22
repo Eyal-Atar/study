@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { en } from '../i18n/en'
 import type { Block, BlockState } from '../board/types'
-import { archiLine, archiMayInterrupt, archiMoment, MOMENT_MOOD, needsBreak } from './archi'
+import { archiLine, archiMayInterrupt, archiMoment, breakRun, MOMENT_MOOD, needsBreak } from './archi'
 
 function block(state: BlockState, start: string, end: string, id = start): Block {
   return {
@@ -180,5 +180,18 @@ describe('needsBreak', () => {
   it('false when the run ended an hour ago', () => {
     const old = [block('done', at('08:00'), at('09:00')), block('done', at('09:00'), at('09:30'))]
     expect(needsBreak(old, now)).toBe(false)
+  })
+})
+
+// S32 final review, M11: a run is named by its first block, so a further Done in it is the same run.
+describe('breakRun', () => {
+  it('names the run by its first block, and a block that joins it keeps the name', () => {
+    const run = [block('done', at('09:30'), at('10:30')), block('done', at('10:30'), at('11:00'))]
+    expect(breakRun(run, Date.parse(at('11:10')))).toBe(at('09:30'))
+    const longer = [...run, block('done', at('11:00'), at('11:20'))]
+    expect(breakRun(longer, Date.parse(at('11:25')))).toBe(at('09:30'))
+  })
+  it('is null with no run', () => {
+    expect(breakRun([block('done', at('09:00'), at('09:30'))], Date.parse(at('09:40')))).toBeNull()
   })
 })

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { en } from '../i18n/en'
 import { XpSparkIcon } from '../ui/icons'
-import { onCompleted, type CompletedEvent } from './xpEvents'
+import { onCompleted, type CompletedEvent } from '../board/xpEvents'
 
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)'
 const FLY_MS = 600

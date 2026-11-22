@@ -30,8 +30,7 @@ const DEFER =
   'border-on-brand bg-transparent text-on-brand data-[hovered]:bg-surface data-[hovered]:text-ink data-[pressed]:bg-surface data-[pressed]:text-ink data-[disabled]:cursor-not-allowed'
 
 // The card Archi stands on in the sidebar: what to do next, filled with the colour of its exam (the
-// .next of the prototype). It differs from today/NextBlock (a white card with a menu) enough to be
-// its own component: here the only actions are "Done" and "Defer", and the rest are on the block.
+// .next of the prototype). The only actions here are "Done" and "Defer"; the rest are on the block.
 export function NextCard({ block, tz, when, onDefer }: NextCardProps) {
   const actions = useBlockActions()
   const headingId = useId()

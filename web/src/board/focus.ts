@@ -2,13 +2,13 @@ import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { useCallback, useLayoutEffect, type RefObject } from 'react'
 
 // Where the focus goes after an action on a block (S18 decision 14a): to the first enabled button
-// of that block's card, wherever the card is now. Complete on /today moves the block from the
+// of that block's card, wherever the card is now. Complete in the calendar's side panel moves the block from the
 // "next" card to the list, so the card the user pressed is gone, or shows another block; pin
 // replaces the pressed button with its opposite. Either way the focus would fall to <body>.
 //
 // An action asks with requestFocus(blockId) once it settled (asking at the start would let the
 // card take the request at once, while the pressed button is still there, and lose it again when
-// the button is replaced); every BlockRow and NextBlock checks after each render whether the request is for its
+// the button is replaced); every card that shows blocks (the calendar's NextCard and TodayTasks) checks after each render whether the request is for its
 // block, and takes it once it has an enabled button (until the pending state clears, its buttons are
 // disabled) that does not already have the focus. A request no card takes expires, so a card that shows up much later does not grab the
 // focus. `origin` is what had the focus when the user started the action: the focus may move only

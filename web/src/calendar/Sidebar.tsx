@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { dayLabel, formatTime } from '../board/time'
 import type { Block, Plan, Today } from '../board/types'
 import { en } from '../i18n/en'
@@ -33,6 +34,7 @@ const counts = (block: Block) => block.state !== 'missed' && block.state !== 'sk
 // in his own words, standing on the card of the next block; under them the minutes of today, the
 // two ways to change the day, the rest of today's blocks, and the coming exams.
 export function Sidebar({ todayData, ahead, exams, tz, moment, onFreeTime, onMarkBusy, onDefer, onOpenBlock }: SidebarProps) {
+  const headingId = useId()
   const today = todayData.date
   const counted = todayData.blocks.filter(counts)
   const next = nextToday(todayData.blocks)
@@ -40,7 +42,8 @@ export function Sidebar({ todayData, ahead, exams, tz, moment, onFreeTime, onMar
   const line = archiLine(moment, today, {
     total: counted.length,
     done: counted.filter((block) => block.state === 'done').length,
-    next: next === undefined ? null : formatTime(next.starts_at, tz),
+    // A block in progress has started: "the next starts at" names only one still to come.
+    next: next?.state === 'upcoming' ? formatTime(next.starts_at, tz) : null,
   })
   // Only on a day that has no block at all (as the old today screen did): a finished day had blocks. On a
   // rest day and on an open day Archi's own line already says it, so it is not said twice.
@@ -52,10 +55,14 @@ export function Sidebar({ todayData, ahead, exams, tz, moment, onFreeTime, onMar
   const percent = total <= 0 ? 0 : Math.round((Math.min(Math.max(done, 0), total) / total) * 100)
   return (
     <aside
-      aria-label={en.today.title}
+      aria-labelledby={headingId}
       // 14px is the size of the prototype's desktop; Archi's line and the name on the card set their own.
       className="flex w-[300px] shrink-0 flex-col gap-3.5 overflow-y-auto border-e border-line bg-surface px-4 pt-3.5 pb-3 text-small"
     >
+      {/* The landmark's name, and out of sight the parent of the panel's headings (h3). */}
+      <h2 id={headingId} className="sr-only">
+        {en.today.title}
+      </h2>
       {/* No gap between the two: Archi's feet are on the upper edge of the card. */}
       <div>
         <ArchiSays mood={MOMENT_MOOD[moment]}>

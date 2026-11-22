@@ -212,6 +212,13 @@ describe('TasksSheet', () => {
     expect(screen.getByRole('button', { name: new RegExp(en.today.blocks) })).toHaveTextContent(en.calendar.side.peekLeft(0, ''))
   })
 
+  // S32 final review, M10: a day with no block is not "all done".
+  it('with no blocks the bar says nothing at its end', () => {
+    setup([])
+    const bar = screen.getByRole('button', { name: new RegExp(en.today.blocks) })
+    expect(bar).toHaveTextContent(new RegExp(`^${en.today.blocks}$`))
+  })
+
   it('with no blocks still shows the bar and, in the sheet, only the two buttons', async () => {
     setup([])
     await userEvent.click(screen.getByRole('button', { name: new RegExp(en.today.blocks) }))

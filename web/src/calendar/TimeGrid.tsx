@@ -218,14 +218,16 @@ export function TimeGrid({
   }
 
   // A short item is raised to the minimum height, but only as far as the next item of its column
-  // (a block or busy time), so it neither covers it nor is covered by it; and never below its own height.
+  // (a block or busy time), so it neither covers it nor is covered by it; and never below its own
+  // height. Never below 1px either: the night the clocks go back, a block's own height can be below
+  // zero (it ends before it starts on the wall clock) with another item right under its top.
   function raised(date: string, at: { top: number; height: number }): number {
     let next: number | null = null
     for (const top of topsByDay.get(date) ?? []) {
       if (top > at.top && (next === null || top < next)) next = top
     }
     const room = next === null ? MIN_BLOCK_PX : next - at.top - 3
-    return Math.max(at.height, Math.min(MIN_BLOCK_PX, room))
+    return Math.max(1, at.height, Math.min(MIN_BLOCK_PX, room))
   }
 
   // The buttons of a swipe are SWIPE_WIDTH_PX wide, beside the end of the block, and at least

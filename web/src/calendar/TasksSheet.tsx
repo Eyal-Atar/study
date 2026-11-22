@@ -43,7 +43,10 @@ export function TasksSheet({ todayData, tz, onFreeTime, onMarkBusy, onOpenBlock 
           <span aria-hidden="true" className="mx-auto mb-2 h-1 w-9 rounded-full bg-line" />
           <span className="flex items-baseline justify-between gap-3">
             <span className="font-semibold">{en.today.blocks}</span>
-            <span className="text-small text-ink-muted tabular-nums">{en.calendar.side.peekLeft(left.length, durationText(minutes))}</span>
+            {/* A day with no block is not "all done": the end of the bar says nothing then. */}
+            {counted.length === 0 ? null : (
+              <span className="text-small text-ink-muted tabular-nums">{en.calendar.side.peekLeft(left.length, durationText(minutes))}</span>
+            )}
           </span>
         </AriaButton>
       </div>
