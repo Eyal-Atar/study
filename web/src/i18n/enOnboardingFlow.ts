@@ -13,6 +13,13 @@ const aboutStudyHours = (minutes: number) => {
 }
 
 export const enOnboardingFlow = {
+  // The earlier answer of step 1, kept as one quiet line under my question in the later steps
+  // ("3 exams: ..."). The names are user content and go in `value`, raw: RecapLine isolates them
+  // itself, and a name inside the label would be clipped from the wrong side.
+  examsRecap: (names: readonly string[]) => ({
+    label: names.length === 1 ? '1 exam:' : `${String(names.length)} exams:`,
+    value: names.join(', '),
+  }),
   // Step 4 of 4 (S34 decision 4): what I ask about the hours that are already taken.
   fixedHours: {
     question: 'Do you have work, classes or other fixed hours?',

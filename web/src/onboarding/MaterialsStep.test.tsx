@@ -103,12 +103,51 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+describe('MaterialsStep: the conversation', () => {
+  it('keeps the earlier answer as one line with the names of the exams', async () => {
+    const { fake } = server()
+    setup({ fake })
+
+    await screen.findByRole('heading', { name: 'חדו"א' })
+    const recap = en.onboardingFlow.examsRecap(['חדו"א'])
+    expect(screen.getByText(recap.label, { exact: false })).toBeInTheDocument()
+    expect(screen.getAllByText('חדו"א').length).toBeGreaterThan(1)
+  })
+
+  it('says the files go to Anthropic in a note with a lock', async () => {
+    const { fake } = server()
+    setup({ fake })
+
+    const note = (await screen.findByText(en.onboardingMaterials.privacy)).closest('div.bg-surface-muted')
+    expect(note).not.toBeNull()
+    expect(note?.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
+  })
+
+  it('reads "Continue without materials" when no exam has a file', async () => {
+    const { fake } = server()
+    setup({ fake })
+
+    await screen.findByRole('heading', { name: 'חדו"א' })
+    expect(screen.getByRole('button', { name: en.onboardingMaterials.continueWithout })).toBeInTheDocument()
+  })
+
+  it('puts a colour square beside each exam, and an icon beside each file', async () => {
+    const { fake } = server([material({ ingest_status: 'ready', page_count: 12 })])
+    const { container } = setup({ fake })
+
+    await screen.findByText(en.onboardingMaterials.ready(12))
+    expect(container.querySelector('[data-part="exam-colour"]')).not.toBeNull()
+    expect(container.querySelector('li svg.lucide-file-text')).not.toBeNull()
+  })
+})
+
 describe('MaterialsStep', () => {
   it('says materials are optional, that past exams help most, and that files go to Anthropic', async () => {
     const { fake } = server()
     setup({ fake })
 
     expect(await screen.findByRole('heading', { name: 'חדו"א' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: en.onboardingMaterials.title })).toBeInTheDocument()
     expect(screen.getByText(/optional/)).toBeInTheDocument()
     expect(screen.getByText(/Past exams with solutions/)).toBeInTheDocument()
     expect(screen.getByText(/Anthropic/)).toBeInTheDocument()
@@ -505,7 +544,7 @@ describe('MaterialsStep', () => {
     expect(reason.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
   })
 
-  it('a long file name without spaces wraps inside its row, and the delete button stays beside it', async () => {
+  it('a long file name without spaces ends in an ellipsis inside its row, and the delete button stays beside it', async () => {
     const name = `${'a'.repeat(140)}.pdf`
     const { fake } = server([material({ filename: name, ingest_status: 'ready', page_count: 2 })])
     setup({ fake })
@@ -513,7 +552,8 @@ describe('MaterialsStep', () => {
     const title = await screen.findByText('a'.repeat(140))
     expect(title.closest('.break-words')).not.toBeNull()
     expect(title.closest('.min-w-0')).not.toBeNull()
-    expect(title.closest('.truncate')).toBeNull()
+    // It is cut with an ellipsis, as in the prototype, and never widens the row.
+    expect(title.closest('.user-text-truncate')).not.toBeNull()
     const row = title.closest('li')
     if (row === null) throw new Error('no row')
     expect(row.className).not.toMatch(/(^|\s)(w|min-w|basis)-\d/)
@@ -530,7 +570,7 @@ describe('MaterialsStep', () => {
 
     const row = (await screen.findByRole('button', { name: en.onboardingMaterials.deleteNamed(name) })).closest('li')
     if (row === null) throw new Error('no row')
-    expect(within(row).getByText(name, { selector: 'bdi[dir="auto"]' })).toBeInTheDocument()
+    expect(within(row).getByText(name, { selector: '[data-user-text]' })).toBeInTheDocument()
     expect(within(row).getByText(lead)).toBeInTheDocument()
     expect(within(row).getByText(en.onboardingMaterials.ready(2))).toBeInTheDocument()
   })

@@ -15,6 +15,16 @@ const ISOLATED = `${FSI}${NAME}${PDI}`
 
 const t = enOnboardingFlow.feasibility
 
+describe('enOnboardingFlow: the recap of the exams', () => {
+  it('counts the exams, in the singular and the plural, and leaves the names raw for RecapLine', () => {
+    expect(enOnboardingFlow.examsRecap(['a', 'b', 'c']).label).toBe('3 exams:')
+    expect(enOnboardingFlow.examsRecap(['a']).label).toBe('1 exam:')
+    expect(enOnboardingFlow.examsRecap([NAME, 'b']).value).toBe(`${NAME}, b`)
+    // RecapLine isolates the value itself (<UserText truncate>), so the sentence must not.
+    expect(enOnboardingFlow.examsRecap([NAME]).value).not.toContain(FSI)
+  })
+})
+
 describe('enOnboardingFlow: the live feasibility sentences', () => {
   const NAMED: [string, string][] = [
     ['feasibility.roomy', t.roomy(88 * 60, NAME)],
