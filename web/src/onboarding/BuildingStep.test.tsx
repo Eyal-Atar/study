@@ -232,7 +232,7 @@ describe('BuildingStep', () => {
     expect(screen.queryByRole('button', { name: en.common.retry })).not.toBeInTheDocument()
   })
 
-  it('409 nothing_to_analyze opens ReplanOffer, and applying it goes to the calendar (through /today)', async () => {
+  it('409 nothing_to_analyze opens ReplanOffer, and applying it goes to the calendar', async () => {
     const user = userEvent.setup()
     const { fake, state } = server()
     fake.on('POST /plans/generate', () => problem(409, 'nothing_to_analyze'))

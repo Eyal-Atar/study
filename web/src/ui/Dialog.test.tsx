@@ -198,6 +198,21 @@ describe('Dialog', () => {
     expect(dialog.parentElement).toHaveClass('max-h-[calc(var(--visual-viewport-height)*0.85)]')
   })
 
+  // A figure (Archi) stands on the top edge of the sheet, outside its scrolling box, so it is
+  // never cut by it; it is a picture only.
+  it('a figure stands above the sheet, outside the box that scrolls, hidden from assistive technology', () => {
+    setup({ figure: <span data-testid="figure">Archi</span> })
+    const dialog = screen.getByRole('dialog')
+    const figure = screen.getByTestId('figure').parentElement as HTMLElement
+    expect(figure).toHaveAttribute('aria-hidden', 'true')
+    expect(figure).toHaveClass('absolute', 'bottom-full')
+    expect(dialog).not.toContainElement(figure)
+    // The box that scrolls holds the dialog, and is limited by the visible viewport as before.
+    const scroller = dialog.parentElement as HTMLElement
+    expect(scroller).toHaveClass('overflow-y-auto', 'max-h-[calc(var(--visual-viewport-height)*0.85)]')
+    expect(scroller).not.toContainElement(figure)
+  })
+
   it('isKeyboardDismissDisabled blocks Escape', async () => {
     const user = userEvent.setup()
     const { onOpenChange } = setup({ isKeyboardDismissDisabled: true })

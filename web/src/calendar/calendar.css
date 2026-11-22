@@ -1,0 +1,33 @@
+/* The calendar grid (S32): only what Tailwind classes cannot say. Imported by TimeGrid.tsx. */
+
+/* A block's title on two lines, in the week (decision 5). The same way as .user-text-truncate in
+   index.css: the element takes the direction of its text (dir="auto"), so the ellipsis cuts the END
+   of a Hebrew title, and the title still starts from the left edge of the block, like an English
+   one. Physical on purpose: inside an RTL element "start" would be the right.
+   The padding and the margin that takes it back leave the text where it was, and give the ellipsis
+   of a Hebrew title a place: it hangs before the second line, in the empty gutter under the kind
+   icon. Without them it falls outside the box and is cut away, and a cut title looks whole. */
+.calendar-title-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-align: left;
+  padding-left: 1em;
+  margin-left: -1em;
+}
+
+/* The stripe at the start of a block stays whole when its border is dashed (overdue, leaving).
+   Tailwind sets the style of all four sides at once. */
+.calendar-block {
+  border-inline-start-style: solid;
+}
+
+/* A block lifted by a drag: an outline in the colour of its exam (currentColor of the block).
+   Here and not as a class, because the block also carries the focus ring's outline-none. */
+.calendar-block[data-lifted] {
+  outline: 2px solid currentColor;
+}

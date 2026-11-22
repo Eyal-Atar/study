@@ -1,5 +1,11 @@
 import { PRODUCT_NAME } from '../product'
 import { isolate } from './bidi'
+import { enCalendarArchi } from './enCalendarArchi'
+import { enCalendarCodes } from './enCalendarCodes'
+import { enCalendarGrid } from './enCalendarGrid'
+import { enCalendarPage } from './enCalendarPage'
+import { enCalendarSheets } from './enCalendarSheets'
+import { enCalendarSide } from './enCalendarSide'
 import { enCommitments } from './enCommitments'
 import { enControls } from './enControls'
 import { enCrash } from './enCrash'
@@ -67,11 +73,17 @@ export const en = {
     progressChip: (streak: number, level: number) =>
       streak === 0 ? `No streak yet, level ${String(level)}` : `${String(streak)}-day streak, level ${String(level)}`,
   },
-  // S31: the temporary /calendar, which shows the day or the week (S32 replaces it).
+  // S31: the switch of the calendar between the day and the week.
   calendar: {
     view: 'View',
     day: 'Day',
     week: 'Week',
+    // S32: one file for each part of the calendar, so its parts are written side by side.
+    grid: enCalendarGrid,
+    sheets: enCalendarSheets,
+    side: enCalendarSide,
+    archi: enCalendarArchi,
+    page: enCalendarPage,
   },
   login: {
     google: 'Continue with Google',
@@ -159,6 +171,8 @@ export const en = {
     no_time_today: 'There’s no free spot today that fits the whole task.',
     slot_taken: 'Another block already has that time.',
     outside_day: 'A block can only move to a free time later the same day.',
+    // S35: availability, through the calendar (S32) and the settings (S34)
+    ...enCalendarCodes,
     // Push reminders (S16)
     push_endpoint_invalid: 'This browser gave me a reminder address I can’t use. Try a different browser.',
   },
@@ -334,18 +348,14 @@ export const en = {
     part: (index: number, count: number) => `Part ${String(index)} of ${String(count)}`,
     // blockName (blockName.ts): two parts of one task on one day must not share a button name.
     partName: (title: string, part: string) => `${isolate(title)} (${part})`,
-    // S27: the subtitle of a block's row (BlockRow): "Probability, Practice. 1 hour". Commas and full
-    // stops, never a middle dot (design language 5.2).
-    meta: (exam: string, kind: string, duration: string) => `${isolate(exam)}, ${kind}. ${duration}`,
-    // The same in the "next" card (NextBlock), after the time range: ", 1.5 hours. Algorithms, Learning".
+    // The details of a block's card (calendar/BlockCard), after the time range: ", 1.5 hours.
+    // Algorithms, Learning". Commas and full stops, never a middle dot (design language 5.2).
     nextMeta: (duration: string, exam: string, kind: string) => `, ${duration}. ${isolate(exam)}, ${kind}`,
     // A split task adds its part to either line: ". Part 1 of 2".
     metaPart: (part: string) => `. ${part}`,
-    pinned: 'Locked',
     complete: 'Done',
     uncomplete: 'Mark as not done',
     defer: 'Defer',
-    deferring: 'Deferring…',
     pin: 'Lock',
     unpin: 'Unlock',
     // Every list has several "Done" buttons, so the accessible name says which task.
@@ -407,11 +417,6 @@ export const en = {
     noTasks: 'Your calendar is empty',
     noTasksHint: 'I build it from your exams and their materials.',
     toExams: 'Go to exams',
-    // Nothing is planned from now on: the title of an empty state with no action.
-    noMoreTasks: 'Nothing else is planned',
-    noMoreTasksHint: 'There are no blocks planned for the coming week.',
-    planFailed: 'I couldn’t check the coming days.',
-    stale: 'I couldn’t refresh, so your calendar may be out of date.',
   },
   // S18: the morning review card (web/src/today/ReviewCard.tsx).
   review: {
@@ -459,38 +464,9 @@ export const en = {
     loadFailed: 'I couldn’t load the free times.',
     empty: 'There’s no other free time that day.',
     confirm: 'Move',
-    // The view switch above today's blocks.
-    viewLabel: 'Blocks view',
-    list: 'List',
-    timeline: 'Timeline',
-    // DayTimeline: the day from waking to sleep; an upcoming block has a drag handle.
-    timelineLabel: 'Today’s timeline',
-    handleLabel: (name: string) => `Move ${isolate(name)}`,
-    instructions:
-      'Drag the handle up or down. With a keyboard: Enter or Space starts a move, the up and down arrows move by 15 minutes, Page Up and Page Down move by an hour, Enter confirms and Escape cancels.',
-    // The live region while moving: "14:30–15:30, free".
-    candidate: (range: string, free: boolean): string => `${range}, ${free ? 'free' : 'taken'}`,
-    // The parts alone, for the ghost on the timeline, which draws the range itself.
-    candidateJoiner: ', ',
-    candidateState: (free: boolean) => (free ? 'free' : 'taken'),
-    // Between the details of a block on the timeline: "14:00–15:00. Now. Locked".
-    detailsJoiner: '. ',
     cancelled: 'Move cancelled. The block stays where it was.',
     // The live region after a release on a time the block cannot take (the toast says why).
     refused: 'The block went back to its place.',
-  },
-  // S14: the week screen (web/src/week).
-  week: {
-    title: 'Week',
-    range: (first: string, last: string) => `${first} to ${last}`,
-    moves: 'Move between weeks',
-    previous: 'Previous week',
-    thisWeek: 'This week',
-    next: 'Next week',
-    free: 'Free day',
-    empty: 'No blocks this week',
-    total: (duration: string) => `${duration} in total`,
-    stale: 'I couldn’t refresh your calendar, so it may be out of date. I’ll try again in a minute.',
   },
   // S15: the exams list and the exam screen (Task 6); analysis and materials (Task 7).
   exam: {

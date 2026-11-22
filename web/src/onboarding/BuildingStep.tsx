@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { Archie } from '../archie/Archie'
 import { useApi } from '../api/ApiContext'
 import { errorMessage, type ApiError } from '../api/client'
+import { CALENDAR_PATH } from '../calendar/calendarState'
 import { meKey, useMe, useUserId } from '../api/me'
 import { daysBetween, todayIn } from '../exam/dates'
 import { codeText, shortfallText } from '../i18n/codes'
@@ -154,7 +155,7 @@ export function BuildingStep() {
 
   async function toToday() {
     await queryClient.refetchQueries({ queryKey: meKey(userId) })
-    await navigate('/today')
+    await navigate(CALENDAR_PATH)
   }
 
   const replan = (

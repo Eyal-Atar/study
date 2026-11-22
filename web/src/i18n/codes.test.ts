@@ -14,6 +14,9 @@ const CODES = [
   'ai_no_credit', 'ai_quota_exceeded', 'nothing_to_analyze', 'materials_processing',
   'unauthenticated', 'not_found', 'validation_error', 'database_unavailable', 'plan_conflict', 'stale_plan',
   'placement_failed', 'invalid_state', 'nothing_to_undo', 'exam_in_past', 'network', 'timeout',
+  'slot_busy', 'event_in_past', 'too_many_events', 'not_after_starts_at', 'too_long', 'nothing_to_place',
+  'no_free_time', 'too_many_commitments', 'too_short', 'range_too_long', 'already_applied', 'job_not_ready',
+  'timetable_unreadable', 'timetable_invalid', 'too_many_pages',
 ]
 
 describe('codeText', () => {
@@ -56,6 +59,11 @@ describe('codeText', () => {
   it('size and count limits come from the problem', () => {
     expect(codeText('file_too_large', { limit_bytes: 20971520 })).toContain('20 MB')
     expect(codeText('too_many_materials', { limit: 15 })).toContain('15')
+  })
+
+  it('the commitments limit shows the number when there is one, and no digit when there is not', () => {
+    expect(codeText('too_many_commitments', { limit: 40 })).toContain('40')
+    expect(codeText('too_many_commitments')).not.toMatch(/\d/)
   })
 })
 

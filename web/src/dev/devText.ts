@@ -50,6 +50,10 @@ export const SECTIONS = [
   { id: 'switch', title: 'Switch' },
   { id: 'compact-select', title: 'CompactSelect' },
   { id: 'collapsible-section', title: 'CollapsibleSection' },
+  // S32
+  { id: 'block-check', title: 'BlockCheck' },
+  { id: 'progress-ring', title: 'ProgressRing' },
+  { id: 'action-card', title: 'ActionCard' },
   // S34
   { id: 'tile-list', title: 'Tile list' },
   { id: 'stepper', title: 'Stepper' },
@@ -601,5 +605,28 @@ export const devText = {
     days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
     chosen: 'Chosen:',
     nothing: 'Nothing',
+  },
+  s32: {
+    checkLabel: 'Done: Expectation practice',
+    check: {
+      empty: 'Not done: an outlined square in the colour of the block’s text',
+      done: 'Done: filled with the brand and a check',
+      disabled: 'Disabled',
+    },
+    ringLabel: 'Study this week',
+    ringText: (minutes: number) => `${String(minutes)} of 285 minutes`,
+    ring: {
+      none: '0%',
+      some: '32%',
+      full: '100%',
+    },
+    card: {
+      plain: 'Plain',
+      described: 'With a description',
+      pending: 'Pending: it does not react and says it is loading',
+      disabled: 'Disabled',
+      title: 'Find a time',
+      description: 'I look for the free hours that fit.',
+    },
   },
 } as const

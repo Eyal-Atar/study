@@ -1,12 +1,13 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
+import { useState } from 'react'
 import { describe, expect, it } from 'vitest'
 import { codeText } from '../i18n/codes'
 import { en } from '../i18n/en'
 import { makeBlock, makeMe, makePlan, makeToday, renderBoard, USER_ID } from '../test/boardFixtures'
 import { createFakeApi, problem } from '../test/fakeApi'
 import { todayKey } from './api'
-import { BlockRow } from './BlockRow'
+import { MoveDialog } from './MoveDialog'
 import { formatRange } from './time'
 import type { Block, Slots, Today } from './types'
 
@@ -23,13 +24,7 @@ function setup({ reply = slots(['2026-11-16T13:00:00Z', '2026-11-16T13:30:00Z'])
     .on('GET /today', makeToday([BLOCK]))
     .on({ method: 'GET', path: /^\/plan/ }, makePlan([BLOCK]))
     .on(`GET /blocks/${BLOCK.id}/slots`, reply)
-  // A row is an <li>: it sits in a list.
-  const rendered = renderBoard(
-    <ul>
-      <BlockRow block={BLOCK} tz="Asia/Jerusalem" />
-    </ul>,
-    { api: fake.api },
-  )
+  const rendered = renderBoard(<Host />, { api: fake.api })
   return { fake, ...rendered }
 }
 
@@ -37,10 +32,34 @@ async function toasts() {
   return within(await screen.findByRole('region', { name: en.common.notifications }))
 }
 
-// "הזזה" is in the row's menu (S27): the menu button, then the item.
+// The dialog's host: one button that opens it, as the calendar's actions sheet does (the old
+// BlockRow, whose menu hosted it, is gone since S32).
+function Host() {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true)
+        }}
+      >
+        {en.move.move}
+      </button>
+      <MoveDialog
+        block={BLOCK}
+        tz="Asia/Jerusalem"
+        isOpen={open}
+        onClose={() => {
+          setOpen(false)
+        }}
+      />
+    </>
+  )
+}
+
 async function openMenuItem(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('button', { name: en.board.actionsLabel(TITLE) }))
-  await user.click(await screen.findByRole('menuitem', { name: en.move.move }))
+  await user.click(screen.getByRole('button', { name: en.move.move }))
 }
 
 async function openDialog() {

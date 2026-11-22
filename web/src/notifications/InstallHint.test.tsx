@@ -43,6 +43,14 @@ describe('InstallHint', () => {
     expect(hint()).not.toBeInTheDocument()
   })
 
+  // S32 final review, M3: the calendar is full bleed, so the hint brings its own gutter there.
+  it('on the full-bleed calendar the hint keeps the page gutter', async () => {
+    push = installFakePush({ userAgent: IPHONE_UA, supported: false })
+    open('/calendar')
+    await screen.findByRole('heading', { name: en.today.title })
+    expect(hint()?.parentElement).toHaveClass('px-page')
+  })
+
   it('the dismiss button closes it', async () => {
     const user = userEvent.setup()
     push = installFakePush({ userAgent: IPHONE_UA, supported: false })

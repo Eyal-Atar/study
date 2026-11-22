@@ -43,6 +43,8 @@ export function codeText(code: string, params: CodeParams = {}, now: Date = new 
     }
     case 'too_many_materials':
       return en.codes.too_many_materials(numberParam(params, 'limit'))
+    case 'too_many_commitments':
+      return en.codes.too_many_commitments(numberParam(params, 'limit'))
     case 'ai_quota_exceeded':
       return en.codes.ai_quota_exceeded(resetTime(params, now))
     default:

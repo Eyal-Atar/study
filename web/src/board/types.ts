@@ -38,9 +38,8 @@ export interface Today {
   // moved within; null when the profile leaves no waking time that day.
   day_starts_at: string | null
   day_ends_at: string | null
-  // S35: commitment occurrences and busy events over the day's waking hours. The server always
-  // sends it; optional until the screens of S32 read it and their fixtures carry it.
-  busy?: BusyItem[]
+  // S35: commitment occurrences and busy events over the day's waking hours (S32 draws them).
+  busy: BusyItem[]
 }
 
 // A task that is not on the board (GET /plan). The reason comes only from the replan preview.
@@ -67,7 +66,7 @@ export interface Plan {
   unplaced: Unplaced[]
   undo: UndoInfo | null
   // S35: commitment occurrences and busy events over the waking hours of the range (see Today).
-  busy?: BusyItem[]
+  busy: BusyItem[]
 }
 
 export interface Unscheduled {

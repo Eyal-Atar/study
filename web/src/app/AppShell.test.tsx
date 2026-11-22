@@ -240,7 +240,8 @@ describe('focus after a navigation', () => {
   it('the first screen and the redirect from / do not take the focus', async () => {
     const { router } = open('/')
 
-    const heading = await screen.findByRole('heading', { level: 1, name: en.today.title })
+    // Below lg (jsdom has no matchMedia) the h1 is the calendar's phone header: the day's name.
+    const heading = await screen.findByRole('heading', { level: 1, name: en.board.today })
     expect(router.state.location.pathname).toBe('/calendar')
     expect(heading).not.toHaveFocus()
     expect(screen.getByRole('main')).not.toHaveFocus()
@@ -250,7 +251,7 @@ describe('focus after a navigation', () => {
   it('a change of the search params alone does not move the focus', async () => {
     const { router } = open('/calendar?view=week')
 
-    const heading = await screen.findByRole('heading', { level: 1, name: en.week.title })
+    const heading = await screen.findByRole('heading', { level: 1, name: en.board.today })
     await router.navigate('/calendar?view=week&from=2026-11-22')
     await waitFor(() => {
       expect(router.state.location.search).toBe('?view=week&from=2026-11-22')

@@ -2,18 +2,24 @@ import { useMutation, useMutationState, useQueryClient, type QueryClient, type Q
 import { useCallback } from 'react'
 import { useApi } from '../api/ApiContext'
 import { ApiError, errorMessage } from '../api/client'
+import type { DeferRequest } from '../availability/types'
+import { emitCompleted } from './xpEvents'
+import { tasksKey } from '../exam/api'
 import { codeText, unscheduledText } from '../i18n/codes'
 import { en } from '../i18n/en'
+import { progressKey } from '../progress/api'
+import type { Progress } from '../progress/types'
 import { UNDO_TIMEOUT_MS, useToast } from '../ui/useToast'
 import { boardKey, todayKey, useBoardUserId } from './api'
+import { blockName } from './blockName'
 import { requestFocus } from './focus'
 import { useOfferReplan } from './offerReplan'
 import { completeText } from './progressText'
 import { blockMinutes, dateIn, dayLabel, formatTime, useProfileTimezone } from './time'
-import type { Block, BlockState, CompleteResult, DeferResult, Today } from './types'
+import type { Block, BlockState, CompleteResult, DeferResult, SkipResult, Today } from './types'
 import { undoOnce } from './undoOnce'
 
-// The actions on one block, shared by "today" and "week".
+// The actions on one block, shared by every part of the calendar that shows blocks.
 //
 // complete, uncomplete and pin are optimistic: their result is known (one block's status or pinned),
 // so every board query in the cache (today and every plan range) shows it at once. A failure puts
@@ -21,7 +27,16 @@ import { undoOnce } from './undoOnce'
 // they create no plan version).
 //
 // defer is not optimistic: the planner on the server picks the new place, and may find none. The
-// button shows "Deferring…" until the answer; the undo is POST /plan/undo with the version it created.
+// defer sheet shows its choice as pending until the answer; the undo is POST /plan/undo with the
+// version it created.
+// S32: the calendar's defer sheet sends a choice (DeferRequest) and hears back through DeferOptions.
+//
+// skip (S32) is not optimistic either: the server removes the task's open blocks and writes a
+// version, and its undo is POST /plan/undo with it. A block that ended goes through S18's
+// POST /blocks/{id}/skip; one that did not end yet skips its task (PATCH /tasks/{id}).
+//
+// complete also writes the new XP total and level into the progress cache at once, and tells the
+// calendar once that XP was earned (board/xpEvents.ts); the refetch then brings the rest.
 //
 // After every action the whole board (['board', userId]) is refetched.
 //
@@ -29,15 +44,27 @@ import { undoOnce } from './undoOnce'
 // block's status, so the meter moves at once (S18 decision 14b), and they ask for the focus to come
 // back to the block's card, wherever it shows next (focus.ts, decision 14a).
 
+// For the screen that deferred (the calendar's defer sheet). They travel in the mutation's
+// variables and run from the mutation's own callbacks, so they still run once that screen is gone.
+export interface DeferOptions {
+  // After the success toast.
+  onSuccess?(): void
+  // After any failure (after the replan offer for placement_failed). Returning true means the
+  // caller shows the error itself, so no toast; placement_failed's offer is shown either way.
+  onError?(error: ApiError): boolean
+}
+
 export interface BlockActions {
   complete(block: Block): void
   uncomplete(block: Block): void
-  defer(block: Block): void
+  // Without `request`: POST /blocks/{id}/defer with no body, the next free place (S14).
+  defer(block: Block, request?: DeferRequest, options?: DeferOptions): void
+  skip(block: Block): void
   setPinned(block: Block, pinned: boolean): void
   // True while an action on this block is running, in any screen.
   pending(blockId: string): boolean
-  // True while this block is being deferred (the button says "Deferring…").
-  deferring(blockId: string): boolean
+  // True while this block's task is being skipped.
+  skipping(blockId: string): boolean
 }
 
 interface Vars {
@@ -45,7 +72,19 @@ interface Vars {
   pinned?: boolean
   // What had the focus when the action started (focus.ts).
   origin?: Element | null
+  // A complete that is the Undo of "Not done": it puts back a mark the user already had, so the
+  // calendar does not play its reward again (S32 Task 13, a manager ruling).
+  undo?: boolean
 }
+
+interface DeferVars extends Vars {
+  request?: DeferRequest
+  options?: DeferOptions
+}
+
+// What both skips answer with that skip reads: POST /blocks/{id}/skip answers SkipResult, and
+// PATCH /tasks/{id} answers TaskPatchResponse (task, placement, version_id); both carry version_id.
+type SkipAnswer = Pick<SkipResult, 'version_id'>
 
 export type Snapshot = [QueryKey, unknown][]
 
@@ -55,6 +94,9 @@ export function actionKey(userId: string | null) {
 }
 function deferKey(userId: string | null) {
   return [...actionKey(userId), 'defer'] as const
+}
+function skipKey(userId: string | null) {
+  return [...actionKey(userId), 'skip'] as const
 }
 
 // What defer remembers before it runs: the task's blocks it already knew, and today's study day.
@@ -151,7 +193,13 @@ export function useBlockActions(): BlockActions {
   const key = boardKey(userId)
   const mutationKey = actionKey(userId)
 
-  const settle = () => queryClient.invalidateQueries({ queryKey: key })
+  // The exam's tasks are not under the board, but an action changes them too (a Done or a Skip
+  // moves "Your exams" and the exam screen's list).
+  const settle = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: key }),
+      queryClient.invalidateQueries({ queryKey: tasksKey(userId) }),
+    ])
   const fail = (error: unknown) => {
     toast.show({ text: errorMessage(error), tone: 'error' })
   }
@@ -182,7 +230,15 @@ export function useBlockActions(): BlockActions {
       restore(block.id, snapshot)
       fail(error)
     },
-    onSuccess: (result) => {
+    onSuccess: (result, { undo }) => {
+      const progress = result.progress
+      if (progress !== undefined) {
+        // An empty cache stays empty: the updater returns undefined, and nothing is written.
+        queryClient.setQueryData<Progress>(progressKey(userId), (data) =>
+          data === undefined ? undefined : { ...data, total_xp: progress.total_xp, level: progress.level },
+        )
+        if (progress.xp_change > 0 && undo !== true) emitCompleted({ blockId: result.block.id, xp: progress.xp_change })
+      }
       undoToast(completeText(result, false), () => {
         uncompleteMutation.mutate(started(result.block))
       })
@@ -200,7 +256,7 @@ export function useBlockActions(): BlockActions {
     },
     onSuccess: (result) => {
       undoToast(completeText(result, true), () => {
-        completeMutation.mutate(started(result.block))
+        completeMutation.mutate({ ...started(result.block), undo: true })
       })
     },
     onSettled: settleAndFocus,
@@ -222,13 +278,13 @@ export function useBlockActions(): BlockActions {
     onSettled: settleAndFocus,
   })
 
-  function undoDefer(versionId: string) {
+  function undoVersion(versionId: string, doneText: string) {
     const request = undoOnce(queryClient, versionId, () => api.post('/plan/undo', { version_id: versionId }))
     if (request === null) return
     request
       .then(
         () => {
-          toast.show({ text: en.board.deferUndone, tone: 'success' })
+          toast.show({ text: doneText, tone: 'success' })
         },
         // nothing_to_undo or stale_plan: another version came in between. The refetch shows the board as it is.
         fail,
@@ -238,9 +294,12 @@ export function useBlockActions(): BlockActions {
       })
   }
 
-  const deferMutation = useMutation<DeferResult, ApiError, Vars, DeferContext>({
+  const deferMutation = useMutation<DeferResult, ApiError, DeferVars, DeferContext>({
     mutationKey: deferKey(userId),
-    mutationFn: ({ block }) => api.post<DeferResult>(`/blocks/${block.id}/defer`),
+    mutationFn: ({ block, request }) =>
+      request === undefined
+        ? api.post<DeferResult>(`/blocks/${block.id}/defer`)
+        : api.post<DeferResult>(`/blocks/${block.id}/defer`, request),
     onMutate: ({ block }) => {
       const known = new Set<string>()
       for (const [, data] of queryClient.getQueriesData({ queryKey: key })) {
@@ -248,16 +307,18 @@ export function useBlockActions(): BlockActions {
       }
       return { known, today: queryClient.getQueryData<Today>(todayKey(userId))?.date }
     },
-    onError: (error) => {
+    onError: (error, { options }) => {
       if (error instanceof ApiError && error.code === 'placement_failed') {
         const reason = error.details.reason
         const why = typeof reason === 'string' ? `${codeText('placement_failed')} ${unscheduledText(reason)}` : codeText('placement_failed')
         offerReplan(why)
+        options?.onError?.(error)
         return
       }
+      if (options?.onError?.(error) === true) return
       fail(error)
     },
-    onSuccess: (result, _vars, context) => {
+    onSuccess: (result, { options }, context) => {
       const next = movedTo(result.blocks, context.known)
       // "Today" is the server's study day (after midnight, before sleep, it is still yesterday's date).
       const today = context.today ?? dateIn(tz)
@@ -270,7 +331,30 @@ export function useBlockActions(): BlockActions {
         toast.show({ text, tone: 'success' })
       } else {
         undoToast(text, () => {
-          undoDefer(versionId)
+          undoVersion(versionId, en.board.deferUndone)
+        })
+      }
+      options?.onSuccess?.()
+    },
+    onSettled: settle,
+  })
+
+  // By the clock when pressed: the board's `state` may be a refetch old.
+  const skipMutation = useMutation<SkipAnswer, ApiError, Vars>({
+    mutationKey: skipKey(userId),
+    mutationFn: ({ block }) =>
+      Date.parse(block.ends_at) <= Date.now()
+        ? api.post<SkipResult>(`/blocks/${block.id}/skip`)
+        : api.patch<SkipAnswer>(`/tasks/${block.task_id}`, { status: 'skipped' }),
+    onError: fail,
+    onSuccess: (result, { block }) => {
+      const text = en.calendar.sheets.defer.skipped(blockName(block))
+      const versionId = result.version_id
+      if (versionId === null) {
+        toast.show({ text, tone: 'success' })
+      } else {
+        undoToast(text, () => {
+          undoVersion(versionId, en.review.skipUndone)
         })
       }
     },
@@ -281,12 +365,12 @@ export function useBlockActions(): BlockActions {
     filters: { mutationKey, status: 'pending' },
     select: (mutation) => (mutation.state.variables as Vars | undefined)?.block.id,
   })
-  const deferringIds = useMutationState({
-    filters: { mutationKey: deferKey(userId), status: 'pending' },
+  const skippingIds = useMutationState({
+    filters: { mutationKey: skipKey(userId), status: 'pending' },
     select: (mutation) => (mutation.state.variables as Vars | undefined)?.block.id,
   })
   const pending = useCallback((blockId: string) => pendingIds.includes(blockId), [pendingIds])
-  const deferring = useCallback((blockId: string) => deferringIds.includes(blockId), [deferringIds])
+  const skipping = useCallback((blockId: string) => skippingIds.includes(blockId), [skippingIds])
 
   return {
     complete: (block) => {
@@ -295,13 +379,16 @@ export function useBlockActions(): BlockActions {
     uncomplete: (block) => {
       uncompleteMutation.mutate(started(block))
     },
-    defer: (block) => {
-      deferMutation.mutate({ block })
+    defer: (block, request, options) => {
+      deferMutation.mutate({ block, request, options })
+    },
+    skip: (block) => {
+      skipMutation.mutate({ block })
     },
     setPinned: (block, pinned) => {
       pinMutation.mutate(started(block, pinned))
     },
     pending,
-    deferring,
+    skipping,
   }
 }
