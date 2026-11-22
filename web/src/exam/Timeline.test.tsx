@@ -148,7 +148,7 @@ describe('Timeline', () => {
   it('the card says how much of the plan is done, beside its heading', () => {
     show()
     expect(screen.getByText(en.exams.exam.timeline.progress(42))).toBeInTheDocument()
-    expect(within(screen.getAllByRole('region', { name: t.title })[0]!).getByRole('heading', { level: 2, name: t.title })).toBeInTheDocument()
+    expect(within(screen.getAllByRole('region', { name: t.title })[0] as HTMLElement).getByRole('heading', { level: 2, name: t.title })).toBeInTheDocument()
   })
 
   it('in LTR today is the first day in the row, so the box opens on it at the left', () => {
