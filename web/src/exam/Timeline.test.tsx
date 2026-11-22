@@ -125,13 +125,30 @@ describe('Timeline', () => {
     // A soft edge on the side that has more days is the cue that the row scrolls.
     expect(box).toHaveAttribute('data-scroll-cue')
     // The card around it is the surface, so only the chart scrolls.
-    expect(screen.getByRole('region', { name: t.title })).toHaveClass('rounded-card', 'border', 'border-line', 'bg-surface')
+    expect(screen.getAllByRole('region', { name: t.title })[0]).toHaveClass('rounded-card', 'border', 'border-line', 'bg-surface')
+  })
+
+  it('the scrolling box is a named, focusable region so the keyboard can scroll it', () => {
+    show()
+    const box = screen.getByRole('list', { name: t.listLabel }).parentElement
+    const regions = screen.getAllByRole('region', { name: t.title })
+    expect(regions).toContain(box)
+    expect(box).toHaveAttribute('tabindex', '0')
+    expect(box?.className).toContain('focus-visible:ring-2')
+    expect(box?.className).toContain('focus-visible:ring-brand')
+  })
+
+  it('today is the first day in DOM order', () => {
+    show()
+    const items = within(screen.getByRole('list', { name: t.listLabel })).getAllByRole('listitem')
+    expect(items[0]).toBe(dayItem(TODAY))
+    expect(items[1]).toBe(dayItem(addDays(TODAY, 1)))
   })
 
   it('the card says how much of the plan is done, beside its heading', () => {
     show()
     expect(screen.getByText(en.exams.exam.timeline.progress(42))).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: t.title })).getByRole('heading', { level: 2, name: t.title })).toBeInTheDocument()
+    expect(within(screen.getAllByRole('region', { name: t.title })[0]!).getByRole('heading', { level: 2, name: t.title })).toBeInTheDocument()
   })
 
   it('in LTR today is the first day in the row, so the box opens on it at the left', () => {

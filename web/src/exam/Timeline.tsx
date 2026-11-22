@@ -110,7 +110,7 @@ function Legend({ colour }: { colour: ReturnType<typeof examColor> }) {
 // content and covers the shade, the "scroll" one stays on the box edge): the cue that the row scrolls.
 const SCROLL_CUE = {
   backgroundImage:
-    'linear-gradient(to right, var(--color-surface), var(--color-surface)), linear-gradient(to left, var(--color-surface), var(--color-surface)), linear-gradient(to right, rgb(0 0 0 / 0.14), transparent), linear-gradient(to left, rgb(0 0 0 / 0.14), transparent)',
+    'linear-gradient(to right, var(--color-surface), var(--color-surface)), linear-gradient(to left, var(--color-surface), var(--color-surface)), linear-gradient(to right, color-mix(in srgb, var(--color-line-strong) 14%, transparent), transparent), linear-gradient(to left, color-mix(in srgb, var(--color-line-strong) 14%, transparent), transparent)',
   backgroundPosition: '0 50%, 100% 50%, 0 50%, 100% 50%',
   backgroundRepeat: 'no-repeat',
   backgroundSize: '24px 100%, 24px 100%, 12px 100%, 12px 100%',
@@ -172,7 +172,14 @@ export function Timeline({
       {days.length === 0 ? (
         <p className="text-body text-ink-muted">{t.noDays}</p>
       ) : (
-        <div data-scroll-cue="" className="snap-x snap-mandatory overflow-x-auto overscroll-x-contain" style={SCROLL_CUE}>
+        <div
+          data-scroll-cue=""
+          role="region"
+          aria-labelledby={titleId}
+          tabIndex={0}
+          className="snap-x snap-mandatory overflow-x-auto overscroll-x-contain rounded-control outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+          style={SCROLL_CUE}
+        >
           <ol aria-label={t.listLabel} className="flex">
             {days.map((info) => (
               <Day key={info.day} info={info} max={max} colour={colour} />
