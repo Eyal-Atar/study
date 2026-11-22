@@ -62,16 +62,68 @@ describe('estimateStudyMinutes', () => {
     expect(minutesOf(i)).toBe(2 * (240 + 180))
   })
 
-  it('counts the night after midnight when the student is still awake', () => {
-    // Night 21:00-02:00, awake 07:00-02:00: 300 a day.
+  it('counts the night after midnight when the student is still awake, but not into the exam day', () => {
+    // Night 21:00-02:00, awake 07:00-02:00: 300 a day. Without rest days the planner stops at the
+    // midnight before the exam (exam_cutoff), so the eve of the exam keeps only 21:00-00:00 (180).
     const i = input({ profile: { study_windows: ['night'], sleep_time: '02:00' } })
-    expect(minutesOf(i)).toBe(2 * 300)
+    expect(minutesOf(i)).toBe(300 + 180)
   })
 
   it('takes busy time of 22:00-00:00 out of the night', () => {
-    // What is left of the night is 21:00-22:00 and 00:00-02:00: 180 a day.
+    // What is left of the night is 21:00-22:00 and 00:00-02:00: 180 a day; on the eve of the exam
+    // only 21:00-22:00 (60).
     const i = input({ profile: { study_windows: ['night'], sleep_time: '02:00' }, busy: everyDay('22:00', '00:00') })
-    expect(minutesOf(i)).toBe(2 * 180)
+    expect(minutesOf(i)).toBe(180 + 60)
+  })
+
+  it('without rest days, an earlier exam’s midnight cuts the night for a later exam too', () => {
+    // Exams in 2 and 4 days: days 1, 2, 3 for the later one. Day 1 is the eve of the first exam
+    // (180), day 2 is a whole night (300), day 3 is the eve of the second (180).
+    const i = input({
+      profile: { study_windows: ['night'], sleep_time: '02:00' },
+      exams: [
+        { name: 'הסתברות', exam_date: inDays(2) },
+        { name: 'שפת C', exam_date: inDays(4) },
+      ],
+    })
+    const minutes = estimateStudyMinutes(i)
+    expect(minutes.get(inDays(2))).toBe(180)
+    expect(minutes.get(inDays(4))).toBe(180 + 300 + 180)
+  })
+
+  it('with rest days, no exam’s midnight cuts a night, like the planner', () => {
+    // With rest days the planner has no midnight cutoffs: an exam's cutoff is the end of its last
+    // study day's waking hours. One rest day, exams in 4 and 5 days. Day 3 is the first exam's rest
+    // day and the second's last study day; its night runs into the first exam's day and is whole.
+    const i = input({
+      profile: { study_windows: ['night'], sleep_time: '02:00', rest_days_before_exam: 1 },
+      exams: [
+        { name: 'הסתברות', exam_date: inDays(4) },
+        { name: 'שפת C', exam_date: inDays(5) },
+      ],
+    })
+    const minutes = estimateStudyMinutes(i)
+    expect(minutes.get(inDays(4))).toBe(2 * 300)
+    expect(minutes.get(inDays(5))).toBe(3 * 300)
+  })
+
+  it('skips an exam whose date is empty or partly typed', () => {
+    const i = input({
+      exams: [
+        { name: 'הסתברות', exam_date: '' },
+        { name: 'שפת C', exam_date: '2026-1' },
+        { name: 'אלגוריתמים', exam_date: inDays(3) },
+      ],
+    })
+    expect([...estimateStudyMinutes(i).keys()]).toEqual([inDays(3)])
+  })
+
+  it('stops at 400 days from tomorrow, so a mistyped year stays quick and finite', () => {
+    const i = input({ profile: { daily_study_minutes: 60 }, exams: [{ name: 'הסתברות', exam_date: '2206-11-22' }] })
+    const started = performance.now()
+    const minutes = minutesOf(i)
+    expect(performance.now() - started).toBeLessThan(500)
+    expect(minutes).toBe(400 * 60)
   })
 
   it('takes a commitment that crosses midnight out of the next morning too', () => {
@@ -142,6 +194,21 @@ describe('estimateStudyMinutes', () => {
 describe('feasibility', () => {
   it('is null without exams', () => {
     expect(feasibility(input({ exams: [] }))).toBeNull()
+  })
+
+  it('is null while the only exam’s date is still being typed, and ignores such an exam otherwise', () => {
+    expect(feasibility(input({ exams: [{ name: 'הסתברות', exam_date: '' }] }))).toBeNull()
+    expect(feasibility(input({ exams: [{ name: 'הסתברות', exam_date: '2026-12-' }] }))).toBeNull()
+    const estimate = feasibility(
+      input({
+        profile: { daily_study_minutes: 240 },
+        exams: [
+          { name: 'שפת C', exam_date: '' },
+          { name: 'הסתברות', exam_date: inDays(11) },
+        ],
+      }),
+    )
+    expect(estimate).toEqual({ level: 'roomy', firstExamName: 'הסתברות', firstExamMinutes: 10 * 240 })
   })
 
   it('an exam tomorrow with a rest day is none, and names the exam', () => {

@@ -24,6 +24,10 @@ const WINDOW_ORDER: StudyWindow[] = ['morning', 'afternoon', 'evening', 'night']
 // The planner's MIN_PART_MINUTES: a remnant shorter than a part is not study time.
 const MIN_PART_MINUTES = 30
 const DAY = 24 * 60
+// The furthest study day counted, from tomorrow. A mistyped year would otherwise make the loop
+// walk every day up to it. An exam beyond the cap is measured on the capped range only; 400 days
+// is far more than any exam needs, so a capped exam still reads roomy whenever it would anyway.
+const HORIZON_DAYS = 400
 
 export interface FeasibilityInput {
   // 'YYYY-MM-DD', the profile's local date.
@@ -53,8 +57,10 @@ type Span = [number, number]
 
 const toMinutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
 
-// Dates as whole days since the epoch, so adding a day never meets a clock change.
+// Dates as whole days since the epoch, so adding a day never meets a clock change. NaN for a date
+// that is not a whole 'YYYY-MM-DD' (one the student is still typing).
 function dayNumber(date: string): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return NaN
   return Math.round(Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10))) / 864e5)
 }
 // 0 = Sunday, like Weekday. Day 0 of the epoch was a Thursday.
@@ -87,8 +93,9 @@ function subtract(spans: Span[], [cs, ce]: Span): Span[] {
 
 // The study minutes of one day: the chosen windows inside the waking hours, less the busy time
 // that starts on the day before, the day or the day after, in pieces of 30 minutes or more,
-// capped at the daily minutes.
-function dayMinutes(input: FeasibilityInput, day: number): number {
+// capped at the daily minutes. eveOfExam: the day ends at midnight, because an exam is the next
+// day and there are no rest days (the planner's exam_cutoff and the cutoffs of _open_windows).
+function dayMinutes(input: FeasibilityInput, day: number, eveOfExam: boolean): number {
   const { profile } = input
   const wake = toMinutes(profile.wake_time)
   const [, awakeEnd] = span(wake, toMinutes(profile.sleep_time), 0)
@@ -107,6 +114,9 @@ function dayMinutes(input: FeasibilityInput, day: number): number {
     }
   }
   let windows = merge(found)
+  if (eveOfExam) {
+    windows = windows.flatMap(([s, e]): Span[] => (s < DAY ? [[s, Math.min(e, DAY)]] : []))
+  }
 
   for (const offset of [-1, 0, 1]) {
     const date = day + offset
@@ -126,18 +136,27 @@ function dayMinutes(input: FeasibilityInput, day: number): number {
 
 // exam_date -> the study minutes from tomorrow to that exam's last study day (cumulative). The last
 // study day is the planner's last_study_day: exam_date - (rest_days_before_exam + 1).
+// An exam whose date is not a whole date yet is left out.
 export function estimateStudyMinutes(input: FeasibilityInput): Map<string, number> {
+  const { rest_days_before_exam: rest } = input.profile
   const tomorrow = dayNumber(input.today) + 1
+  const examDays = new Set<number>()
   const lastDays = new Map<string, number>()
   for (const exam of input.exams) {
-    lastDays.set(exam.exam_date, dayNumber(exam.exam_date) - (input.profile.rest_days_before_exam + 1))
+    const examDay = dayNumber(exam.exam_date)
+    if (!Number.isFinite(examDay)) continue
+    examDays.add(examDay)
+    lastDays.set(exam.exam_date, Math.min(examDay - (rest + 1), tomorrow + HORIZON_DAYS - 1))
   }
   const latest = Math.max(tomorrow - 1, ...lastDays.values())
-  // Running totals, so every day is computed once whatever the number of exams.
+  // Running totals, so every day is computed once whatever the number of exams. With rest days
+  // the planner has no midnight cutoffs: every exam's cutoff is the end of its last study day's
+  // waking hours, so even a later exam's study day whose night runs into an earlier exam's day
+  // keeps its whole night.
   const upTo = new Map<number, number>()
   let total = 0
   for (let day = tomorrow; day <= latest; day++) {
-    total += dayMinutes(input, day)
+    total += dayMinutes(input, day, rest === 0 && examDays.has(day + 1))
     upTo.set(day, total)
   }
   const out = new Map<string, number>()
@@ -148,8 +167,11 @@ export function estimateStudyMinutes(input: FeasibilityInput): Map<string, numbe
 // null without exams. none when an exam has no study time; tight when, at some exam in date order,
 // the minutes up to it divided by the exams up to it (inclusive, the same date counted together)
 // are under TIGHT_HOURS_PER_EXAM hours; roomy otherwise.
+// An exam whose date is not a whole date yet is left out, so with none left it is null too.
 export function feasibility(input: FeasibilityInput): FeasibilityEstimate | null {
-  const exams = [...input.exams].sort((a, b) => a.exam_date.localeCompare(b.exam_date))
+  const exams = input.exams
+    .filter((exam) => Number.isFinite(dayNumber(exam.exam_date)))
+    .sort((a, b) => a.exam_date.localeCompare(b.exam_date))
   const first = exams[0]
   if (!first) return null
   const minutes = estimateStudyMinutes(input)
