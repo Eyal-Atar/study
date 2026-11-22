@@ -1,7 +1,7 @@
 // The texts of the S35 server codes: availability, through the calendar (S32) and the settings (S34). Part of en.codes (en.ts).
 export const enCalendarCodes = {
-  slot_busy: 'That time falls on busy time in your calendar.',
-  event_in_past: 'Busy time can only be marked from now on.',
+  slot_busy: 'That time overlaps busy time in your calendar.',
+  event_in_past: 'That time has already passed.',
   too_many_events: 'You have too many upcoming events. Delete one to add another.',
   not_after_starts_at: 'The end time needs to come after the start time.',
   too_long: 'Busy time can be up to 14 days long.',

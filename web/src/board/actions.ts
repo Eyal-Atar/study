@@ -355,7 +355,7 @@ export function useBlockActions(): BlockActions {
         toast.show({ text, tone: 'success' })
       } else {
         undoToast(text, () => {
-          undoVersion(versionId, en.calendar.sheets.defer.skipUndone)
+          undoVersion(versionId, en.review.skipUndone)
         })
       }
     },

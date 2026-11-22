@@ -20,10 +20,9 @@ export const enCalendarSheets = {
     noSlots: 'There’s no free time that day.',
     back: 'Back',
     confirmAt: (time: string) => `Defer to ${time}`,
-    preview: (from: string, to: string) => `Now ${from}. New time: ${to}.`,
+    preview: (from: string, to: string) => `It’s at ${from} now. I’ll move it to ${to}.`,
     skip: 'Skip',
-    skipped: (title: string) => `I took ${isolate(title)} out of your plan.`,
-    skipUndone: 'Skip undone',
+    skipped: (title: string) => `I took this task out of your plan: ${isolate(title)}.`,
   },
   freeTime: {
     title: 'Good, some free time. How much do you have?',
@@ -39,7 +38,7 @@ export const enCalendarSheets = {
       count === 1
         ? `I brought 1 block forward to ${range}.`
         : `I brought ${String(count)} blocks forward to ${range}.`,
-    undone: 'Free time undone',
+    undone: 'I put your blocks back where they were.',
   },
   busy: {
     titleNew: 'What should I keep free?',

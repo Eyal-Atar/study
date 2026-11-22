@@ -28,7 +28,7 @@ export function BusyBlock({ item, tz, top, height, onOpen }: BusyBlockProps) {
   return (
     <button
       type="button"
-      aria-label={en.calendar.grid.busyLabel(item.title ?? en.calendar.grid.busyUntitled, range)}
+      aria-label={item.title === null ? en.calendar.grid.busyLabelUntitled(range) : en.calendar.grid.busyLabel(item.title, range)}
       data-busy-id={item.id}
       onClick={() => {
         onOpen(item)

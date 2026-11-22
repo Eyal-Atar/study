@@ -604,7 +604,7 @@ describe('useBlockActions: skip', () => {
 
     await user.click((await toasts()).getByRole('button', { name: en.common.undo }))
     expect(fake.calls('POST', '/plan/undo').map((c) => c.body)).toEqual([{ version_id: 'v2' }])
-    expect(await (await toasts()).findByText(en.calendar.sheets.defer.skipUndone)).toBeInTheDocument()
+    expect(await (await toasts()).findByText(en.review.skipUndone)).toBeInTheDocument()
   })
 
   it('a block that ended is skipped with POST /blocks/{id}/skip', async () => {

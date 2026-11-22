@@ -11,6 +11,8 @@ export const enCalendarGrid = {
   blockLabel: (name: string, range: string, exam: string, kind: string, state: string | null, locked: boolean) =>
     `${isolate(name)}, ${range}, ${isolate(exam)}, ${kind}${state === null ? '' : `, ${state}`}${locked ? ', locked' : ''}`,
   busyLabel: (title: string, range: string) => `Busy time: ${isolate(title)}, ${range}`,
+  // Busy time with no title: not "Busy time: Busy".
+  busyLabelUntitled: (range: string) => `Busy time, ${range}`,
   meta: (kind: string, range: string) => `${kind}. ${range}`,
   metaState: (state: string) => `. ${state}`,
   metaLocked: ', locked',

@@ -206,7 +206,7 @@ describe('TimeGrid', () => {
     const item = makeBusy({ source: 'event', kind: null, title: null, starts_at: '2026-11-24T12:00:00Z', ends_at: '2026-11-24T14:00:00Z' })
     const { onOpenBusy } = setup({ busy: [item] })
     const button = within(column('2026-11-24')).getByRole('button', {
-      name: en.calendar.grid.busyLabel(en.calendar.grid.busyUntitled, formatRange(item, TZ)),
+      name: en.calendar.grid.busyLabelUntitled(formatRange(item, TZ)),
     })
     expect(within(button).getByText('Busy')).toBeInTheDocument()
     expect(button.querySelector('svg')?.innerHTML).toBe(soloIcon(CalendarClock))

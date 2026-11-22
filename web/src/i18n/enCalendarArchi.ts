@@ -4,14 +4,14 @@ const plural = (n: number, one: string, many: string) => `${String(n)} ${n === 1
 export const enCalendarArchi = {
   // Three wordings for each fixed moment, so the same day does not always open with the same line.
   review: [
-    'Before we start, there’s a block from earlier I’d like to sort with you.',
+    'Before we start, I’d like to sort out what’s left from earlier.',
     'Let’s look at yesterday first, then today.',
-    'One thing from before today needs an answer. Then we go on.',
+    'Something from earlier still needs an answer. Then we’ll carry on.',
   ],
   report: [
     'Something didn’t fit before the exam. I’ve laid it out for you.',
     'I couldn’t fit everything in. Take a look when you have a minute.',
-    'Your plan is a little too full. I have a way out to suggest.',
+    'Your plan is a little too full. I have a suggestion for you.',
   ],
   restDay: [
     'Nothing is planned for today. Enjoy the quiet.',
@@ -23,11 +23,11 @@ export const enCalendarArchi = {
   openDay: [
     'Nothing is waiting for you today.',
     'Today is open. I have no blocks for you.',
-    'I have nothing for you to do today. The day is yours.',
+    'I have nothing planned for you today. The day is yours.',
   ],
   dayDone: [
     'That’s every block for today. Well done.',
-    'Today is complete. The rest of the day is yours.',
+    'That’s today done. The rest of the day is yours.',
     'You finished today’s plan. I’ll see you tomorrow.',
   ],
   deepWork: [

@@ -14,7 +14,7 @@ export const enCalendarSide = {
     `${isolate(name)}, ${when}, ${String(percent)}% of the plan done`,
   peekLeft: (left: number, duration: string) =>
     left === 0 ? 'All done for today' : `${String(left)} left, ${duration}`,
-  stripLabel: 'Days of this week',
+  stripLabel: 'Days of the week',
   stripDay: (weekday: string, day: number, blocks: number) =>
     `${weekday} ${String(day)}, ${blocks === 0 ? 'no blocks' : plural(blocks, 'block', 'blocks')}`,
   banner: {
