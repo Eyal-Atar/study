@@ -6,6 +6,7 @@ import { enCalendarGrid } from './enCalendarGrid'
 import { enCalendarPage } from './enCalendarPage'
 import { enCalendarSheets } from './enCalendarSheets'
 import { enCalendarSide } from './enCalendarSide'
+import { enClosure } from './enClosure'
 import { enCommitments } from './enCommitments'
 import { enControls } from './enControls'
 import { enCrash } from './enCrash'
@@ -53,6 +54,8 @@ export const en = {
   entry: enEntry,
   exams: enExams,
   focus: enFocus,
+  // S45: closing an exam and Moed B; texts in enClosure.ts.
+  closure: enClosure,
   onboardingFlow: enOnboardingFlow,
   settingsScreen: enSettingsScreen,
   shell: {
