@@ -8,6 +8,7 @@ import { ChevronRight, Trash2 } from '../ui/icons'
 import { PageHeader } from '../ui/PageHeader'
 import { ErrorState, LoadingState } from '../ui/states'
 import { cx, FOCUS_RING, ICON_STROKE } from '../ui/styles'
+import { AppearanceSection } from './AppearanceSection'
 import { CommitmentsSection } from './CommitmentsSection'
 import { ExportSection } from './ExportSection'
 import { PreferencesForm } from './PreferencesForm'
@@ -33,7 +34,7 @@ function preferencesKey(me: Me): string {
 }
 
 // /settings (spec 7.9, S34 decision 15): the study preferences with their Save, then Busy time,
-// Reminders (S16), and the account card with the export and the deletion.
+// Reminders (S16), Appearance (S43), and the account card with the export and the deletion.
 export function SettingsPage() {
   const me = useMe()
   return (
@@ -66,6 +67,9 @@ export function SettingsPage() {
         <p className="mb-4 max-w-prose text-small text-ink-muted">{en.notifications.intro}</p>
         <NotificationSettings variant="bare" />
       </Card>
+
+      {/* S43: the theme on this device, like Reminders; it applies at once, so after the Save. */}
+      <AppearanceSection />
 
       <Card role="region" title={en.settingsScreen.prefs.accountTitle}>
         <div className="flex flex-col divide-y divide-line">

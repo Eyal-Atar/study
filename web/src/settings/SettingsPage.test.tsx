@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query'
-import { screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent, type UserEvent } from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Me, MePatch } from '../api/me'
@@ -10,6 +10,12 @@ import { COMPLETED_AT, examFixture, meFixture, previewFixture } from '../test/on
 import { createFakeApi, problem, type ApiCall, type FakeApi } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
+import { createFakeStorage } from '../test/fakeStorage'
+import { AppProviders } from '../app/AppProviders'
+import { createMemoryRouter } from 'react-router'
+import { RouterProvider } from 'react-router/dom'
+import { ReplanOfferProvider } from '../plan/ReplanOffer'
+import { SettingsPage } from './SettingsPage'
 
 const t = en.settings.preferences
 const s = en.settingsScreen
@@ -505,11 +511,49 @@ describe('SettingsPage preferences', () => {
 })
 
 describe('SettingsPage other sections', () => {
-  it('the cards come in the order of the settings: preferences, Save, Busy time, Reminders, account', async () => {
+  it('the cards come in the order of the settings: preferences, Save, Busy time, Reminders, Appearance, account', async () => {
     open(server())
     await ready()
     const names = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
-    expect(names).toEqual([t.title, s.busy.title, en.notifications.title, r.accountTitle])
+    expect(names).toEqual([t.title, s.busy.title, en.notifications.title, s.appearance.title, r.accountTitle])
+  })
+
+  it('Appearance sits after Reminders and before the account, also while the profile loads and when it fails', async () => {
+    const regionNames = () => screen.getAllByRole('region').map((region) => within(region).queryAllByRole('heading', { level: 2 })[0]?.textContent)
+    const expectOrder = () => {
+      const names = regionNames()
+      const reminders = names.indexOf(en.notifications.title)
+      expect(reminders).toBeGreaterThanOrEqual(0)
+      expect(names.indexOf(s.appearance.title)).toBe(reminders + 1)
+      expect(names.indexOf(r.accountTitle)).toBe(reminders + 2)
+    }
+
+    open(server())
+    await ready()
+    expectOrder()
+    cleanup()
+
+    // The gate of the shell waits for GET /me, so the page is rendered on its own here: the card
+    // does not wait for the profile, while it loads or after it failed.
+    const fake = server().on('GET /me', problem(503, 'database_unavailable'))
+    const router = createMemoryRouter([{ path: '/settings', element: <SettingsPage /> }], { initialEntries: ['/settings'] })
+    render(
+      <AppProviders
+        auth={createFakeAuth(fakeSession()).client}
+        api={fake.api}
+        storage={createFakeStorage().client}
+        queryClient={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <ReplanOfferProvider>
+          <RouterProvider router={router} />
+        </ReplanOfferProvider>
+      </AppProviders>,
+    )
+    expect(screen.getByRole('radiogroup', { name: s.appearance.label })).toBeInTheDocument()
+    expectOrder()
+    expect(await within(screen.getByRole('region', { name: t.title })).findByText(codeText('database_unavailable'))).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: s.appearance.title })).getByRole('radiogroup', { name: s.appearance.label })).toBeInTheDocument()
+    expectOrder()
   })
 
   it('hosts the reminder settings of S16 in one card, with no card inside it', async () => {
