@@ -21,6 +21,21 @@ export interface Streak {
   today: string
 }
 
+// An exam closed as done (S45), the garden's blooming plants; from the last closed.
+export interface ArchivedExam {
+  exam_id: string
+  name: string
+  color_index: number
+  exam_date: string
+  first_exam_date: string | null
+  sitting: number
+  closed_at: string | null
+  studied_minutes: number
+  tasks_done: number
+  tasks_total: number
+  completion_percent: number
+}
+
 export interface Progress {
   total_xp: number
   level: number
@@ -34,4 +49,5 @@ export interface Progress {
   days: { date: string; xp: number }[]
   // All the badges in a fixed order, earned or not, so the board shows what comes next.
   badges: Badge[]
+  archive: ArchivedExam[]
 }

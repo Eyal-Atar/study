@@ -2,6 +2,7 @@
 // dates 'YYYY-MM-DD', and times ISO 8601 with an offset.
 
 export type { Me, StudyWindow } from '../api/me'
+import type { ExamState } from '../closure/types'
 
 export interface Exam {
   id: string
@@ -11,6 +12,13 @@ export interface Exam {
   created_at: string
   // 0-7, the colour of the exam (S31): the server gives each exam a stable one; see ui/examColor.ts.
   color_index: number
+  // S45: the server always sends these. Optional so that test data from before S45 works; every read of
+  // the state goes through examState() (closure/types.ts).
+  sitting?: number
+  state?: ExamState
+  closed_at?: string | null
+  first_exam_date?: string | null
+  first_grade?: number | null
 }
 
 export interface ExamCreate {

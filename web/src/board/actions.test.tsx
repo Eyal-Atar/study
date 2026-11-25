@@ -466,6 +466,7 @@ function progressOf(totalXp: number, level: number): Progress {
     streak: { current: 3, longest: 5, studied_today: true, today: '2026-11-16' },
     days: [],
     badges: [],
+    archive: [],
   }
 }
 

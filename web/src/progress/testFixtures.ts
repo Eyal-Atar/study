@@ -53,6 +53,7 @@ export function makeProgress(overrides: Partial<Progress> = {}): Progress {
     streak: { current: 4, longest: 9, studied_today: true, today: '2026-11-16' },
     days: makeDays({ '2026-11-13': 120, '2026-11-14': 80, '2026-11-15': 200, '2026-11-16': 60, '2026-11-05': 100 }),
     badges: makeBadges({ first_task: '2026-11-05T09:00:00Z', task_master_10: '2026-11-12T18:03:00Z', iron_will_7: '2026-11-12T22:30:00Z', xp_1000: '2026-11-14T10:00:00Z' }),
+    archive: [],
     ...overrides,
   }
 }
