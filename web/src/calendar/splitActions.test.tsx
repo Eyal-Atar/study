@@ -102,8 +102,11 @@ async function ready() {
   })
 }
 
+// The clock sits on the study day makeToday seeds (2026-11-16), before the fixture's 24-26 Nov, so a split that
+// finds no Today in the cache (it then reads the clock) names its first bite the same on any day.
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true })
+  vi.setSystemTime(new Date('2026-11-16T08:00:00Z'))
 })
 afterEach(() => {
   vi.useRealTimers()
