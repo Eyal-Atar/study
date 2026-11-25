@@ -47,6 +47,8 @@ export function CalendarSheets({ sheet, setSheet, setGhosts, blocks, upcoming, t
         <BlockActionsSheet
           block={sheet.block}
           tz={tz}
+          today={today}
+          now={now}
           onClose={close}
           onDefer={(block) => {
             setSheet({ kind: 'defer', block })

@@ -1,13 +1,15 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { useState } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Block } from '../board/types'
 import { codeText } from '../i18n/codes'
 import { en } from '../i18n/en'
 import { blockName } from '../board/blockName'
-import { makeBlock, makeMe, makePlan, makeToday, renderBoard } from '../test/boardFixtures'
+import { USER_ID, makeBlock, makeMe, makePlan, makeToday, renderBoard } from '../test/boardFixtures'
 import { createFakeApi, problem } from '../test/fakeApi'
+import { BUTTON_REST } from '../ui/styles'
+import { focusPath, focusStorageKey, type FocusSession } from '../session/focusSession'
 import { BlockActionsSheet } from './BlockActionsSheet'
 import { DeferSheet } from './DeferSheet'
 import type { Ghost } from './ghost'
@@ -24,12 +26,14 @@ function fakeFor(block: Block) {
     .on(`POST /blocks/${block.id}/complete`, { block, xp_awarded: 0, xp_total: 0, level: 1 })
 }
 
-function setupActions(block: Block) {
+function setupActions(block: Block, { today = TODAY, now = Date.now() }: { today?: string; now?: number } = {}) {
   const fake = fakeFor(block)
   const onClose = vi.fn()
   const onDefer = vi.fn()
-  renderBoard(<BlockActionsSheet block={block} tz={TZ} onClose={onClose} onDefer={onDefer} />, { api: fake.api })
-  return { fake, onClose, onDefer }
+  const { router } = renderBoard(<BlockActionsSheet block={block} tz={TZ} today={today} now={now} onClose={onClose} onDefer={onDefer} />, {
+    api: fake.api,
+  })
+  return { fake, onClose, onDefer, router }
 }
 
 function setupDefer(block: Block, extra?: (fake: ReturnType<typeof createFakeApi>) => void) {
@@ -279,5 +283,163 @@ describe('DeferSheet', () => {
       expect(onClose).toHaveBeenCalled()
     })
     expect(onPreview).toHaveBeenLastCalledWith([])
+  })
+})
+
+// Start now, Just 5 minutes and Back to focus (S42 Task 5). The block is 14:00-15:00 in Jerusalem.
+describe('BlockActionsSheet, focus', () => {
+  const START = Date.parse('2026-11-16T12:00:00Z')
+  const BEFORE = Date.parse('2026-11-16T09:00:00Z')
+
+  afterEach(() => {
+    vi.useRealTimers()
+    window.localStorage.clear()
+  })
+
+  function freeze(now: number) {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(now)
+    window.localStorage.clear()
+  }
+
+  function stored(): FocusSession | null {
+    const raw = window.localStorage.getItem(focusStorageKey(USER_ID))
+    return raw === null ? null : (JSON.parse(raw) as FocusSession)
+  }
+
+  function isPrimary(button: HTMLElement) {
+    return button.className.split(/\s+/).includes(BUTTON_REST.primary.split(/\s+/)[0] as string)
+  }
+
+  it('a block of today that has not started: Start now first and the only primary, then Just 5 minutes, Done secondary', async () => {
+    freeze(BEFORE)
+    const block = makeBlock()
+    setupActions(block, { now: BEFORE })
+    await screen.findByRole('dialog')
+    const name = blockName(block)
+    const start = screen.getByRole('button', { name: en.focus.startLabel(name) })
+    const five = screen.getByRole('button', { name: en.focus.fiveLabel(name) })
+    const done = screen.getByRole('button', { name: en.board.completeLabel(name) })
+    const names = buttonNames()
+    expect(names.indexOf(en.focus.startLabel(name))).toBeLessThan(names.indexOf(en.board.completeLabel(name)))
+    expect(names.indexOf(en.focus.startLabel(name))).toBeLessThan(names.indexOf(en.focus.fiveLabel(name)))
+    expect(names.indexOf(en.focus.fiveLabel(name))).toBe(names.indexOf(en.focus.startLabel(name)) + 1)
+    expect(isPrimary(start)).toBe(true)
+    expect(isPrimary(five)).toBe(false)
+    expect(isPrimary(done)).toBe(false)
+  })
+
+  it('with four minutes left: Start now, no Just 5 minutes', async () => {
+    const now = Date.parse('2026-11-16T12:56:00Z')
+    freeze(now)
+    const block = makeBlock()
+    setupActions(block, { now })
+    await screen.findByRole('dialog')
+    expect(buttonNames()).toContain(en.focus.startLabel(blockName(block)))
+    expect(buttonNames()).not.toContain(en.focus.fiveLabel(blockName(block)))
+  })
+
+  it('a block that ended: no Start now, Done stays the primary', async () => {
+    freeze(Date.parse('2026-11-16T13:30:00Z'))
+    const ended = makeBlock()
+    setupActions(ended, { now: Date.now() })
+    await screen.findByRole('dialog')
+    expect(buttonNames()).not.toContain(en.focus.startLabel(blockName(ended)))
+    expect(isPrimary(screen.getByRole('button', { name: en.board.completeLabel(blockName(ended)) }))).toBe(true)
+  })
+
+  it('a done block: no Start now', async () => {
+    freeze(BEFORE)
+    const block = makeBlock({ state: 'done', status: 'done' })
+    setupActions(block, { now: BEFORE })
+    await screen.findByRole('dialog')
+    expect(buttonNames()).not.toContain(en.focus.startLabel(blockName(block)))
+    expect(buttonNames()).toContain(en.board.uncompleteLabel(blockName(block)))
+  })
+
+  it('a block of tomorrow: no Start now', async () => {
+    freeze(BEFORE)
+    const block = makeBlock({ study_date: '2026-11-17', starts_at: '2026-11-17T12:00:00Z', ends_at: '2026-11-17T13:00:00Z' })
+    setupActions(block, { now: BEFORE })
+    await screen.findByRole('dialog')
+    expect(buttonNames()).not.toContain(en.focus.startLabel(blockName(block)))
+    expect(isPrimary(screen.getByRole('button', { name: en.board.completeLabel(blockName(block)) }))).toBe(true)
+  })
+
+  it('a live session of this block: only Back to focus; a session that ended brings Start now back', async () => {
+    freeze(BEFORE)
+    const block = makeBlock()
+    const live: FocusSession = { v: 1, blockId: block.id, startedAt: BEFORE - 60_000, endsAt: START + 3_600_000, fiveEndsAt: null }
+    window.localStorage.setItem(focusStorageKey(USER_ID), JSON.stringify(live))
+    setupActions(block, { now: BEFORE })
+    await screen.findByRole('dialog')
+    const name = blockName(block)
+    expect(buttonNames()).toContain(en.focus.resume)
+    expect(buttonNames()).not.toContain(en.focus.startLabel(name))
+    expect(buttonNames()).not.toContain(en.focus.fiveLabel(name))
+    expect(isPrimary(screen.getByRole('button', { name: en.focus.resume }))).toBe(true)
+    expect(isPrimary(screen.getByRole('button', { name: en.board.completeLabel(name) }))).toBe(false)
+  })
+
+  it('a session that is over does not count: Start now is back', async () => {
+    freeze(BEFORE)
+    const block = makeBlock()
+    const over: FocusSession = { v: 1, blockId: block.id, startedAt: BEFORE - 3_600_000, endsAt: BEFORE - 1000, fiveEndsAt: null }
+    window.localStorage.setItem(focusStorageKey(USER_ID), JSON.stringify(over))
+    setupActions(block, { now: BEFORE })
+    await screen.findByRole('dialog')
+    expect(buttonNames()).toContain(en.focus.startLabel(blockName(block)))
+    expect(buttonNames()).not.toContain(en.focus.resume)
+  })
+
+  it('a live session of another block does not hide Start now', async () => {
+    freeze(BEFORE)
+    const block = makeBlock()
+    const other: FocusSession = { v: 1, blockId: 'other', startedAt: BEFORE, endsAt: BEFORE + 3_600_000, fiveEndsAt: null }
+    window.localStorage.setItem(focusStorageKey(USER_ID), JSON.stringify(other))
+    setupActions(block, { now: BEFORE })
+    await screen.findByRole('dialog')
+    expect(buttonNames()).toContain(en.focus.startLabel(blockName(block)))
+  })
+
+  it('Start now closes the sheet, goes to the screen and stores a full session', async () => {
+    freeze(BEFORE)
+    const block = makeBlock()
+    const { onClose, router } = setupActions(block, { now: BEFORE })
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: en.focus.startLabel(blockName(block)) }))
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(focusPath(block.id))
+    })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(stored()).toMatchObject({ blockId: block.id, startedAt: BEFORE, fiveEndsAt: null })
+  })
+
+  it('Just 5 minutes stores fiveEndsAt five minutes on', async () => {
+    freeze(BEFORE)
+    const block = makeBlock()
+    const { onClose, router } = setupActions(block, { now: BEFORE })
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: en.focus.fiveLabel(blockName(block)) }))
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(focusPath(block.id))
+    })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(stored()?.fiveEndsAt).toBe(BEFORE + 300_000)
+  })
+
+  it('Back to focus goes back to the same session without rewriting it', async () => {
+    freeze(BEFORE)
+    const block = makeBlock()
+    const live: FocusSession = { v: 1, blockId: block.id, startedAt: BEFORE - 120_000, endsAt: START + 3_600_000, fiveEndsAt: null }
+    window.localStorage.setItem(focusStorageKey(USER_ID), JSON.stringify(live))
+    const { onClose, router } = setupActions(block, { now: BEFORE })
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: en.focus.resume }))
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(focusPath(block.id))
+    })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(stored()).toEqual(live)
   })
 })

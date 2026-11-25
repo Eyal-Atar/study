@@ -5,6 +5,7 @@ import { blockName } from '../board/blockName'
 import { MoveDialog } from '../board/MoveDialog'
 import type { Block } from '../board/types'
 import { en } from '../i18n/en'
+import { canFocus, canStartFive, isLive, useFocusSession, useStartFocus } from '../session/focusSession'
 import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
 import { BlockCard } from './BlockCard'
@@ -12,19 +13,27 @@ import { BlockCard } from './BlockCard'
 export interface BlockActionsSheetProps {
   block: Block | null
   tz: string
+  today: string
+  now: number
   onClose: () => void
   onDefer: (block: Block) => void
 }
 
 // What a block can do, as buttons: every gesture of the grid has one here. Open while `block` is set.
+// Start now, Just 5 minutes and Back to focus (S42) come first for a block of today that has not ended;
+// then Done is a secondary button, so the sheet keeps one primary.
 // Each action closes the sheet; Move closes it only after the move dialog is closed, so the sheet
 // steps aside (it is not open under the dialog) while the times are chosen.
-export function BlockActionsSheet({ block, tz, onClose, onDefer }: BlockActionsSheetProps) {
+export function BlockActionsSheet({ block, tz, today, now, onClose, onDefer }: BlockActionsSheetProps) {
   const actions = useBlockActions()
+  const session = useFocusSession()
+  const startFocus = useStartFocus()
   const [moving, setMoving] = useState(false)
   if (block === null) return null
   const name = blockName(block)
   const allowed = actionsFor(block)
+  const focus = canFocus(block, today, now)
+  const live = focus && isLive(session, block.id, now)
 
   function then(run: () => void) {
     run()
@@ -42,9 +51,52 @@ export function BlockActionsSheet({ block, tz, onClose, onDefer }: BlockActionsS
       >
         <BlockCard block={block} tz={tz} />
         <div className="flex flex-col gap-2">
-          {allowed.includes('complete') ? (
+          {focus && live ? (
             <Button
               variant="primary"
+              className="w-full"
+              onPress={() => {
+                then(() => {
+                  startFocus(block, 'full')
+                })
+              }}
+            >
+              {en.focus.resume}
+            </Button>
+          ) : null}
+          {focus && !live ? (
+            <>
+              <Button
+                variant="primary"
+                className="w-full"
+                aria-label={en.focus.startLabel(name)}
+                onPress={() => {
+                  then(() => {
+                    startFocus(block, 'full')
+                  })
+                }}
+              >
+                {en.focus.start}
+              </Button>
+              {canStartFive(block, now) ? (
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  aria-label={en.focus.fiveLabel(name)}
+                  onPress={() => {
+                    then(() => {
+                      startFocus(block, 'five')
+                    })
+                  }}
+                >
+                  {en.focus.five}
+                </Button>
+              ) : null}
+            </>
+          ) : null}
+          {allowed.includes('complete') ? (
+            <Button
+              variant={focus ? 'secondary' : 'primary'}
               className="w-full"
               aria-label={en.board.completeLabel(name)}
               onPress={() => {
