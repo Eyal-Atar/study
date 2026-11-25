@@ -8,6 +8,7 @@ import { AuthProvider } from '../auth/AuthProvider'
 import { StorageContext, type StorageClient } from '../auth/storage'
 import type { AuthClient } from '../auth/supabase'
 import { PushProvider } from '../notifications/PushProvider'
+import { ThemeProvider } from '../theme/ThemeProvider'
 import { ToastProvider } from '../ui/toast'
 
 // The services are created once by the caller (main.tsx, or a test) and passed in.
@@ -31,15 +32,18 @@ export function AppProviders({
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider locale={LOCALE}>
-        <ApiContext value={api}>
-          <StorageContext value={storage}>
-            <AuthProvider auth={auth}>
-              <ToastProvider>
-                <PushProvider vapidPublicKey={vapidPublicKey}>{children}</PushProvider>
-              </ToastProvider>
-            </AuthProvider>
-          </StorageContext>
-        </ApiContext>
+        {/* Outside everything else, so sign-in, onboarding and the screenshot harness follow the theme too. */}
+        <ThemeProvider>
+          <ApiContext value={api}>
+            <StorageContext value={storage}>
+              <AuthProvider auth={auth}>
+                <ToastProvider>
+                  <PushProvider vapidPublicKey={vapidPublicKey}>{children}</PushProvider>
+                </ToastProvider>
+              </AuthProvider>
+            </StorageContext>
+          </ApiContext>
+        </ThemeProvider>
       </I18nProvider>
     </QueryClientProvider>
   )
