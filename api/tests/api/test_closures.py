@@ -309,6 +309,59 @@ def test_moed_b_waits_and_then_closes_done_and_undo_returns_it_to_waiting(
     assert _ids(_closures(api, user)["waiting"]) == [str(exam)]
 
 
+def test_deleting_a_pending_exam_takes_it_off_closures_and_undo_brings_it_back(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, name="Calculus", exam_date="2026-11-15")
+    insert_task(db, user.id, exam, minutes=90, status="done")
+    insert_task(db, user.id, exam, minutes=30)
+    before = _closures(api, user)
+    assert _ids(before["pending"]) == [str(exam)]
+    item = before["pending"][0]
+    assert item["sitting"] == 1
+    assert item["options"] == ["done", "moed_b"]
+
+    deleted = api.delete(f"/exams/{exam}", headers=user.headers)
+
+    assert deleted.status_code == 200, deleted.text
+    version_id = deleted.json()["version_id"]
+    assert version_id is not None
+    assert _closures(api, user) == {"pending": [], "waiting": []}
+
+    assert _undo(api, user, version_id).status_code == 200
+    after = _closures(api, user)
+    assert after["waiting"] == []
+    assert _ids(after["pending"]) == [str(exam)]
+    restored = after["pending"][0]
+    assert restored["state"] == "pending"
+    assert restored["options"] == ["done", "moed_b"]
+    assert restored["tasks_total"] == item["tasks_total"]
+    assert restored["studied_minutes"] == item["studied_minutes"]
+
+
+def test_deleting_a_waiting_exam_and_undo_returns_it_to_waiting(
+    api: TestClient, user: ApiUser, db: psycopg.Connection
+) -> None:
+    exam = insert_exam(db, user.id, exam_date="2026-11-15")
+    assert _close(api, user, exam, "moed_b").status_code == 200
+    assert _ids(_closures(api, user)["waiting"]) == [str(exam)]
+
+    deleted = api.delete(f"/exams/{exam}", headers=user.headers)
+
+    assert deleted.status_code == 200, deleted.text
+    version_id = deleted.json()["version_id"]
+    assert version_id is not None
+    assert _closures(api, user) == {"pending": [], "waiting": []}
+    assert api.get("/exams", headers=user.headers).json() == []
+
+    assert _undo(api, user, version_id).status_code == 200
+    after = _closures(api, user)
+    assert after["pending"] == []
+    assert _ids(after["waiting"]) == [str(exam)]
+    listed = api.get("/exams", headers=user.headers).json()
+    assert [(e["id"], e["state"]) for e in listed] == [(str(exam), "waiting_moed_b")]
+
+
 def test_a_second_sitting_closes_only_done(
     api: TestClient, user: ApiUser, db: psycopg.Connection
 ) -> None:
