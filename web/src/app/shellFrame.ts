@@ -8,22 +8,26 @@ import { createContext, use, useEffect } from 'react'
 export interface ShellFrame {
   fullBleed: boolean
   ownPhoneHeader: boolean
+  // A screen that stands alone (S42, the focus screen): no top bar and no navigation, no column, no
+  // padding of main and no install hint; the screen brings its own way out and its own padding. The
+  // skip link and the toasts stay.
+  bare: boolean
 }
 
-export const PLAIN_FRAME: ShellFrame = { fullBleed: false, ownPhoneHeader: false }
+export const PLAIN_FRAME: ShellFrame = { fullBleed: false, ownPhoneHeader: false, bare: false }
 
 // AppShell keeps the frame in its state and gives every screen the way to ask for one.
 export const ShellFrameRequest = createContext<((frame: ShellFrame) => void) | null>(null)
 
 // Asked while the screen is mounted, and given back when it unmounts, so the next screen gets the
 // plain frame. Outside the shell (a test of the screen alone) it does nothing.
-export function useShellFrame({ fullBleed = false, ownPhoneHeader = false }: Partial<ShellFrame>): void {
+export function useShellFrame({ fullBleed = false, ownPhoneHeader = false, bare = false }: Partial<ShellFrame>): void {
   const request = use(ShellFrameRequest)
   useEffect(() => {
     if (request === null) return
-    request({ fullBleed, ownPhoneHeader })
+    request({ fullBleed, ownPhoneHeader, bare })
     return () => {
       request(PLAIN_FRAME)
     }
-  }, [request, fullBleed, ownPhoneHeader])
+  }, [request, fullBleed, ownPhoneHeader, bare])
 }
