@@ -1,10 +1,11 @@
 import { CalendarDays, FileText, SproutIcon, type IconType } from '../ui/icons'
 import { useRef, useState, type MouseEvent } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router'
+import { NavLink, Outlet, useLocation, useMatch } from 'react-router'
 import { en } from '../i18n/en'
 import { InstallHint } from '../notifications/InstallHint'
 import { PushSync } from '../notifications/PushSync'
 import { ReplanOfferProvider } from '../plan/ReplanOffer'
+import { FOCUS_PATH } from '../session/focusSession'
 import { cx, FOCUS_RING_NATIVE, ICON_STROKE } from '../ui/styles'
 import { ToastRegion } from '../ui/toast'
 import { Logo } from './Logo'
@@ -65,6 +66,11 @@ export function AppShell() {
   const [toolbar, setToolbar] = useState<HTMLElement | null>(null)
   // What the screen asked of the frame (useShellFrame): only the calendar asks (S32).
   const [frame, setFrame] = useState<ShellFrame>(PLAIN_FRAME)
+  // The focus route is bare from its first render, before the screen's effect asks: otherwise a direct
+  // load draws the bar for a moment, and mounts InstallHint, which marks itself seen on mount and
+  // would never show again.
+  const focusRoute = useMatch(`${FOCUS_PATH}/:blockId`) !== null
+  const bare = frame.bare || focusRoute
   useRouteFocus(main)
 
   // The link is a real anchor to #main, so it reads and behaves as a link. The move itself is done
@@ -94,7 +100,7 @@ export function AppShell() {
               {en.shell.skipToContent}
             </a>
             {/* A bare screen (S42, the focus screen) stands alone: no bar and no navigation. */}
-            {frame.bare ? null : (
+            {bare ? null : (
               <>
                 {/* pt: the notch of a phone in landscape and of an installed app; the height is below it. */}
                 {/* The calendar draws its own header below lg (S32 decision 2), so the phone shows one:
@@ -152,12 +158,12 @@ export function AppShell() {
               className={cx(
                 'w-full outline-none',
                 // A bare screen brings its own padding, and has no bar at the bottom to clear.
-                !frame.bare && 'pb-[calc(7rem+env(safe-area-inset-bottom))]',
+                !bare && 'pb-[calc(7rem+env(safe-area-inset-bottom))]',
                 // The calendar uses the whole width, and from lg the whole height under the top bar.
-                !frame.bare && (frame.fullBleed ? 'lg:pb-0' : 'mx-auto max-w-3xl px-page py-section lg:pb-12'),
+                !bare && (frame.fullBleed ? 'lg:pb-0' : 'mx-auto max-w-3xl px-page py-section lg:pb-12'),
               )}
             >
-              {onboarding || frame.bare ? null : (
+              {onboarding || bare ? null : (
                 // A full-bleed screen has no gutter of <main>: the hint brings its own (and the
                 // wrapper takes no room when the hint is not shown). One place in the tree for both,
                 // so the hint does not mount again (and count as seen) when the frame changes.

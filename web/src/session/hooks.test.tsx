@@ -122,7 +122,7 @@ describe('useFocusClock', () => {
     })
     vi.setSystemTime(T0 + 10_000)
     rerender({ s: five(T0 + 10_000, 60) })
-    advance(0)
+    // No timer is advanced: the first drawing of the session already has the time it arrived.
     expect(result.current.now).toBe(T0 + 10_000)
     expect(left(result.current.clock)).toBe(5)
     expect(vi.getTimerCount()).toBe(1)

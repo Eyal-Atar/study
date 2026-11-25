@@ -12,6 +12,8 @@ import { onboardingRoutes } from '../onboarding/routes'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { DeleteAccountPage } from '../settings/DeleteAccountPage'
 import { GoodbyePage } from '../settings/GoodbyePage'
+import { FocusPage } from '../session/FocusPage'
+import { FOCUS_PATH } from '../session/focusSession'
 import { SettingsPage } from '../settings/SettingsPage'
 import { RouteCrash } from './AppErrorBoundary'
 import { AppShell } from './AppShell'
@@ -70,6 +72,8 @@ export const routes: RouteObject[] = [
                 children: [
                   { index: true, element: <Navigate to={CALENDAR_PATH} replace /> },
                   { path: CALENDAR_PATH, Component: CalendarPage },
+                  // S42: the focus screen of one block, in the bare frame.
+                  { path: `${FOCUS_PATH}/:blockId`, Component: FocusPage },
                   // Inside the gate: a user without a plan goes from /today straight to the onboarding.
                   { path: TODAY_PATH, Component: TodayRedirect },
                   { path: WEEK_PATH, Component: WeekRedirect },

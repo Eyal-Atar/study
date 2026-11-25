@@ -10,7 +10,12 @@ const MAX_DELAY_MS = 2_147_483_647
 // JavaScript and its timers are late, so a page that becomes visible again, or comes back from the
 // back-forward cache (pageshow), takes the wall time at once (Review Focus 3).
 export function useFocusClock(session: FocusSession | null): { now: number; clock: FocusClock | null } {
-  const [now, setNow] = useState(() => Date.now())
+  const [stateNow, setNow] = useState(() => Date.now())
+  // A session that arrives after the mount (the focus screen writes one once GET /today answers) was
+  // started after the last `now` was taken: its own start is the wall time it arrived at. So it is
+  // never drawn with the older `now`, a minute too many ("61 min"), not even for one frame, and no
+  // effect has to set the state again. Pure: no clock is read in the render.
+  const now = session === null ? stateNow : Math.max(stateNow, session.startedAt)
   const clock = session === null ? null : focusClock(session, now)
   const nextChangeAt = clock?.nextChangeAt ?? null
   const hasSession = session !== null
@@ -32,9 +37,8 @@ export function useFocusClock(session: FocusSession | null): { now: number; cloc
   }, [hasSession])
 
   // `now` is a dependency too: a timeout that fires a little early leaves nextChangeAt as it was, and
-  // the next one is set from the new now. A `now` older than the session (a session that arrived
-  // after the mount) gives a nextChangeAt in the past, so the delay is 0 and the clock catches up.
-  // In 'over' there is nothing more to change, so no timer.
+  // the next one is set from the new now. A nextChangeAt already past (a late timer) gives a delay
+  // of 0, and the clock catches up. In 'over' there is nothing more to change, so no timer.
   useEffect(() => {
     if (nextChangeAt === null) return
     const delay = Math.min(Math.max(nextChangeAt - Date.now(), 0), MAX_DELAY_MS)

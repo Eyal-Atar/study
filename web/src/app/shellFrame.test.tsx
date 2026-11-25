@@ -5,6 +5,7 @@ import { StrictMode } from 'react'
 import { createMemoryRouter, Link } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { describe, expect, it } from 'vitest'
+import { INSTALL_HINT_KEY } from '../notifications/InstallHint'
 import { IPHONE_UA, installFakePush } from '../notifications/fakePush'
 import { en } from '../i18n/en'
 import { createFakeApi } from '../test/fakeApi'
@@ -55,6 +56,8 @@ function open(path: string) {
           { path: '/full', element: <Calendarish /> },
           { path: '/bare', element: <Bare /> },
           { path: '/plain', element: <Plain /> },
+          // The focus route, with a screen that does not ask: the shell knows it from the route alone.
+          { path: '/focus/:blockId', element: <Plain /> },
         ],
       },
     ],
@@ -126,6 +129,25 @@ describe('useShellFrame', () => {
       open('/bare')
       await screen.findByRole('heading', { name: 'Focus' })
       expect(screen.queryByRole('region', { name: en.notifications.installTitle })).not.toBeInTheDocument()
+    } finally {
+      push.restore()
+      localStorage.clear()
+    }
+  })
+
+  it('the focus route is bare from the very first render, before any effect asks, and never mounts the install hint', async () => {
+    localStorage.clear()
+    const push = installFakePush({ userAgent: IPHONE_UA, supported: false })
+    try {
+      open('/focus/block-1')
+      // No waiting: the first commit already has no bar and no column.
+      expect(screen.queryByRole('banner')).not.toBeInTheDocument()
+      expect(screen.queryByRole('navigation', { name: en.shell.mainNav })).not.toBeInTheDocument()
+      expect(screen.getByRole('main').className).not.toContain('max-w-3xl')
+      await screen.findByRole('heading', { name: 'Plain' })
+      expect(screen.queryByRole('banner')).not.toBeInTheDocument()
+      // The hint was never mounted, so it was not marked seen and still shows on the next screen.
+      expect(localStorage.getItem(INSTALL_HINT_KEY)).toBeNull()
     } finally {
       push.restore()
       localStorage.clear()
