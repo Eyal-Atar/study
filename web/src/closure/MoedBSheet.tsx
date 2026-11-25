@@ -191,7 +191,14 @@ export function MoedBDone({
         </Note>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button className="flex-1" autoFocus isDisabled={undoing} onPress={onClose}>
+        <Button
+          // A new key when the Undo fails: the focus goes to Close, not to the page.
+          key={undoError === null ? 'close' : 'close-after-undo'}
+          className="flex-1"
+          autoFocus
+          isDisabled={undoing}
+          onPress={onClose}
+        >
           {en.common.close}
         </Button>
         {undoError === null ? (

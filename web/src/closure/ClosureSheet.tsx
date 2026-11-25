@@ -80,12 +80,16 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
   // The question shows the item as pending has it now; after a decision the server no longer returns
   // it, so the other states keep their own copy.
   const live = state?.step === 'question' ? pending.find((i) => i.exam_id === state.item.exam_id) : undefined
+  // A refetch (the interval, the window's focus) can answer without the exam once the server has
+  // committed and before the close itself answers: the sheet waits for its own answer (decision 7).
+  const inFlight =
+    state !== null && (actions.closing(state.item.exam_id) || actions.planning(state.item.exam_id) || formPending)
   useEffect(() => {
     if (state === null) {
       close()
       return
     }
-    if (state.step !== 'question') return
+    if (state.step !== 'question' || inFlight) return
     if (live !== undefined) {
       returned.current = true
       return
@@ -93,7 +97,7 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
     // Closed elsewhere, or a refetch let it go. Right after an Undo the exam is not back yet.
     if (!state.held || returned.current) close()
     // close reads refs only.
-  }, [state, live])
+  }, [state, live, inFlight])
 
   // onShown once per exam and sitting.
   const shownKeys = useRef(new Set<string>())
@@ -143,8 +147,10 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
   switch (state.step) {
     case 'question': {
       title = s.title(name)
-      status = state.notice ?? ''
-      notice = true
+      // A question that came in place of a pressed button (the next exam) says its sentence; the
+      // first one is the dialog's name as it opens.
+      status = state.notice ?? (state.focus ? title : '')
+      notice = state.notice !== null
       figure = <SheetFigure mood="eureka" />
       const stats = statsLine(item)
       const offersMoedB = item.options.includes('moed_b')
@@ -202,6 +208,9 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
           )}
           <div className="flex flex-wrap gap-2">
             <Button
+              // A new key when the Undo fails: the button mounts again with autoFocus, so the focus
+              // leaves the Undo that is taken off the tree for the primary, not for the page.
+              key={undoError === null ? 'primary' : 'primary-after-undo'}
               className="min-w-0 flex-1"
               autoFocus
               isDisabled={undoing}
@@ -258,8 +267,8 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
     case 'moedB': {
       const { round } = state
       title = m.title
-      status = state.notice ?? ''
-      notice = true
+      status = state.notice ?? title
+      notice = state.notice !== null
       figure = <SheetFigure mood="wisdom" />
       body = (
         <MoedBForm

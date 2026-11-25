@@ -179,6 +179,27 @@ describe('ClosureSheet: the decision', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
+  it('a refetch without the exam while the close is on its way does not close the sheet', async () => {
+    const reply = later<CloseResult>()
+    const { fake, onClose, queryClient } = setup({ close: () => reply.promise })
+    const u = user()
+    await dialog(s.title('הסתברות'))
+    await u.click(screen.getByRole('button', { name: s.nailed }))
+    // The server committed; the 5-minute refetch answers before the close does.
+    fake.on('GET /closures', { pending: [], waiting: [] })
+    await act(async () => {
+      await queryClient.invalidateQueries()
+    })
+    await waitFor(() => {
+      expect(fake.calls('GET', '/closures').length).toBeGreaterThan(1)
+    })
+    expect(onClose).not.toHaveBeenCalled()
+    reply.resolve(makeCloseResult())
+    expect(await dialog(s.bloomed('הסתברות'))).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.common.undo })).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
   it('Keep open for Moed B keeps it quiet and offers the date', async () => {
     const { fake } = setup()
     const u = user()
@@ -202,6 +223,7 @@ describe('ClosureSheet: the decision', () => {
     })
     await u.click(next)
     const second = await dialog(s.title('אלגוריתמים'))
+    expect(within(second).getByRole('status')).toHaveTextContent(s.title('אלגוריתמים'))
     await waitFor(() => {
       expect(onShown).toHaveBeenCalledWith(SECOND)
     })
@@ -254,6 +276,19 @@ describe('ClosureSheet: Undo', () => {
     })
   })
 
+  it('a failed undo after Keep open moves the focus to the primary button', async () => {
+    setup({ undo: problem(409, 'stale_plan') })
+    const u = user()
+    await dialog(s.title('הסתברות'))
+    await u.click(screen.getByRole('button', { name: s.keepOpen }))
+    const after = await dialog(s.kept('הסתברות'))
+    await u.click(within(after).getByRole('button', { name: en.common.undo }))
+    await within(after).findByRole('alert')
+    await waitFor(() => {
+      expect(document.activeElement).toBe(primaryClose())
+    })
+  })
+
   it('a stale undo says why, and the Undo goes away', async () => {
     const failure = problem(409, 'stale_plan')
     setup({ undo: failure })
@@ -264,6 +299,9 @@ describe('ClosureSheet: Undo', () => {
     await u.click(within(after).getByRole('button', { name: en.common.undo }))
     expect(await within(after).findByText(errorMessage(failure))).toBeInTheDocument()
     expect(within(after).queryByRole('button', { name: en.common.undo })).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(document.activeElement).toBe(primaryClose())
+    })
   })
 })
 
@@ -274,7 +312,8 @@ describe('ClosureSheet: Moed B', () => {
     await dialog(s.title('הסתברות'))
     await u.click(screen.getByRole('button', { name: s.keepOpen }))
     await u.click(await screen.findByRole('button', { name: s.haveDate }))
-    await dialog(m.title)
+    const form = await dialog(m.title)
+    expect(within(form).getByRole('status')).toHaveTextContent(m.title)
     await typeDate(u, '2026-12-20')
     await u.click(screen.getByRole('button', { name: m.submit }))
     const done = await dialog(m.done(1, ['תוחלת ושונות']))
@@ -326,6 +365,9 @@ describe('ClosureSheet: Moed B', () => {
     await u.click(within(done).getByRole('button', { name: en.common.undo }))
     expect(await within(done).findByText(m.cantUndo)).toBeInTheDocument()
     expect(within(done).queryByRole('button', { name: en.common.undo })).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(document.activeElement).toBe(primaryClose())
+    })
   })
 })
 
