@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { en } from '../i18n/en'
 import type { Block, BlockState } from '../board/types'
-import { archiLine, archiMayInterrupt, archiMoment, breakRun, MOMENT_MOOD, needsBreak } from './archi'
+import { archiLine, archiMayInterrupt, archiMoment, breakRun, MOMENT_MOOD, needsBreak, noteArchiInterrupt } from './archi'
 
 function block(state: BlockState, start: string, end: string, id = start): Block {
   return {
@@ -193,5 +193,19 @@ describe('breakRun', () => {
   })
   it('is null with no run', () => {
     expect(breakRun([block('done', at('09:00'), at('09:30'))], Date.parse(at('09:40')))).toBeNull()
+  })
+})
+
+describe('noteArchiInterrupt', () => {
+  it('holds back archiMayInterrupt for 20 minutes', () => {
+    const data = new Map<string, string>()
+    const storage = {
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => void data.set(k, v),
+    }
+    const t = Date.parse(at('11:00'))
+    noteArchiInterrupt(t, storage)
+    expect(archiMayInterrupt(t + 60_000, storage)).toBe(false)
+    expect(archiMayInterrupt(t + 20 * 60_000, storage)).toBe(true)
   })
 })

@@ -75,6 +75,16 @@ function defaultStorage(): Pick<Storage, 'getItem' | 'setItem'> | undefined {
   }
 }
 
+// Records that Archi spoke up at `now`, without asking: the focus screen's own break is a ritual, not
+// an interruption, but BreakNotice must not repeat it for the next 20 minutes (S42).
+export function noteArchiInterrupt(now: number, storage: Pick<Storage, 'setItem'> | undefined = defaultStorage()): void {
+  try {
+    storage?.setItem(INTERRUPT_KEY, String(now))
+  } catch {
+    // A storage that throws only means the notice may repeat.
+  }
+}
+
 // At most one interruption every 20 minutes. A missing or throwing storage never blocks Archi.
 export function archiMayInterrupt(
   now: number,
