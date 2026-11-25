@@ -254,6 +254,34 @@ describe('the closure and the phone\u2019s tasks sheet', () => {
   })
 })
 
+describe('the closure after the tasks sheet left with its bar', () => {
+  beforeEach(() => {
+    stubMedia({ desktop: false })
+  })
+
+  const BLOCK = makeBlock({ id: 'b-1', task_id: 't-1', task_title: 'Recap', study_date: EXAM_DAY, starts_at: '2026-11-23T18:00:00Z', ends_at: '2026-11-23T19:00:00Z' })
+
+  it('a day that empties while the tasks sheet is open does not hold the closure back for the visit', async () => {
+    at(BEFORE)
+    const { fake, queryClient, state } = openCalendar('/calendar', { date: EXAM_DAY, blocks: [BLOCK], closures: { pending: [ITEM], waiting: [] } })
+    await settled(fake)
+    await userEvent.click(await screen.findByRole('button', { name: new RegExp(en.today.blocks) }))
+    await screen.findByRole('dialog', { name: en.today.blocks })
+    // The last block goes (moved on another device): the calendar is empty, and the tasks bar with
+    // its sheet leaves the tree while the sheet is open.
+    state.blocks = []
+    await act(async () => {
+      await queryClient.invalidateQueries()
+    })
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: en.today.blocks })).not.toBeInTheDocument()
+    })
+    at(AT)
+    await refetchClosures(queryClient)
+    expect(await sheet()).toBeInTheDocument()
+  })
+})
+
 describe('the sheet closes by itself', () => {
   beforeEach(() => {
     stubMedia({ desktop: true })

@@ -218,5 +218,22 @@ describe('the progress board', () => {
       expect(within(second).getByRole('link', { name: 'Algorithms' })).toHaveAttribute('href', '/exams/exam-2')
       expect(within(second).getByText('Moed B. Closed on 20 November 2026')).toBeInTheDocument()
     })
+
+    it('the day of the closure is the profile’s day, not UTC’s', async () => {
+      setup(makeProgress({ archive: [archived({ closed_at: '2026-11-12T22:30:00Z' })] }))
+      const list = await screen.findByRole('list', { name: closed.title })
+      expect(within(list).getByText('Closed on 13 November 2026')).toBeInTheDocument()
+    })
+
+    it('a name that ends in a number is the student’s text, isolated with its own direction', async () => {
+      setup(makeProgress({ archive: [archived({ name: 'חדו״א 1' })] }))
+      const list = await screen.findByRole('list', { name: closed.title })
+      const link = within(list).getByRole('link', { name: 'חדו״א 1' })
+      const name = within(link).getByText('חדו״א 1')
+      // The same element as the exams list (UserText): <bdi dir="auto">, so the digit stays at the end.
+      expect(name.tagName).toBe('BDI')
+      expect(name).toHaveAttribute('dir', 'auto')
+      expect(name).toHaveAttribute('data-user-text')
+    })
   })
 })

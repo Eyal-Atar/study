@@ -1,10 +1,11 @@
-import { screen, waitFor, within } from '@testing-library/react'
-import { userEvent } from '@testing-library/user-event'
+import { act, screen, waitFor, within } from '@testing-library/react'
+import { userEvent, type UserEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { durationText } from '../board/time'
 import { en } from '../i18n/en'
 import { makeProgress } from '../progress/testFixtures'
-import { makeClosureItem, makeCloseResult } from '../test/closureFixtures'
+import { makeClosureItem, makeCloseResult, makeMoedBResult } from '../test/closureFixtures'
+import { problem } from '../test/fakeApi'
 import { examServer, openRoute, taskFixture } from '../test/examFixtures'
 import type { Material } from '../onboarding/types'
 import { examFixture } from '../test/onboardingFixtures'
@@ -27,6 +28,24 @@ afterEach(() => {
 })
 
 const user = () => userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+
+function later<T>() {
+  let resolve: (value: T) => void = () => undefined
+  const promise = new Promise<T>((r) => {
+    resolve = r
+  })
+  return { promise, resolve }
+}
+
+// The segments are day, month, year (en-GB).
+async function typeDate(u: UserEvent, iso: string) {
+  const [year, month, day] = iso.split('-')
+  const group = screen.getByRole('group', { name: c.moedB.date })
+  const [first] = within(group).getAllByRole('spinbutton')
+  if (first === undefined) throw new Error('no date segments')
+  await u.click(first)
+  await u.keyboard(`${String(day)}${String(month)}${String(year)}`)
+}
 
 const ACTIVE = examFixture({ id: 'a1', name: 'חדו"א', exam_date: '2026-11-30', color_index: 1 })
 const PENDING = examFixture({ id: 'p1', name: 'הסתברות', exam_date: '2026-11-23', color_index: 2, state: 'pending' })
@@ -99,6 +118,7 @@ function material(id: string): Material {
 describe('the exams list with closures', () => {
   it('keeps three current exams on the card and the closed ones, last closed first, under Archive', async () => {
     const fake = setup([ACTIVE, PENDING, WAITING, OLD_DONE, NEW_DONE])
+    fake.on({ method: 'GET', path: /^\/exams\/d2\/tasks$/ }, [taskFixture({ exam_id: 'd2', status: 'done', estimated_minutes: 60 })])
     openRoute(fake, '/exams')
     const current = await screen.findByRole('list', { name: t.list.listTitle })
     const rows = within(current).getAllByRole('listitem')
@@ -118,9 +138,8 @@ describe('the exams list with closures', () => {
     expect(archivedRows[0]).toHaveTextContent(c.list.done)
     expect(within(archive).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(['/exams/d2', '/exams/d1'])
     // The date of the closure, then the progress of the plan once its tasks are known.
-    fake.on({ method: 'GET', path: /^\/exams\/d2\/tasks$/ }, [taskFixture({ exam_id: 'd2', status: 'done', estimated_minutes: 60 })])
     await waitFor(() => {
-      expect(archivedRows[0]).toHaveTextContent(`${dayMonth('2026-11-20')}.`)
+      expect(archivedRows[0]).toHaveTextContent(c.list.closedOn(dayMonth('2026-11-20'), en.exams.list.progress(100)))
     })
   })
 
@@ -137,10 +156,24 @@ describe('the exams list with closures', () => {
     })
   })
 
+  it('an archived exam without tasks shows the closure date alone, not "No tasks yet"', async () => {
+    const fake = setup([NEW_DONE])
+    openRoute(fake, '/exams')
+    const archive = await screen.findByRole('list', { name: c.list.archive })
+    await waitFor(() => {
+      expect(fake.calls('GET', '/exams/d2/tasks')).toHaveLength(1)
+    })
+    const [row] = within(archive).getAllByRole('listitem')
+    await waitFor(() => {
+      expect(within(row as HTMLElement).getByText(c.progress.closedOn(dayMonth('2026-11-20')))).toBeInTheDocument()
+    })
+    expect(archive).not.toHaveTextContent(en.exams.list.noTasks)
+  })
+
   it('with only closed exams says none are coming, keeps Archive, and does not show the empty screen', async () => {
     const fake = setup([OLD_DONE])
     openRoute(fake, '/exams')
-    expect(await screen.findByText(c.list.noneComing)).toBeInTheDocument()
+    expect(await screen.findByText(c.list.noneComing)).toHaveClass('text-body', 'text-ink-muted')
     expect(screen.getByRole('heading', { level: 2, name: c.list.archive })).toBeInTheDocument()
     expect(screen.queryByText(t.list.empty)).not.toBeInTheDocument()
     expect(screen.queryByRole('list', { name: t.list.listTitle })).not.toBeInTheDocument()
@@ -218,5 +251,106 @@ describe('the exam screen by closure state', () => {
     expect(within(screen.getByRole('main')).queryAllByRole('button')).toHaveLength(0)
     expect(screen.getByRole('link', { name: t.backToList })).toBeInTheDocument()
     expect(fake.calls('GET', /^\/plan/)).toHaveLength(0)
+  })
+
+  it('a failed refresh of the exams keeps the screen, the Moed B sheet after planning and its Undo', async () => {
+    const fake = setup([WAITING])
+    fake.on('POST /exams/w1/moed-b', makeMoedBResult({ exam: { ...makeMoedBResult().exam, id: 'w1', name: 'אלגוריתמים' } }))
+    openRoute(fake, '/exams/w1')
+    const u = user()
+    await u.click(await screen.findByRole('button', { name: c.waiting.plan }))
+    await screen.findByRole('dialog', { name: c.moedB.title })
+    await typeDate(u, '2026-12-20')
+    // The refresh after the answer fails (a phone without a network).
+    fake.on('GET /exams', problem(500, 'internal'))
+    const before = fake.calls('GET', '/exams').length
+    await u.click(screen.getByRole('button', { name: c.moedB.submit }))
+    const done = await screen.findByRole('dialog', { name: c.moedB.done(1, ['התפלגות בינומית']) })
+    await waitFor(() => {
+      expect(fake.calls('GET', '/exams').length).toBeGreaterThan(before)
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    expect(within(done).getByRole('button', { name: en.common.undo })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: c.moedB.done(1, ['התפלגות בינומית']) })).toBe(done)
+  })
+
+  it('Plan Moed B waits while the exam is being closed', async () => {
+    const fake = setup([WAITING])
+    const reply = later<ReturnType<typeof makeCloseResult>>()
+    fake.on('POST /exams/w1/close', () => reply.promise)
+    openRoute(fake, '/exams/w1')
+    const u = user()
+    await u.click(await screen.findByRole('button', { name: c.waiting.done }))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: c.waiting.plan })).toBeDisabled()
+    })
+    await act(async () => {
+      reply.resolve(makeCloseResult({ version_id: 'v9' }))
+      await Promise.resolve()
+    })
+  })
+
+  it('after I’m done with it, the focus lands on the archive card, not on the page', async () => {
+    const fake = setup([WAITING])
+    fake.on('POST /exams/w1/close', () => {
+      fake.on('GET /exams', [{ ...WAITING, state: 'done', closed_at: '2026-11-23T11:00:00Z' }])
+      return makeCloseResult({ version_id: 'v9' })
+    })
+    openRoute(fake, '/exams/w1')
+    const u = user()
+    await u.click(await screen.findByRole('button', { name: c.waiting.done }))
+    const say = await screen.findByText(c.archived.say('אלגוריתמים'))
+    const card = say.closest('[tabindex="-1"]')
+    expect(card).not.toBeNull()
+    await waitFor(() => {
+      expect(card).toHaveFocus()
+    })
+  })
+
+  it('a failed background refresh of the closures keeps the card and its buttons', async () => {
+    const fake = setup([WAITING])
+    openRoute(fake, '/exams/w1')
+    expect(await screen.findByRole('button', { name: c.waiting.plan })).toBeInTheDocument()
+    fake.on('GET /closures', problem(500, 'internal'))
+    const before = fake.calls('GET', '/closures').length
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60_000 + 100)
+    })
+    await waitFor(() => {
+      expect(fake.calls('GET', '/closures').length).toBeGreaterThan(before)
+    })
+    expect(screen.getByRole('button', { name: c.waiting.plan })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: c.waiting.done })).toBeInTheDocument()
+  })
+
+  it('an exam missing from the closures shows no endless loading', async () => {
+    const fake = setup([WAITING], { closures: { waiting: [] } })
+    openRoute(fake, '/exams/w1')
+    expect(await screen.findByRole('heading', { level: 1, name: 'אלגוריתמים' })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(fake.calls('GET', '/closures').length).toBeGreaterThan(0)
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    expect(within(screen.getByRole('main')).queryByText(en.common.loading)).not.toBeInTheDocument()
+  })
+
+  it('says nothing of 0% on the evening of an exam with no study time and nothing done', async () => {
+    const fake = setup([PENDING], {
+      closures: { pending: [makeClosureItem({ exam_id: 'p1', studied_minutes: 0, tasks_done: 0, completion_percent: 0 })] },
+    })
+    openRoute(fake, '/exams/p1')
+    expect(await screen.findByText(c.sheet.title('הסתברות'))).toBeInTheDocument()
+    expect(screen.queryByText(c.sheet.statsNoTime(0))).not.toBeInTheDocument()
+  })
+
+  it('the card says Archi’s sentence once to a screen reader: no region named by the same sentence', async () => {
+    const fake = setup([PENDING])
+    openRoute(fake, '/exams/p1')
+    expect(await screen.findByText(c.sheet.title('הסתברות'))).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: c.sheet.title('הסתברות') })).not.toBeInTheDocument()
   })
 })

@@ -75,7 +75,9 @@ export function ExamPage() {
       </Frame>
     )
   }
-  if (exams.isError) {
+  // Only when there is nothing to show: a background refresh that fails keeps the screen, and with it
+  // the sheets (the state after Moed B and its Undo).
+  if (exams.isError && exams.data === undefined) {
     return (
       <Frame>
         <ErrorState

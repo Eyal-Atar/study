@@ -174,6 +174,11 @@ export function CalendarPage() {
     reviewCount === 0 &&
     (days[days.length - 1] ?? '') >= today
   const showGrid = ready && !empty
+  // The tasks sheet leaves the tree with its bar (a computer's width, a day that empties) without
+  // calling onOpenChange: an open flag left behind would hold the closure sheet back for the whole
+  // visit. Reset during the render, as the navigation above.
+  const tasksShown = !desktop && todayData !== undefined && !empty
+  if (!tasksShown && tasksOpen) setTasksOpen(false)
   // Not on the previous week kept on screen while the next one loads (placeholder data): that grid
   // has no block of the new week, and would take the one scroll the new week gets (decision 13).
   useAutoScroll(scroller, gridBox, `${view}|${days[0] ?? ''}`, showGrid && !data.plan.isPlaceholderData)

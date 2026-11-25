@@ -1,11 +1,12 @@
+import { useEffect, useRef } from 'react'
 import { errorMessage } from '../api/client'
 import { useBoardUserId } from '../board/api'
-import { durationText } from '../board/time'
 import { useClosures } from '../closure/api'
 import { useClosureActions } from '../closure/closureActions'
 import { ClosureSheet } from '../closure/ClosureSheet'
 import { MoedBSheet } from '../closure/MoedBSheet'
 import { markShown } from '../closure/seen'
+import { statsText } from '../closure/sheetParts'
 import type { ClosureItem } from '../closure/types'
 import { en } from '../i18n/en'
 import { useMaterials } from '../onboarding/api'
@@ -24,21 +25,18 @@ const c = en.closure
 // by its closure state. The two sheets are not in the card but in ExamPage (ClosureSheets): once the
 // server has accepted Moed B the exam is active again and the card is gone, but the sheet must stay for
 // its "after" state and its Undo.
+//
+// The cards are not regions named by Archi's sentence: a screen reader would say it twice, as the
+// name and as the text. The h1 of the exam already gives the context.
 
 export type ClosureSheetState = { kind: 'closure'; examId: string } | { kind: 'moedB'; item: ClosureItem } | null
 
-function statsText(item: Pick<ClosureItem, 'studied_minutes' | 'tasks_total' | 'completion_percent'>): string | null {
-  if (item.tasks_total === 0) return null
-  if (item.studied_minutes <= 0) return c.sheet.statsNoTime(item.completion_percent)
-  return c.sheet.stats(durationText(item.studied_minutes), item.completion_percent)
-}
-
 function PendingCard({ exam, item, onOpen }: { exam: Exam; item: ClosureItem; onOpen: () => void }) {
-  const say = c.sheet.title(exam.name)
+  const stats = statsText(item)
   return (
-    <Card role="region" aria-label={say} className="flex flex-col gap-3">
-      <ArchiSays mood="eureka">{say}</ArchiSays>
-      {statsText(item) === null ? null : <p className="text-body text-ink-muted">{statsText(item)}</p>}
+    <Card className="flex flex-col gap-3">
+      <ArchiSays mood="eureka">{c.sheet.title(exam.name)}</ArchiSays>
+      {stats === null ? null : <p className="text-body text-ink-muted">{stats}</p>}
       <div>
         <Button onPress={onOpen}>{c.card.open}</Button>
       </div>
@@ -49,13 +47,15 @@ function PendingCard({ exam, item, onOpen }: { exam: Exam; item: ClosureItem; on
 function WaitingCard({ exam, item, onPlan }: { exam: Exam; item: ClosureItem; onPlan: () => void }) {
   const actions = useClosureActions()
   const materials = useMaterials(exam.id)
-  const say = c.waiting.say(exam.name)
   return (
-    <Card role="region" aria-label={say} className="flex flex-col gap-3">
-      <ArchiSays mood="rest">{say}</ArchiSays>
+    <Card className="flex flex-col gap-3">
+      <ArchiSays mood="rest">{c.waiting.say(exam.name)}</ArchiSays>
       {materials.isSuccess ? <p className="text-body text-ink-muted">{c.waiting.kept(materials.data.length, item.tasks_total)}</p> : null}
       <div className="flex flex-wrap gap-2">
-        <Button onPress={onPlan}>{c.waiting.plan}</Button>
+        {/* Not while the exam is being closed: the server would refuse Moed B of a closed exam. */}
+        <Button onPress={onPlan} isDisabled={actions.closing(exam.id)}>
+          {c.waiting.plan}
+        </Button>
         <Button
           variant="secondary"
           isPending={actions.closing(exam.id)}
@@ -75,23 +75,34 @@ function ArchivedCard({ exam }: { exam: Exam }) {
   const progress = useProgress()
   const { timeZone } = useToday()
   const entry = progress.data?.archive.find((e) => e.exam_id === exam.id)
-  const say = c.archived.say(exam.name)
+  const stats = entry === undefined ? null : statsText(entry)
   const closed = typeof exam.closed_at === 'string' ? c.archived.closedOn(longDate(todayIn(timeZone, new Date(exam.closed_at)))) : null
+  // After "I'm done with it" the pressed button has left the tree with the card it was on: the focus
+  // comes here instead of falling to the page. The toast already says the sentence.
+  const focusRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const active = document.activeElement
+    if (active === null || active === document.body) focusRef.current?.focus()
+  }, [])
   return (
-    <Card role="region" aria-label={say} className="flex flex-col gap-3">
-      <div data-slot="bloom">
-        <ArchiSays mood="eureka">{say}</ArchiSays>
-      </div>
-      {entry === undefined ? null : statsText(entry) === null ? null : <p className="text-body text-ink-muted">{statsText(entry)}</p>}
-      {closed === null ? null : <p className="text-body text-ink-muted">{closed}</p>}
-    </Card>
+    <div ref={focusRef} tabIndex={-1} className="outline-none">
+      <Card className="flex flex-col gap-3">
+        <div data-slot="bloom">
+          <ArchiSays mood="eureka">{c.archived.say(exam.name)}</ArchiSays>
+        </div>
+        {stats === null ? null : <p className="text-body text-ink-muted">{stats}</p>}
+        {closed === null ? null : <p className="text-body text-ink-muted">{closed}</p>}
+      </Card>
+    </div>
   )
 }
 
 export function ClosureCard({ exam, state, onOpen }: { exam: Exam; state: 'pending' | 'waiting_moed_b' | 'done'; onOpen: (sheet: NonNullable<ClosureSheetState>) => void }) {
   const closures = useClosures()
   if (state === 'done') return <ArchivedCard exam={exam} />
-  if (closures.isError) {
+  // Only when there is nothing to show: a background refresh that fails (a phone without a network)
+  // keeps the card and its buttons.
+  if (closures.isError && closures.data === undefined) {
     return (
       <ErrorState
         message={errorMessage(closures.error)}
@@ -103,7 +114,9 @@ export function ClosureCard({ exam, state, onOpen }: { exam: Exam; state: 'pendi
   }
   const list = state === 'pending' ? closures.data?.pending : closures.data?.waiting
   const item = list?.find((i) => i.exam_id === exam.id)
-  if (item === undefined) return <LoadingState shape="card" />
+  // Loaded and not there: the exam changed elsewhere and GET /exams has not caught up yet. Nothing,
+  // until it does, rather than a loading that never ends.
+  if (item === undefined) return closures.isSuccess ? null : <LoadingState shape="card" />
   if (state === 'pending') {
     return (
       <PendingCard

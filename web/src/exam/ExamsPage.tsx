@@ -124,13 +124,14 @@ function ExamRow({ exam, today, tasks }: { exam: Exam; today: string; tasks: Exa
 }
 
 // One row of the archive: the closing day (and the progress of the plan once its tasks are known),
-// and the chip "Done". It still links to the exam screen.
+// and the chip "Done". It still links to the exam screen. An exam closed without tasks shows the
+// day alone: "No tasks yet" is not true of an exam that is over.
 function ArchivedRow({ exam, timeZone, tasks }: { exam: Exam; timeZone: string; tasks: ExamTask[] | undefined }) {
   const x = en.exams.list
   const list = en.closure.list
   const shown = tasks === undefined ? null : examProgress(tasks)
   const day = dayMonth(typeof exam.closed_at === 'string' ? todayIn(timeZone, new Date(exam.closed_at)) : exam.exam_date)
-  const detail = shown === null ? null : shown.total === 0 ? x.noTasks : x.progress(shown.percent)
+  const detail = shown === null || shown.total === 0 ? null : x.progress(shown.percent)
   return (
     <ListRow
       to={`/exams/${exam.id}`}
@@ -243,7 +244,7 @@ export function ExamsPage() {
       ) : (
         <>
           {sorted.length === 0 ? (
-            <p className="text-ink-muted">{en.closure.list.noneComing}</p>
+            <p className="text-body text-ink-muted">{en.closure.list.noneComing}</p>
           ) : (
             <Card>
               <List aria-label={t.list.listTitle}>
