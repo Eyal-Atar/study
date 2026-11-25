@@ -435,7 +435,7 @@ const c = examColor(block.exam_color_index)
 
 ### 5.6 פס התקדמות
 
-- מסילה של 6px ב-`bg-surface-muted`, מילוי `bg-success`, שניהם `rounded-full`, כמו הפס של המבחנים באב-הטיפוס.
+- מסילה של 6px ב-`bg-track` (ביום זהה ל-`surface-muted`, בערב בהיר יותר; ראו 2.10), מילוי `bg-success`, שניהם `rounded-full`, כמו הפס של המבחנים באב-הטיפוס.
 - מעליו שורה: התווית ב-`text-small text-ink-muted`, והערך ("60 מתוך 345 דקות") ב-`text-small font-medium tabular-nums`.
 - ירוק הוא "בוצע", ולכן הפס הוא להתקדמות של עבודה, לא למכסה או לאזהרה.
 
@@ -520,7 +520,7 @@ const c = examColor(block.exam_color_index)
 
 **ה-toast הכהה.** כל toast הוא `bg-inverse text-on-inverse rounded-button shadow-overlay` (14px, כמו `.toast` של ההדמיה), בלי גבול, כמו באב-הטיפוס. המצב באייקון: `CircleCheck` ב-`inverse-success`, ‏`CircleAlert` ב-`inverse-danger`; ל-`info` אין אייקון. הפעולה היא `Button variant="inverse"`, והסגירה `IconButton variant="inverse"`. מתחת ל-`lg` הוא יושב מעל הסרגל התחתון (6rem ועוד ה-safe-area), ומ-`lg` במרחק 1rem מהתחתית. ‏`z-[60]`, שכבה מעל הרקע של דיאלוג, כדי ש"בטל" יישאר לחיץ. בלי `action`: ‏6 שניות. עם `action`: ‏10 שניות.
 
-**דיאלוג בטלפון הוא גיליון.** מתחת ל-`md` (768px) הדיאלוג מוצמד לתחתית: `rounded-t-sheet`, בלי גבול, `shadow-sheet`, ידית 38×5px ב-`bg-line` (`aria-hidden`, היא לא נגררת), וה-safe-area מתחתיו. מ-`md` הוא חלון במרכז: `rounded-card border border-line shadow-overlay`. הגובה עד 85% מה-visual viewport, כך שהוא נשאר מעל המקלדת. הרקע `bg-ink/35`. הדיאלוג נשאר על `md` ולא על `lg`, כי הוא תלוי ברוחב החלון ולא בשלד.
+**דיאלוג בטלפון הוא גיליון.** מתחת ל-`md` (768px) הדיאלוג מוצמד לתחתית: `rounded-t-sheet`, בלי גבול, `shadow-sheet`, ידית 38×5px ב-`bg-line` (`aria-hidden`, היא לא נגררת), וה-safe-area מתחתיו. מ-`md` הוא חלון במרכז: `rounded-card border border-line shadow-overlay`. הגובה עד 85% מה-visual viewport, כך שהוא נשאר מעל המקלדת. הרקע `bg-scrim/(--scrim-opacity)`. הדיאלוג נשאר על `md` ולא על `lg`, כי הוא תלוי ברוחב החלון ולא בשלד.
 
 **דוגמאות.** הטקסטים כתובים ישר בקוד כדי לקצר. במוצר כל טקסט בא מ-`en.ts`, באנגלית (הדוגמאות כאן נכתבו לפני S39).
 
