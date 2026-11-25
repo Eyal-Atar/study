@@ -533,8 +533,8 @@ describe('SettingsPage other sections', () => {
     expectOrder()
     cleanup()
 
-    // The gate of the shell waits for GET /me, so the page is rendered on its own here: the card
-    // does not wait for the profile, while it loads or after it failed.
+    // The shell's gate waits for GET /me, so in the app this state is not reachable today; the page
+    // is rendered on its own here to pin that the card never depends on the profile.
     const fake = server().on('GET /me', problem(503, 'database_unavailable'))
     const router = createMemoryRouter([{ path: '/settings', element: <SettingsPage /> }], { initialEntries: ['/settings'] })
     render(

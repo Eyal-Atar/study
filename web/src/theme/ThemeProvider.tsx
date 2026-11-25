@@ -26,7 +26,7 @@ const AFTER_BOUNDARY_MS = 1000
 export interface ThemeState {
   choice: ThemeChoice
   theme: Theme
-  setChoice(choice: ThemeChoice): void
+  setChoice: (choice: ThemeChoice) => void
 }
 
 const ThemeContext = createContext<ThemeState | null>(null)
@@ -65,10 +65,10 @@ export function ThemeProvider({
     [storage, apply],
   )
 
-  // Another tab changed the choice.
+  // Another tab changed the choice, or cleared the storage (key null), which brings back Auto.
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
-      if (event.key === THEME_STORAGE_KEY) apply(readChoice(storage))
+      if (event.key === null || event.key === THEME_STORAGE_KEY) apply(readChoice(storage))
     }
     window.addEventListener('storage', onStorage)
     return () => {

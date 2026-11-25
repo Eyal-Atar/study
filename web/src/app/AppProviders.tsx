@@ -32,7 +32,9 @@ export function AppProviders({
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider locale={LOCALE}>
-        {/* Outside everything else, so sign-in, onboarding and the screenshot harness follow the theme too. */}
+        {/* Outside everything else, so sign-in, onboarding and the screenshot harness follow the theme too.
+            Under Auto it keeps one timer armed to the next 06:00 or 19:00: a test with fake timers
+            inside AppProviders should advance time, not vi.runAllTimers(), which would loop. */}
         <ThemeProvider>
           <ApiContext value={api}>
             <StorageContext value={storage}>

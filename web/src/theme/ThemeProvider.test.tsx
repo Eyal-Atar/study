@@ -73,7 +73,8 @@ beforeEach(() => {
   Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility })
   const tag = document.createElement('meta')
   tag.name = 'theme-color'
-  tag.content = '#4f7a3a'
+  // A neutral start, so a test that reads the bar's colour proves the provider set it.
+  tag.content = '#000000'
   document.head.append(tag)
 })
 
@@ -276,6 +277,33 @@ describe('ThemeProvider', () => {
       window.dispatchEvent(new StorageEvent('storage', { key: THEME_STORAGE_KEY, newValue: 'dusk' }))
     })
     expect(state().choice).toBe('dusk')
+    expect(html().dataset.theme).toBe('dusk')
+  })
+
+  // localStorage.clear() in another tab sends a storage event with key null: the choice is gone,
+  // so this tab goes back to Auto too.
+  it('storage cleared in another tab brings this one back to auto', () => {
+    const { storage, map } = memoryStorage()
+    const { state } = setup(storage)
+    act(() => {
+      state().setChoice('dusk')
+    })
+    expect(html().dataset.theme).toBe('dusk')
+
+    map.clear()
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: null }))
+    })
+    expect(state().choice).toBe('auto')
+    expect(html().dataset.theme).toBe('day')
+  })
+
+  it('setChoice works pulled out of the state, as a plain function', () => {
+    const { state } = setup(memoryStorage().storage)
+    const { setChoice } = state()
+    act(() => {
+      setChoice('dusk')
+    })
     expect(html().dataset.theme).toBe('dusk')
   })
 

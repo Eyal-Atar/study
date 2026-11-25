@@ -19,9 +19,7 @@ function noteOf(choice: ThemeChoice): string {
 // S43: Auto, Day or Dusk. A SegmentedControl, since a choice applies at once and is not part of the
 // preferences' Save (decision 5); kept on this device, so it does not wait for GET /me.
 export function AppearanceSection() {
-  // Not destructured: ThemeState declares setChoice as a method (unbound-method).
-  const theme = useTheme()
-  const { choice } = theme
+  const { choice, setChoice } = useTheme()
   return (
     <Card role="region" title={t.title}>
       <p className="mb-4 max-w-prose text-small text-ink-muted">{t.intro}</p>
@@ -29,9 +27,7 @@ export function AppearanceSection() {
         aria-label={t.label}
         options={OPTIONS}
         value={choice}
-        onChange={(next) => {
-          theme.setChoice(next)
-        }}
+        onChange={setChoice}
       />
       <p className="mt-3 max-w-prose text-small text-ink-muted">{noteOf(choice)}</p>
       <p className="mt-1 max-w-prose text-small text-ink-muted">{t.device}</p>

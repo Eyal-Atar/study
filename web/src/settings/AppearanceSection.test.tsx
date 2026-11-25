@@ -90,6 +90,7 @@ describe('AppearanceSection', () => {
     expect(theme()).toBe('day')
     expect(map.get(THEME_STORAGE_KEY)).toBe('day')
     expect(within(card()).getByText(t.dayNote)).toBeInTheDocument()
+    expect(t.dayNote).toBe('I’ll keep Day on, whatever the hour.')
   })
 
   it('a kept choice is shown as chosen', () => {

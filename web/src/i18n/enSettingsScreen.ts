@@ -33,7 +33,7 @@ export const enSettingsScreen = {
     day: 'Day',
     dusk: 'Dusk',
     autoNote: (from: string, until: string) => `I switch to Dusk at ${from} and back to Day at ${until}.`,
-    dayNote: 'I’ll keep the day colours on, whatever the hour.',
+    dayNote: 'I’ll keep Day on, whatever the hour.',
     duskNote: 'I’ll keep Dusk on, whatever the hour.',
     device: 'I keep this choice on this device only.',
   },
