@@ -5,7 +5,7 @@ import { closuresKey } from '../closure/api'
 import { markShown, wasShown } from '../closure/seen'
 import type { ClosureItem } from '../closure/types'
 import { en } from '../i18n/en'
-import { USER_ID } from '../test/boardFixtures'
+import { makeBlock, USER_ID } from '../test/boardFixtures'
 import { makeClosureItem } from '../test/closureFixtures'
 import { openCalendar, stubMedia } from './testFixtures'
 
@@ -223,6 +223,58 @@ describe('the closure, once per exam and sitting', () => {
     await settled(fake)
     expect(noSheet()).not.toBeInTheDocument()
     expect(row()).toBeNull()
+  })
+})
+
+describe('the closure and the phone\u2019s tasks sheet', () => {
+  beforeEach(() => {
+    stubMedia({ desktop: false })
+  })
+
+  // A block on the exam day, so the phone has its tasks bar (the empty calendar has none).
+  const BLOCK = makeBlock({ id: 'b-1', task_id: 't-1', task_title: 'Recap', study_date: EXAM_DAY, starts_at: '2026-11-23T18:00:00Z', ends_at: '2026-11-23T19:00:00Z' })
+
+  it('does not open over the open tasks sheet, and opens once it closes', async () => {
+    at(BEFORE)
+    const { fake, queryClient } = openCalendar('/calendar', { date: EXAM_DAY, blocks: [BLOCK], closures: { pending: [ITEM], waiting: [] } })
+    await settled(fake)
+    await userEvent.click(await screen.findByRole('button', { name: new RegExp(en.today.blocks) }))
+    await screen.findByRole('dialog', { name: en.today.blocks })
+    at(AT)
+    await refetchClosures(queryClient)
+    await screen.findByText(c.row.say(NAME))
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    expect(screen.getByRole('dialog', { name: en.today.blocks })).toBeInTheDocument()
+    expect(wasShown(USER_ID, ITEM)).toBe(false)
+    await userEvent.click(closeX())
+    expect(await sheet()).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    })
+  })
+})
+
+describe('the sheet closes by itself', () => {
+  beforeEach(() => {
+    stubMedia({ desktop: true })
+  })
+
+  it('when its exam is closed elsewhere, the row leaves and the focus goes to the plan heading', async () => {
+    const { state, queryClient } = openCalendar('/calendar', { closures: { pending: [ITEM], waiting: [] } })
+    await sheet()
+    await userEvent.click(closeX())
+    await userEvent.click(await screen.findByRole('button', { name: c.row.open }))
+    await sheet()
+    // Another tab closed it: the next GET /closures no longer has it, and the sheet lets go.
+    state.closures = { pending: [], waiting: [] }
+    await refetchClosures(queryClient)
+    await waitFor(() => {
+      expect(noSheet()).not.toBeInTheDocument()
+    })
+    expect(row()).toBeNull()
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: en.calendar.page.planHeading })).toHaveFocus()
+    })
   })
 })
 

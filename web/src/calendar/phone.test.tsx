@@ -10,7 +10,7 @@ import { createFakeApi } from '../test/fakeApi'
 import { weekDays } from './days'
 import { DayStrip } from './DayStrip'
 import { PhoneHeader } from './PhoneHeader'
-import { TasksSheet } from './TasksSheet'
+import { TasksSheet, type TasksSheetProps } from './TasksSheet'
 
 const TODAY = '2026-11-24'
 // Sunday to Saturday.
@@ -143,6 +143,12 @@ describe('DayStrip', () => {
   })
 })
 
+// The sheet with its open state held above it, as CalendarPage holds it.
+function ControlledTasksSheet(props: Omit<TasksSheetProps, 'open' | 'onOpenChange'>) {
+  const [open, setOpen] = useState(false)
+  return <TasksSheet {...props} open={open} onOpenChange={setOpen} />
+}
+
 describe('TasksSheet', () => {
   // 08:00 done, then three planned: 45 + 60 + 90 minutes = 3 hours 15 min.
   const B = (id: string, h: number, min: number, over: object = {}) =>
@@ -165,7 +171,7 @@ describe('TasksSheet', () => {
   function setup(list = blocks) {
     const handlers = { onFreeTime: vi.fn(), onMarkBusy: vi.fn(), onOpenBlock: vi.fn() }
     const today = makeToday(list, { date: TODAY })
-    renderBoard(<TasksSheet todayData={today} tz="UTC" {...handlers} />, { api: createFakeApi().on('GET /me', makeMe()).api })
+    renderBoard(<ControlledTasksSheet todayData={today} tz="UTC" {...handlers} />, { api: createFakeApi().on('GET /me', makeMe()).api })
     return handlers
   }
 

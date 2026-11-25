@@ -95,6 +95,8 @@ export function CalendarPage() {
   const hidden = useHiddenBusy()
   const location = useLocation()
   const [sheet, setSheet] = useState<SheetState>(null)
+  // The phone's tasks sheet (TasksSheet): a sheet too, though not one of CalendarSheets'.
+  const [tasksOpen, setTasksOpen] = useState(false)
   const userId = useBoardUserId()
   const closures = useClosures()
   const pendingClosures = closures.data?.pending
@@ -125,15 +127,16 @@ export function CalendarPage() {
   const today = todayData?.date
 
   // The closure sheet opens by itself (plan decisions 1–2): the first pending exam whose sheet this
-  // device has not shown yet, once the calendar has its day and no other sheet is open (it waits for
-  // that one to close). It counts as shown when it shows (CalendarSheets, onShown), not here.
+  // device has not shown yet, once the calendar has its day and no other sheet is open, the phone's
+  // tasks sheet included (it waits for that one to close). It counts as shown when it shows
+  // (CalendarSheets, onShown), not here.
   useEffect(() => {
-    if (today === undefined || sheet !== null || userId === null || pendingClosures === undefined) return
+    if (today === undefined || sheet !== null || tasksOpen || userId === null || pendingClosures === undefined) return
     const item = pendingClosures.find((i) => !wasShown(userId, i) && !offered.current.has(seenKey(i)))
     if (item === undefined) return
     for (const i of pendingClosures) offered.current.add(seenKey(i))
     setSheet({ kind: 'closure', examId: item.exam_id })
-  }, [today, sheet, userId, pendingClosures])
+  }, [today, sheet, tasksOpen, userId, pendingClosures])
   const selected = date ?? today
   const week = selected === undefined ? [] : weekDays(selected)
   const days = selected === undefined ? [] : view === 'week' ? week : [selected]
@@ -402,7 +405,15 @@ export function CalendarPage() {
       {body(HOUR_PX.phone, move)}
       {/* The empty calendar has no tasks bar (as in the prototype): there is no block to list. */}
       {todayData === undefined || empty ? null : (
-        <TasksSheet todayData={todayData} tz={tz} onFreeTime={freeTime} onMarkBusy={markBusy} onOpenBlock={openBlock} />
+        <TasksSheet
+          todayData={todayData}
+          tz={tz}
+          onFreeTime={freeTime}
+          onMarkBusy={markBusy}
+          onOpenBlock={openBlock}
+          open={tasksOpen}
+          onOpenChange={setTasksOpen}
+        />
       )}
       {breakNotice}
       {sheets}

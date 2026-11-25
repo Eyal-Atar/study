@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Button as AriaButton } from 'react-aria-components'
 import { blockMinutes, durationText } from '../board/time'
 import type { Block, Today } from '../board/types'
@@ -15,6 +14,10 @@ export interface TasksSheetProps {
   onFreeTime: () => void
   onMarkBusy: () => void
   onOpenBlock: (block: Block) => void
+  // Whether the sheet is open: CalendarPage holds it, so no other sheet opens over it (the closure
+  // sheet of S45 waits for it to close).
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 const counts = (block: Block) => block.state !== 'missed' && block.state !== 'skipped'
@@ -22,8 +25,7 @@ const counts = (block: Block) => block.state !== 'missed' && block.state !== 'sk
 // The bar above the bottom navigation on a phone (the .peek of the prototype), and the sheet it
 // opens: today's blocks, then the two ways to change the day. The bar says what is left; the sheet
 // is the same list as the side panel's.
-export function TasksSheet({ todayData, tz, onFreeTime, onMarkBusy, onOpenBlock }: TasksSheetProps) {
-  const [open, setOpen] = useState(false)
+export function TasksSheet({ todayData, tz, onFreeTime, onMarkBusy, onOpenBlock, open, onOpenChange: setOpen }: TasksSheetProps) {
   const counted = todayData.blocks.filter(counts)
   const left = counted.filter((block) => block.status === 'planned')
   const minutes = left.reduce((sum, block) => sum + blockMinutes(block), 0)

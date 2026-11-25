@@ -5,8 +5,8 @@
 // ClosureSheet on GET /closures' `pending`, from the banner's row or by itself (CalendarPage). Its
 // question counts as shown on this device when it shows (markShown), not when it is asked for. A
 // decision takes the banner's row (its opener) away, so when the sheet closes and the dialog has
-// nowhere to give the focus back, it goes to the heading above the banner (`focusAfter`).
-import type { RefObject } from 'react'
+// nowhere to give the focus back, it goes to the heading above the banner (`focusAfter`, below).
+import { useEffect, useRef, type RefObject } from 'react'
 import type { BusyItem } from '../availability/types'
 import { useBoardUserId } from '../board/api'
 import type { Block } from '../board/types'
@@ -48,6 +48,22 @@ export interface CalendarSheetsProps {
 
 export function CalendarSheets({ sheet, setSheet, setGhosts, blocks, upcoming, tz, today, now, pending, focusAfter }: CalendarSheetsProps) {
   const userId = useBoardUserId()
+  // The closure sheet has closed (its X, a decision, or by itself when its exam left pending). React
+  // Aria gives the focus back to the opener in a frame it asks for as the dialog unmounts, during
+  // that commit; this effect runs after it, so its frame comes after that one. If the opener left
+  // (the banner's row goes with a decision) the focus is on the body, and goes to the heading.
+  const lastKind = useRef(sheet?.kind)
+  useEffect(() => {
+    const was = lastKind.current
+    lastKind.current = sheet?.kind
+    if (was !== 'closure' || sheet !== null) return
+    const frame = requestAnimationFrame(() => {
+      if (document.activeElement === null || document.activeElement === document.body) focusAfter.current?.focus()
+    })
+    return () => {
+      cancelAnimationFrame(frame)
+    }
+  }, [sheet, focusAfter])
   // Every close leaves no ghost behind (Review Focus 6), whichever way the sheet was closed.
   const close = () => {
     setGhosts([])
@@ -83,17 +99,7 @@ export function CalendarSheets({ sheet, setSheet, setGhosts, blocks, upcoming, t
         <ClosureSheet
           examId={sheet.examId}
           pending={pending}
-          onClose={() => {
-            close()
-            // After the dialog's own return of the focus to its opener, when that is still there:
-            // React Aria does it in a frame it asks for as the sheet unmounts, after this handler,
-            // so the check waits for the frame after that one.
-            requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
-                if (document.activeElement === null || document.activeElement === document.body) focusAfter.current?.focus()
-              })
-            })
-          }}
+          onClose={close}
           onShown={(item) => {
             if (userId !== null) markShown(userId, item)
           }}
