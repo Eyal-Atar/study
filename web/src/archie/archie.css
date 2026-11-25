@@ -182,6 +182,20 @@
     box-shadow: 0 1px 0 rgba(255, 250, 235, 0.7);
   }
 
+  /* The entrance of S33 (entrance="hop"): the whole frame rises 6px and lands, once. */
+  .archie-frame.archie-hop {
+    animation: archie-hop 400ms var(--ease-standard) 1;
+  }
+  @keyframes archie-hop {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    40% {
+      transform: translateY(-6px);
+    }
+  }
+
   @keyframes archie-breathe {
     0%,
     100% {
@@ -352,7 +366,8 @@
     .archie-fx {
       display: none;
     }
-    .archie-frame > img.archie-breathe {
+    .archie-frame > img.archie-breathe,
+    .archie-frame.archie-hop {
       animation: none;
     }
   }

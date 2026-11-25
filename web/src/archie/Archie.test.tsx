@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { en } from '../i18n/en'
 import { Archie, type ArchieMood, type ArchieSize } from './Archie'
@@ -301,5 +301,35 @@ describe('Archie', () => {
     const { container } = render(<Archie mood="joy" size="avatar" className="size-16" />)
 
     expect(container.firstElementChild).toHaveClass('size-16')
+  })
+
+  // S33 Task 6: the hop entrance, once, on the frame.
+  describe('entrance="hop"', () => {
+    it.each(['card', 'scene'] as const)('a %s hops once: archie-hop on the frame, off at animationend', (size) => {
+      const { container } = render(<Archie mood="joy" size={size} entrance="hop" />)
+      const frame = container.firstElementChild as HTMLElement
+      expect(frame).toHaveClass('archie-hop')
+
+      // jsdom has no AnimationEvent, so React listens to the prefixed name here; send both.
+      fireEvent(frame, new Event('webkitAnimationEnd', { bubbles: true }))
+      fireEvent(frame, new Event('animationend', { bubbles: true }))
+      expect(frame).not.toHaveClass('archie-hop')
+    })
+
+    it('without entrance there is no hop', () => {
+      const { container } = render(<Archie mood="joy" size="card" />)
+      expect(container.firstElementChild).not.toHaveClass('archie-hop')
+    })
+
+    it('does not hop for someone who asked for reduced motion', () => {
+      mockReducedMotion(true)
+      const { container } = render(<Archie mood="joy" size="card" entrance="hop" />)
+      expect(container.firstElementChild).not.toHaveClass('archie-hop')
+    })
+
+    it('an avatar ignores it', () => {
+      const { container } = render(<Archie mood="joy" size="avatar" entrance="hop" />)
+      expect(container.firstElementChild).not.toHaveClass('archie-hop')
+    })
   })
 })

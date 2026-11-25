@@ -262,6 +262,10 @@
   --duration-slow: 240ms;
   /* How long the colours take to change when the theme switches (S43): a short sunset. */
   --duration-theme: 400ms;
+  /* S33 (decision 21): a celebration that answers an achievement (the ring filling, a badge). */
+  --duration-celebrate: 600ms;
+  /* S33 (decision 21): the long ceremony of a level-up. */
+  --duration-ceremony: 1500ms;
   /* The opacity of the scrim behind a dialog: lighter by day, heavier in the evening. */
   --scrim-opacity: 35%;
 }

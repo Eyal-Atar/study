@@ -89,6 +89,7 @@ export function ProgressChipView({ progress }: { progress: ChipProgress }) {
           {/* No arc at 0%: the band would still show its end. */}
           {percent > 0 ? (
             <circle
+              key={level}
               data-part="arc"
               cx={RING_CENTER}
               cy={RING_CENTER}
@@ -97,7 +98,7 @@ export function ProgressChipView({ progress }: { progress: ChipProgress }) {
               strokeWidth={RING_STROKE}
               pathLength={100}
               strokeDasharray={`${percent.toFixed(1)} 100`}
-              className="stroke-gold"
+              className="stroke-gold transition-[stroke-dasharray] duration-(--duration-celebrate) ease-standard motion-reduce:transition-none"
             />
           ) : null}
         </svg>

@@ -169,10 +169,13 @@ function frameStyle(mood: ArchieMood, size: 'card' | 'scene'): FrameStyle {
   }
 }
 
-function Frame({ mood, size, decorative, eager, className }: { mood: ArchieMood; size: 'card' | 'scene'; decorative: boolean; eager: boolean; className?: string }) {
+function Frame({ mood, size, decorative, eager, entrance, className }: { mood: ArchieMood; size: 'card' | 'scene'; decorative: boolean; eager: boolean; entrance?: 'hop'; className?: string }) {
   const ref = useRef<HTMLDivElement>(null)
   const reduced = useReducedMotion()
   const playing = useInView(ref, !reduced)
+  // The hop plays once, on arrival: the class goes off when the frame's own animation ends (the
+  // particles' animationend bubbles up here too, so only the frame itself counts).
+  const [hopping, setHopping] = useState(entrance === 'hop')
   const [particles, removeParticle] = useParticles(mood, playing)
   return (
     <div
@@ -180,7 +183,10 @@ function Frame({ mood, size, decorative, eager, className }: { mood: ArchieMood;
       data-mood={mood}
       data-size={size}
       style={frameStyle(mood, size)}
-      className={cx('archie-frame relative w-full', size === 'scene' && 'mx-auto', className)}
+      className={cx('archie-frame relative w-full', size === 'scene' && 'mx-auto', hopping && !reduced && 'archie-hop', className)}
+      onAnimationEnd={(event) => {
+        if (event.target === event.currentTarget) setHopping(false)
+      }}
     >
       {/* In the flow, at the proportions of its own file: the frame is exactly as tall as he is. */}
       <Illustration
@@ -200,6 +206,7 @@ export function Archie({
   size = 'card',
   decorative = false,
   eager = false,
+  entrance,
   className,
 }: {
   mood: ArchieMood
@@ -207,6 +214,9 @@ export function Archie({
   decorative?: boolean
   // For an Archie that is always on the first screen (the logo): load at once, not lazily.
   eager?: boolean
+  // 'hop': one small jump when he arrives (card and scene; an avatar stands still). Not played
+  // for someone who asked for less motion.
+  entrance?: 'hop'
   className?: string
 }) {
   if (size === 'avatar') {
@@ -218,5 +228,5 @@ export function Archie({
       </span>
     )
   }
-  return <Frame mood={mood} size={size} decorative={decorative} eager={eager} className={className} />
+  return <Frame mood={mood} size={size} decorative={decorative} eager={eager} entrance={entrance} className={className} />
 }

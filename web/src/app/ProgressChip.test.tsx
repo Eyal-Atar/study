@@ -10,7 +10,7 @@ import { createFakeApi, problem } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { createFakeStorage } from '../test/fakeStorage'
 import { AppProviders } from './AppProviders'
-import { ProgressChip } from './ProgressChip'
+import { ProgressChip, ProgressChipView, type ChipProgress } from './ProgressChip'
 
 // The chip alone, signed in, with `reply` as the answer of GET /progress.
 function renderChip(reply: unknown) {
@@ -116,5 +116,40 @@ describe('ProgressChip', () => {
     await settle()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  describe('the ring animation (S33 Task 6)', () => {
+    const chip = (level: number, total_xp: number): ChipProgress => ({
+      level,
+      total_xp,
+      level_start_xp: 0,
+      next_level_xp: 1000,
+      streak: { current: 3 },
+    })
+    const arcOf = (container: HTMLElement) => container.querySelector('[data-part="arc"]')
+
+    it('the arc has the transition classes, none for reduced motion', () => {
+      const { container } = render(
+        <RouterProvider router={createMemoryRouter([{ path: '/', element: <ProgressChipView progress={chip(2, 240)} /> }])} />,
+      )
+      expect(arcOf(container)).toHaveClass(
+        'transition-[stroke-dasharray]',
+        'duration-(--duration-celebrate)',
+        'ease-standard',
+        'motion-reduce:transition-none',
+      )
+    })
+
+    it('a new level replaces the arc element; more xp in the same level keeps it', () => {
+      const view = (progress: ChipProgress) => (
+        <RouterProvider router={createMemoryRouter([{ path: '/', element: <ProgressChipView progress={progress} /> }])} />
+      )
+      const { container, rerender } = render(view(chip(2, 240)))
+      const first = arcOf(container)
+      rerender(view(chip(2, 500)))
+      expect(arcOf(container)).toBe(first)
+      rerender(view(chip(3, 20)))
+      expect(arcOf(container)).not.toBe(first)
+    })
   })
 })
