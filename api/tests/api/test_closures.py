@@ -313,12 +313,14 @@ def test_deleting_a_pending_exam_takes_it_off_closures_and_undo_brings_it_back(
     api: TestClient, user: ApiUser, db: psycopg.Connection
 ) -> None:
     exam = insert_exam(db, user.id, name="Calculus", exam_date="2026-11-15")
-    insert_task(db, user.id, exam, minutes=90, status="done")
+    done_task = insert_task(db, user.id, exam, minutes=90, status="done")
     insert_task(db, user.id, exam, minutes=30)
+    insert_block(db, user.id, done_task, Z(2026, 11, 13, 9), Z(2026, 11, 13, 10, 30), status="done")
     before = _closures(api, user)
     assert _ids(before["pending"]) == [str(exam)]
     item = before["pending"][0]
     assert item["sitting"] == 1
+    assert item["studied_minutes"] == 90
     assert item["options"] == ["done", "moed_b"]
 
     deleted = api.delete(f"/exams/{exam}", headers=user.headers)
@@ -333,10 +335,10 @@ def test_deleting_a_pending_exam_takes_it_off_closures_and_undo_brings_it_back(
     assert after["waiting"] == []
     assert _ids(after["pending"]) == [str(exam)]
     restored = after["pending"][0]
+    assert restored["sitting"] == 1
     assert restored["state"] == "pending"
     assert restored["options"] == ["done", "moed_b"]
-    assert restored["tasks_total"] == item["tasks_total"]
-    assert restored["studied_minutes"] == item["studied_minutes"]
+    assert restored == item
 
 
 def test_deleting_a_waiting_exam_and_undo_returns_it_to_waiting(
@@ -344,7 +346,10 @@ def test_deleting_a_waiting_exam_and_undo_returns_it_to_waiting(
 ) -> None:
     exam = insert_exam(db, user.id, exam_date="2026-11-15")
     assert _close(api, user, exam, "moed_b").status_code == 200
-    assert _ids(_closures(api, user)["waiting"]) == [str(exam)]
+    waiting_before = _closures(api, user)["waiting"]
+    assert _ids(waiting_before) == [str(exam)]
+    closure_before = _exam(db, exam)
+    assert closure_before[:2] == ("moed_b", NOW)
 
     deleted = api.delete(f"/exams/{exam}", headers=user.headers)
 
@@ -357,7 +362,9 @@ def test_deleting_a_waiting_exam_and_undo_returns_it_to_waiting(
     assert _undo(api, user, version_id).status_code == 200
     after = _closures(api, user)
     assert after["pending"] == []
-    assert _ids(after["waiting"]) == [str(exam)]
+    assert after["waiting"] == waiting_before
+    assert _exam(db, exam)[:2] == ("moed_b", NOW)
+    assert _exam(db, exam) == closure_before
     listed = api.get("/exams", headers=user.headers).json()
     assert [(e["id"], e["state"]) for e in listed] == [(str(exam), "waiting_moed_b")]
 
