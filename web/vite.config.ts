@@ -7,16 +7,18 @@ import { findSecretKeys } from './src/config/env.ts'
 import { manifest } from './src/pwa/manifest.ts'
 import { fillBootTexts } from './src/pwa/bootTexts.ts'
 import { PRODUCT_NAME } from './src/product.ts'
+import { fillThemeBoot } from './src/theme/themeBoot.ts'
 
-// Writes the product name into index.html, so it is written only in src/product.ts, and the boot
-// fallback's texts from en.ts (src/pwa/bootTexts.ts).
+// Writes the product name into index.html, so it is written only in src/product.ts, the boot
+// fallback's texts from en.ts (src/pwa/bootTexts.ts), and the theme boot script built from the
+// constants of src/theme/theme.ts (src/theme/themeBoot.ts), which throws when %THEME_BOOT% is missing.
 // 'pre' runs before Vite's own %ENV% replacement, which would warn about an unknown variable.
 function productName(): Plugin {
   return {
     name: 'product-name',
     transformIndexHtml: {
       order: 'pre',
-      handler: (html) => fillBootTexts(html.replaceAll('%PRODUCT_NAME%', PRODUCT_NAME)),
+      handler: (html) => fillThemeBoot(fillBootTexts(html.replaceAll('%PRODUCT_NAME%', PRODUCT_NAME))),
     },
   }
 }

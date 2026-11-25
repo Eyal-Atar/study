@@ -6,6 +6,9 @@
     <title>%PRODUCT_NAME%</title>
     <!-- Equal to --color-brand and to theme_color in src/pwa/manifest.ts. -->
     <meta name="theme-color" content="#4f7a3a" />
+    <!-- Sets the theme (data-theme on <html>, and the theme-color above) before the first paint, so
+         the page never flashes light at night. The source is src/theme/themeBoot.ts. -->
+    <script>%THEME_BOOT%</script>
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

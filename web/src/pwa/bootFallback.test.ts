@@ -9,7 +9,10 @@ import { fillBootTexts } from './bootTexts'
 
 // Read by path: Vite rewrites new URL('…html', import.meta.url) into an asset URL.
 const html = fillBootTexts(readFileSync(join(process.cwd(), 'index.html'), 'utf8'))
-const script = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1] ?? ''
+// The fallback is the inline script that holds the texts; the theme boot script (S43) comes first, in <head>.
+const script =
+  [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1] ?? '').find((s) => s.includes('var texts')) ??
+  ''
 
 function boot(): void {
   const root = document.createElement('div')
