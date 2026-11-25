@@ -13,6 +13,7 @@ import { enCrash } from './enCrash'
 import { enEntry } from './enEntry'
 import { enExams } from './enExams'
 import { enFocus } from './enFocus'
+import { enGarden } from './enGarden'
 import { enOnboardingFlow } from './enOnboardingFlow'
 import { enPwa } from './enPwa'
 import { enSettingsScreen } from './enSettingsScreen'
@@ -56,6 +57,8 @@ export const en = {
   focus: enFocus,
   // S45: closing an exam and Moed B; texts in enClosure.ts.
   closure: enClosure,
+  // S33: the garden and the celebrations; texts in enGarden.ts.
+  garden: enGarden,
   onboardingFlow: enOnboardingFlow,
   settingsScreen: enSettingsScreen,
   shell: {
