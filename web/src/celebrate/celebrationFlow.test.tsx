@@ -12,6 +12,7 @@ import type { Progress } from '../progress/types'
 import { focusPath } from '../session/focusSession'
 import { makeBlock, USER_ID } from '../test/boardFixtures'
 import { makeClosureItem } from '../test/closureFixtures'
+import { problem } from '../test/fakeApi'
 
 // The celebration sheet in the calendar (S33 Task 9): one sheet for the moment a Done earned, timed
 // against the calendar's other sheets. The clock is frozen at CAL_NOW (11:25 in Jerusalem, UTC+2).
@@ -82,6 +83,7 @@ const PROGRESS = makeProgress({
 
 interface Change {
   xp?: number
+  total?: number
   level?: number
   levelUp?: boolean
   badges?: string[]
@@ -98,8 +100,8 @@ function deferred<T>() {
 // The calendar with a server whose complete and uncomplete follow `blocks`, and answer `change`.
 async function open(blocks: Block[], change: Change = {}, path = '/calendar') {
   const opened = openCalendar(path, { blocks })
-  const server = { change, answer: null as Promise<unknown> | null }
-  opened.fake.on('GET /progress', PROGRESS)
+  const server = { change, answer: null as Promise<unknown> | null, progress: PROGRESS as Progress | Promise<Progress> | Error }
+  opened.fake.on('GET /progress', () => server.progress)
   opened.fake.on({ method: 'POST', path: /^\/blocks\/[^/]+\/complete$/ }, (call: { path: string }) => {
     const id = call.path.split('/')[2]
     const original = blocks.find((b) => b.id === id) ?? LAST
@@ -111,7 +113,7 @@ async function open(blocks: Block[], change: Change = {}, path = '/calendar') {
       task_status: 'done',
       progress: {
         xp_change: c.xp ?? 20,
-        total_xp: 1260,
+        total_xp: c.total ?? 1260,
         level: c.level ?? 2,
         level_up: c.levelUp ?? false,
         badges_earned: c.badges ?? [],
@@ -332,6 +334,50 @@ describe('the celebration sheet on a computer', () => {
   })
 })
 
+describe('the sheet says only what the server says', () => {
+  beforeEach(() => {
+    stubMedia({ desktop: true })
+  })
+
+  it('a level up waits for the refetch of GET /progress, and the ring shows the new level’s percent', async () => {
+    window.localStorage.setItem(`archi.celebrated.${USER_ID}`, JSON.stringify({ day: null, level: 3, badges: [] }))
+    // A real level up: the new total is past the old level's end (2000), so the patched cache is
+    // level 4 with level 3's bounds until the refetch.
+    const { server, fake } = await open([LAST, LATER], { level: 4, levelUp: true, total: 3600 })
+    await settled()
+    const fresh = deferred<Progress>()
+    server.progress = fresh.promise
+    const asked = fake.calls('GET', '/progress').length
+    await clickDone(LAST)
+    await doneToast()
+    await waitFor(() => {
+      expect(fake.calls('GET', '/progress').length).toBeGreaterThan(asked)
+    })
+    // The cache still has level 3's bounds: no sheet yet.
+    expect(anyDialog()).not.toBeInTheDocument()
+    await act(async () => {
+      fresh.resolve({ ...PROGRESS, total_xp: 3600, level: 4, level_start_xp: 3000, next_level_xp: 4000 })
+      await fresh.promise
+    })
+    const sheet = await celebration(t.levelTitle(4))
+    expect(sheet.querySelector('[data-part="arc"]')).toHaveAttribute('stroke-dasharray', '60.0 100')
+  })
+
+  it('without GET /progress a new stage says the level’s words, not "before and after"', async () => {
+    const { server, queryClient } = await open([LAST, LATER], { level: 3, levelUp: true })
+    server.progress = problem(500, 'internal')
+    await act(async () => {
+      await queryClient.resetQueries({ queryKey: progressKey(USER_ID) })
+    })
+    await settled()
+    await clickDone(LAST)
+    const sheet = await celebration(t.stageTitle(en.garden.scene.stage.sprout))
+    expect(within(sheet).queryByText(t.stageBody(3))).not.toBeInTheDocument()
+    expect(within(sheet).queryByText(t.before)).not.toBeInTheDocument()
+    expect(within(sheet).getByText(t.levelBody(3))).toBeInTheDocument()
+  })
+})
+
 describe('the celebration sheet on a phone', () => {
   beforeEach(() => {
     stubMedia({ desktop: false })
@@ -353,6 +399,23 @@ describe('the celebration sheet on a phone', () => {
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
     await userEvent.keyboard('{Escape}')
     expect(await celebration(t.dayTitle)).toBeInTheDocument()
+  })
+
+  it('the stage sheet asks the server nothing: no GET /exams, no tasks', async () => {
+    const { fake } = await open(DAY, { level: 3, levelUp: true })
+    await settled()
+    const exams = fake.calls('GET', '/exams').length
+    const tasks = fake.calls('GET', /^\/exams\/[^/]+\/tasks$/).length
+    await clickDone(LAST)
+    await doneToast()
+    const before = await celebration(t.stageTitle(en.garden.scene.stage.sprout))
+    expect(within(before).getAllByRole('group')).toHaveLength(2)
+    // Any query the sheet observed would refetch on mount: give it the time to.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+    expect(fake.calls('GET', '/exams')).toHaveLength(exams)
+    expect(fake.calls('GET', /^\/exams\/[^/]+\/tasks$/)).toHaveLength(tasks)
   })
 })
 

@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router'
 import { errorMessage } from '../api/client'
@@ -15,6 +16,7 @@ import { pickCelebration } from '../celebrate/rules'
 import { readCelebrated, writeCelebrated } from '../celebrate/seen'
 import { useClosures } from '../closure/api'
 import { seenKey, wasShown } from '../closure/seen'
+import { cachedGardenExams } from '../garden/useGardenExams'
 import { en } from '../i18n/en'
 import { sortByStart } from '../today/chooseNext'
 import { Button } from '../ui/Button'
@@ -87,7 +89,7 @@ function nextHourDraft(date: string, today: string, now: number, tz: string): { 
 //   screen, so a move to another date or view leaves it open.
 // - The celebration of S33 (plan decision 15): the Done events of this session wait in the inbox
 //   (celebrate/inbox.ts) and are pulled when nothing else is open or about to open: no sheet, no
-//   tasks sheet, GET /closures answered, GET /today not on its way, and no closure opening by itself in the same pass (that one
+//   tasks sheet, GET /closures answered, GET /today and GET /progress not on their way, and no closure opening by itself in the same pass (that one
 //   goes first: it is a decision, the celebration can wait). Not about the week either, so a move
 //   leaves it open.
 export function CalendarPage() {
@@ -106,6 +108,7 @@ export function CalendarPage() {
   // The phone's tasks sheet (TasksSheet): a sheet too, though not one of CalendarSheets'.
   const [tasksOpen, setTasksOpen] = useState(false)
   const userId = useBoardUserId()
+  const queryClient = useQueryClient()
   const closures = useClosures()
   const pendingClosures = closures.data?.pending
   // The closures that were pending when the sheet last opened by itself. Each is offered by itself
@@ -160,12 +163,23 @@ export function CalendarPage() {
   // Today as the server has it after the Done: a calendar that comes back from another screen first
   // shows the cache from before, and a refetch is on its way.
   const todayFetching = data.today.isFetching
+  // And GET /progress: a Done patches only total_xp and level in the cache, so after a level up the
+  // bounds are the old level's (the ring and the leaves would say too much) until settle()'s refetch,
+  // which starts only after the event. A total outside its level's bounds is that patched cache. A
+  // failed refetch stops the wait: the sheet then says what it has.
+  const progressData = data.progress.data
+  const progressStale =
+    progressData !== undefined &&
+    !data.progress.isError &&
+    (progressData.total_xp < progressData.level_start_xp ||
+      (progressData.next_level_xp !== null && progressData.total_xp >= progressData.next_level_xp))
+  const progressFetching = data.progress.isFetching || progressStale
   useEffect(() => {
     if (sheet !== null) {
       closureOpening.current = false
       return
     }
-    if (inboxSize === 0 || tasksOpen || todayData === undefined || todayFetching || userId === null || !closuresKnown) return
+    if (inboxSize === 0 || tasksOpen || todayData === undefined || todayFetching || progressFetching || userId === null || !closuresKnown) return
     if (closureOpening.current) return
     const events = takeEvents()
     if (events.length === 0) return
@@ -184,7 +198,7 @@ export function CalendarPage() {
     // render (StrictMode renders twice), so the sheet it earns is set here, once.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the answer to an external store, once
     setSheet({ kind: 'celebration', celebration })
-  }, [inboxSize, sheet, tasksOpen, todayData, todayFetching, userId, closuresKnown, badgeList])
+  }, [inboxSize, sheet, tasksOpen, todayData, todayFetching, progressFetching, userId, closuresKnown, badgeList])
   const selected = date ?? today
   const week = selected === undefined ? [] : weekDays(selected)
   const days = selected === undefined ? [] : view === 'week' ? week : [selected]
@@ -373,6 +387,7 @@ export function CalendarPage() {
         progress={data.progress.data}
         todayBlocks={todayBlocks}
         tomorrowFirst={tomorrowFirst}
+        gardenExams={sheet?.kind === 'celebration' ? cachedGardenExams(queryClient, userId, data.exams.data ?? []) : []}
       />
     )
 

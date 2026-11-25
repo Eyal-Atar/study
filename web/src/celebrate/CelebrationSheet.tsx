@@ -5,8 +5,7 @@ import type { Block } from '../board/types'
 import { BadgeStone } from '../garden/BadgeStone'
 import { GardenScene } from '../garden/GardenScene'
 import '../garden/garden.css'
-import { badgeTier, gardenModel, summaryOf, type Stage } from '../garden/model'
-import { useGardenExams } from '../garden/useGardenExams'
+import { badgeTier, gardenModel, stageFor, summaryOf, type GardenExam } from '../garden/model'
 import { en } from '../i18n/en'
 import { formatNumber } from '../progress/format'
 import { levelPercent } from '../progress/levelPercent'
@@ -53,11 +52,13 @@ export interface CelebrationSheetProps {
   todayBlocks: Block[]
   // The first block planned tomorrow, from the calendar's seven days ahead.
   tomorrowFirst: Block | null
+  // The live exams with their percent, from the calendar's cache (no query here).
+  gardenExams: GardenExam[]
   tz: string
   onClose: () => void
 }
 
-export function CelebrationSheet({ celebration, progress, todayBlocks, tomorrowFirst, tz, onClose }: CelebrationSheetProps) {
+export function CelebrationSheet({ celebration, progress, todayBlocks, tomorrowFirst, gardenExams, tz, onClose }: CelebrationSheetProps) {
   const [motion] = useState(() => !prefersReducedMotion())
   const { lead } = celebration
   const known = celebration.badges.filter((key) => badgeName(key) !== null)
@@ -71,6 +72,7 @@ export function CelebrationSheet({ celebration, progress, todayBlocks, tomorrowF
 
   const others = known.filter((key) => key !== leadBadge).map((key) => badgeName(key) ?? '')
   const also = [
+    // Unreachable today: rules.ts lets a level always lead, or stageBody states it. Kept for the key.
     celebration.level !== null && lead !== 'level' && lead !== 'stage' ? t.alsoLevel(celebration.level) : null,
     others.length > 0 ? t.alsoBadges(others) : null,
     celebration.day !== null && lead !== 'day' ? t.alsoDay : null,
@@ -100,8 +102,15 @@ export function CelebrationSheet({ celebration, progress, todayBlocks, tomorrowF
       {lead === 'level' && celebration.level !== null ? (
         <LevelPart level={celebration.level} progress={progress} motion={motion} />
       ) : null}
-      {lead === 'stage' && celebration.level !== null ? (
-        <StagePart celebration={celebration} level={celebration.level} progress={progress} tz={tz} motion={motion} />
+      {/* Without GET /progress there is no garden to show: the level's words, not "before and after". */}
+      {lead === 'stage' && celebration.level !== null && progress === undefined ? (
+        <LevelPart level={celebration.level} progress={progress} motion={motion} />
+      ) : null}
+      {lead === 'stage' && celebration.level !== null && progress !== undefined ? (
+        <>
+          <Gardens celebration={celebration} level={celebration.level} progress={progress} exams={gardenExams} tz={tz} motion={motion} />
+          <p className="text-body">{t.stageBody(celebration.level)}</p>
+        </>
       ) : null}
       {lead === 'badge' ? <BadgePart badge={leadBadge} progress={progress} motion={motion} /> : null}
       {also.map((line) => (
@@ -180,43 +189,23 @@ function LevelPart({ level, progress, motion }: { level: number; progress: Progr
   )
 }
 
-function StagePart({
-  celebration,
-  level,
-  progress,
-  tz,
-  motion,
-}: {
-  celebration: Celebration
-  level: number
-  progress: Progress | undefined
-  tz: string
-  motion: boolean
-}) {
-  return (
-    <>
-      {progress === undefined ? null : <Gardens celebration={celebration} level={level} progress={progress} tz={tz} motion={motion} />}
-      <p className="text-body">{t.stageBody(level)}</p>
-    </>
-  )
-}
-
 // "Before" and "after", side by side (one above the other under sm): today's garden at the level
 // before the rise, with no new leaves, and at the new level.
 function Gardens({
   celebration,
   level,
   progress,
+  exams,
   tz,
   motion,
 }: {
   celebration: Celebration
   level: number
   progress: Progress
+  exams: GardenExam[]
   tz: string
   motion: boolean
 }) {
-  const exams = useGardenExams()
   const before = useMemo(() => {
     const lower = Math.max(1, beforeLevel(celebration, level))
     return { ...gardenModel({ progress: { ...progress, level: lower }, exams, timeZone: tz }), leaves: 0 }
@@ -236,11 +225,12 @@ function Gardens({
   )
 }
 
-// The level "before": the one just under the new level, but never past the stage before the rise
+// The level "before": the highest level under the new one that is still in the stage before the rise
 // (rules.ts worked that stage out; two rises at once, 5 to 7, still show a sprout before).
-const STAGE_LAST: Record<Stage, number> = { seed: 2, sprout: 5, sapling: 10, young: 20, bonsai: 35, garden: 50 }
 function beforeLevel(celebration: Celebration, level: number): number {
-  return celebration.stageBefore === null ? level - 1 : Math.min(level - 1, STAGE_LAST[celebration.stageBefore])
+  let before = level - 1
+  while (before > 1 && celebration.stageBefore !== null && stageFor(before) !== celebration.stageBefore) before -= 1
+  return before
 }
 
 function BadgePart({ badge, progress, motion }: { badge: string | null; progress: Progress | undefined; motion: boolean }) {

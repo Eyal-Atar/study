@@ -20,6 +20,7 @@ import type { Celebration } from '../celebrate/rules'
 import { ClosureSheet } from '../closure/ClosureSheet'
 import { markShown } from '../closure/seen'
 import type { ClosureItem } from '../closure/types'
+import type { GardenExam } from '../garden/model'
 import type { Progress } from '../progress/types'
 import { BlockActionsSheet } from './BlockActionsSheet'
 import { BusySheet } from './BusySheet'
@@ -57,6 +58,8 @@ export interface CalendarSheetsProps {
   progress: Progress | undefined
   todayBlocks: Block[]
   tomorrowFirst: Block | null
+  // The live exams of the celebration's gardens, from the cache (CalendarPage).
+  gardenExams: GardenExam[]
 }
 
 export function CalendarSheets({
@@ -73,6 +76,7 @@ export function CalendarSheets({
   progress,
   todayBlocks,
   tomorrowFirst,
+  gardenExams,
 }: CalendarSheetsProps) {
   const userId = useBoardUserId()
   // The closure or the celebration sheet has closed (its X, a decision, or by itself when its exam
@@ -140,6 +144,7 @@ export function CalendarSheets({
           progress={progress}
           todayBlocks={todayBlocks}
           tomorrowFirst={tomorrowFirst}
+          gardenExams={gardenExams}
           tz={tz}
           onClose={close}
         />
