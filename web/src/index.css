@@ -10,7 +10,9 @@
   gives bg-exam-3 and fill-exam-3. Components use only these names, so a change of look is a change
   of values here and nothing else. docs/design/design-language.md says when each one is used;
   theme.test.ts checks that every token exists, the AA contrast of every text pair, and 3:1 for the
-  parts of controls (WCAG 1.4.11). There is no dark mode (a decision of the user: "light").
+  parts of controls (WCAG 1.4.11). There are two sets: Day (@theme) and Dusk
+  (:root[data-theme='dusk'], S43, point 14 of the audit). theme/ sets data-theme; every new token
+  gets a value in both, and theme.test.ts fails otherwise.
 */
 
 /* Rubik (SIL Open Font License, assets/fonts/OFL.txt), served by us: one variable file per script
@@ -224,6 +226,10 @@
   --radius-card: 1.125rem;
   --radius-sheet: 1.5rem;
 
+  /* The backdrop behind a dialog or a sheet. Its opacity is --scrim-opacity, so the evening can be
+     heavier (bg-scrim/(--scrim-opacity)). */
+  --color-scrim: #3b2a1e;
+
   /* ---- Shadow ---- */
   /* A card has a line and no shadow. A shadow means the thing is above something. */
   /* The selected segment of a switch. */
@@ -251,6 +257,115 @@
   --duration-base: 160ms;
   /* Something that enters or leaves (a toast, a dialog, a sheet). */
   --duration-slow: 240ms;
+  /* How long the colours take to change when the theme switches (S43): a short sunset. */
+  --duration-theme: 400ms;
+  /* The opacity of the scrim behind a dialog: lighter by day, heavier in the evening. */
+  --scrim-opacity: 35%;
+}
+
+/* Dusk (S43): a warm evening, dark wood, deep forest green and soft lantern light. Every colour
+   token of @theme has a value here; theme.test.ts checks the block is complete and the contrast of
+   every pair. */
+:root[data-theme='dusk'] {
+  color-scheme: dark;
+
+  /* The page and what sits on it: dark walnut, a step lighter for cards, and a quiet fill. */
+  --color-canvas: #1b1612;
+  /* The lantern light at the top of the page (the glow rule below); text is checked on it too. */
+  --color-canvas-glow: #2c2219;
+  --color-surface: #251e18;
+  --color-surface-muted: #322920;
+  /* The field is darker than its card, so a place to type still stands out. */
+  --color-field: #15110d;
+
+  /* Text and lines: cream paper for text, a warm grey-brown for borders. */
+  --color-ink: #f1e6d3;
+  --color-ink-muted: #bfae96;
+  --color-line: #3d332a;
+  --color-line-strong: #8a7a66;
+
+  /* The brand: a lighter leaf green fills the button, with dark text on it; forest green is the
+     soft background of "now" and "selected". */
+  --color-brand: #7fae63;
+  --color-brand-strong: #9cc47f;
+  --color-brand-soft: #23331f;
+  --color-on-brand: #16120e;
+  --color-sprout: #5f8a45;
+
+  /* Clay, sand and gold: the secondary action, the earth, and XP. */
+  --color-clay: #c98558;
+  --color-on-clay: #16120e;
+  --color-sand: #8a6f50;
+  --color-gold: #845a18;
+  --color-gold-soft: #3a2d14;
+  --color-gold-ink: #f0c36a;
+  --color-gold-track: #2b241a;
+
+  /* The sky behind Archie, now a dusk sky. */
+  --color-sky-from: #1d2a3a;
+  --color-sky-to: #33465a;
+  --color-sky: #26364a;
+
+  /* The "now" line and its time. */
+  --color-now: #e0784f;
+  --color-now-text: #ec8c66;
+
+  /* States: bright fills and text, dark soft backgrounds. */
+  --color-danger: #f08a6c;
+  --color-danger-soft: #3d1f17;
+  --color-success: #9cc47f;
+  --color-success-soft: #23331f;
+  --color-warning: #e2b05a;
+  --color-warning-soft: #382a12;
+
+  /* The toast, Google's button and the selected day: the opposite of the page, so cream here. */
+  --color-inverse: #efe3cc;
+  --color-on-inverse: #241c15;
+  --color-inverse-action: #2f5a22;
+  --color-inverse-success: #3f6a2c;
+  --color-inverse-danger: #9a3518;
+
+  /* Busy time: a grey-brown apart from the quiet fill and from the earth of exam 7. */
+  --color-busy: #a39684;
+  --color-busy-soft: #2c261f;
+  --color-busy-line: #463d33;
+
+  /* The eight exam colours: a light strong colour (dark text on it), a dark soft tint of the same
+     hue (light text on it), and a line between them. */
+  --color-exam-0: #b5c36e;
+  --color-exam-0-soft: #2a2d18;
+  --color-exam-0-line: #4a5128;
+  --color-exam-1: #e8946d;
+  --color-exam-1-soft: #3a221a;
+  --color-exam-1-line: #63392a;
+  --color-exam-2: #94b6d1;
+  --color-exam-2-soft: #1d2833;
+  --color-exam-2-line: #34495b;
+  --color-exam-3: #cf9cc0;
+  --color-exam-3-soft: #33212e;
+  --color-exam-3-line: #573a4e;
+  --color-exam-4: #dcb558;
+  --color-exam-4-soft: #352a12;
+  --color-exam-4-line: #5c4a1f;
+  --color-exam-5: #7cc6b3;
+  --color-exam-5-soft: #17302b;
+  --color-exam-5-line: #2a5249;
+  --color-exam-6: #e494a5;
+  --color-exam-6-soft: #3a1f25;
+  --color-exam-6-line: #633844;
+  --color-exam-7: #d0a682;
+  --color-exam-7-soft: #33261c;
+  --color-exam-7-line: #574131;
+
+  /* Behind a dialog: nearly black and heavier, because the page is dark already. */
+  --color-scrim: #080604;
+  --scrim-opacity: 60%;
+
+  /* Shadows on a dark page: black, and stronger. */
+  --shadow-raised: 0 1px 3px rgb(0 0 0 / 0.5);
+  --shadow-overlay: 0 1px 2px rgb(0 0 0 / 0.4), 0 18px 40px -10px rgb(0 0 0 / 0.65);
+  --shadow-lift: 0 12px 28px rgb(0 0 0 / 0.6);
+  --shadow-sheet: 0 -10px 40px rgb(0 0 0 / 0.6);
 }
 
 body {
@@ -261,6 +376,30 @@ body {
   /* Rubik has no italic and no weights outside 400-700, Amatic SC only 700: never let the browser
      fake one. */
   font-synthesis: none;
+}
+
+/* The lantern light: a soft glow from the top of the page, in the evening only. */
+:root[data-theme='dusk'] body { background-image: radial-gradient(120% 70% at 50% 0%, var(--color-canvas-glow), var(--color-canvas) 72%); }
+
+/* In @layer base, so ring-offset-inverse of the toast (utilities) still wins. */
+@layer base {
+  :root[data-theme='dusk'] *,
+  :root[data-theme='dusk'] ::before,
+  :root[data-theme='dusk'] ::after {
+    --tw-ring-offset-color: var(--color-surface);
+  }
+}
+
+/* When the theme switches while the app is open (the attribute is set for 400ms by theme/), every
+   colour fades. Not for whoever asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-theme-switching] *,
+  :root[data-theme-switching] ::before,
+  :root[data-theme-switching] ::after {
+    transition-property: color, background-color, border-color, outline-color, fill, stroke, box-shadow;
+    transition-duration: var(--duration-theme);
+    transition-timing-function: var(--ease-standard);
+  }
 }
 
 /* index.html asks for viewport-fit=cover, so on a phone with a notch the page runs under it, also

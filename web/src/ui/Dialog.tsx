@@ -34,12 +34,14 @@ export interface DialogProps {
 // is the same with and without onSubmit.
 const COLUMN = 'flex flex-col gap-4'
 
-// The scrim: ink at 40%, the one sanctioned opacity modifier. It only fades (design language 7).
+// The scrim: the scrim token at --scrim-opacity (35% by day, 60% in the evening), the one sanctioned
+// opacity modifier. Not ink: in the evening ink is light, and the backdrop must stay dark. It only
+// fades (design language 7).
 // Its height is the visual viewport, which React Aria writes on this element as
 // --visual-viewport-height, and not the whole screen (inset-0): when the on-screen keyboard of a
 // phone is open, the bottom of the scrim is the top of the keyboard, so the sheet sits above it.
 const OVERLAY =
-  'fixed inset-x-0 top-0 z-50 flex h-(--visual-viewport-height) items-end justify-center bg-ink/35 md:items-center md:p-4 transition-opacity duration-(--duration-slow) data-[entering]:opacity-0 data-[exiting]:opacity-0'
+  'fixed inset-x-0 top-0 z-50 flex h-(--visual-viewport-height) items-end justify-center bg-scrim/(--scrim-opacity) md:items-center md:p-4 transition-opacity duration-(--duration-slow) data-[entering]:opacity-0 data-[exiting]:opacity-0'
 
 // One component, two shapes. Below md it is a sheet attached to the bottom, like the sheet of the
 // prototype: the larger corners of a sheet on top only, no border, the upward shadow of a sheet, a

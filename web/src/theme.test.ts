@@ -12,6 +12,16 @@ function color(name: string): string {
   return match[1]
 }
 
+// The evening values (S43): the block `:root[data-theme='dusk'] { ... }`, which comes after @theme,
+// so color() above keeps reading the day.
+const duskBlock = /:root\[data-theme='dusk'\]\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? ''
+
+function duskColor(name: string): string {
+  const match = new RegExp(`--color-${name}:\\s*(#[0-9a-fA-F]{6})`).exec(duskBlock)
+  if (match?.[1] === undefined) throw new Error(`--color-${name} is not defined as #rrggbb in the dusk block`)
+  return match[1]
+}
+
 function luminance(hex: string): number {
   const [r, g, b] = [1, 3, 5].map((i) => {
     const c = parseInt(hex.slice(i, i + 2), 16) / 255
@@ -110,18 +120,25 @@ const NON_TEXT_PAIRS: [string, string][] = [
   ['busy', 'surface'],
 ]
 
+// S34: large text (WCAG: 18.66px bold and up, 3:1). The only one is the initial of an exam
+// (ui/ExamMark.tsx, ExamInitial): exam-N on exam-N-soft, in text-title (20px) and font-bold, and
+// nowhere smaller or lighter (S34 decision 10).
+const LARGE_TEXT_PAIRS: [string, string][] = EXAM.map((n): [string, string] => [`exam-${n}`, `exam-${n}-soft`])
+
 // The tokens the design language names (docs/design/design-language.md). S26-S28 build on these
 // names, so removing or renaming one is a breaking change.
-const TOKENS = [
-  ...[
+const COLOR_NAMES = [
     'canvas', 'surface', 'surface-muted', 'ink', 'ink-muted', 'line', 'line-strong', 'brand', 'brand-strong',
     'brand-soft', 'on-brand', 'sprout', 'clay', 'on-clay', 'sand', 'gold', 'gold-soft', 'gold-ink', 'gold-track',
     'field', 'sky-from', 'sky-to', 'sky', 'now',
     'now-text', 'danger', 'danger-soft', 'success', 'success-soft', 'warning', 'warning-soft', 'inverse',
     'on-inverse', 'inverse-action', 'inverse-success', 'inverse-danger',
     ...EXAM.flatMap((n) => [`exam-${n}`, `exam-${n}-soft`, `exam-${n}-line`]),
-    'busy', 'busy-soft', 'busy-line',
-  ].map((name) => `--color-${name}`),
+    'busy', 'busy-soft', 'busy-line', 'scrim',
+]
+
+const TOKENS = [
+  ...COLOR_NAMES.map((name) => `--color-${name}`),
   '--radius-sheet',
   '--radius-button',
   '--font-display',
@@ -324,13 +341,118 @@ describe('the brand green as text', () => {
   })
 })
 
-// S34: large text (WCAG: 18.66px bold and up, 3:1). The only one is the initial of an exam
-// (ui/ExamMark.tsx, ExamInitial): exam-N on exam-N-soft, in text-title (20px) and font-bold, and
-// nowhere smaller or lighter (S34 decision 10).
-const LARGE_TEXT_PAIRS: [string, string][] = EXAM.map((n): [string, string] => [`exam-${n}`, `exam-${n}-soft`])
-
 describe('large text pairs (S34)', () => {
   it.each(LARGE_TEXT_PAIRS)('%s on %s passes 3:1 for large text', (fg, bg) => {
     expect(contrast(color(fg), color(bg))).toBeGreaterThanOrEqual(3)
+  })
+})
+
+// ---- Dusk (S43): the evening values, checked by the same pairs as the day ----
+const DUSK_VALUES: [string, string][] = [
+  ['canvas', '#1b1612'], ['canvas-glow', '#2c2219'], ['surface', '#251e18'], ['surface-muted', '#322920'],
+  ['field', '#15110d'], ['ink', '#f1e6d3'], ['ink-muted', '#bfae96'], ['line', '#3d332a'], ['line-strong', '#8a7a66'],
+  ['brand', '#7fae63'], ['brand-strong', '#9cc47f'], ['brand-soft', '#23331f'], ['on-brand', '#16120e'],
+  ['sprout', '#5f8a45'], ['clay', '#c98558'], ['on-clay', '#16120e'], ['sand', '#8a6f50'], ['gold', '#845a18'],
+  ['gold-soft', '#3a2d14'], ['gold-ink', '#f0c36a'], ['gold-track', '#2b241a'],
+  ['sky-from', '#1d2a3a'], ['sky-to', '#33465a'], ['sky', '#26364a'], ['now', '#e0784f'], ['now-text', '#ec8c66'],
+  ['danger', '#f08a6c'], ['danger-soft', '#3d1f17'], ['success', '#9cc47f'], ['success-soft', '#23331f'],
+  ['warning', '#e2b05a'], ['warning-soft', '#382a12'], ['inverse', '#efe3cc'], ['on-inverse', '#241c15'],
+  ['inverse-action', '#2f5a22'], ['inverse-success', '#3f6a2c'], ['inverse-danger', '#9a3518'],
+  ['busy', '#a39684'], ['busy-soft', '#2c261f'], ['busy-line', '#463d33'], ['scrim', '#080604'],
+  ['exam-0', '#b5c36e'], ['exam-0-soft', '#2a2d18'], ['exam-0-line', '#4a5128'],
+  ['exam-1', '#e8946d'], ['exam-1-soft', '#3a221a'], ['exam-1-line', '#63392a'],
+  ['exam-2', '#94b6d1'], ['exam-2-soft', '#1d2833'], ['exam-2-line', '#34495b'],
+  ['exam-3', '#cf9cc0'], ['exam-3-soft', '#33212e'], ['exam-3-line', '#573a4e'],
+  ['exam-4', '#dcb558'], ['exam-4-soft', '#352a12'], ['exam-4-line', '#5c4a1f'],
+  ['exam-5', '#7cc6b3'], ['exam-5-soft', '#17302b'], ['exam-5-line', '#2a5249'],
+  ['exam-6', '#e494a5'], ['exam-6-soft', '#3a1f25'], ['exam-6-line', '#633844'],
+  ['exam-7', '#d0a682'], ['exam-7-soft', '#33261c'], ['exam-7-line', '#574131'],
+]
+
+describe('dusk: the block', () => {
+  it('exists and comes after @theme, so the day stays what color() reads', () => {
+    expect(duskBlock).not.toBe('')
+    expect(/:root\[data-theme='dusk'\]\s*\{/.exec(css)?.index ?? -1).toBeGreaterThan(css.indexOf('@theme {'))
+  })
+
+  it.each(COLOR_NAMES)('%s is defined in the block as #rrggbb', (name) => {
+    expect(() => duskColor(name.replace('--color-', ''))).not.toThrow()
+  })
+
+  it('canvas-glow is defined in the block', () => {
+    expect(() => duskColor('canvas-glow')).not.toThrow()
+  })
+
+  it.each(DUSK_VALUES)('--color-%s is %s', (name, value) => {
+    expect(duskColor(name).toLowerCase()).toBe(value)
+  })
+
+  it('has the dark colour scheme, the heavier scrim and the four shadows', () => {
+    expect(duskBlock).toMatch(/color-scheme:\s*dark;/)
+    expect(duskBlock).toMatch(/--scrim-opacity:\s*60%;/)
+    for (const s of ['raised', 'overlay', 'lift', 'sheet']) {
+      expect(duskBlock).toMatch(new RegExp(`--shadow-${s}:[^;]*rgb\\(0 0 0 /`))
+    }
+  })
+
+  it('the day scrim and the theme duration are set outside the block', () => {
+    const outside = css.replace(/:root\[data-theme='dusk'\]\s*\{[\s\S]*?\n\}/, '')
+    expect(outside).toMatch(/--scrim-opacity:\s*35%;/)
+    expect(outside).toMatch(/--duration-theme:\s*400ms;/)
+  })
+})
+
+describe('dusk: contrast', () => {
+  it.each(PAIRS)('%s on %s passes AA in the evening', (fg, bg) => {
+    expect(contrast(duskColor(fg), duskColor(bg))).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it.each(NON_TEXT_PAIRS)('%s on %s passes 3:1 in the evening', (fg, bg) => {
+    expect(contrast(duskColor(fg), duskColor(bg))).toBeGreaterThanOrEqual(3)
+  })
+
+  it.each(LARGE_TEXT_PAIRS)('%s on %s passes 3:1 for large text in the evening', (fg, bg) => {
+    expect(contrast(duskColor(fg), duskColor(bg))).toBeGreaterThanOrEqual(3)
+  })
+
+  it('text passes AA on the lantern glow', () => {
+    for (const fg of TEXT) expect(contrast(duskColor(fg), duskColor('canvas-glow'))).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it.each(['line-strong', 'brand', 'now'])('%s passes 3:1 on the lantern glow', (fg) => {
+    expect(contrast(duskColor(fg), duskColor('canvas-glow'))).toBeGreaterThanOrEqual(3)
+  })
+
+  it('the eight exam colours differ, and none is a brand green of the evening', () => {
+    const strong = EXAM.map((n) => duskColor(`exam-${n}`).toLowerCase())
+    expect(new Set(strong).size).toBe(8)
+    const greens = [duskColor('brand').toLowerCase(), duskColor('brand-strong').toLowerCase()]
+    for (const c of strong) expect(greens).not.toContain(c)
+  })
+
+  it('busy time keeps its own tone in the evening', () => {
+    const fill = duskColor('busy-soft').toLowerCase()
+    expect(fill).not.toBe(duskColor('surface-muted').toLowerCase())
+    expect(fill).not.toBe(duskColor('exam-7-soft').toLowerCase())
+  })
+})
+
+describe('dusk: the rules outside the block', () => {
+  it('the focus ring offset follows the surface, in @layer base', () => {
+    const base = /@layer base \{[\s\S]*?\n\}/.exec(css)?.[0] ?? ''
+    expect(base).toContain(":root[data-theme='dusk'] *")
+    expect(base).toContain('--tw-ring-offset-color: var(--color-surface)')
+  })
+
+  it('the transition exists only inside prefers-reduced-motion: no-preference', () => {
+    const media = /@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*?\n\}/.exec(css)?.[0] ?? ''
+    expect(media).toContain('data-theme-switching')
+    expect(css.replace(media, '')).not.toContain('data-theme-switching')
+  })
+
+  it('the lantern glow is drawn only in the evening', () => {
+    const lines = css.split('\n').filter((l) => l.includes('radial-gradient'))
+    expect(lines.length).toBeGreaterThan(0)
+    for (const l of lines) expect(l.startsWith(":root[data-theme='dusk'] body")).toBe(true)
   })
 })
