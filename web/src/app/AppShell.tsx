@@ -100,53 +100,51 @@ export function AppShell() {
               {en.shell.skipToContent}
             </a>
             {/* A bare screen (S42, the focus screen) stands alone: no bar and no navigation. */}
+            {/* pt: the notch of a phone in landscape and of an installed app; the height is below it. */}
+            {/* The calendar draws its own header below lg (S32 decision 2), so the phone shows one:
+                there the bar folds to nothing, and only the navigation, fixed at the bottom, stays. */}
             {bare ? null : (
-              <>
-                {/* pt: the notch of a phone in landscape and of an installed app; the height is below it. */}
-                {/* The calendar draws its own header below lg (S32 decision 2), so the phone shows one:
-                    there the bar folds to nothing, and only the navigation, fixed at the bottom, stays. */}
-                <header
+              <header
+                className={cx(
+                  'border-b border-line bg-surface pt-[env(safe-area-inset-top)]',
+                  frame.ownPhoneHeader && 'max-lg:border-b-0 max-lg:pt-0',
+                )}
+              >
+                <div
                   className={cx(
-                    'border-b border-line bg-surface pt-[env(safe-area-inset-top)]',
-                    frame.ownPhoneHeader && 'max-lg:border-b-0 max-lg:pt-0',
+                    'flex h-14 items-center gap-3 px-page lg:h-topbar lg:gap-3.5 lg:px-gutter',
+                    frame.ownPhoneHeader && 'max-lg:h-0',
                   )}
                 >
-                  <div
-                    className={cx(
-                      'flex h-14 items-center gap-3 px-page lg:h-topbar lg:gap-3.5 lg:px-gutter',
-                      frame.ownPhoneHeader && 'max-lg:h-0',
-                    )}
-                  >
-                    <div className={cx('contents', frame.ownPhoneHeader && 'max-lg:hidden')}>
-                      <Logo />
-                    </div>
-                    {/* During the onboarding there is no board yet, and the gate sends every screen back:
-                        the header has only the logo. */}
-                    {onboarding ? null : (
-                      <>
-                        {/* Before <main> in the DOM at both widths, so the Tab order is the same on a
-                            phone and on a computer. */}
-                        <nav aria-label={en.shell.mainNav} className={NAV}>
-                          {DESTINATIONS.map(({ to, label, icon: Icon }) => (
-                            <NavLink key={to} to={to} className={destinationClass}>
-                              {/* In the bar only: the tabs of the top bar are words, as in the prototype. */}
-                              <Icon aria-hidden="true" strokeWidth={ICON_STROKE} className="size-[22px] shrink-0 lg:hidden" />
-                              <span className="max-w-full truncate">{label}</span>
-                            </NavLink>
-                          ))}
-                        </nav>
-                        {/* The place of ShellToolbar. flex-1 pushes the chip and the profile to the end;
-                            min-w-0 lets a long control shrink instead of pushing them off the bar. */}
-                        <div ref={setToolbar} className="hidden min-w-0 flex-1 items-center justify-end gap-2 lg:flex" />
-                        <div className={cx('ms-auto flex shrink-0 items-center gap-2', frame.ownPhoneHeader && 'max-lg:hidden')}>
-                          <ProgressChip />
-                          <ProfileMenu />
-                        </div>
-                      </>
-                    )}
+                  <div className={cx('contents', frame.ownPhoneHeader && 'max-lg:hidden')}>
+                    <Logo />
                   </div>
-                </header>
-              </>
+                  {/* During the onboarding there is no board yet, and the gate sends every screen back:
+                      the header has only the logo. */}
+                  {onboarding ? null : (
+                    <>
+                      {/* Before <main> in the DOM at both widths, so the Tab order is the same on a
+                          phone and on a computer. */}
+                      <nav aria-label={en.shell.mainNav} className={NAV}>
+                        {DESTINATIONS.map(({ to, label, icon: Icon }) => (
+                          <NavLink key={to} to={to} className={destinationClass}>
+                            {/* In the bar only: the tabs of the top bar are words, as in the prototype. */}
+                            <Icon aria-hidden="true" strokeWidth={ICON_STROKE} className="size-[22px] shrink-0 lg:hidden" />
+                            <span className="max-w-full truncate">{label}</span>
+                          </NavLink>
+                        ))}
+                      </nav>
+                      {/* The place of ShellToolbar. flex-1 pushes the chip and the profile to the end;
+                          min-w-0 lets a long control shrink instead of pushing them off the bar. */}
+                      <div ref={setToolbar} className="hidden min-w-0 flex-1 items-center justify-end gap-2 lg:flex" />
+                      <div className={cx('ms-auto flex shrink-0 items-center gap-2', frame.ownPhoneHeader && 'max-lg:hidden')}>
+                        <ProgressChip />
+                        <ProfileMenu />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </header>
             )}
             {/* tabIndex -1: the target of the skip link, and of the focus after a navigation to a
                 screen without an h1. Not a control, so no ring. Below lg the bottom padding clears

@@ -61,7 +61,7 @@ describe('enFocus: the timer', () => {
     expect(enFocus.minutesLeft(1)).toBe('1')
     expect(enFocus.unit(24)).toBe('min left')
     expect(enFocus.unit(1)).toBe('min left')
-    expect(enFocus.ofFive).toBe('of your 5 minutes')
+    expect(enFocus.ofFive).toBe('left of your 5 minutes')
     expect(enFocus.until('15:00')).toBe('Until 15:00')
     expect(enFocus.timerLabel).toBe('Time left')
   })
@@ -104,6 +104,12 @@ describe('enFocus: Archi’s voice', () => {
     expect(enFocus.fiveDone('15:00')).not.toContain('?')
   })
 
+  it('says the end, the missing block and the day as the final review asks', () => {
+    expect(enFocus.over).toBe('That’s the end of the block. If you studied, mark it done.')
+    expect(enFocus.gone).toBe('I can’t find this block on today’s calendar.')
+    expect(enFocus.notToday).toBe('I can only start one of today’s blocks that hasn’t ended yet.')
+  })
+
   it.each(SENTENCES)('%s is a sentence that ends with a full stop', (_key, text) => {
     expect(text).toMatch(/\.$/)
   })
@@ -117,7 +123,7 @@ describe('enFocus: Archi’s voice', () => {
       ['start', 'Start now'],
       ['five', 'Just 5 minutes'],
       ['resume', 'Back to focus'],
-      ['back', 'Back to my calendar'],
+      ['back', 'Back to the calendar'],
       ['stop', 'Stop for now'],
     ])
   })

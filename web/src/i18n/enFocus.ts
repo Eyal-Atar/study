@@ -16,14 +16,14 @@ export const enFocus = {
   fiveLabel: (title: string) => `Just 5 minutes: ${isolate(title)}`,
   resume: 'Back to focus',
   // Also the aria-label of the arrow button.
-  back: 'Back to my calendar',
+  back: 'Back to the calendar',
   stop: 'Stop for now',
   stopped: 'I stopped the timer. The block is still on your calendar.',
   timerLabel: 'Time left',
   // The big number in the ring: only the digits, the unit is under it.
   minutesLeft: (n: number) => String(n),
   unit,
-  ofFive: 'of your 5 minutes',
+  ofFive: 'left of your 5 minutes',
   until: (time: string) => `Until ${time}`,
   valueText: (n: number, until: string) => `${String(n)} ${n === 1 ? 'minute' : 'minutes'} left, until ${until}`,
   // Picked by the day of the year, like archiLine.
@@ -43,11 +43,11 @@ export const enFocus = {
   } satisfies Record<TaskKind, string>,
   // Not a question, and nothing that asks for an answer: the flow goes on.
   fiveDone: (until: string) => `That’s five minutes. I’ll keep going with you until ${until}.`,
-  over: 'That’s the block. You stayed with it.',
+  over: 'That’s the end of the block. If you studied, mark it done.',
   ended: 'This block has already ended. You can still mark it done.',
   alreadyDone: 'This block is already marked done.',
-  gone: 'This block isn’t on your calendar anymore.',
-  notToday: 'I can only start a block of today that hasn’t ended yet.',
+  gone: 'I can’t find this block on today’s calendar.',
+  notToday: 'I can only start one of today’s blocks that hasn’t ended yet.',
   // kind comes from en.board.kinds ("Learning").
   meta: (exam: string, kind: string) => `${isolate(exam)}, ${kind}`,
 } as const
