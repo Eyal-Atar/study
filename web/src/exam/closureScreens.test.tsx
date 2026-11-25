@@ -186,7 +186,7 @@ describe('the exams list with closures', () => {
     openRoute(fake, '/exams')
     const list = await screen.findByRole('list', { name: t.list.listTitle })
     await waitFor(() => {
-      expect(list).toHaveTextContent(`Moed B. ${longDate('2026-12-20')}`)
+      expect(list).toHaveTextContent(`Retake. ${longDate('2026-12-20')}`)
     })
   })
 })
@@ -196,7 +196,7 @@ describe('the exam screen by closure state', () => {
     const fake = setup([examFixture({ id: 'b1', exam_date: '2026-12-20', sitting: 2, first_exam_date: '2026-11-16', first_grade: 55 })])
     openRoute(fake, '/exams/b1')
     expect(await screen.findByText(c.exam.moedALine(longDate('2026-11-16'), 55))).toBeInTheDocument()
-    expect(c.exam.moedALine('16 November 2026', 55)).toBe('Moed A was on 16 November 2026, grade 55.')
+    expect(c.exam.moedALine('16 November 2026', 55)).toBe('You first sat it on 16 November 2026 and got 55.')
   })
 
   it('pending: the card opens the sheet, and no control of a live exam is left', async () => {

@@ -1,4 +1,5 @@
 // The texts of S45: the interface of closing an exam and of Moed B. Part of en as en.closure (en.ts).
+// S45b: in the text the student reads the term is retake; the identifiers and keys kept their Moed B names.
 // The functions take what is already worked out: a duration from durationText, a date from
 // longDate / dayMonth of exam/dates.ts, a progress line from en.exams.list.progress. Nothing is computed here.
 import { isolate } from './bidi'
@@ -13,7 +14,7 @@ const names = (list: string[]) => {
 }
 
 // The question of the evening of the exam: the sheet, the row of the calendar and the card say it alike.
-const madeIt = (name: string) => `You made it through ${isolate(name)}. How did it feel?`
+const madeIt = (name: string) => `You made it through ${isolate(name)}. What should I do with it now?`
 
 export const enClosure = {
   // The closure sheet (ClosureSheet): the question, then the state after the decision.
@@ -23,11 +24,14 @@ export const enClosure = {
     stats: (studied: string, percent: number) => `You studied ${studied} and finished ${String(percent)}% of the plan.`,
     // When studied_minutes is 0: no "You studied 0 min".
     statsNoTime: (percent: number) => `You finished ${String(percent)}% of the plan.`,
-    nailed: 'Nailed it',
-    keepOpen: 'Keep open for Moed B',
+    // Keep as a memory: closes the exam done, into the archive.
+    nailed: 'Keep it as a memory',
+    keepOpen: 'Keep it open for a retake',
+    delete: 'Delete it',
+    deleted: (name: string) => `I’ve deleted ${isolate(name)}.`,
     bloomed: (name: string) => `${isolate(name)} is in full bloom. I’ve moved it to your archive.`,
     kept: (name: string) =>
-      `I’ll keep everything for ${isolate(name)} safe and quiet. When the Moed B date is out, tell me and I’ll plan a focused round.`,
+      `I’ll keep everything for ${isolate(name)} safe and quiet. When you know the retake date, tell me and I’ll plan a focused round.`,
     haveDate: 'I have the date',
     // The primary button after a decision, when another exam is still waiting for its answer.
     next: (name: string) => `Tell me about ${isolate(name)}`,
@@ -39,24 +43,26 @@ export const enClosure = {
   row: {
     say: madeIt,
     sayMany: (count: number) =>
-      `You made it through ${plural(count, 'exam', 'exams')}. How did ${count === 1 ? 'it' : 'they'} feel?`,
-    open: 'Tell me',
+      `You made it through ${plural(count, 'exam', 'exams')}. What should I do with ${count === 1 ? 'it' : 'them'} now?`,
+    open: 'Choose',
   },
   // The card on the exam screen of a pending exam.
   card: {
-    open: 'Tell me',
+    open: 'Choose',
   },
   // The card on the exam screen of an exam waiting for Moed B.
   waiting: {
-    say: (name: string) => `${isolate(name)} is waiting for Moed B.`,
+    say: (name: string) => `${isolate(name)} is waiting for its retake.`,
     kept: (files: number, tasks: number) => {
       const kept = [files > 0 ? plural(files, 'file', 'files') : '', tasks > 0 ? plural(tasks, 'task', 'tasks') : '']
         .filter(Boolean)
         .join(' and ')
-      return kept ? `I’m keeping its ${kept} for Moed B.` : 'I’ll keep this exam ready for Moed B.'
+      return kept ? `I’m keeping its ${kept} for the retake.` : 'I’ll keep this exam ready for the retake.'
     },
-    plan: 'Plan Moed B',
-    done: 'I’m done with it',
+    plan: 'Plan the retake',
+    // Keep as a memory: closes the exam done, into the archive.
+    done: 'Keep it as a memory',
+    delete: 'Delete it',
   },
   // The card on the exam screen of a closed exam.
   archived: {
@@ -66,9 +72,9 @@ export const enClosure = {
   },
   // The Moed B form (MoedBForm) and the state after it.
   moedB: {
-    title: 'When is Moed B?',
-    date: 'Moed B date',
-    grade: 'How did Moed A go? (optional)',
+    title: 'When is the retake?',
+    date: 'Retake date',
+    grade: 'How did the first sitting go? (optional)',
     gradeHint: 'Your grade, from 0 to 100.',
     gradeError: 'Enter a whole number from 0 to 100.',
     hard: 'What felt hard?',
@@ -78,7 +84,7 @@ export const enClosure = {
     notes: 'Anything else that felt hard? (optional)',
     notesHint: 'If you write a topic’s name as it appears above, I’ll put it right after the practice exams too.',
     notesTooLong: 'That’s a bit long. I can take up to 1,000 characters.',
-    submit: 'Plan my Moed B',
+    submit: 'Plan my retake',
     submitting: 'Planning…',
     // simulations: how many practice exams the round starts with (Moed A's simulations, at most
     // two, or one default); weak: the names of weak_topics, in the order of the answer. No word on
@@ -89,19 +95,19 @@ export const enClosure = {
     },
     // When the answer has a shortfall of this exam (the replan covers the whole board). The calendar
     // shows what did not fit in the banner's row of unplaced tasks.
-    short: 'Not everything fits before Moed B. Your calendar shows what didn’t fit.',
-    undone: (name: string) => `I put ${isolate(name)} back to waiting for Moed B.`,
+    short: 'Not everything fits before the retake. Your calendar shows what didn’t fit.',
+    undone: (name: string) => `I put ${isolate(name)} back to waiting for its retake.`,
     // Undo of moed_b_opened refused with invalid_state: a Moed B task was done or skipped, or a
     // block of it is running now.
-    cantUndo: 'Moed B is already under way, so I can’t undo this.',
+    cantUndo: 'The retake is already under way, so I can’t undo this.',
   },
   // The exams list: the chips, the Moed B detail and the archive card.
   list: {
-    pending: 'How did it go?',
-    waiting: 'Waiting for Moed B',
+    pending: 'What next?',
+    waiting: 'Waiting for a retake',
     done: 'Done',
     // detail: the usual row detail ('16 December 2026. 42% of the plan done').
-    moedB: (detail: string) => `Moed B. ${detail}`,
+    moedB: (detail: string) => `Retake. ${detail}`,
     // 'Closed on 16 Nov. 86% of the plan done'; progress from en.exams.list.progress.
     closedOn: (date: string, progress: string) => `Closed on ${date}. ${progress}`,
     archive: 'Archive',
@@ -110,7 +116,7 @@ export const enClosure = {
   // The heading of the exam screen in Moed B.
   exam: {
     moedALine: (date: string, grade: number | null) =>
-      grade === null ? `Moed A was on ${date}.` : `Moed A was on ${date}, grade ${String(grade)}.`,
+      grade === null ? `You first sat it on ${date}.` : `You first sat it on ${date} and got ${String(grade)}.`,
   },
   // The archive section of the progress screen.
   progress: {

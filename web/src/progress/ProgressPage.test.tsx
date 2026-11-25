@@ -216,7 +216,7 @@ describe('the progress board', () => {
       expect(within(first).getByText('Closed on 16 November 2026')).toBeInTheDocument()
       expect(within(first).getByText('21 hours studied, 86% of the plan')).toBeInTheDocument()
       expect(within(second).getByRole('link', { name: 'Algorithms' })).toHaveAttribute('href', '/exams/exam-2')
-      expect(within(second).getByText('Moed B. Closed on 20 November 2026')).toBeInTheDocument()
+      expect(within(second).getByText('Retake. Closed on 20 November 2026')).toBeInTheDocument()
     })
 
     it('the day of the closure is the profile’s day, not UTC’s', async () => {
