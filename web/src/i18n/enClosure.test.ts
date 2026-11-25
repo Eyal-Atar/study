@@ -49,7 +49,7 @@ describe('enClosure: the binding sentences of the plan', () => {
     ['moedB.hard', moedB.hard, 'What felt hard?'],
     ['moedB.hardHint', moedB.hardHint, 'I’ll put these right after the practice exams.'],
     ['moedB.notes', moedB.notes, 'Anything else that felt hard? (optional)'],
-    ['moedB.notesHint', moedB.notesHint, 'If you write a topic’s name as it appears above, I’ll put it first too.'],
+    ['moedB.notesHint', moedB.notesHint, 'If you write a topic’s name as it appears above, I’ll put it right after the practice exams too.'],
     ['moedB.notesTooLong', moedB.notesTooLong, 'That’s a bit long. I can take up to 1,000 characters.'],
     ['moedB.submit', moedB.submit, 'Plan my Moed B'],
     ['moedB.submitting', moedB.submitting, 'Planning…'],

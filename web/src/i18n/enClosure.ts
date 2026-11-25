@@ -76,7 +76,7 @@ export const enClosure = {
     notes: 'Anything else that felt hard? (optional)',
     // The description of notes, only when the topic list is shown: the server takes a topic from
     // the free text only when its full name appears there (7.13).
-    notesHint: 'If you write a topic’s name as it appears above, I’ll put it first too.',
+    notesHint: 'If you write a topic’s name as it appears above, I’ll put it right after the practice exams too.',
     notesTooLong: 'That’s a bit long. I can take up to 1,000 characters.',
     submit: 'Plan my Moed B',
     submitting: 'Planning…',
