@@ -1,14 +1,17 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router'
 import { errorMessage } from '../api/client'
 import { useShellFrame } from '../app/shellFrame'
 import { ShellToolbar } from '../app/ShellToolbar'
 import { Archie } from '../archie/Archie'
 import { useBlockActions } from '../board/actions'
+import { useBoardUserId } from '../board/api'
 import { REPORT_HASH } from '../board/offerReplan'
 import { useReview } from '../board/review'
 import { addDays, dateIn, useProfileTimezone } from '../board/time'
 import type { Block } from '../board/types'
+import { useClosures } from '../closure/api'
+import { seenKey, wasShown } from '../closure/seen'
 import { en } from '../i18n/en'
 import { sortByStart } from '../today/chooseNext'
 import { Button } from '../ui/Button'
@@ -74,9 +77,11 @@ function nextHourDraft(date: string, today: string, now: number, tz: string): { 
 //   split spread over days, sometimes into the next week, so that list stays across a move, and
 //   only the row clears it. An open sheet has the grid to itself; when it closes, the banner's
 //   ghosts show again.
-//
-// The seam of the next scope: S45's exam-closure sheet is a branch of SheetState in CalendarSheets,
-// opened here with setSheet.
+// - The closure of an exam (S45): GET /closures' `pending` is the server's word on which exams wait
+//   for the student's decision (it opens them at 19:00 on the evening of the exam). The closure sheet
+//   is a branch of SheetState: the banner's row opens it, and it opens by itself once per exam and
+//   sitting on this device (closure/seen.ts), when no other sheet is open. It is not about the week on
+//   screen, so a move to another date or view leaves it open.
 export function CalendarPage() {
   useShellFrame({ fullBleed: true, ownPhoneHeader: true })
   const desktop = useIsDesktop()
@@ -90,6 +95,13 @@ export function CalendarPage() {
   const hidden = useHiddenBusy()
   const location = useLocation()
   const [sheet, setSheet] = useState<SheetState>(null)
+  const userId = useBoardUserId()
+  const closures = useClosures()
+  const pendingClosures = closures.data?.pending
+  // The closures that were pending when the sheet last opened by itself. Each is offered by itself
+  // once in this visit: the X on the first of two exams of the same evening leaves the second to the
+  // banner's row (which counts them), instead of opening it at once.
+  const offered = useRef(new Set<string>())
   const [ghosts, setGhosts] = useState<Ghost[]>([])
   const [bannerGhosts, setBannerGhosts] = useState<Ghost[]>([])
   // The heading above the banner: where the focus goes when the split row leaves from under it.
@@ -103,13 +115,25 @@ export function CalendarPage() {
   const [shownNavigation, setShownNavigation] = useState(navigation)
   if (shownNavigation !== navigation) {
     setShownNavigation(navigation)
-    setSheet(null)
+    // The closure sheet is about an exam, not the range that was left.
+    if (sheet?.kind !== 'closure') setSheet(null)
     setGhosts([])
   }
 
   const todayData = data.today.data
   const planData = data.plan.data
   const today = todayData?.date
+
+  // The closure sheet opens by itself (plan decisions 1–2): the first pending exam whose sheet this
+  // device has not shown yet, once the calendar has its day and no other sheet is open (it waits for
+  // that one to close). It counts as shown when it shows (CalendarSheets, onShown), not here.
+  useEffect(() => {
+    if (today === undefined || sheet !== null || userId === null || pendingClosures === undefined) return
+    const item = pendingClosures.find((i) => !wasShown(userId, i) && !offered.current.has(seenKey(i)))
+    if (item === undefined) return
+    for (const i of pendingClosures) offered.current.add(seenKey(i))
+    setSheet({ kind: 'closure', examId: item.exam_id })
+  }, [today, sheet, userId, pendingClosures])
   const selected = date ?? today
   const week = selected === undefined ? [] : weekDays(selected)
   const days = selected === undefined ? [] : view === 'week' ? week : [selected]
@@ -261,6 +285,9 @@ export function CalendarPage() {
       unplacedCount={unplacedCount}
       {...(location.hash === REPORT_HASH ? { expandTo: 'report' as const } : {})}
       onPreview={setBannerGhosts}
+      onOpenClosure={(examId) => {
+        setSheet({ kind: 'closure', examId })
+      }}
       blocks={blocks}
       exams={data.exams.data ?? []}
       me={me}
@@ -273,7 +300,18 @@ export function CalendarPage() {
 
   const sheets =
     today === undefined ? null : (
-      <CalendarSheets sheet={sheet} setSheet={setSheet} setGhosts={setGhosts} blocks={blocks} upcoming={upcoming} tz={tz} today={today} now={now} />
+      <CalendarSheets
+        sheet={sheet}
+        setSheet={setSheet}
+        setGhosts={setGhosts}
+        blocks={blocks}
+        upcoming={upcoming}
+        tz={tz}
+        today={today}
+        now={now}
+        pending={pendingClosures ?? []}
+        focusAfter={planHeading}
+      />
     )
 
   const breakNotice = todayData === undefined ? null : <BreakNotice todayBlocks={todayBlocks} now={now} tz={tz} />

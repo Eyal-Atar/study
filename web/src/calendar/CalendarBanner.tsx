@@ -3,10 +3,12 @@ import type { Me } from '../api/me'
 import { PlanReport } from '../board/PlanReport'
 import { useReview } from '../board/review'
 import type { Block } from '../board/types'
+import { useClosures } from '../closure/api'
 import { en } from '../i18n/en'
 import type { Exam } from '../onboarding/types'
 import { ReviewCard } from '../today/ReviewCard'
 import { Row, type BannerRow, type RowProps } from './BannerRow'
+import { ClosureRow } from './ClosureRow'
 import type { Ghost } from './ghost'
 import { useSplitOffers } from './splitOffers'
 import { SplitRow } from './SplitRow'
@@ -21,11 +23,15 @@ import { SplitRow } from './SplitRow'
 //
 // `onPreview` is the banner's own list of ghosts on the grid (bannerGhosts of CalendarPage), apart
 // from the one the sheets write: only the split row (S44) calls it, while it is open.
+//
+// The closure row (S45) comes first: an exam waiting for the student's decision is the news of the
+// evening. It opens the closure sheet (onOpenClosure, one of CalendarPage's sheets), not a panel in
+// place, so it never takes part in `open`.
 // The task fixes this array as an export of this file (a plain constant next to the components).
 // The names are typed in BannerRow.tsx (so the row imports nothing from here); the test of the order
 // also keeps every name in the array.
 // eslint-disable-next-line react-refresh/only-export-components
-export const BANNER_ROWS = ['review', 'report', 'split'] as const satisfies readonly BannerRow[]
+export const BANNER_ROWS = ['closure', 'review', 'report', 'split'] as const satisfies readonly BannerRow[]
 
 function ReviewRow({ expanded, onToggle, count }: RowProps & { count: number }) {
   return (
@@ -70,6 +76,8 @@ export interface CalendarBannerProps {
   // Opens the report on mount and scrolls to it (the "what did not fit" link of other screens).
   expandTo?: 'report'
   onPreview: (ghosts: Ghost[]) => void
+  // The closure row's "Tell me": opens the closure sheet of that exam.
+  onOpenClosure: (examId: string) => void
   // What the split row reads: the blocks on screen, the exams (for the colour), the profile's
   // waking hours, and the clock.
   blocks: Block[]
@@ -82,8 +90,11 @@ export interface CalendarBannerProps {
   focusAfter: RefObject<HTMLElement | null>
 }
 
-export function CalendarBanner({ unplacedCount, expandTo, onPreview, blocks, exams, me, tz, now, today, focusAfter }: CalendarBannerProps) {
+export function CalendarBanner({ unplacedCount, expandTo, onPreview, onOpenClosure, blocks, exams, me, tz, now, today, focusAfter }: CalendarBannerProps) {
   const review = useReview()
+  // While the closures load, or if they fail, there is no row and no message (as the split offer).
+  const closures = useClosures()
+  const pending = closures.data?.pending ?? []
   // One offer at a time, the server's first. While the offers load, or if they fail, there is no
   // row and no message: the offer is an extra, not a state of the screen.
   const offers = useSplitOffers()
@@ -131,12 +142,14 @@ export function CalendarBanner({ unplacedCount, expandTo, onPreview, blocks, exa
   // focus: it says it is all done until it is closed.
   const showReview = count > 0 || open === 'review'
   const showReport = unplacedCount > 0
-  if (!showReview && !showReport && offer === undefined) return null
+  const [firstPending, ...restPending] = pending
+  if (firstPending === undefined && !showReview && !showReport && offer === undefined) return null
   const toggle = (row: BannerRow) => () => {
     setOpen((current) => (current === row ? null : row))
   }
   return (
     <div className="bg-surface">
+      {firstPending === undefined ? null : <ClosureRow pending={[firstPending, ...restPending]} onOpen={onOpenClosure} />}
       {showReview ? <ReviewRow expanded={open === 'review'} onToggle={toggle('review')} onPreview={onPreview} count={count} /> : null}
       {showReport ? (
         <ReportRow expanded={open === 'report'} onToggle={toggle('report')} onPreview={onPreview} count={unplacedCount} scrollOnMount={expandTo === 'report'} />

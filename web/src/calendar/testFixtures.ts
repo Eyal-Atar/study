@@ -4,10 +4,12 @@ import type { Me } from '../api/me'
 import type { BusyItem } from '../availability/types'
 import { addDays, blockMinutes } from '../board/time'
 import type { Block, Plan } from '../board/types'
+import type { ClosureItem, Closures, Outcome } from '../closure/types'
 import type { Exam } from '../onboarding/types'
 import { makeProgress } from '../progress/testFixtures'
+import { makeCloseResult } from '../test/closureFixtures'
 import { EXAM_ID, makeMe as makeBoardMe, makePlan, makePreview, makeToday, USER_ID } from '../test/boardFixtures'
-import { createFakeApi, type ApiCall } from '../test/fakeApi'
+import { createFakeApi, problem, type ApiCall } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
 import type { SplitOffer } from './splitOffers'
@@ -113,6 +115,9 @@ export interface CalendarServer {
   plan: Error | Promise<never> | null
   // Old answers from before S35: no `busy` at all.
   legacy: boolean
+  // GET /closures (S45). The server opens a closure at its opens_at (19:00 on the evening of the exam):
+  // an item of `pending` is answered only once the clock has passed it.
+  closures: Closures
 }
 
 export function openCalendar(path: string, init: Partial<CalendarServer> = {}) {
@@ -120,7 +125,9 @@ export function openCalendar(path: string, init: Partial<CalendarServer> = {}) {
   if (!('scrollTo' in Element.prototype)) {
     Object.defineProperty(Element.prototype, 'scrollTo', { configurable: true, writable: true, value: () => undefined })
   }
-  const state: CalendarServer = { date: CAL_TODAY, blocks: [], busy: [], review: [], unplaced: [], splitOffers: [], today: null, plan: null, legacy: false, ...init }
+  const state: CalendarServer = { date: CAL_TODAY, blocks: [], busy: [], review: [], unplaced: [], splitOffers: [], today: null, plan: null, legacy: false, closures: { pending: [], waiting: [] }, ...init }
+  // The closures that POST /plan/undo puts back, by version.
+  const closed = new Map<string, { item: ClosureItem; outcome: Outcome }>()
   const withBusy = <T extends { busy: BusyItem[] }>(answer: T): T => {
     const copy: Partial<T> = { ...answer, busy: state.busy }
     if (state.legacy) Reflect.deleteProperty(copy, 'busy')
@@ -158,6 +165,38 @@ export function openCalendar(path: string, init: Partial<CalendarServer> = {}) {
     .on('GET /review', () => ({ blocks: state.review }))
     .on('GET /split-offers', () => ({ offers: state.splitOffers }))
     .on('POST /plan/replan', makePreview())
+    .on('GET /closures', () => ({
+      pending: state.closures.pending.filter((item) => Date.parse(item.opens_at) <= Date.now()),
+      waiting: state.closures.waiting,
+    }))
+    .on({ method: 'POST', path: /^\/exams\/[^/]+\/close$/ }, (call: ApiCall) => {
+      const id = call.path.split('/')[2] ?? ''
+      const { outcome } = call.body as { outcome: Outcome }
+      const item = state.closures.pending.find((i) => i.exam_id === id)
+      if (item === undefined) return problem(409, 'invalid_state')
+      const waiting = outcome === 'moed_b' ? [...state.closures.waiting, { ...item, state: 'waiting_moed_b' as const }] : state.closures.waiting
+      state.closures = { pending: state.closures.pending.filter((i) => i !== item), waiting }
+      const versionId = `close-${id}`
+      closed.set(versionId, { item, outcome })
+      const base = makeCloseResult()
+      return makeCloseResult({
+        exam: { ...base.exam, id, name: item.exam_name, exam_date: item.exam_date, color_index: item.color_index, sitting: item.sitting, state: outcome === 'done' ? 'done' : 'waiting_moed_b' },
+        version_id: versionId,
+        event: outcome === 'done' ? { kind: 'course_bloomed', exam_id: id, exam_name: item.exam_name, color_index: item.color_index } : null,
+      })
+    })
+    .on('POST /plan/undo', (call: ApiCall) => {
+      const { version_id: versionId } = call.body as { version_id: string }
+      const undone = closed.get(versionId)
+      if (undone !== undefined) {
+        closed.delete(versionId)
+        state.closures = {
+          pending: [undone.item, ...state.closures.pending],
+          waiting: state.closures.waiting.filter((i) => i.exam_id !== undone.item.exam_id),
+        }
+      }
+      return {}
+    })
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const rendered = renderRoute(path, { auth: createFakeAuth(fakeSession({ id: USER_ID })), api: fake.api, queryClient })
   return { fake, state, queryClient, ...rendered }

@@ -9,6 +9,7 @@ import { makeBlock, makeMe, makePlan, makeToday, renderBoard } from '../test/boa
 import { createFakeApi } from '../test/fakeApi'
 import { archiLine, type ArchiMoment } from './archi'
 import { ArchiSays } from './ArchiSays'
+import type { SidebarExam } from './ExamsList'
 import { Sidebar } from './Sidebar'
 
 const TZ = 'Asia/Jerusalem'
@@ -69,7 +70,7 @@ function setup({
   plan = makePlan([DONE, NEXT, LATER, SKIPPED, TOMORROW]),
   moment = 'morning',
   exams = EXAMS,
-}: { today?: Today; plan?: Plan; moment?: ArchiMoment; exams?: typeof EXAMS } = {}) {
+}: { today?: Today; plan?: Plan; moment?: ArchiMoment; exams?: SidebarExam[] } = {}) {
   const fake = createFakeApi()
     .on('GET /me', makeMe())
     .on('GET /today', today)
@@ -305,6 +306,19 @@ describe('Sidebar: the exams', () => {
     setup({ exams: many })
     const names = screen.getAllByText(/^Course \d$/).map((el) => el.textContent)
     expect(names).toEqual(['Course 1', 'Course 3', 'Course 2', 'Course 0'])
+  })
+
+  // S45: an exam closed on its day (state done) is no longer ahead; one with no state (before S45) is.
+  it('leaves out an exam closed today, and keeps one of today with no state', () => {
+    setup({
+      exams: [
+        { id: 'exam-1', name: 'Closed today', exam_date: TODAY, color_index: 1, state: 'done' },
+        { id: 'exam-old', name: 'Still today', exam_date: TODAY, color_index: 3 },
+      ],
+    })
+    expect(screen.getByRole('heading', { name: 'Your exams' })).toBeInTheDocument()
+    expect(screen.queryByText('Closed today')).not.toBeInTheDocument()
+    expect(screen.getByText('Still today')).toBeInTheDocument()
   })
 
   it('has no exams part without a coming exam', () => {

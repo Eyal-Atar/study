@@ -8,7 +8,9 @@ import type { Block } from '../board/types'
 import { isolate } from '../i18n/bidi'
 import { en } from '../i18n/en'
 import { makeBlock, makeMe, makePlan, makeToday, renderBoard } from '../test/boardFixtures'
-import { createFakeApi } from '../test/fakeApi'
+import type { Closures } from '../closure/types'
+import { makeClosureItem } from '../test/closureFixtures'
+import { createFakeApi, problem } from '../test/fakeApi'
 import { BANNER_ROWS, CalendarBanner, type CalendarBannerProps } from './CalendarBanner'
 import type { Ghost } from './ghost'
 import { studyDateOf, type SplitOffer, type SplitPart } from './splitOffers'
@@ -46,10 +48,12 @@ function Harness(props: BannerProps) {
 }
 
 // offers: what GET /split-offers answers (a dismissed offer leaves it); null leaves the route with no handler.
-function setup(props: Partial<BannerProps> = {}, review = [OVERDUE], offers: SplitOffer[] | null = []) {
+// closures: what GET /closures answers (S45); null (the default) leaves the route with no handler, a 404.
+function setup(props: Partial<BannerProps> = {}, review = [OVERDUE], offers: SplitOffer[] | null = [], closures: Closures | Error | null = null) {
   const unplaced = props.unplacedCount ?? 0
   const server = { offers: offers ?? [] }
   const onPreview = vi.fn<(ghosts: Ghost[]) => void>()
+  const onOpenClosure = vi.fn<(examId: string) => void>()
   const fake = createFakeApi()
     .on('GET /me', ME)
     .on('GET /today', makeToday([]))
@@ -70,11 +74,12 @@ function setup(props: Partial<BannerProps> = {}, review = [OVERDUE], offers: Spl
         return undefined
       })
   }
+  if (closures !== null) fake.on('GET /closures', closures)
   const view = renderBoard(
-    <Harness unplacedCount={0} onPreview={onPreview} blocks={[FRICTION]} exams={[]} me={ME} tz={CAL_TZ} now={Date.parse(CAL_NOW)} today={CAL_TODAY} {...props} />,
+    <Harness unplacedCount={0} onPreview={onPreview} onOpenClosure={onOpenClosure} blocks={[FRICTION]} exams={[]} me={ME} tz={CAL_TZ} now={Date.parse(CAL_NOW)} today={CAL_TODAY} {...props} />,
     { api: fake.api },
   )
-  return { fake, onPreview, ...view }
+  return { fake, onPreview, onOpenClosure, ...view }
 }
 
 function rowNames(container: HTMLElement) {
@@ -168,7 +173,73 @@ describe('CalendarBanner', () => {
   })
 
   it('lists the rows in order', () => {
-    expect([...BANNER_ROWS]).toEqual(['review', 'report', 'split'])
+    expect([...BANNER_ROWS]).toEqual(['closure', 'review', 'report', 'split'])
+  })
+})
+
+describe('CalendarBanner: the closure row (S45)', () => {
+  const r = en.closure.row
+
+  it('one pending exam: the row comes first, says the question, and its button opens the sheet', async () => {
+    const item = makeClosureItem()
+    const { container, onOpenClosure } = setup({ unplacedCount: 1 }, [OVERDUE], [makeSplitOffer()], { pending: [item], waiting: [] })
+    expect(await screen.findByText(r.say(item.exam_name))).toBeInTheDocument()
+    await screen.findByText(s.say(FRICTION.task_title, 90, 30))
+    expect(rowNames(container)).toEqual(['closure', 'review', 'report', 'split'])
+    const row = container.querySelector<HTMLElement>('[data-banner-row="closure"]')
+    if (row === null) throw new Error('no closure row')
+    const button = within(row).getByRole('button', { name: r.open })
+    expect(button).toHaveAttribute('aria-haspopup', 'dialog')
+    expect(button).not.toHaveAttribute('aria-expanded')
+    expect(button).not.toHaveAttribute('aria-controls')
+    await userEvent.click(button)
+    expect(onOpenClosure).toHaveBeenCalledWith('exam-1')
+    // It opens no panel in place, and the other rows stay as they were.
+    expect(row.children).toHaveLength(2)
+    const others = Array.from(container.querySelectorAll('[data-banner-row]:not([data-banner-row="closure"])')).map((el) =>
+      within(el as HTMLElement).getAllByRole('button')[0]?.getAttribute('aria-expanded'),
+    )
+    expect(others).toEqual(['false', 'false', 'false'])
+  })
+
+  it('opening the closure row leaves an open row open', async () => {
+    const { onOpenClosure } = setup({}, [OVERDUE], [], { pending: [makeClosureItem()], waiting: [] })
+    await userEvent.click(await screen.findByRole('button', { name: en.calendar.side.banner.review }))
+    await userEvent.click(screen.getByRole('button', { name: r.open }))
+    expect(onOpenClosure).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: en.calendar.side.banner.close })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('two pending exams: the row counts them and opens the first', async () => {
+    const pending = [makeClosureItem(), makeClosureItem({ exam_id: 'exam-2', exam_name: 'Algorithms' })]
+    const { onOpenClosure } = setup({}, [], [], { pending, waiting: [] })
+    expect(await screen.findByText(r.sayMany(2))).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: r.open }))
+    expect(onOpenClosure).toHaveBeenCalledWith('exam-1')
+  })
+
+  it('only exams waiting for Moed B: no row', async () => {
+    const { container, fake } = setup({}, [], [], { pending: [], waiting: [makeClosureItem({ state: 'waiting_moed_b' })] })
+    await waitFor(() => {
+      expect(fake.calls('GET', '/closures').length).toBeGreaterThan(0)
+    })
+    await waitFor(() => {
+      expect(fake.calls('GET', '/review').length).toBeGreaterThan(0)
+    })
+    expect(container.querySelector('[data-banner-row]')).toBeNull()
+  })
+
+  it('a failed GET /closures shows no row and says nothing', async () => {
+    const { container, fake } = setup({}, [], [], problem(500, 'internal'))
+    await waitFor(() => {
+      expect(fake.calls('GET', '/closures').length).toBeGreaterThan(0)
+    })
+    await waitFor(() => {
+      expect(fake.calls('GET', '/review').length).toBeGreaterThan(0)
+    })
+    expect(container.querySelector('[data-banner-row]')).toBeNull()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 })
 
