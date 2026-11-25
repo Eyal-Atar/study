@@ -25,7 +25,7 @@ const lower = (text: string) => text.charAt(0).toLowerCase() + text.slice(1)
 
 const allBlocks = 'every block for today'
 
-const buds = 'Your streak paused, so the flowers closed into buds.'
+const buds = 'Your last streak ended, so the flowers closed into buds.'
 const startAgain = 'One block today starts a new one.'
 
 export const enGarden = {
@@ -63,12 +63,12 @@ export const enGarden = {
         ? 'I’ve raked all eight rings around it.'
         : 'I rake a ring around it at every level.'
       const grown = leaves > 0 ? ` ${plural(leaves, 'new leaf', 'new leaves')} so far.` : ''
-      return `${stage} at level ${String(level)}. It grows a leaf for every 100 XP, and ${rings}${grown}`
+      return `${stage} at level ${String(level)}. It grows a leaf for every 100 XP of a level, up to nine, and ${rings}${grown}`
     },
     plant: (name: string, percent: number) =>
       `${isolate(name)}: ${String(percent)}% of the plan done. It grows as you finish its tasks.`,
     plantWaiting: (name: string, percent: number) =>
-      `${isolate(name)} is waiting for Moed B, with ${String(percent)}% of the plan done.`,
+      `${isolate(name)} is waiting for its retake, with ${String(percent)}% of the plan done.`,
     // The closure row is the first row of the calendar banner (S45).
     plantPending: (name: string) => `${isolate(name)} is ready to close. You’ll find it at the top of your calendar.`,
     // date: closed_at as longDate, or null when the archive has none; studied: durationText of
@@ -90,7 +90,7 @@ export const enGarden = {
   streak: {
     // Said next to Archi when current is 0 and longest is not. No word on buds: the card shows
     // none, and the garden may have none (the last run can be older than 14 days).
-    paused: `Your streak paused. ${startAgain}`,
+    paused: `Your last streak ended. ${startAgain}`,
     // days: en.progress.streak.days ("15 days").
     longest: (days: string) => `Longest: ${days}`,
   },
