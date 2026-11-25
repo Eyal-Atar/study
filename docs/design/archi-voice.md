@@ -88,6 +88,7 @@ Archi הוא מלווה לימודים רגוע: דמות אחת, שמדברת �
 | Materials | הקבצים של הקורס | Documents, Uploads |
 | Reminders | תזכורות Push | Alerts, Notifications (חוץ מהשם של הרשאת הדפדפן) |
 | Morning review | המעבר על הבלוקים של אתמול | Daily check, Recap |
+| Retake | מועד ב': סיבוב שני של מבחן שעבר | Moed B, Moed A, second sitting (בטקסט למשתמש; "the first sitting" / "first sat it" מותרים כשמדברים על מועד א') |
 
 ## איך זה נאכף
 
