@@ -2,6 +2,7 @@ import { parseDate } from '@internationalized/date'
 import { useEffect, useRef, useState } from 'react'
 import { Form } from 'react-aria-components'
 import { Archie } from '../archie/Archie'
+import { BloomSlot } from '../garden/BloomSlot'
 import { useToday } from '../exam/api'
 import { addDays } from '../exam/dates'
 import { dateError, isoOf } from '../exam/examForm'
@@ -251,11 +252,17 @@ export function StatusLine({ text, shown }: { text: string; shown: boolean }) {
 }
 
 // Archi standing on the top edge of the sheet, about 110px of him as in FreeTimeSheet.
-export function SheetFigure({ mood, bloom = false }: { mood: 'eureka' | 'rest' | 'wisdom' | 'intentions'; bloom?: boolean }) {
+export function SheetFigure({
+  mood,
+  bloom,
+}: {
+  mood: 'eureka' | 'rest' | 'wisdom' | 'intentions'
+  // S33: the flower of the exam that just closed done, in place of Archi.
+  bloom?: { examId: string; colorIndex: number }
+}) {
+  if (bloom !== undefined) return <BloomSlot examId={bloom.examId} colorIndex={bloom.colorIndex} size={118} />
   return (
-    // data-slot="bloom": the place where S33 puts the illustration of the full bloom in place of
-    // Archi's eureka, once an exam closed done. Nothing else hangs on it in S45.
-    <div className="w-[118px]" data-slot={bloom ? 'bloom' : undefined}>
+    <div className="w-[118px]">
       <Archie mood={mood} decorative />
     </div>
   )

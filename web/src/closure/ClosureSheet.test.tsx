@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent, type UserEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { errorMessage } from '../api/client'
@@ -11,6 +11,7 @@ import { createFakeApi, problem, type Reply } from '../test/fakeApi'
 import { useClosures } from './api'
 import { ClosureSheet } from './ClosureSheet'
 import { MoedBSheet } from './MoedBSheet'
+import { useBloomListener } from '../garden/bloomPlay'
 import type { CloseResult, ClosureItem, MoedBResult } from './types'
 
 vi.mock('../board/offerReplan', () => ({ useOfferReplan: () => vi.fn() }))
@@ -173,6 +174,24 @@ describe('ClosureSheet: the question', () => {
 })
 
 describe('ClosureSheet: the decision', () => {
+  it('Keep it as a memory: the flower of the garden opens in the slot, once, with no Archi in it', async () => {
+    function Listener() {
+      useBloomListener()
+      return null
+    }
+    const listener = render(<Listener />)
+    setup()
+    const u = user()
+    const sheet = await dialog(s.title('הסתברות'))
+    await u.click(within(sheet).getByRole('button', { name: s.nailed }))
+    await dialog(s.bloomed('הסתברות'))
+    const slot = document.querySelector('[data-slot="bloom"]')
+    expect(slot?.querySelector('svg')).not.toBeNull()
+    expect(slot?.querySelector('img')).toBeNull()
+    expect(slot?.querySelector('.garden-petal')).not.toBeNull()
+    listener.unmount()
+  })
+
   it('Keep it as a memory closes done; the sheet holds while it waits, then blooms', async () => {
     const reply = later<CloseResult>()
     const { fake, onClose } = setup({ close: () => reply.promise })

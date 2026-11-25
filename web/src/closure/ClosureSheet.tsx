@@ -230,7 +230,12 @@ export function ClosureSheet({ examId, pending, onClose, onShown, onDelete }: Cl
       title = outcome === 'done' ? s.bloomed(name) : outcome === 'moed_b' ? s.kept(name) : s.deleted(name)
       status = title
       // Only "Keep it as a memory" blooms.
-      figure = outcome === 'done' ? <SheetFigure mood="eureka" bloom /> : <SheetFigure mood="rest" />
+      figure =
+        outcome === 'done' ? (
+          <SheetFigure mood="eureka" bloom={{ examId: item.exam_id, colorIndex: item.color_index }} />
+        ) : (
+          <SheetFigure mood="rest" />
+        )
       const next = pending.find((i) => i.exam_id !== item.exam_id && !decided.includes(i.exam_id))
       const undoing = versionId !== null && actions.undoing(versionId)
       body = (

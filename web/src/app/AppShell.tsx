@@ -2,6 +2,7 @@ import { CalendarDays, FileText, SproutIcon, type IconType } from '../ui/icons'
 import { useRef, useState, type MouseEvent } from 'react'
 import { NavLink, Outlet, useLocation, useMatch } from 'react-router'
 import { useCelebrationInbox } from '../celebrate/inbox'
+import { useBloomListener } from '../garden/bloomPlay'
 import { en } from '../i18n/en'
 import { InstallHint } from '../notifications/InstallHint'
 import { PushSync } from '../notifications/PushSync'
@@ -75,6 +76,8 @@ export function AppShell() {
   useRouteFocus(main)
   // Every Done of the session waits here for the calendar's celebration (S33), on every screen.
   useCelebrationInbox()
+  // The bloom of a closed exam plays once, where it happened (S33, Task 10).
+  useBloomListener()
 
   // The link is a real anchor to #main, so it reads and behaves as a link. The move itself is done
   // here: following the href would add a history entry for the router to handle, and a browser

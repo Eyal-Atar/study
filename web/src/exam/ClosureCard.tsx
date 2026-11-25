@@ -14,6 +14,7 @@ import { useMaterials } from '../onboarding/api'
 import type { Exam } from '../onboarding/types'
 import { useProgress } from '../progress/api'
 import { ArchiSays } from '../calendar/ArchiSays'
+import { BloomSlot } from '../garden/BloomSlot'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { ErrorState, LoadingState } from '../ui/states'
@@ -113,8 +114,10 @@ function ArchivedCard({ exam }: { exam: Exam }) {
   return (
     <div ref={focusRef} tabIndex={-1} className="outline-none">
       <Card className="flex flex-col gap-3">
-        <div data-slot="bloom">
-          <ArchiSays mood="eureka">{c.archived.say(exam.name)}</ArchiSays>
+        {/* S33: here. The flower opens once, if the closure happened in this session. */}
+        <div className="flex items-center gap-3">
+          <BloomSlot examId={exam.id} colorIndex={exam.color_index} size={72} />
+          <p className="text-body font-semibold">{c.archived.say(exam.name)}</p>
         </div>
         {stats === null ? null : <p className="text-body text-ink-muted">{stats}</p>}
         {closed === null ? null : <p className="text-body text-ink-muted">{closed}</p>}
