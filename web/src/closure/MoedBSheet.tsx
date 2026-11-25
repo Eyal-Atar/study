@@ -73,15 +73,19 @@ export function MoedBForm({ item, onDone, onPendingChange, onStale, autoFocus = 
     setErrors(next)
     setGeneral(null)
     if (body === null) return
+    // Each handler says whether the form showed the answer; once it is gone, the action says it in a toast.
     actions.openMoedB(item.exam_id, body, {
       onSuccess: (result, simulations) => {
-        if (mounted.current) onDone(result, simulations)
+        if (!mounted.current) return false
+        onDone(result, simulations)
+        return true
       },
       onError: (failure) => {
-        if (!mounted.current) return
+        if (!mounted.current) return false
         if (failure.kind === 'stale') onStale?.()
         else if (failure.kind === 'fields') setErrors(failure.errors)
         else setGeneral(failure.message)
+        return true
       },
     })
   }
@@ -140,19 +144,22 @@ export function MoedBForm({ item, onDone, onPendingChange, onStale, autoFocus = 
           isDisabled={planning}
         />
       ) : null}
-      <TextField
-        label={m.notes}
-        description={hasTopics ? m.notesHint : undefined}
-        maxLength={NOTES_MAX}
-        autoComplete="off"
-        value={draft.notes}
-        onChange={(notes) => {
-          setDraft({ ...draft, notes })
-          if (errors.notes !== undefined) setErrors(without(errors, 'notes'))
-        }}
-        isDisabled={planning}
-        errorMessage={errors.notes}
-      />
+      {/* The notes only with topics: the server takes nothing from them but the names of topics. */}
+      {hasTopics ? (
+        <TextField
+          label={m.notes}
+          description={m.notesHint}
+          maxLength={NOTES_MAX}
+          autoComplete="off"
+          value={draft.notes}
+          onChange={(notes) => {
+            setDraft({ ...draft, notes })
+            if (errors.notes !== undefined) setErrors(without(errors, 'notes'))
+          }}
+          isDisabled={planning}
+          errorMessage={errors.notes}
+        />
+      ) : null}
       {general === null ? null : (
         <Note tone="warning" role="alert">
           {general}
@@ -206,12 +213,16 @@ export function MoedBDone({
             variant="quiet"
             isPending={undoing}
             onPress={() => {
-              actions.undo(versionId, 'moed_b', {
+              actions.undo(versionId, 'moed_b', answer.result.exam.name, {
                 onSuccess: () => {
-                  if (mounted.current) onUndone()
+                  if (!mounted.current) return false
+                  onUndone()
+                  return true
                 },
                 onError: ({ message }) => {
-                  if (mounted.current) setUndoError(message)
+                  if (!mounted.current) return false
+                  setUndoError(message)
+                  return true
                 },
               })
             }}

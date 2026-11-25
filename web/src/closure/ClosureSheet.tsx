@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { durationText } from '../board/time'
 import { en } from '../i18n/en'
 import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
 import { Note } from '../ui/Note'
+import { useToast } from '../ui/useToast'
 import { useClosureActions } from './closureActions'
 import { MoedBDone, MoedBForm, SheetFigure, StatusLine } from './MoedBSheet'
-import { moedBDoneStatus, moedBDoneText, useMounted, type MoedBAnswer } from './sheetParts'
+import { moedBDoneStatus, moedBDoneText, statsText, useMounted, type MoedBAnswer } from './sheetParts'
 import type { ClosureItem, Outcome } from './types'
 
 // The closure sheet (S45): on the evening of an exam Archi asks how it felt. "Nailed it" closes it
@@ -42,14 +42,9 @@ function question(item: ClosureItem, rest: Partial<Extract<State, { step: 'quest
   return { step: 'question', item, held: false, notice: null, focus: false, ...rest }
 }
 
-function statsLine(item: ClosureItem): string | null {
-  if (item.tasks_total === 0) return null
-  if (item.studied_minutes <= 0) return s.statsNoTime(item.completion_percent)
-  return s.stats(durationText(item.studied_minutes), item.completion_percent)
-}
-
 export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheetProps) {
   const actions = useClosureActions()
+  const toast = useToast()
   const mounted = useMounted()
   const [state, setState] = useState<State | null>(() => {
     const item = pending.find((i) => i.exam_id === examId)
@@ -67,9 +62,11 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
   const closed = useRef(false)
   const closeRef = useRef(onClose)
   const shownRef = useRef(onShown)
+  const toastRef = useRef(toast)
   useEffect(() => {
     closeRef.current = onClose
     shownRef.current = onShown
+    toastRef.current = toast
   })
   const close = () => {
     if (closed.current) return
@@ -94,9 +91,12 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
       returned.current = true
       return
     }
-    // Closed elsewhere, or a refetch let it go. Right after an Undo the exam is not back yet.
-    if (!state.held || returned.current) close()
-    // close reads refs only.
+    // Decided elsewhere (another tab), and the refetch let it go: said as a 409 says it (decision 17),
+    // not a sheet that vanishes. Right after an Undo the exam is not back yet.
+    if (state.held && !returned.current) return
+    if (!closed.current) toastRef.current.show({ text: s.stale, tone: 'info' })
+    close()
+    // close and the toast read refs only.
   }, [state, live, inFlight])
 
   // onShown once per exam and sitting.
@@ -125,16 +125,19 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
     if (closing) return
     setChosen(outcome)
     setError(null)
+    // Each handler says whether the sheet showed the answer; once it is gone, the action says it in a toast.
     actions.close(item, outcome, {
       onSuccess: (result) => {
-        if (!mounted.current) return
+        if (!mounted.current) return false
         setDecided((list) => [...list, item.exam_id])
         setState({ step: 'after', item, outcome, versionId: result.version_id, undoError: null })
+        return true
       },
       onError: (failure) => {
-        if (!mounted.current) return
+        if (!mounted.current) return false
         if (failure.kind === 'stale') close()
         else setError(failure.message)
+        return true
       },
     })
   }
@@ -152,7 +155,7 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
       status = state.notice ?? (state.focus ? title : '')
       notice = state.notice !== null
       figure = <SheetFigure mood="eureka" />
-      const stats = statsLine(item)
+      const stats = statsText(item)
       const offersMoedB = item.options.includes('moed_b')
       body = (
         <>
@@ -237,21 +240,23 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
                 variant="quiet"
                 isPending={undoing}
                 onPress={() => {
-                  actions.undo(versionId, 'close', {
+                  actions.undo(versionId, 'close', item.exam_name, {
                     onSuccess: () => {
-                      if (!mounted.current) return
+                      if (!mounted.current) return false
                       setDecided((list) => list.filter((id) => id !== item.exam_id))
                       setChosen(null)
                       returned.current = false
                       setState(question(item, { held: true, notice: s.undone(item.exam_name), focus: true }))
+                      return true
                     },
                     onError: ({ message }) => {
-                      if (!mounted.current) return
+                      if (!mounted.current) return false
                       setState((current) =>
                         current?.step === 'after' && current.versionId === versionId
                           ? { ...current, undoError: message }
                           : current,
                       )
+                      return true
                     },
                   })
                 }}

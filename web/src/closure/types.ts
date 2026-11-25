@@ -1,3 +1,5 @@
+import type { Shortfall } from '../board/types'
+
 // The server's side of closing an exam (S45), word for word from api/app/schemas/closures.py and the
 // contract of spec 7.13. The browser never computes when a closure opens: `pending` is what the server says.
 
@@ -55,7 +57,7 @@ export interface ReplanSummary {
   added: unknown[]
   removed: unknown[]
   unscheduled: unknown[]
-  shortfalls: unknown[]
+  shortfalls: Shortfall[]
 }
 
 // POST /exams/{id}/close
@@ -92,8 +94,9 @@ export interface MoedBResult {
   tasks_created: number
   weak_topics: TopicRef[]
   trimmed: number
+  // Of the whole board: the replan behind Moed B covers every exam.
   unscheduled: unknown[]
-  shortfalls: unknown[]
+  shortfalls: Shortfall[]
 }
 
 // The server always sends `state` (S45); it is optional on Exam so that data from before S45 works.

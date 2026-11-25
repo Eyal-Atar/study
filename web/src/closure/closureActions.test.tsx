@@ -15,7 +15,7 @@ import { makeBlock, makeMe, makePlan, makeToday, renderBoard, USER_ID } from '..
 import { makeClosureItem, makeCloseResult, makeMoedBResult } from '../test/closureFixtures'
 import { createFakeApi, problem, type Reply } from '../test/fakeApi'
 import { useClosures } from './api'
-import { onBloom } from './bloomEvents'
+import { onBloom, rethrowLater } from './bloomEvents'
 import {
   useClosureActions,
   type CloseFailure,
@@ -23,9 +23,12 @@ import {
   type MoedBFailure,
   type UndoFailure,
 } from './closureActions'
+import { moedBDoneStatus } from './sheetParts'
 import type { BloomEvent, CloseResult, MoedBBody, MoedBResult } from './types'
 
 vi.mock('../board/offerReplan', () => ({ useOfferReplan: () => vi.fn() }))
+// A handler that throws: its error is thrown again outside the action; here it is only recorded.
+vi.mock('./bloomEvents', async (original) => ({ ...(await original<typeof import('./bloomEvents')>()), rethrowLater: vi.fn() }))
 
 const c = en.closure
 const ITEM = makeClosureItem()
@@ -157,6 +160,7 @@ function blooms() {
 let bloom: ReturnType<typeof blooms>
 
 beforeEach(() => {
+  vi.mocked(rethrowLater).mockClear()
   vi.useFakeTimers({ shouldAdvanceTime: true })
   vi.setSystemTime(new Date('2026-11-23T18:00:00Z'))
   bloom = blooms()
@@ -170,7 +174,7 @@ describe('useClosureActions close', () => {
   it('posts the outcome, hands the answer to onSuccess and blooms once', async () => {
     const { fake } = setup()
     await ready(fake)
-    const onSuccess = vi.fn<(r: CloseResult) => void>()
+    const onSuccess = vi.fn<(r: CloseResult) => boolean>(() => true)
     act(() => {
       actions.close(ITEM, 'done', { onSuccess })
     })
@@ -185,7 +189,7 @@ describe('useClosureActions close', () => {
   it('does not bloom for moed_b, for an answer without an event, or for a failure', async () => {
     const { fake } = setup({ close: makeCloseResult({ event: null }) })
     await ready(fake)
-    const done = vi.fn()
+    const done = vi.fn(() => true)
     act(() => {
       actions.close(ITEM, 'moed_b', { onSuccess: done })
     })
@@ -209,7 +213,7 @@ describe('useClosureActions close', () => {
       expect(done).toHaveBeenCalledTimes(3)
     })
     fake.on(`POST ${CLOSE_PATH}`, problem(500, 'internal'))
-    const onError = vi.fn<(f: CloseFailure) => void>()
+    const onError = vi.fn<(f: CloseFailure) => boolean>(() => true)
     act(() => {
       actions.close(ITEM, 'done', { onError })
     })
@@ -226,7 +230,7 @@ describe('useClosureActions close', () => {
     const reply = later<CloseResult>()
     const { fake } = setup({ close: () => reply.promise })
     await ready(fake)
-    const onSuccess = vi.fn()
+    const onSuccess = vi.fn(() => true)
     act(() => {
       actions.close(ITEM, 'done', { onSuccess })
       actions.close(ITEM, 'done', { onSuccess })
@@ -288,7 +292,7 @@ describe('useClosureActions close', () => {
   it('invalid_state says the exam changed, as an info toast, and reports stale', async () => {
     const { fake } = setup({ close: problem(409, 'invalid_state') })
     await ready(fake)
-    const onError = vi.fn<(f: CloseFailure) => void>()
+    const onError = vi.fn<(f: CloseFailure) => boolean>(() => true)
     act(() => {
       actions.close(ITEM, 'done', { onError })
     })
@@ -299,7 +303,7 @@ describe('useClosureActions close', () => {
   it('a 404 says it is gone and reports stale', async () => {
     const { fake } = setup({ close: problem(404, 'not_found') })
     await ready(fake)
-    const onError = vi.fn<(f: CloseFailure) => void>()
+    const onError = vi.fn<(f: CloseFailure) => boolean>(() => true)
     act(() => {
       actions.close(ITEM, 'moed_b', { onError })
     })
@@ -311,7 +315,7 @@ describe('useClosureActions close', () => {
     const reply = later<CloseResult>()
     const { fake } = setup({ close: () => reply.promise })
     await ready(fake)
-    const onSuccess = vi.fn()
+    const onSuccess = vi.fn(() => true)
     act(() => {
       actions.close(ITEM, 'done', { onSuccess })
     })
@@ -384,7 +388,7 @@ describe('useClosureActions openMoedB', () => {
   it('posts the body as it is and hands the answer and the count of practice exams to onSuccess', async () => {
     const { fake } = setup()
     await ready(fake)
-    const onSuccess = vi.fn<(r: MoedBResult, simulations: number) => void>()
+    const onSuccess = vi.fn<(r: MoedBResult, simulations: number) => boolean>(() => true)
     act(() => {
       actions.openMoedB('exam-1', BODY, { onSuccess })
     })
@@ -402,7 +406,7 @@ describe('useClosureActions openMoedB', () => {
       tasks: [task('simulation', 'done', 's1'), task('simulation_review', 'todo', 'r1'), task('learn')],
     })
     await ready(fake)
-    const onSuccess = vi.fn<(r: MoedBResult, simulations: number) => void>()
+    const onSuccess = vi.fn<(r: MoedBResult, simulations: number) => boolean>(() => true)
     act(() => {
       actions.openMoedB('exam-1', BODY, { onSuccess })
     })
@@ -430,7 +434,7 @@ describe('useClosureActions openMoedB', () => {
     await ready(fake)
     queryClient.removeQueries({ queryKey: tasksKey(USER_ID, 'exam-1') })
     const before = fake.calls('GET', TASKS_PATH).length
-    const onSuccess = vi.fn<(r: MoedBResult, simulations: number) => void>()
+    const onSuccess = vi.fn<(r: MoedBResult, simulations: number) => boolean>(() => true)
     act(() => {
       actions.openMoedB('exam-1', BODY, { onSuccess })
     })
@@ -476,7 +480,7 @@ describe('useClosureActions openMoedB', () => {
   async function failure(reply: Reply): Promise<MoedBFailure> {
     const { fake } = setup({ moedB: reply })
     await ready(fake)
-    const onError = vi.fn<(f: MoedBFailure) => void>()
+    const onError = vi.fn<(f: MoedBFailure) => boolean>(() => true)
     act(() => {
       actions.openMoedB('exam-1', BODY, { onError })
     })
@@ -519,10 +523,10 @@ describe('useClosureActions undo', () => {
     const reply = later<unknown>()
     const { fake } = setup({ undo: () => reply.promise })
     await ready(fake)
-    const onSuccess = vi.fn()
+    const onSuccess = vi.fn(() => true)
     act(() => {
-      actions.undo('version-1', 'close', { onSuccess })
-      actions.undo('version-1', 'close', { onSuccess })
+      actions.undo('version-1', 'close', ITEM.exam_name, { onSuccess })
+      actions.undo('version-1', 'close', ITEM.exam_name, { onSuccess })
     })
     await waitFor(() => {
       expect(screen.getByTestId('undoing')).toHaveTextContent('true')
@@ -542,7 +546,7 @@ describe('useClosureActions undo', () => {
     })
     // A version that was undone is not sent again.
     act(() => {
-      actions.undo('version-1', 'close', { onSuccess })
+      actions.undo('version-1', 'close', ITEM.exam_name, { onSuccess })
     })
     expect(fake.calls('POST', '/plan/undo')).toHaveLength(1)
   })
@@ -550,10 +554,10 @@ describe('useClosureActions undo', () => {
   async function undoFailure(reply: Reply, reason: 'close' | 'moed_b'): Promise<UndoFailure> {
     const { fake } = setup({ undo: reply })
     await ready(fake)
-    const onError = vi.fn<(f: UndoFailure) => void>()
+    const onError = vi.fn<(f: UndoFailure) => boolean>(() => true)
     const before = counts(fake)
     act(() => {
-      actions.undo('version-1', reason, { onError })
+      actions.undo('version-1', reason, ITEM.exam_name, { onError })
     })
     await waitFor(() => {
       expect(onError).toHaveBeenCalledTimes(1)
@@ -578,21 +582,197 @@ describe('useClosureActions undo', () => {
   it('a failed undo can be tried again', async () => {
     const { fake } = setup({ undo: problem(500, 'internal') })
     await ready(fake)
-    const onError = vi.fn()
+    const onError = vi.fn(() => true)
     act(() => {
-      actions.undo('version-1', 'close', { onError })
+      actions.undo('version-1', 'close', ITEM.exam_name, { onError })
     })
     await waitFor(() => {
       expect(onError).toHaveBeenCalledTimes(1)
     })
     fake.on('POST /plan/undo', {})
-    const onSuccess = vi.fn()
+    const onSuccess = vi.fn(() => true)
     act(() => {
-      actions.undo('version-1', 'close', { onSuccess })
+      actions.undo('version-1', 'close', ITEM.exam_name, { onSuccess })
     })
     await waitFor(() => {
       expect(onSuccess).toHaveBeenCalledTimes(1)
     })
     expect(fake.calls('POST', '/plan/undo')).toHaveLength(2)
+  })
+})
+
+// Plan Task 3, the manager's ruling: a handler returns true when it showed the answer ("I showed it").
+// When it did not (the sheet was gone by the time the answer came), the action shows it in a toast,
+// with its Undo; a handler that throws counts as not shown, and the refresh still runs.
+describe('useClosureActions when the caller did not show the answer', () => {
+  const gone = () => false
+  const shown = () => true
+
+  it('a close of done: the bloom toast with its Undo, which puts it back in a toast', async () => {
+    const { fake } = setup()
+    await ready(fake)
+    act(() => {
+      actions.close(ITEM, 'done', { onSuccess: gone })
+    })
+    expect(await screen.findByText(c.sheet.bloomed(ITEM.exam_name))).toBeInTheDocument()
+    await user().click(screen.getByRole('button', { name: en.common.undo }))
+    expect(await screen.findByText(c.sheet.undone(ITEM.exam_name))).toBeInTheDocument()
+    expect(fake.calls('POST', '/plan/undo').map((x) => x.body)).toEqual([{ version_id: 'version-1' }])
+  })
+
+  it('a close kept for Moed B: the kept toast with its Undo', async () => {
+    const { fake } = setup()
+    await ready(fake)
+    act(() => {
+      actions.close(ITEM, 'moed_b', { onSuccess: gone })
+    })
+    expect(await screen.findByText(c.sheet.kept(ITEM.exam_name))).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.common.undo })).toBeInTheDocument()
+  })
+
+  it('a close the sheet showed: no toast', async () => {
+    const { fake } = setup()
+    await ready(fake)
+    const onSuccess = vi.fn(shown)
+    act(() => {
+      actions.close(ITEM, 'done', { onSuccess })
+    })
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledTimes(1)
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    expect(screen.queryByText(c.sheet.bloomed(ITEM.exam_name))).not.toBeInTheDocument()
+  })
+
+  it('a failed close: an error toast, once', async () => {
+    const failure = problem(500, 'internal')
+    const { fake } = setup({ close: failure })
+    await ready(fake)
+    act(() => {
+      actions.close(ITEM, 'done', { onError: gone })
+    })
+    expect(await screen.findAllByText(errorMessage(failure))).toHaveLength(1)
+  })
+
+  it('a handler that throws: the toast still shows, the refresh still runs, the error is thrown again outside', async () => {
+    const { fake } = setup()
+    await ready(fake)
+    const before = counts(fake)
+    const error = new Error('boom')
+    act(() => {
+      actions.close(ITEM, 'done', {
+        onSuccess: () => {
+          throw error
+        },
+      })
+    })
+    expect(await screen.findByText(c.sheet.bloomed(ITEM.exam_name))).toBeInTheDocument()
+    await refreshed(fake, before)
+    expect(rethrowLater).toHaveBeenCalledWith(error)
+  })
+
+  it('Moed B: its sentence in a toast with its Undo, which puts it back to waiting', async () => {
+    const result = makeMoedBResult({ shortfalls: [{ exam_id: 'exam-1', minutes: 60, daily_minutes: null }] })
+    const { fake } = setup({ moedB: result })
+    await ready(fake)
+    act(() => {
+      actions.openMoedB('exam-1', BODY, { onSuccess: gone })
+    })
+    expect(await screen.findByText(moedBDoneStatus({ result, simulations: 1 }))).toBeInTheDocument()
+    await user().click(screen.getByRole('button', { name: en.common.undo }))
+    expect(await screen.findByText(c.moedB.undone(result.exam.name))).toBeInTheDocument()
+    expect(fake.calls('POST', '/plan/undo').map((x) => x.body)).toEqual([{ version_id: 'version-2' }])
+  })
+
+  it('Moed B the sheet showed: no toast', async () => {
+    const { fake } = setup()
+    await ready(fake)
+    const onSuccess = vi.fn(shown)
+    act(() => {
+      actions.openMoedB('exam-1', BODY, { onSuccess })
+    })
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledTimes(1)
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    expect(screen.queryByText(moedBDoneStatus({ result: makeMoedBResult(), simulations: 1 }))).not.toBeInTheDocument()
+  })
+
+  it('a failed Moed B: an error toast; a field error is the general validation text', async () => {
+    const failure = problem(500, 'internal')
+    const { fake } = setup({ moedB: failure })
+    await ready(fake)
+    act(() => {
+      actions.openMoedB('exam-1', BODY, { onError: gone })
+    })
+    expect(await screen.findByText(errorMessage(failure))).toBeInTheDocument()
+    fake.on(`POST ${MOED_B_PATH}`, problem(422, 'exam_in_past'))
+    act(() => {
+      actions.openMoedB('exam-1', BODY, { onError: gone })
+    })
+    expect(await screen.findByText(codeText('validation_error'))).toBeInTheDocument()
+  })
+
+  it('an Undo: its sentence or its error in a toast', async () => {
+    const { fake } = setup()
+    await ready(fake)
+    act(() => {
+      actions.undo('version-1', 'close', ITEM.exam_name, { onSuccess: gone })
+    })
+    expect(await screen.findByText(c.sheet.undone(ITEM.exam_name))).toBeInTheDocument()
+    fake.on('POST /plan/undo', problem(409, 'invalid_state'))
+    act(() => {
+      actions.undo('version-2', 'moed_b', ITEM.exam_name, { onError: gone })
+    })
+    expect(await screen.findByText(c.moedB.cantUndo)).toBeInTheDocument()
+  })
+
+  it('an Undo the sheet showed: no toast', async () => {
+    const { fake } = setup()
+    await ready(fake)
+    const onSuccess = vi.fn(shown)
+    act(() => {
+      actions.undo('version-1', 'close', ITEM.exam_name, { onSuccess })
+    })
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledTimes(1)
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    expect(screen.queryByText(c.sheet.undone(ITEM.exam_name))).not.toBeInTheDocument()
+  })
+})
+
+// Review of Task 3: the two failures that had no test.
+describe('useClosureActions openMoedB, more failures', () => {
+  it('a 404 is the stale toast and reports stale', async () => {
+    const { fake } = setup({ moedB: problem(404, 'not_found') })
+    await ready(fake)
+    const onError = vi.fn<(f: MoedBFailure) => boolean>(() => true)
+    act(() => {
+      actions.openMoedB('exam-1', BODY, { onError })
+    })
+    expect(await screen.findByText(codeText('not_found'))).toBeInTheDocument()
+    expect(onError).toHaveBeenCalledWith({ kind: 'stale' })
+  })
+
+  it('a failed read of the tasks fails the action before anything is posted', async () => {
+    const { fake, queryClient } = setup()
+    await ready(fake)
+    queryClient.removeQueries({ queryKey: tasksKey(USER_ID, 'exam-1') })
+    fake.on(`GET ${TASKS_PATH}`, problem(500, 'internal'))
+    const onError = vi.fn<(f: MoedBFailure) => boolean>(() => true)
+    act(() => {
+      actions.openMoedB('exam-1', BODY, { onError })
+    })
+    await waitFor(() => {
+      expect(onError).toHaveBeenCalledWith({ kind: 'error', message: errorMessage(problem(500, 'internal')) })
+    })
+    expect(fake.calls('POST', MOED_B_PATH)).toHaveLength(0)
   })
 })

@@ -15,6 +15,14 @@ type Listener = (event: BloomEvent) => void
 
 const listeners = new Set<Listener>()
 
+// Throws the error again outside the code that caught it, so a broken callback does not break the
+// action around it and still reaches the console and the error reporting.
+export function rethrowLater(error: unknown): void {
+  setTimeout(() => {
+    throw error
+  }, 0)
+}
+
 export function emitBloom(event: BloomEvent): void {
   // A copy: a listener may unsubscribe (itself or another) while the event runs.
   for (const listener of [...listeners]) {
@@ -23,9 +31,7 @@ export function emitBloom(event: BloomEvent): void {
       listener(event)
     } catch (error) {
       // A broken listener must not break the action that emitted; the error still surfaces, outside it.
-      setTimeout(() => {
-        throw error
-      }, 0)
+      rethrowLater(error)
     }
   }
 }

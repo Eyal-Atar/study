@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
+import { durationText } from '../board/time'
 import { en } from '../i18n/en'
-import type { MoedBResult } from './types'
+import type { ClosureItem, MoedBResult } from './types'
 
 // What the closure sheet and the Moed B sheet share, outside a component file (fast refresh).
 
@@ -17,6 +18,17 @@ export function useMounted() {
   return mounted
 }
 
+// The line under Archi's sentence of an exam that is over: how long the student studied and how much of
+// the plan is done (the sheet, the cards of the exam screen). None without a plan, and none when
+// nothing was studied or done: "You finished 0% of the plan" on the evening of the exam reads as a
+// grade, and Archi encourages without pressing (archi-voice.md 4).
+export function statsText(item: Pick<ClosureItem, 'studied_minutes' | 'tasks_total' | 'completion_percent'>): string | null {
+  if (item.tasks_total === 0) return null
+  if (item.studied_minutes <= 0 && item.completion_percent === 0) return null
+  if (item.studied_minutes <= 0) return en.closure.sheet.statsNoTime(item.completion_percent)
+  return en.closure.sheet.stats(durationText(item.studied_minutes), item.completion_percent)
+}
+
 // The answer of POST /exams/{id}/moed-b and the number of practice exams the round starts with.
 export interface MoedBAnswer {
   result: MoedBResult
@@ -31,9 +43,11 @@ export function moedBDoneText({ result, simulations }: MoedBAnswer): string {
   )
 }
 
-// Not everything fits before Moed B.
+// Not everything of this exam fits before Moed B. The replan behind POST /exams/{id}/moed-b covers
+// the whole board, so its shortfalls can be another exam's. An unscheduled task carries no exam, but a
+// Moed B task that did not fit always makes a shortfall of this exam (the planner's _shortfalls).
 export function moedBShort({ result }: MoedBAnswer): boolean {
-  return result.unscheduled.length > 0 || result.shortfalls.length > 0
+  return result.shortfalls.some((s) => s.exam_id === result.exam.id)
 }
 
 // The live region of a sheet after Moed B: the sentence, and the line when not everything fits.

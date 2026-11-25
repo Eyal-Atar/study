@@ -10,8 +10,9 @@ import { codeText } from '../i18n/codes'
 import { en } from '../i18n/en'
 import { examsKey, planKey, todayKey } from '../onboarding/api'
 import { UNDO_TIMEOUT_MS, useToast } from '../ui/useToast'
-import { emitBloom } from './bloomEvents'
+import { emitBloom, rethrowLater } from './bloomEvents'
 import type { MoedBErrors } from './moedBForm'
+import { moedBDoneStatus } from './sheetParts'
 import type { ClosureItem, CloseResult, MoedBBody, MoedBResult, Outcome } from './types'
 
 // The actions of closing an exam (S45): close it ("Nailed it" / "Keep open for Moed B"), open its
@@ -20,7 +21,9 @@ import type { ClosureItem, CloseResult, MoedBBody, MoedBResult, Outcome } from '
 // The callbacks live on the mutations, not on mutate() (the pattern of calendar/splitActions.ts), so
 // the toast of "I'm done with it" and its Undo still work once the exam screen is gone. The handlers a
 // caller passes travel in the variables and run from there too: the sheet checks itself whether it is
-// still mounted.
+// still mounted, and each handler returns whether it showed the answer ("I showed it"). When none did
+// (the sheet was gone by the time the answer came, or the handler threw), the action says it in a
+// toast of its own, with its Undo, so a decision is never taken without a word.
 //
 // Their key is neither actionKey() nor the split's: useBlockActions().pending and
 // useSplitActions().splitting read the variables of every mutation under their keys.
@@ -33,18 +36,20 @@ export interface UndoFailure {
 
 type ExamRef = Pick<ClosureItem, 'exam_id' | 'exam_name'>
 
+// Every handler returns true when it showed the answer, false when it did not (its component is gone).
+// A stale failure is always the action's own toast; the return value of that onError is not read.
 export interface CloseHandlers {
-  onSuccess?(result: CloseResult): void
-  onError?(failure: CloseFailure): void
+  onSuccess?(result: CloseResult): boolean
+  onError?(failure: CloseFailure): boolean
 }
 export interface MoedBHandlers {
   // simulations: how many practice exams the round starts with, for en.closure.moedB.done.
-  onSuccess?(result: MoedBResult, simulations: number): void
-  onError?(failure: MoedBFailure): void
+  onSuccess?(result: MoedBResult, simulations: number): boolean
+  onError?(failure: MoedBFailure): boolean
 }
 export interface UndoHandlers {
-  onSuccess?(): void
-  onError?(failure: UndoFailure): void
+  onSuccess?(): boolean
+  onError?(failure: UndoFailure): boolean
 }
 
 export interface ClosureActions {
@@ -52,7 +57,8 @@ export interface ClosureActions {
   // "I'm done with it" from the exam screen: close done with a toast and its Undo.
   finish(item: ExamRef): void
   openMoedB(examId: string, body: MoedBBody, handlers?: MoedBHandlers): void
-  undo(versionId: string, reason: 'close' | 'moed_b', handlers?: UndoHandlers): void
+  // name: the exam's, for the toast when no handler shows the answer.
+  undo(versionId: string, reason: 'close' | 'moed_b', name: string, handlers?: UndoHandlers): void
   // True while the close of this exam (also through finish) is on its way.
   closing(examId: string): boolean
   // True while the Moed B of this exam is being planned.
@@ -80,6 +86,7 @@ interface MoedBAnswer {
 interface UndoVars {
   versionId: string
   reason: 'close' | 'moed_b'
+  name: string
   handlers?: UndoHandlers | undefined
   // The undo itself, already claimed through undoOnce.
   request: Promise<unknown>
@@ -104,6 +111,17 @@ const MAX_SIMULATIONS = 2
 function simulationCount(tasks: readonly ExamTask[]): number {
   const n = tasks.filter((t) => t.kind === 'simulation').length
   return Math.min(MAX_SIMULATIONS, Math.max(1, n))
+}
+
+// Runs a caller's handler: true only when it says it showed the answer. A handler that throws must not
+// stop the toast or the refresh after it; its error is thrown again outside the action.
+function callHandler(run: () => boolean | undefined): boolean {
+  try {
+    return run() === true
+  } catch (error) {
+    rethrowLater(error)
+    return false
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -153,8 +171,9 @@ export function useClosureActions(): ClosureActions {
   const undoMutation = useMutation<unknown, ApiError, UndoVars>({
     mutationKey: undoKey(userId),
     mutationFn: ({ request }) => request,
-    onSuccess: (_data, { handlers }) => {
-      handlers?.onSuccess?.()
+    onSuccess: (_data, { reason, name, handlers }) => {
+      if (callHandler(() => handlers?.onSuccess?.())) return
+      toast.show({ text: reason === 'close' ? s.undone(name) : en.closure.moedB.undone(name), tone: 'success' })
     },
     onError: (error, { reason, handlers }) => {
       // invalid_state of moed_b_opened: a Moed B task was done or skipped, or a block of it runs now.
@@ -163,15 +182,31 @@ export function useClosureActions(): ClosureActions {
         reason === 'moed_b' && error instanceof ApiError && error.code === 'invalid_state'
           ? en.closure.moedB.cantUndo
           : errorMessage(error)
-      handlers?.onError?.({ message })
+      if (callHandler(() => handlers?.onError?.({ message }))) return
+      toast.show({ text: message, tone: 'error' })
     },
     onSettled: settle,
   })
 
-  function undo(versionId: string, reason: 'close' | 'moed_b', handlers?: UndoHandlers) {
+  function undo(versionId: string, reason: 'close' | 'moed_b', name: string, handlers?: UndoHandlers) {
     const request = undoOnce(queryClient, versionId, () => api.post('/plan/undo', { version_id: versionId }))
     if (request === null) return
-    undoMutation.mutate({ versionId, reason, handlers, request })
+    undoMutation.mutate({ versionId, reason, name, handlers, request })
+  }
+
+  // The answer in a toast with its Undo, for 10 seconds; the Undo says its own answer in a toast too.
+  function undoToast(text: string, versionId: string, reason: 'close' | 'moed_b', name: string) {
+    toast.show({
+      text,
+      tone: 'success',
+      action: {
+        label: en.common.undo,
+        onAction: () => {
+          undo(versionId, reason, name)
+        },
+      },
+      timeoutMs: UNDO_TIMEOUT_MS,
+    })
   }
 
   const closeMutation = useMutation<CloseResult, ApiError, CloseVars>({
@@ -179,40 +214,24 @@ export function useClosureActions(): ClosureActions {
     mutationFn: ({ item, outcome }) => api.post<CloseResult>(`/exams/${item.exam_id}/close`, { outcome }),
     onSuccess: (result, { item, outcome, handlers, finish }) => {
       if (outcome === 'done' && result.event !== null) emitBloom(result.event)
-      handlers?.onSuccess?.(result)
-      if (!finish) return
-      const versionId = result.version_id
-      toast.show({
-        text: s.bloomed(item.exam_name),
-        tone: 'success',
-        action: {
-          label: en.common.undo,
-          onAction: () => {
-            undo(versionId, 'close', {
-              onSuccess: () => {
-                toast.show({ text: s.undone(item.exam_name), tone: 'success' })
-              },
-              onError: ({ message }) => {
-                toast.show({ text: message, tone: 'error' })
-              },
-            })
-          },
-        },
-        timeoutMs: UNDO_TIMEOUT_MS,
-      })
+      const shown = callHandler(() => handlers?.onSuccess?.(result))
+      // finish (the exam screen) has only the toast.
+      if (shown && !finish) return
+      const name = item.exam_name
+      undoToast(outcome === 'done' ? s.bloomed(name) : s.kept(name), result.version_id, 'close', name)
     },
     onError: (error, { handlers, finish }) => {
       // The refetch in settle has already happened by the time the student reads this.
       const stale = staleText(error)
       if (stale !== null) {
         toast.show({ text: stale, tone: 'info' })
-        handlers?.onError?.({ kind: 'stale' })
+        callHandler(() => handlers?.onError?.({ kind: 'stale' }))
         return
       }
       const message = errorMessage(error)
       // The sheet shows the error itself; the exam screen has only the toast.
-      if (finish) toast.show({ text: message, tone: 'error' })
-      handlers?.onError?.({ kind: 'error', message })
+      const shown = callHandler(() => handlers?.onError?.({ kind: 'error', message }))
+      if (finish || !shown) toast.show({ text: message, tone: 'error' })
     },
     onSettled: settle,
   })
@@ -224,6 +243,10 @@ export function useClosureActions(): ClosureActions {
       // after it the exam's tasks are those of Moed B. While the exam waits for Moed B its tasks are
       // Moed A's (GET /exams/{id}/tasks answers the exam's current sitting).
       // The tasks the web holds, else asked for once (a failure fails the action before anything is sent).
+      // staleTime 'static' returns the cached tasks even when a refresh has marked them invalid, on
+      // purpose: closing an exam does not change Moed A's tasks, and after a Moed B and its Undo the
+      // count comes out the same (the server makes min(2, max(1, n)) practice exams from them).
+      // A read that fails here fails the whole action, before the POST: nothing is sent.
       const key = tasksKey(userId, examId)
       const tasks = await queryClient.query<ExamTask[]>({
         queryKey: key,
@@ -235,21 +258,22 @@ export function useClosureActions(): ClosureActions {
       return { result, simulations }
     },
     onSuccess: ({ result, simulations }, { handlers }) => {
-      handlers?.onSuccess?.(result, simulations)
+      if (callHandler(() => handlers?.onSuccess?.(result, simulations))) return
+      undoToast(moedBDoneStatus({ result, simulations }), result.version_id, 'moed_b', result.exam.name)
     },
     onError: (error, { handlers }) => {
       const stale = staleText(error)
       if (stale !== null) {
         toast.show({ text: stale, tone: 'info' })
-        handlers?.onError?.({ kind: 'stale' })
+        callHandler(() => handlers?.onError?.({ kind: 'stale' }))
         return
       }
-      if (error instanceof ApiError && error.status === 422) {
-        handlers?.onError?.(moedBInvalid(error))
-        return
-      }
-      // The form shows it above its button and keeps what the student filled in.
-      handlers?.onError?.({ kind: 'error', message: errorMessage(error) })
+      // The form shows it (a field error under its field, any other above its button) and keeps what
+      // the student filled in. Without the form, a field error is the general validation text.
+      const failure: MoedBFailure =
+        error instanceof ApiError && error.status === 422 ? moedBInvalid(error) : { kind: 'error', message: errorMessage(error) }
+      if (callHandler(() => handlers?.onError?.(failure))) return
+      toast.show({ text: failure.kind === 'error' ? failure.message : codeText('validation_error'), tone: 'error' })
     },
     onSettled: settle,
   })

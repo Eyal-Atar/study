@@ -145,11 +145,13 @@ describe('MoedBForm', () => {
     })
   })
 
-  it('has no hard-topics group when the exam has no topics', async () => {
+  it('has no hard-topics group and no notes field when the exam has no topics', async () => {
     const { fake } = setup({ item: makeClosureItem({ topics: [] }) })
     await ready(fake)
     expect(screen.getByRole('group', { name: m.date })).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: m.hard })).not.toBeInTheDocument()
+    // The server only looks for topic names in the notes: without topics Archi would not use them.
+    expect(screen.queryByRole('textbox', { name: m.notes })).not.toBeInTheDocument()
     expect(screen.queryByText(m.notesHint)).not.toBeInTheDocument()
   })
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { act, screen, waitFor, within } from '@testing-library/react'
 import { userEvent, type UserEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -10,7 +10,7 @@ import { createFakeApi, problem, type Reply } from '../test/fakeApi'
 import { useClosures } from './api'
 import { ClosureSheet } from './ClosureSheet'
 import { MoedBSheet } from './MoedBSheet'
-import type { CloseResult, ClosureItem } from './types'
+import type { CloseResult, ClosureItem, MoedBResult } from './types'
 
 vi.mock('../board/offerReplan', () => ({ useOfferReplan: () => vi.fn() }))
 
@@ -39,9 +39,16 @@ function later<T>() {
 
 // The calendar's part (Task 5) in small: the sheet is drawn once GET /closures has answered, and taken
 // off the tree when it asks to close.
+let hideSheet: () => void = () => undefined
 function Harness({ onClose, onShown }: { onClose: () => void; onShown: (item: ClosureItem) => void }) {
   const closures = useClosures()
   const [open, setOpen] = useState(true)
+  // The screen changes under a sheet that waits for its answer (the student went elsewhere).
+  useEffect(() => {
+    hideSheet = () => {
+      setOpen(false)
+    }
+  })
   if (!open || closures.data === undefined) return null
   return (
     <ClosureSheet
@@ -200,6 +207,21 @@ describe('ClosureSheet: the decision', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
+  it('an exam decided elsewhere closes the question with a word, not in silence', async () => {
+    const { fake, onClose, queryClient } = setup()
+    await dialog(s.title('הסתברות'))
+    // Decided in another tab; this one refreshes (the window's focus).
+    fake.on('GET /closures', { pending: [], waiting: [] })
+    await act(async () => {
+      await queryClient.invalidateQueries()
+    })
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+    const region = await screen.findByRole('region', { name: en.common.notifications })
+    expect(within(region).getAllByText(s.stale)).toHaveLength(1)
+  })
+
   it('Keep open for Moed B keeps it quiet and offers the date', async () => {
     const { fake } = setup()
     const u = user()
@@ -305,6 +327,40 @@ describe('ClosureSheet: Undo', () => {
   })
 })
 
+// The manager's ruling on Task 3: the answer is always said once, by the sheet or else by a toast.
+describe('ClosureSheet: an answer after the sheet is gone', () => {
+  const notifications = () => screen.queryByRole('region', { name: en.common.notifications })
+
+  it('a close the sheet showed is not a toast too', async () => {
+    setup()
+    const u = user()
+    await dialog(s.title('הסתברות'))
+    await u.click(screen.getByRole('button', { name: s.nailed }))
+    await dialog(s.bloomed('הסתברות'))
+    const region = notifications()
+    if (region !== null) expect(within(region).queryByText(s.bloomed('הסתברות'))).not.toBeInTheDocument()
+  })
+
+  it('a close that answers after the sheet left is one toast with its Undo', async () => {
+    const reply = later<CloseResult>()
+    setup({ close: () => reply.promise })
+    const u = user()
+    await dialog(s.title('הסתברות'))
+    await u.click(screen.getByRole('button', { name: s.keepOpen }))
+    act(() => {
+      hideSheet()
+    })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await act(async () => {
+      reply.resolve(makeCloseResult({ version_id: 'version-exam-1' }))
+      await Promise.resolve()
+    })
+    const region = await screen.findByRole('region', { name: en.common.notifications })
+    expect(await within(region).findAllByText(s.kept('הסתברות'))).toHaveLength(1)
+    expect(within(region).getByRole('button', { name: en.common.undo })).toBeInTheDocument()
+  })
+})
+
 describe('ClosureSheet: Moed B', () => {
   it('I have the date opens the form; planning says what comes first', async () => {
     const { fake } = setup({ moedB: makeMoedBResult({ weak_topics: [{ id: 'topic-2', name: 'תוחלת ושונות' }] }) })
@@ -324,16 +380,32 @@ describe('ClosureSheet: Moed B', () => {
     })
   })
 
-  it('says when not everything fits', async () => {
-    setup({ moedB: makeMoedBResult({ shortfalls: [{ task_id: 't1' }] }) })
+  async function planned(moedB: MoedBResult) {
+    setup({ moedB })
     const u = user()
     await dialog(s.title('הסתברות'))
     await u.click(screen.getByRole('button', { name: s.keepOpen }))
     await u.click(await screen.findByRole('button', { name: s.haveDate }))
     await typeDate(u, '2026-12-20')
     await u.click(screen.getByRole('button', { name: m.submit }))
-    const done = await dialog(m.done(1, ['התפלגות בינומית']))
+    return dialog(m.done(1, ['התפלגות בינומית']))
+  }
+
+  it('says when not everything of this exam fits', async () => {
+    const done = await planned(makeMoedBResult({ shortfalls: [{ exam_id: 'exam-1', minutes: 60, daily_minutes: null }] }))
     expect(within(done).getByText(m.short)).toBeInTheDocument()
+    expect(within(done).getByRole('status')).toHaveTextContent(m.short)
+  })
+
+  it('says nothing about another exam that is short (the replan covers the whole board)', async () => {
+    const done = await planned(
+      makeMoedBResult({
+        shortfalls: [{ exam_id: 'other-exam', minutes: 60, daily_minutes: null }],
+        unscheduled: [{ task_id: 'other-task', minutes: 60, reason: 'not_enough_time', blocked_by: null }],
+      }),
+    )
+    expect(within(done).queryByText(m.short)).not.toBeInTheDocument()
+    expect(within(done).getByRole('status')).not.toHaveTextContent(m.short)
   })
 
   it('Undo of Moed B goes back to an empty form', async () => {
