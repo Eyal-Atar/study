@@ -549,6 +549,8 @@ toast.show({ text: 'המבחן נמחק', action: { label: 'בטל', onAction: u
 
 **`useShellFrame` (S32, `web/src/app/shellFrame.ts`).** מסך מבקש מהשלד מסגרת אחרת רק דרך `useShellFrame({ fullBleed, ownPhoneHeader })`, כל עוד הוא במסך; כשהוא יורד חוזרת `PLAIN_FRAME`. ‏`fullBleed`: ל-`main` אין `max-w-3xl` ואין ריפוד, והמסך משתמש בכל הרוחב והגובה. ‏`ownPhoneHeader`: מתחת ל-`lg` הכותרת של השלד (לוגו, צ'יפ, פרופיל) מתקפלת, כי המסך מצייר כותרת אחת משלו עם `ProgressChip` ו-`ProfileMenu`; הסרגל התחתון נשאר, ומ-`lg` הסרגל העליון של השלד כרגיל. רק היומן מבקש מסגרת (`{ fullBleed: true, ownPhoneHeader: true }`). תחת `fullBleed` רמז ההתקנה (`InstallHint`) עטוף ב-`px-page pt-3 empty:hidden`, באותו מקום בעץ, כדי שלא יעלה מחדש כשהמסגרת משתנה.
 
+**`bare` (S42):** בקשה שלישית, למסך שעומד לבד: בלי הסרגל העליון, בלי הניווט ובלי `InstallHint`, ו-`main` בלי ריפוד ובלי `max-w-3xl`; קישור הדילוג ו-`ToastRegion` נשארים, והמסך מביא כפתור יציאה משלו. רק מסך המיקוד (`/focus/:blockId`) מבקש אותה, והשלד מחליט אותה גם לפי הנתיב כבר בציור הראשון. הפירוט בסעיף 6ב.
+
 **הנתיבים** (`routes.tsx`, ‏`legacyRedirects.tsx`):
 
 | נתיב | מה קורה |
@@ -631,6 +633,61 @@ toast.show({ text: 'המבחן נמחק', action: { label: 'בטל', onAction: u
 **סטיות מהצילומים שהתקבלו בלי תיקון:** ההחלקה נחתכת בקצה העמודה (כמו בהדמיה); המקום של כרטיס ההפסקה; הכפתור הראשי הממורכז במצב הריק; הרפאים של Pick a time מוסתר מאחורי הגיליון בטלפון.
 
 **סטיות שהתקבלו בהצעת הפיצול (S44, מול הצילומים):** בהדמיה אין מסך פיצול, ולכן המודל הוויזואלי הוא המצב "A task did not fit" (Archi מוביל, תוכן, ומתחתיו כפתור ראשי ו-"Not now"). בטלפון השורה הפתוחה והרפאים לא נכנסים במסך אחד (השורה תופסת כ-320px, והרפאים הראשון נמוך יותר ביום); הרשימה בשורה אומרת את אותו דבר במילים, והרשת לא נגללת מ"עכשיו" בפתיחה. הרפאים הקדמי מכסה את ראש הבלוק שמשתחרר כשחלק מתחיל בתחילת הבלוק עצמו ("Will move" נשאר קריא). ביסים של 30 דקות בתצוגת שבוע חותכים את השם (ההתנהגות של S32). ה-toast מכסה את תחתית הרשת ל-10 השניות שלו. המצב של Archi `wisdom` עד שיגיע `archi-thinking`.
+
+## 6ב. מסך המיקוד (S42, 25.11.2026)
+
+`web/src/session/`. "Start now" בגיליון הפעולות של בלוק פותח מסך נקי: Archi שלומד לצד הסטודנט, טיימר עדין, שם המשימה ו-Done. "Just 5 minutes" פותח את אותו מסך עם משימה זעירה של חמש דקות, ובסופן הטיימר ממשיך לשאר הבלוק בלי לעצור, בלי שאלה ובלי לחיצה (מסמך הביקורת, הנחיות 12 ו-17). הטקסטים ב-`i18n/enFocus.ts` (`en.focus`), בקול של Archi; במילון הקול "session" אסור, ולכן הכפתור הוא "Start now". התוכנית: `docs/plans/2026-11-25-s42-focus.md` (17 ההחלטות הממוספרות שם). בהדמיה אין מסך מיקוד: המודל הוויזואלי הוא "The day is complete" ו-"A break".
+
+**הנתיב והמסגרת.** ‏`/focus/:blockId` (`FOCUS_PATH`, ‏`focusPath(id)`), בתוך `OnboardingGate`. המסך מבקש `useShellFrame({ bare: true })`: בלי סרגל עליון, בלי ניווט ובלי `InstallHint`, ו-`main` בלי ריפוד ובלי `max-w-3xl`. קישור הדילוג ו-`ToastRegion` נשארים. השלד מחליט `bare` גם לפי הנתיב (`useMatch`), כבר בציור הראשון, כך שטעינה ישירה לא מהבהבת עם הסרגל ולא מסמנת את רמז ההתקנה כ"נראה". נתיב ולא דיאלוג: הוא שורד רענון, נותן `h1` ופוקוס דרך `useRouteFocus`, ו"אחורה" עושה את הצפוי.
+
+**המפגש, במכשיר בלבד** (`session/focusSession.ts`). מפגש אחד לכל היותר לכל משתמש, ב-`localStorage` במפתח `archi.focus.<userId>`: ‏`{ v: 1, blockId, startedAt, endsAt, fiveEndsAt }` (מילישניות; `fiveEndsAt` הוא `null` במפגש רגיל). ‏`localStorage` ולא `sessionStorage`, כי בטלפון הלשונית נהרגת ברקע. מפגש שנגמר לפני יותר מ-12 שעות (`SESSION_MAX_AGE_MS`), ערך שבור, `v` אחר או זמנים לא הגיוניים נמחקים בקריאה. התחלה של בלוק אחר מחליפה את המפגש. אחסון שזורק או מלא: המפגש האחרון שנכתב נשמר בזיכרון של המודול וגובר על האחסון, והמסך עובד עד רענון. ‏`useFocusSession` (`useSyncExternalStore`) משותף לגיליון ולמסך, ומקשיב גם לאירוע `storage` של לשונית אחרת. אין שום שינוי בשרת (7.9, S42).
+
+**מי מתחיל וכמה זמן.**
+- `canFocus`: בלוק `planned` של יום הלימוד של היום ש-`ends_at` שלו עוד לא עבר, לפי השעון ולא לפי `state`.
+- בלוק שרץ: מעכשיו עד `ends_at`. בלוק שעוד לא התחיל: מעכשיו, באורך הבלוק, והבלוק לא זז ביומן.
+- **Just 5 minutes:** אותו `endsAt`, ועוד `fiveEndsAt = startedAt + 5 דקות`. הכפתור מוצג רק כשנשארו יותר מחמש דקות (`canStartFive`). ב-`fiveEndsAt` מתחלפים רק המשפט, המספר והתווית שמתחתיו; הטבעת לא קופצת, ואין צליל, דיאלוג או כפתור חדש.
+- **הטיימר משעון הקיר** (`useFocusClock`): כל ציור מחשב `endsAt - now`, ו-`setTimeout` אחד מתוזמן לרגע שבו המספר או השלב מתחלפים, לא כל שנייה. ‏`visibilitychange` ו-`pageshow` מציירים מיד, כך שטלפון שננעל לחצי שעה מראה את המספר הנכון כשהוא נפתח. במצב `over` אין טיימר.
+
+**הכניסה מהיומן** (`BlockActionsSheet`). כש-`canFocus`, בראש הרשימה ולפני Done: "Start now" (`primary`), ומתחתיו "Just 5 minutes" (`secondary`) אם `canStartFive`. כל עוד יש מפגש חי לאותו בלוק, שניהם מתחלפים בכפתור אחד "Back to focus" (`primary`), שרק מנווט לאותו מפגש. כשאפשר להתחיל, Done הופך ל-`secondary` (כפתור ראשי אחד בגיליון); אחרת הוא נשאר `primary`. ‏Done ו-Skip מהגיליון מוחקים מפגש חי של הבלוק. בלוק שנגמר בזמן שהגיליון פתוח לא מקבל מפגש: הלחיצה רק מנווטת, והמסך מציע Done.
+
+**הפריסה.** עמודה אחת ממורכזת (`max-w-md`, ‏`min-h-dvh`, ‏`px-page`, ‏`gap-5`, ומ-`lg` ‏`gap-4`), בלי רקע משלה: ה-`body` כבר `canvas`, וכך הזוהר של מצב הערב לא מוסתר. מלמעלה: ‏`IconButton` עם `ChevronLeft` בקצה ההתחלה; Archi בגודל `scene` (`w-[220px]`, מ-`lg` ‏`260px`) עומד על קו `border-b border-line`; המשפט שלו (`text-body`, ‏600); הטבעת (`ProgressRing size={208}`) מתמלאת לפי כל המפגש, ובמרכזה הדקות שנשארו לשלב (`text-[2.75rem]`, ‏`tabular-nums`, מעוגלות למעלה, בלי שניות) ומתחתיהן "min left" או, בחמש הדקות, "left of your 5 minutes"; מתחת לטבעת "Until 15:00"; שם המשימה כ-`h1` (`text-title`, ‏`UserText`); אייקון הסוג בצבע המבחן ו-`en.focus.meta` ("‹מבחן›, Learning"); והכפתורים ברוחב מלא. רק tokens: אין צבע גולמי ואין זוג טקסט חדש, ולכן המסך עובד בשתי הערכות.
+
+**המצבים** (`session/focusView.ts`, פונקציה טהורה, לפי הסדר):
+
+| מצב | מתי | Archi | המשפט | הכפתורים |
+| --- | --- | --- | --- | --- |
+| `five` | בחמש הדקות | `wisdom` | המשימה הזעירה לפי סוג המשימה ("Just open the file and read page 1 with me.") | Done `secondary`, ‏Stop for now `quiet` |
+| `full` | אחרי החמש, או מפגש רגיל | `wisdom` | אחרי החמש: "That’s five minutes. I’ll keep going with you until 15:00."; אחרת אחד משלושה, לפי היום בשנה | Done `secondary`, ‏Stop for now `quiet` |
+| `over` | הזמן נגמר ועוד לא סומן | `joy` | "That’s the end of the block. If you studied, mark it done." | Done `primary`, ‏Back `quiet` (מוחק את המפגש) |
+| `ended` | אין מפגש, והבלוק `planned` ונגמר | `joy` | `en.focus.ended` | Done `primary`, ‏Back `secondary` |
+| `alreadyDone` | הבלוק `done` (לא מה-Done שלנו) | `joy` | `en.focus.alreadyDone` | Back `primary` |
+| `gone` | הבלוק לא ב-`GET /today`, או לא `planned` / `done` | `flow` | "I can’t find this block on today’s calendar." | Back `primary` |
+| `notToday` | בלוק `planned` של יום אחר | `flow` | `en.focus.notToday` | Back `primary` |
+| `break` | Done שהוביל להפסקה | `rest` | `en.calendar.archi.breakTitle` | Back `primary` |
+
+- פתיחה של הכתובת בלי מפגש שמור (קישור ישיר, אחסון חסום) לבלוק ש-`canFocus` כותבת מפגש `full` אחד, לפני הציור. ב-`gone`, ‏`alreadyDone`, ‏`notToday` ו-`ended` מפגש של הבלוק נמחק, כך שבלוק שהשתנה בלשונית אחרת לא משאיר טיימר יתום.
+- **Archi:** הקבוע `FOCUS_MOOD` ב-`FocusPage.tsx`. ‏`wisdom` (קו הדיו בקצה המכחול) עומד במקום `archi-writing` עד שהנכס יגיע, ואז מחליפים שורה אחת; ‏`archi-tea` יחליף את `rest` בהפסקה.
+
+**הסוף, Done וההפסקה.**
+- המסך לא מסמן לבד כשהזמן נגמר (החלטה זמנית של בעל המוצר, 7.9). אין התראה, צליל או Push בסוף הבלוק: טלפון נעול לא עושה כלום עד שהסטודנט חוזר.
+- **Done** הוא `complete` הקיים של `useBlockActions` (אופטימי, עם ה-toast, ה-XP וה-Undo). לפני הקריאה המסך מחשב `breakAfterFocus`: ‏`breakRun` על הבלוקים של היום, כשהבלוק של המפגש מוחלף בבלוק `done` מ-`startedAt` עד `min(now, endsAt)`, הזמנים האמיתיים (הזמנים המתוכננים לא יודעים שהסטודנט התחיל מוקדם, וזמן אחרי סוף המפגש הוא לא למידה).
+- **בלי הפסקה:** חזרה ל-`/calendar` עם `replace`. התשובה מגיעה אחרי הניווט, ולכן ה-toast ("Marked as done. +20 XP", עם Undo) ומעוף ה-XP של `XpBurst` קורים ביומן, פעם אחת.
+- **עם הפסקה:** המסך נשאר, עם Archi `rest`, ‏`breakTitle`, ‏`breakBody(<השעה של הבלוק הבא>)` ושורת הבלוק הבא, כמו ב-`BreakNotice`. כשהתשובה מצליחה, ‏`noteArchiInterrupt(now)` (`calendar/archi.ts`) משתיק את `BreakNotice` ל-20 דקות, וגם היציאה מההפסקה כותבת אותו שוב. ההפסקה הזו לא שואלת את `archiMayInterrupt`: זה הטקס שהמפגש מוביל אליו, לא הפרעה.
+- Done שלנו גובר על "כבר מסומן": ה-cache הופך את הבלוק ל-`done` מיד, והמסך מחזיק `finished` מקומי. לחיצה שנייה לא שולחת דבר. Undo מה-toast מחזיר את הבלוק ל-`planned` ולא מחזיר מפגש.
+- **Done שנכשל** (`onCompleteSettled`, מאזין ל-mutation cache ולא לשנות את `useBlockActions`): המפגש השמור חוזר לאחסון עם אותו `startedAt`, ואם המסך עוד פתוח הוא חוזר לטיימר; `BreakNotice` לא מושתק. **בלי רשת** (`networkMode: 'online'`) ה-mutation נעצר ולא נכשל, ולכן המפגש נשאר מחוק עד שהרשת חוזרת; בדיקה במכשיר עדיין חסרה.
+
+**עזיבה וחזרה.** החץ ו"אחורה" של הדפדפן חוזרים ליומן, והמפגש ממשיך לרוץ; "Back to focus" בגיליון מחזיר אליו. "Stop for now" מוחק את המפגש, חוזר ליומן בלי סימון, ו-toast מידע ("I stopped the timer. The block is still on your calendar."). ב-`over` גם החץ מוחק את המפגש, כדי ששני הפקדים בשם "Back to the calendar" יעשו אותו דבר.
+
+**Wake Lock** (`useWakeLock`): ב-`five` וב-`full` בלבד. בקשה ל-`navigator.wakeLock.request('screen')` כשהדף גלוי, בקשה מחדש בחזרה לדף, שחרור כשהמצב משתנה או ביציאה. בלי תמיכה או בסירוב: כלום, בלי הודעה.
+
+**קורא מסך.**
+- ה-`h1` הוא שם המשימה, אותו אלמנט בכל המצבים (בטעינה "Focus"), ו-`aria-describedby` שלו הוא המשפט של Archi, כך שבכניסה נשמעת גם המשימה הזעירה.
+- הטבעת היא `meter` בשם "Time left" עם `aria-valuetext` במילים ("24 minutes left, until 15:00"), תמיד עד סוף הבלוק, גם בחמש הדקות.
+- live region אחד (`<p role="status">`, המשפט של Archi) שמשתנה רק במעבר שלב, לא כל דקה.
+- Done נשאר באותו מקום בעץ בכל המצבים שיש בהם Done, ורק ה-`variant` מתחלף, כך שהפוקוס לא נופל כשהזמן נגמר. כשמגיעה ההפסקה הפוקוס עובר ל-`h1`.
+- **reduced motion:** אין במסך `animate`, ‏`transition` או `animation` חדשים.
+
+**סטיות שהתקבלו בצילומים** (`~/studyflow-manager/screens/s42-screens/`): ב-`over` הגזירה של `joy` עומדת ישר על הקו (כך נחתכו האיורים ב-S39); מסך ההפסקה מציג את הבלוק הבא מעל השם של הבלוק שהסתיים; ה-toast יושב מתחת לכפתור של ההפסקה ל-10 השניות שלו; ב-200% טקסט הטבעת נשארת 208px (`ProgressRing` מקבל px, והטקסט שבתוכה עובר לשתי שורות), ולכן המסך גולל. **במסלול ההפסקה אין מעוף XP:** ה-toast אומר את ה-XP, אבל במסך המיקוד אין תיבה ואין טבעת רמה, ו-`XpBurst` מותקן רק ביומן.
 
 ## 7. Archi (הדמות)
 
