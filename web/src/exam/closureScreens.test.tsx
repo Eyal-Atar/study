@@ -215,6 +215,35 @@ describe('the exam screen by closure state', () => {
     expect(await screen.findByRole('dialog', { name: c.sheet.title('הסתברות') })).toBeInTheDocument()
   })
 
+  it('Keep it as a memory on the exam screen: the flower opens in the sheet, not on the card behind it', async () => {
+    const fake = setup([PENDING])
+    // The close succeeds and the exams refresh then says "done": the card behind the modal appears.
+    fake.on('POST /exams/p1/close', () => {
+      fake.on('GET /exams', [{ ...PENDING, state: 'done', closed_at: '2026-11-23T12:00:00Z' }])
+      return makeCloseResult({ event: { kind: 'course_bloomed', exam_id: 'p1', exam_name: 'הסתברות', color_index: 2 } })
+    })
+    openRoute(fake, '/exams/p1')
+    const u = user()
+    await u.click(await screen.findByRole('button', { name: c.card.open }))
+    const sheet = await screen.findByRole('dialog', { name: c.sheet.title('הסתברות') })
+    await u.click(within(sheet).getByRole('button', { name: c.sheet.nailed }))
+    const after = await screen.findByRole('dialog', { name: c.sheet.bloomed('הסתברות') })
+    // The card behind the sheet is drawn too (the exams query was refreshed).
+    await waitFor(() => {
+      expect(screen.getAllByText(c.archived.say('הסתברות'), { selector: 'p', ignore: '[role="dialog"] *' }).length).toBeGreaterThan(0)
+    })
+    const slots = [...document.querySelectorAll('[data-slot="bloom"]')]
+    expect(slots).toHaveLength(2)
+    // The figure stands on the sheet's modal, beside the element with role dialog.
+    const modal = after.parentElement?.parentElement
+    if (modal === null || modal === undefined) throw new Error('no modal')
+    const inSheet = slots.filter((s) => modal.contains(s))
+    const onCard = slots.filter((s) => !modal.contains(s))
+    expect(inSheet).toHaveLength(1)
+    expect(inSheet[0]?.querySelector('.garden-petal')).not.toBeNull()
+    expect(onCard[0]?.querySelector('.garden-petal')).toBeNull()
+  })
+
   it('waiting for a retake: what is kept, Plan the retake, and Keep it as a memory; no edit and no plan request', async () => {
     const fake = setup([WAITING])
     fake.on({ method: 'GET', path: /^\/exams\/w1\/materials$/ }, [

@@ -6,7 +6,7 @@ import { PlantShape } from './GardenScene'
 // The full bloom of a closed exam (S33, Task 10): the flower of the garden in the closing sheet and on
 // the card of the closed exam. aria-hidden: the sheet's title and the card already say "is in full bloom".
 export function BloomSlot({ examId, colorIndex, size }: { examId: string; colorIndex: number; size: number }) {
-  // Decided once, when it appears: taking the event is what makes it play once.
+  // In the initializer: once per mount, so the event is taken exactly once (a concurrent render that React discards would lose it; accepted).
   const [play] = useState(() => takeBloom(examId) && !prefersReducedMotion())
   return (
     <div data-slot="bloom" aria-hidden="true" style={{ width: size }}>
