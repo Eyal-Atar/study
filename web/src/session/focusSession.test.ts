@@ -179,6 +179,11 @@ describe('breakAfterFocus', () => {
     const b = blk('14:00', '15:00')
     expect(breakAfterFocus([b], b, session({ startedAt: t('10:00'), endsAt: t('15:00') }), now)).toBe(true)
   })
+  it('a session that ended 40 minutes ago counts to its end, not to the Done: no break', () => {
+    const todays = [done('09:25', '10:10', 'd1'), done('10:10', '10:55', 'd2'), blk('11:00', '12:00')]
+    const ses = session({ startedAt: t('11:00'), endsAt: t('11:30') })
+    expect(breakAfterFocus(todays, todays[2] as Block, ses, t('12:10'))).toBe(false)
+  })
   it('adds the block when it is not in the list', () => {
     const b = blk('14:00', '15:00')
     expect(breakAfterFocus([], b, session({ startedAt: t('10:00'), endsAt: t('15:00') }), now)).toBe(true)
@@ -206,6 +211,27 @@ describe('storage', () => {
     const st = fakeStore({ [key]: raw })
     expect(readSession('user-a', t('11:00') + 13 * 60 * MIN, st)).toBeNull()
     expect(st.data.has(key)).toBe(false)
+  })
+  // Read in the middle of the session, so only the shape can turn them down.
+  it.each([
+    ['an infinite end', JSON.stringify(session()).replace(/"endsAt":\d+/, '"endsAt":1e999')],
+    ['ends before it starts', JSON.stringify(session({ startedAt: t('11:00'), endsAt: t('10:00') }))],
+    ['ends as it starts', JSON.stringify(session({ startedAt: t('10:00'), endsAt: t('10:00') }))],
+    ['five ends after the session', JSON.stringify(session({ fiveEndsAt: t('11:05') }))],
+    ['five ends at the start', JSON.stringify(session({ fiveEndsAt: t('10:00') }))],
+  ])('%s: null and the key is removed', (_n, raw) => {
+    const st = fakeStore({ [key]: raw })
+    expect(readSession('user-a', t('10:30'), st)).toBeNull()
+    expect(st.data.has(key)).toBe(false)
+  })
+  it('a session that ended exactly the maximum age ago is still read', () => {
+    const st = fakeStore({ [key]: JSON.stringify(session()) })
+    expect(readSession('user-a', t('11:00') + SESSION_MAX_AGE_MS, st)).toEqual(session())
+  })
+  it('a five that ends with the session is a valid session', () => {
+    const s = session({ fiveEndsAt: t('11:00') })
+    const st = fakeStore({ [key]: JSON.stringify(s) })
+    expect(readSession('user-a', t('10:30'), st)).toEqual(s)
   })
   it('a throwing getItem is no session', () => {
     const st = {
@@ -292,6 +318,64 @@ describe('hooks', () => {
       window.dispatchEvent(new StorageEvent('storage', { key: 'archi.focus.user-b' }))
     })
     expect(holder.current?.s?.blockId).toBe('block-1')
+  })
+
+  it('a storage event with no key (storage cleared elsewhere) updates', async () => {
+    const { holder } = await renderHooks()
+    act(() => {
+      writeSession('user-a', session())
+    })
+    expect(holder.current?.s).toEqual(session())
+    act(() => {
+      window.localStorage.clear()
+      window.dispatchEvent(new StorageEvent('storage', { key: null }))
+    })
+    expect(holder.current?.s).toBeNull()
+  })
+
+  it('a full storage: the new session wins over the old one still stored', async () => {
+    const { holder } = await renderHooks()
+    act(() => {
+      writeSession('user-a', session())
+    })
+    const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('full', 'QuotaExceededError')
+    })
+    act(() => {
+      writeSession('user-a', session({ blockId: 'block-2' }))
+    })
+    expect(holder.current?.s?.blockId).toBe('block-2')
+    set.mockRestore()
+  })
+
+  it('a full storage that cannot even remove the old session: memory still comes first', async () => {
+    const { holder } = await renderHooks()
+    act(() => {
+      writeSession('user-a', session())
+    })
+    const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('full', 'QuotaExceededError')
+    })
+    const remove = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    act(() => {
+      writeSession('user-a', session({ blockId: 'block-3' }))
+    })
+    expect(holder.current?.s?.blockId).toBe('block-3')
+    set.mockRestore()
+    remove.mockRestore()
+    act(() => {
+      clearSession('user-a')
+    })
+  })
+
+  it('useStartFocus: a block that has already ended only navigates, with no session', async () => {
+    const { holder, router } = await renderHooks()
+    act(() => holder.current?.start(blk('09:00', '10:30'), 'full'))
+    expect(router.state.location.pathname).toBe('/focus/block-1')
+    expect(holder.current?.s).toBeNull()
+    expect(window.localStorage.getItem('archi.focus.user-a')).toBeNull()
   })
 
   it('keeps the session in memory when storage throws', async () => {

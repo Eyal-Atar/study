@@ -1,11 +1,21 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router'
 import { useBlockActions } from '../board/actions'
 import { actionsFor } from '../board/actionsFor'
+import { useBoardUserId } from '../board/api'
 import { blockName } from '../board/blockName'
 import { MoveDialog } from '../board/MoveDialog'
 import type { Block } from '../board/types'
 import { en } from '../i18n/en'
-import { canFocus, canStartFive, isLive, useFocusSession, useStartFocus } from '../session/focusSession'
+import {
+  canFocus,
+  canStartFive,
+  clearSession,
+  focusPath,
+  isLive,
+  useFocusSession,
+  useStartFocus,
+} from '../session/focusSession'
 import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
 import { BlockCard } from './BlockCard'
@@ -28,6 +38,8 @@ export function BlockActionsSheet({ block, tz, today, now, onClose, onDefer }: B
   const actions = useBlockActions()
   const session = useFocusSession()
   const startFocus = useStartFocus()
+  const navigate = useNavigate()
+  const userId = useBoardUserId()
   const [moving, setMoving] = useState(false)
   if (block === null) return null
   const name = blockName(block)
@@ -38,6 +50,11 @@ export function BlockActionsSheet({ block, tz, today, now, onClose, onDefer }: B
   function then(run: () => void) {
     run()
     onClose()
+  }
+
+  // Done or Skip here ends the block's timer too: an Undo brings the block back, not the session (M7).
+  function endFocus() {
+    if (live && userId !== null) clearSession(userId)
   }
 
   return (
@@ -56,8 +73,9 @@ export function BlockActionsSheet({ block, tz, today, now, onClose, onDefer }: B
               variant="primary"
               className="w-full"
               onPress={() => {
+                // Straight to the screen: it shows the session as it is now, also one that just ran out (M2).
                 then(() => {
-                  startFocus(block, 'full')
+                  void navigate(focusPath(block.id))
                 })
               }}
             >
@@ -101,6 +119,7 @@ export function BlockActionsSheet({ block, tz, today, now, onClose, onDefer }: B
               aria-label={en.board.completeLabel(name)}
               onPress={() => {
                 then(() => {
+                  endFocus()
                   actions.complete(block)
                 })
               }}
@@ -168,6 +187,7 @@ export function BlockActionsSheet({ block, tz, today, now, onClose, onDefer }: B
                 aria-label={en.review.skipLabel(name)}
                 onPress={() => {
                   then(() => {
+                    endFocus()
                     actions.skip(block)
                   })
                 }}

@@ -307,8 +307,10 @@ describe('BlockActionsSheet, focus', () => {
     return raw === null ? null : (JSON.parse(raw) as FocusSession)
   }
 
+  // Every class of the primary look, not one token the looks may share.
   function isPrimary(button: HTMLElement) {
-    return button.className.split(/\s+/).includes(BUTTON_REST.primary.split(/\s+/)[0] as string)
+    const classes = button.className.split(/\s+/)
+    return BUTTON_REST.primary.split(/\s+/).every((c) => classes.includes(c))
   }
 
   it('a block of today that has not started: Start now first and the only primary, then Just 5 minutes, Done secondary', async () => {
@@ -327,6 +329,7 @@ describe('BlockActionsSheet, focus', () => {
     expect(isPrimary(start)).toBe(true)
     expect(isPrimary(five)).toBe(false)
     expect(isPrimary(done)).toBe(false)
+    expect(screen.getAllByRole('button').filter(isPrimary)).toEqual([start])
   })
 
   it('with four minutes left: Start now, no Just 5 minutes', async () => {
@@ -426,6 +429,61 @@ describe('BlockActionsSheet, focus', () => {
     })
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(stored()?.fiveEndsAt).toBe(BEFORE + 300_000)
+  })
+
+  it('a block that ended while the sheet was open: Start now goes to the screen and writes no session', async () => {
+    // The calendar's now (13:59:50) is behind the clock (15:00:20): the sheet still offers Start now.
+    const sheetNow = Date.parse('2026-11-16T12:59:50Z')
+    freeze(Date.parse('2026-11-16T13:00:20Z'))
+    const block = makeBlock()
+    const { router } = setupActions(block, { now: sheetNow })
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: en.focus.startLabel(blockName(block)) }))
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(focusPath(block.id))
+    })
+    expect(stored()).toBeNull()
+  })
+
+  it('Back to focus for a session that ran out while the sheet was open: the session stays as it was', async () => {
+    const sheetNow = Date.parse('2026-11-16T12:29:50Z')
+    freeze(Date.parse('2026-11-16T12:30:20Z'))
+    const block = makeBlock()
+    const live: FocusSession = { v: 1, blockId: block.id, startedAt: START - 600_000, endsAt: Date.parse('2026-11-16T12:30:00Z'), fiveEndsAt: null }
+    window.localStorage.setItem(focusStorageKey(USER_ID), JSON.stringify(live))
+    const { router } = setupActions(block, { now: sheetNow })
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: en.focus.resume }))
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(focusPath(block.id))
+    })
+    expect(stored()).toEqual(live)
+  })
+
+  it.each([
+    ['Done', (name: string) => en.board.completeLabel(name)],
+    ['Skip', (name: string) => en.review.skipLabel(name)],
+  ])('%s from the sheet ends a live session of the block', async (_n, label) => {
+    freeze(BEFORE)
+    const block = makeBlock()
+    const live: FocusSession = { v: 1, blockId: block.id, startedAt: BEFORE - 60_000, endsAt: START + 3_600_000, fiveEndsAt: null }
+    window.localStorage.setItem(focusStorageKey(USER_ID), JSON.stringify(live))
+    const { onClose } = setupActions(block, { now: BEFORE })
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: label(blockName(block)) }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(stored()).toBeNull()
+  })
+
+  it('Done from the sheet leaves a live session of another block alone', async () => {
+    freeze(BEFORE)
+    const block = makeBlock()
+    const other: FocusSession = { v: 1, blockId: 'other', startedAt: BEFORE, endsAt: BEFORE + 3_600_000, fiveEndsAt: null }
+    window.localStorage.setItem(focusStorageKey(USER_ID), JSON.stringify(other))
+    setupActions(block, { now: BEFORE })
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: en.board.completeLabel(blockName(block)) }))
+    expect(stored()).toEqual(other)
   })
 
   it('Back to focus goes back to the same session without rewriting it', async () => {

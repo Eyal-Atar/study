@@ -98,14 +98,15 @@ export function isLive(session: FocusSession | null, blockId: string, now: numbe
 }
 
 // Would marking this block done close a run of study that earns a break? The block counts with the
-// times the student really studied, not the planned ones.
+// times the student really studied, not the planned ones: from the start to the Done, or to the end of
+// the session when the Done comes after it (the time away after the end is not study, M5).
 export function breakAfterFocus(todayBlocks: Block[], block: Block, session: FocusSession, now: number): boolean {
   const finished: Block = {
     ...block,
     status: 'done',
     state: 'done',
     starts_at: new Date(session.startedAt).toISOString(),
-    ends_at: new Date(now).toISOString(),
+    ends_at: new Date(Math.min(now, session.endsAt)).toISOString(),
   }
   const has = todayBlocks.some((b) => b.id === block.id)
   const blocks = has ? todayBlocks.map((b) => (b.id === block.id ? finished : b)) : [...todayBlocks, finished]
@@ -133,14 +134,19 @@ function parseSession(raw: string): FocusSession | null {
     if (typeof o !== 'object' || o === null) return null
     const r = o as Record<string, unknown>
     if (r.v !== 1 || typeof r.blockId !== 'string') return null
-    if (typeof r.startedAt !== 'number' || typeof r.endsAt !== 'number') return null
-    if (r.fiveEndsAt !== null && typeof r.fiveEndsAt !== 'number') return null
+    const { startedAt, endsAt, fiveEndsAt } = r
+    if (typeof startedAt !== 'number' || typeof endsAt !== 'number') return null
+    if (!Number.isFinite(startedAt) || !Number.isFinite(endsAt) || endsAt <= startedAt) return null
+    if (fiveEndsAt !== null) {
+      if (typeof fiveEndsAt !== 'number' || !Number.isFinite(fiveEndsAt)) return null
+      if (fiveEndsAt <= startedAt || fiveEndsAt > endsAt) return null
+    }
     return {
       v: 1,
       blockId: r.blockId,
-      startedAt: r.startedAt,
-      endsAt: r.endsAt,
-      fiveEndsAt: r.fiveEndsAt,
+      startedAt,
+      endsAt,
+      fiveEndsAt,
     }
   } catch {
     return null
@@ -183,7 +189,8 @@ function notify() {
 export function writeSession(
   userId: string,
   session: FocusSession,
-  storage: Pick<Storage, 'setItem'> | undefined = defaultStorage(),
+  // removeItem is optional: a caller that only writes (a test's fake) need not give it.
+  storage: (Pick<Storage, 'setItem'> & Partial<Pick<Storage, 'removeItem'>>) | undefined = defaultStorage(),
 ): void {
   try {
     if (!storage) throw new Error('no storage')
@@ -191,6 +198,12 @@ export function writeSession(
     memory.delete(userId)
   } catch {
     memory.set(userId, session)
+    // A full storage still lets the old session go, so it cannot win over this one (M3).
+    try {
+      storage?.removeItem?.(focusStorageKey(userId))
+    } catch {
+      // Memory comes first in the store anyway.
+    }
   }
   notify()
 }
@@ -214,13 +227,16 @@ export function clearSession(
 const parsed = new Map<string, { raw: string; session: FocusSession | null }>()
 
 function snapshotOf(userId: string): FocusSession | null {
+  // A session in memory is newer than anything stored: it was written when storage threw.
+  const mem = memory.get(userId)
+  if (mem) return mem
   let raw: string | null
   try {
     raw = window.localStorage.getItem(focusStorageKey(userId))
   } catch {
-    return memory.get(userId) ?? null
+    return null
   }
-  if (raw === null) return memory.get(userId) ?? null
+  if (raw === null) return null
   const hit = parsed.get(userId)
   if (hit && hit.raw === raw) return hit.session
   const s = parseSession(raw)
@@ -230,7 +246,7 @@ function snapshotOf(userId: string): FocusSession | null {
 }
 
 function current(userId: string, now: number): FocusSession | null {
-  return readSession(userId, now) ?? memory.get(userId) ?? null
+  return memory.get(userId) ?? readSession(userId, now)
 }
 
 export function useFocusSession(): FocusSession | null {
@@ -259,7 +275,8 @@ export function useStartFocus(): (block: Block, mode: FocusMode) => void {
   return useCallback(
     (block, mode) => {
       const now = Date.now()
-      if (userId !== null) {
+      // A block that ended while its sheet was open gets no session: the screen offers Done (M2).
+      if (userId !== null && Date.parse(block.ends_at) > now) {
         // "Back to focus" sends 'full' for a session that still runs: go back, do not restart it.
         const keep = mode === 'full' && isLive(current(userId, now), block.id, now)
         if (!keep) writeSession(userId, newSession(block, mode, now))
