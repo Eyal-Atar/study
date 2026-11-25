@@ -1,7 +1,12 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { act } from 'react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { makeArchived } from '../garden/testFixtures'
+import { isolate } from '../i18n/bidi'
 import { en } from '../i18n/en'
+import { taskFixture } from '../test/examFixtures'
+import { examFixture } from '../test/onboardingFixtures'
 import { createFakeApi, problem } from '../test/fakeApi'
 import { USER_ID, makeMe, renderBoard } from '../test/boardFixtures'
 import { ProgressPage } from './ProgressPage'
@@ -234,6 +239,82 @@ describe('the progress board', () => {
       expect(name.tagName).toBe('BDI')
       expect(name).toHaveAttribute('dir', 'auto')
       expect(name).toHaveAttribute('data-user-text')
+    })
+  })
+
+  describe('the garden', () => {
+    const g = en.garden
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    function withGarden(progress: Progress) {
+      const fake = createFakeApi()
+        .on('GET /me', makeMe('Asia/Jerusalem'))
+        .on('GET /progress', progress)
+        .on('GET /exams', [examFixture({ id: 'exam-a', name: 'Algorithms', exam_date: '2026-12-20' })])
+        .on({ method: 'GET', path: /^\/exams\/[^/]+\/tasks$/ }, [
+          taskFixture({ id: 't1', exam_id: 'exam-a', estimated_minutes: 62, status: 'done' }),
+          taskFixture({ id: 't2', exam_id: 'exam-a', estimated_minutes: 38 }),
+        ])
+      return { fake, ...renderBoard(<ProgressPage />, { api: fake.api }) }
+    }
+
+    it('comes first, under the title and above the cards', async () => {
+      setup(makeProgress())
+      const garden = await screen.findByRole('region', { name: g.scene.title })
+      const level = screen.getByRole('region', { name: t.level.title })
+      const title = screen.getByRole('heading', { level: 1, name: t.title })
+      expect(title.compareDocumentPosition(garden) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(garden.compareDocumentPosition(level) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it('while loading, the garden has a card in its place that announces nothing more', () => {
+      const fake = createFakeApi().on('GET /me', makeMe()).on('GET /progress', new Promise(() => undefined))
+      const { container } = renderBoard(<ProgressPage />, { api: fake.api })
+      expect(container.querySelectorAll('[data-skeleton-card]')).toHaveLength(2)
+      expect(screen.getAllByRole('status')).toHaveLength(1)
+    })
+
+    it('Tab goes through the centre, the plants, the stones, the flowers, each once, then on', async () => {
+      const user = userEvent.setup()
+      withGarden(makeProgress({ archive: [makeArchived({ exam_id: 'exam-c', name: 'Calculus' })] }))
+      const garden = await screen.findByRole('region', { name: g.scene.title })
+      await within(garden).findByRole('button', { name: isolate('Algorithms') })
+
+      const items = [...garden.querySelectorAll<SVGGElement>('[role="button"]')].map((el) => el.dataset.item)
+      const kinds = items.map((item) => item?.split(':')[0])
+      expect(kinds).toEqual(['tree', 'plant', 'plant', 'stone', 'stone', 'stone', 'stone', 'flowers'])
+
+      const reached: (string | undefined)[] = []
+      for (let i = 0; i < 40 && reached.length <= items.length; i++) {
+        await user.tab()
+        const active = document.activeElement
+        if (active instanceof SVGElement && garden.contains(active)) reached.push(active.dataset.item)
+        else if (reached.length > 0) break
+      }
+      expect(reached).toEqual(items)
+      expect(garden.contains(document.activeElement)).toBe(false)
+    })
+
+    it('a refresh of GET /progress does not play the opening again', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      vi.setSystemTime(new Date('2026-11-16T10:00:00Z'))
+      const { container, fake, queryClient } = withGarden(makeProgress())
+      await screen.findByRole('region', { name: g.scene.title })
+      expect(container.querySelector('.garden-sway')).not.toBeNull()
+      act(() => {
+        vi.advanceTimersByTime(2000)
+      })
+      expect(container.querySelector('.garden-sway')).toBeNull()
+
+      fake.on('GET /progress', makeProgress({ total_xp: 1350 }))
+      await queryClient.invalidateQueries({ queryKey: ['board', USER_ID] })
+      await waitFor(() => {
+        expect(fake.calls('GET', '/progress')).toHaveLength(2)
+      })
+      expect(screen.getByRole('region', { name: g.scene.title })).toBeInTheDocument()
+      expect(container.querySelector('.garden-sway')).toBeNull()
     })
   })
 })
