@@ -86,8 +86,10 @@ function EditForm({ exam, today, onDone }: { exam: Exam; today: string; onDone: 
 }
 
 // The exam's name, and under it one quiet line: date, days left, difficulty. "Edit" opens a small
-// form under the title; the title itself stays, so the screen never loses its h1.
-export function ExamHeader({ exam, today }: { exam: Exam; today: string }) {
+// form under the title; the title itself stays, so the screen never loses its h1. canEdit is false
+// for a closed exam (done, or waiting for Moed B): the server refuses to change its date or difficulty.
+// In Moed B one more line says when Moed A was, and the grade.
+export function ExamHeader({ exam, today, canEdit = true }: { exam: Exam; today: string; canEdit?: boolean }) {
   const [editing, setEditing] = useState(false)
   const difficulty = f.difficultyLevels[exam.difficulty - 1] ?? String(exam.difficulty)
   return (
@@ -107,7 +109,7 @@ export function ExamHeader({ exam, today }: { exam: Exam; today: string }) {
             }
           />
         </div>
-        {editing ? null : (
+        {editing || !canEdit ? null : (
           <IconButton
             variant="secondary"
             aria-label={t.header.editLabel}
@@ -119,7 +121,12 @@ export function ExamHeader({ exam, today }: { exam: Exam; today: string }) {
           </IconButton>
         )}
       </div>
-      {editing ? (
+      {exam.sitting === 2 && typeof exam.first_exam_date === 'string' ? (
+        <p className="text-small text-ink-muted">
+          {en.closure.exam.moedALine(longDate(exam.first_exam_date), exam.first_grade ?? null)}
+        </p>
+      ) : null}
+      {editing && canEdit ? (
         <EditForm
           exam={exam}
           today={today}

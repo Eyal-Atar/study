@@ -17,11 +17,13 @@ import { ICON_STROKE } from '../ui/styles'
 import { ExamChip, ExamInitial, ExamProgressBar } from '../ui/ExamMark'
 import { UserText } from '../ui/UserText'
 import { Archie } from '../archie/Archie'
+import { examState } from '../closure/types'
+import { SectionHeading } from '../ui/SectionHeading'
 import type { Exam } from '../onboarding/types'
 import { examProgress } from './examProgress'
 import type { ExamTask } from './types'
 import { tasksKey, useToday } from './api'
-import { daysBetween, longDate } from './dates'
+import { dayMonth, daysBetween, longDate, todayIn } from './dates'
 import { ExamFields } from './ExamFields'
 import { validateDraft, type ExamDraft, type ExamFieldErrors } from './examForm'
 
@@ -85,6 +87,8 @@ function ExamRow({ exam, today, tasks }: { exam: Exam; today: string; tasks: Exa
   const shown = tasks === undefined ? null : examProgress(tasks)
   const detail = shown === null ? null : shown.total === 0 ? x.noTasks : x.progress(shown.percent)
   const date = longDate(exam.exam_date)
+  const state = examState(exam)
+  const line = detail === null ? date : x.rowDetail(date, detail)
   return (
     <ListRow
       to={`/exams/${exam.id}`}
@@ -92,7 +96,7 @@ function ExamRow({ exam, today, tasks }: { exam: Exam; today: string; tasks: Exa
       title={<UserText>{exam.name}</UserText>}
       subtitle={
         <>
-          <span>{detail === null ? date : x.rowDetail(date, detail)}</span>
+          <span>{exam.sitting === 2 ? en.closure.list.moedB(line) : line}</span>
           {shown === null || detail === null ? (
             <div className="h-[5px]" />
           ) : (
@@ -106,7 +110,34 @@ function ExamRow({ exam, today, tasks }: { exam: Exam; today: string; tasks: Exa
           )}
         </>
       }
-      trailing={<ExamChip colorIndex={exam.color_index}>{x.chip(daysBetween(today, exam.exam_date))}</ExamChip>}
+      trailing={
+        <ExamChip colorIndex={exam.color_index}>
+          {state === 'pending'
+            ? en.closure.list.pending
+            : state === 'waiting_moed_b'
+              ? en.closure.list.waiting
+              : x.chip(daysBetween(today, exam.exam_date))}
+        </ExamChip>
+      }
+    />
+  )
+}
+
+// One row of the archive: the closing day (and the progress of the plan once its tasks are known),
+// and the chip "Done". It still links to the exam screen.
+function ArchivedRow({ exam, timeZone, tasks }: { exam: Exam; timeZone: string; tasks: ExamTask[] | undefined }) {
+  const x = en.exams.list
+  const list = en.closure.list
+  const shown = tasks === undefined ? null : examProgress(tasks)
+  const day = dayMonth(typeof exam.closed_at === 'string' ? todayIn(timeZone, new Date(exam.closed_at)) : exam.exam_date)
+  const detail = shown === null ? null : shown.total === 0 ? x.noTasks : x.progress(shown.percent)
+  return (
+    <ListRow
+      to={`/exams/${exam.id}`}
+      leading={<ExamInitial name={exam.name} colorIndex={exam.color_index} />}
+      title={<UserText>{exam.name}</UserText>}
+      subtitle={<span>{detail === null ? en.closure.progress.closedOn(day) : list.closedOn(day, detail)}</span>}
+      trailing={<ExamChip colorIndex={exam.color_index}>{list.done}</ExamChip>}
     />
   )
 }
@@ -137,15 +168,20 @@ function EmptyExams({ onAdd }: { onAdd: (() => void) | null }) {
 // /exams: every live exam on one card, closest first, each opening its own screen; and "new exam".
 export function ExamsPage() {
   const exams = useExams()
-  const { today } = useToday()
+  const { today, timeZone } = useToday()
   const [adding, setAdding] = useState(false)
 
-  const sorted = [...(exams.data ?? [])].sort((a, b) => a.exam_date.localeCompare(b.exam_date))
-  const isEmpty = exams.isSuccess && sorted.length === 0
+  const all = exams.data ?? []
+  // The card holds what is still in front of the student; a closed exam goes to the archive, last closed first.
+  const sorted = all.filter((e) => examState(e) !== 'done').sort((a, b) => a.exam_date.localeCompare(b.exam_date))
+  const archived = all
+    .filter((e) => examState(e) === 'done')
+    .sort((a, b) => (b.closed_at ?? '').localeCompare(a.closed_at ?? ''))
+  const isEmpty = exams.isSuccess && all.length === 0
   const api = useApi()
   const userId = useUserId()
   const taskQueries = useQueries({
-    queries: sorted.map((exam) => ({
+    queries: [...sorted, ...archived].map((exam) => ({
       queryKey: tasksKey(userId, exam.id),
       queryFn: ({ signal }: { signal: AbortSignal }) => api.get<ExamTask[]>(`/exams/${exam.id}/tasks`, { signal }),
       enabled: userId !== null,
@@ -205,13 +241,33 @@ export function ExamsPage() {
           }}
         />
       ) : (
-        <Card>
-          <List aria-label={t.list.listTitle}>
-            {sorted.map((exam, index) => (
-              <ExamRow key={exam.id} exam={exam} today={today} tasks={taskQueries[index]?.data} />
-            ))}
-          </List>
-        </Card>
+        <>
+          {sorted.length === 0 ? (
+            <p className="text-ink-muted">{en.closure.list.noneComing}</p>
+          ) : (
+            <Card>
+              <List aria-label={t.list.listTitle}>
+                {sorted.map((exam, index) => (
+                  <ExamRow key={exam.id} exam={exam} today={today} tasks={taskQueries[index]?.data} />
+                ))}
+              </List>
+            </Card>
+          )}
+          {archived.length === 0 ? null : (
+            <section aria-labelledby="exams-archive" className="flex flex-col gap-4">
+              <SectionHeading id="exams-archive" level={2}>
+                {en.closure.list.archive}
+              </SectionHeading>
+              <Card>
+                <List aria-label={en.closure.list.archive}>
+                  {archived.map((exam, index) => (
+                    <ArchivedRow key={exam.id} exam={exam} timeZone={timeZone} tasks={taskQueries[sorted.length + index]?.data} />
+                  ))}
+                </List>
+              </Card>
+            </section>
+          )}
+        </>
       )}
     </div>
   )
