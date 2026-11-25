@@ -11,7 +11,7 @@ EXAM_ID = UUID("11111111-2222-3333-4444-555555555555")
 def test_the_text_is_exact() -> None:
     text = closure_text("Probability")
     assert text.title == "You made it through Probability."
-    assert text.body == "How did it feel? Tell me, and I'll sort out what comes next."
+    assert text.body == "Tell me what to do with it, and I'll sort out what comes next."
 
 
 def test_a_long_name_is_cut_at_eighty_characters() -> None:
@@ -27,7 +27,7 @@ def test_the_payload_is_compact_json_with_the_exam_tag() -> None:
     raw = closure_payload(EXAM_ID, closure_text("הסתברות"))
     assert json.loads(raw) == {
         "title": "You made it through הסתברות.",
-        "body": "How did it feel? Tell me, and I'll sort out what comes next.",
+        "body": "Tell me what to do with it, and I'll sort out what comes next.",
         "url": "/today",
         "tag": f"exam-closure:{EXAM_ID}",
     }

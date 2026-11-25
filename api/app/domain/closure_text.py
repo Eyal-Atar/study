@@ -1,4 +1,4 @@
-"""The push that asks how an exam went (S45). Pure, like the block reminder text."""
+"""The push that asks what to do with an exam that is over. Pure, like the block reminder text."""
 
 import json
 from typing import Final
@@ -6,7 +6,7 @@ from uuid import UUID
 
 from app.domain.notifications import EXAM_NAME_MAX_CHARS, REMINDER_URL, ReminderText, _truncate
 
-CLOSURE_BODY: Final = "How did it feel? Tell me, and I'll sort out what comes next."
+CLOSURE_BODY: Final = "Tell me what to do with it, and I'll sort out what comes next."
 
 
 def closure_text(exam_name: str) -> ReminderText:

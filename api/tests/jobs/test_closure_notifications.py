@@ -67,7 +67,7 @@ def test_nothing_before_19_then_one_send_then_never_again(
     (call,) = sender.calls
     assert call.payload == {
         "title": "You made it through הסתברות.",
-        "body": "How did it feel? Tell me, and I'll sort out what comes next.",
+        "body": "Tell me what to do with it, and I'll sort out what comes next.",
         "url": "/today",
         "tag": f"exam-closure:{exam_id}",
     }
