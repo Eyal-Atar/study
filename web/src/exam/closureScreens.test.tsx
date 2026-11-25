@@ -1,7 +1,9 @@
+import { focusManager } from '@tanstack/react-query'
 import { act, screen, waitFor, within } from '@testing-library/react'
 import { userEvent, type UserEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { durationText } from '../board/time'
+import { codeText } from '../i18n/codes'
 import { en } from '../i18n/en'
 import { makeProgress } from '../progress/testFixtures'
 import { makeClosureItem, makeCloseResult, makeDeleteResult, makeMoedBResult } from '../test/closureFixtures'
@@ -486,5 +488,88 @@ describe('the exam screen: Delete it', () => {
       c.sheet.keepOpen,
       c.sheet.delete,
     ])
+  })
+})
+
+// Fix round 1 of Task 3: a refresh that lands after the server committed the delete and before its
+// answer takes the card off the screen; the screen still goes to the list, with the toast said once.
+describe('the exam screen: a delete from the card that a refresh overtakes', () => {
+  function committedEarly(reply: () => Promise<unknown>) {
+    const fake = setup([WAITING, ACTIVE])
+    fake.on('DELETE /exams/w1', () => {
+      // The server has committed; its answer is still on the way.
+      fake.on('GET /exams', [ACTIVE])
+      fake.on('GET /closures', { pending: [], waiting: [] })
+      return reply()
+    })
+    fake.on('POST /plan/undo', {})
+    return fake
+  }
+
+  async function endsOnTheList() {
+    expect(await screen.findByRole('heading', { level: 1, name: t.list.title })).toBeInTheDocument()
+    const region = await screen.findByRole('region', { name: en.common.notifications })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    expect(within(region).getAllByText(c.sheet.deleted('אלגוריתמים'))).toHaveLength(1)
+    expect(within(region).getByRole('button', { name: en.common.undo })).toBeInTheDocument()
+  }
+
+  it('the closures refresh: the page ends on the exams list, with the toast once', async () => {
+    const reply = later<unknown>()
+    const fake = committedEarly(() => reply.promise)
+    openRoute(fake, '/exams/w1')
+    await user().click(await screen.findByRole('button', { name: c.waiting.delete }))
+    const before = fake.calls('GET', '/closures').length
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60_000 + 100)
+    })
+    await waitFor(() => {
+      expect(fake.calls('GET', '/closures').length).toBeGreaterThan(before)
+    })
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: c.waiting.delete })).not.toBeInTheDocument()
+    })
+    await act(async () => {
+      reply.resolve(makeDeleteResult())
+      await Promise.resolve()
+    })
+    await endsOnTheList()
+  })
+
+  it('the exams refetch on focus: the page ends on the exams list, with the toast once', async () => {
+    const reply = later<unknown>()
+    const fake = committedEarly(() => reply.promise)
+    openRoute(fake, '/exams/w1')
+    await user().click(await screen.findByRole('button', { name: c.waiting.delete }))
+    const before = fake.calls('GET', '/exams').length
+    act(() => {
+      focusManager.setFocused(false)
+      focusManager.setFocused(true)
+    })
+    await waitFor(() => {
+      expect(fake.calls('GET', '/exams').length).toBeGreaterThan(before)
+    })
+    await act(async () => {
+      focusManager.setFocused(undefined)
+      reply.resolve(makeDeleteResult())
+      await Promise.resolve()
+    })
+    await endsOnTheList()
+  })
+
+  it('a 404 from the card ends on the exams list', async () => {
+    const fake = setup([WAITING, ACTIVE])
+    fake.on('DELETE /exams/w1', () => {
+      // Deleted elsewhere already: the refresh after the answer has it gone.
+      fake.on('GET /exams', [ACTIVE])
+      fake.on('GET /closures', { pending: [], waiting: [] })
+      return problem(404, 'not_found')
+    })
+    openRoute(fake, '/exams/w1')
+    await user().click(await screen.findByRole('button', { name: c.waiting.delete }))
+    expect(await screen.findByRole('heading', { level: 1, name: t.list.title })).toBeInTheDocument()
+    expect(await screen.findByText(codeText('not_found'))).toBeInTheDocument()
   })
 })

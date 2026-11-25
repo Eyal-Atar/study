@@ -1,5 +1,5 @@
 import { ChevronLeft } from '../ui/icons'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { errorMessage } from '../api/client'
 import { useMe } from '../api/me'
@@ -67,6 +67,15 @@ export function ExamPage() {
   // The same query as the task list: one request, and the same minutes (S34 decision 11).
   const tasks = useExamTasks(examId)
   const navigate = useNavigate()
+  // "Delete it" was pressed on this screen's card. A refresh can take the card off the screen after
+  // the server committed and before the answer (GET /closures every 5 minutes, GET /exams on focus),
+  // and a 404 has no onSuccess: either way the card cannot leave the screen itself, so the page does
+  // once the exam is gone. The toast with its Undo is the action's, and stays.
+  const deletedHere = useRef(false)
+  const gone = exams.data !== undefined && exam === undefined
+  useEffect(() => {
+    if (gone && sheet === null && deletedHere.current) void navigate('/exams', { replace: true })
+  }, [gone, sheet, navigate])
 
   if (exams.isPending) {
     return (
@@ -150,7 +159,14 @@ export function ExamPage() {
           <PracticeExamButton />
         </>
       ) : (
-        <ClosureCard exam={exam} state={state} onOpen={setSheet} />
+        <ClosureCard
+          exam={exam}
+          state={state}
+          onOpen={setSheet}
+          onDelete={() => {
+            deletedHere.current = true
+          }}
+        />
       )}
     </div>
   )

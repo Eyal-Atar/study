@@ -46,7 +46,7 @@ function PendingCard({ exam, item, onOpen }: { exam: Exam; item: ClosureItem; on
 }
 
 // Waiting for its retake: plan it, keep it as a memory (a toast with its Undo), or delete it.
-function WaitingCard({ exam, item, onPlan }: { exam: Exam; item: ClosureItem; onPlan: () => void }) {
+function WaitingCard({ exam, item, onPlan, onDelete }: { exam: Exam; item: ClosureItem; onPlan: () => void; onDelete: () => void }) {
   const actions = useClosureActions()
   const materials = useMaterials(exam.id)
   const navigate = useNavigate()
@@ -77,6 +77,7 @@ function WaitingCard({ exam, item, onPlan }: { exam: Exam; item: ClosureItem; on
           isPending={deleting}
           isDisabled={closing}
           onPress={() => {
+            onDelete()
             actions.remove(item, {
               onSuccess: () => {
                 // The screen of a deleted exam is "not found": the list instead, and Back does not return here.
@@ -121,7 +122,18 @@ function ArchivedCard({ exam }: { exam: Exam }) {
   )
 }
 
-export function ClosureCard({ exam, state, onOpen }: { exam: Exam; state: 'pending' | 'waiting_moed_b' | 'done'; onOpen: (sheet: NonNullable<ClosureSheetState>) => void }) {
+// onDelete: the student pressed "Delete it" here (ExamPage leaves the screen once the exam is gone).
+export function ClosureCard({
+  exam,
+  state,
+  onOpen,
+  onDelete,
+}: {
+  exam: Exam
+  state: 'pending' | 'waiting_moed_b' | 'done'
+  onOpen: (sheet: NonNullable<ClosureSheetState>) => void
+  onDelete: () => void
+}) {
   const closures = useClosures()
   if (state === 'done') return <ArchivedCard exam={exam} />
   // Only when there is nothing to show: a background refresh that fails (a phone without a network)
@@ -159,6 +171,7 @@ export function ClosureCard({ exam, state, onOpen }: { exam: Exam; state: 'pendi
       onPlan={() => {
         onOpen({ kind: 'moedB', item })
       }}
+      onDelete={onDelete}
     />
   )
 }
