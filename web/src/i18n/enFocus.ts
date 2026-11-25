@@ -29,7 +29,7 @@ export const enFocus = {
   // Picked by the day of the year, like archiLine.
   running: [
     'I’m right here, studying with you.',
-    'I’ll watch the clock, so you don’t have to.',
+    'Take your time. I’ll be here when you look up.',
     'One step at a time. I’m not going anywhere.',
   ],
   // The tiny first step of "Just 5 minutes", by the kind of the task (the audit, 17).
