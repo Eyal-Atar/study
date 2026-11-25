@@ -53,6 +53,8 @@ export const enGarden = {
       bonsai: 'A bonsai',
       garden: 'A whole zen garden',
     },
+    // The short name of the buds of a streak that ended (the label of that item of the scene).
+    buds: 'Buds',
     hint: 'Tap anything in the garden for its story.',
   },
   // The caption when a thing in the garden is selected.

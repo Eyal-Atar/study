@@ -30,6 +30,7 @@ describe('enGarden: the binding sentences of the plan', () => {
     ['scene.stage.young', scene.stage.young, 'A young tree'],
     ['scene.stage.bonsai', scene.stage.bonsai, 'A bonsai'],
     ['scene.stage.garden', scene.stage.garden, 'A whole zen garden'],
+    ['scene.buds', scene.buds, 'Buds'],
     ['scene.hint', scene.hint, 'Tap anything in the garden for its story.'],
     [
       'story.tree',
@@ -180,6 +181,7 @@ const TITLES = [
   celebrate.badgeTitle('10 blocks'),
   // Labels and chips: short phrases, not sentences of Archi.
   ...Object.values(scene.stage),
+  scene.buds,
   streak.longest('15 days'),
   celebrate.xpToday('60'),
   celebrate.streak(5),

@@ -149,8 +149,9 @@ export const STAGE_ART: Record<Stage, StageArt> = {
   },
 }
 
-/** The pond of the full garden, on the back of the sand left of the centre, behind the row of stones (from the base). */
-export const POND = { cx: -58, cy: -2, rx: 16, ry: 3.5 } as const
+/** The pond of the full garden: a thin pool on the back edge of the sand, left of the centre, above the
+ *  tops of the back row of stones so they do not hide it (from the base of the centre). */
+export const POND = { cx: -62, cy: -3.25, rx: 18, ry: 2.75 } as const
 
 /** A raked line across the whole ground, from x=-200 to x=560: gentle waves of 40 units. */
 export function rakeLine(y: number): string {

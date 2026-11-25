@@ -1,4 +1,4 @@
-import type { JSX, KeyboardEvent, ReactNode } from 'react'
+import type { JSX, KeyboardEvent, ReactNode, SVGProps } from 'react'
 import { isolate } from '../i18n/bidi'
 import { en } from '../i18n/en'
 import { cx } from '../ui/styles'
@@ -64,43 +64,37 @@ function badgeName(key: string): string {
 // The hit area of an item and the dashed line of its focus, the same shape.
 type Area = { kind: 'rect'; x: number; y: number; width: number; height: number } | { kind: 'circle'; r: number }
 
-function AreaShape({ area, className, hit }: { area: Area; className: string; hit?: boolean }) {
-  const common = {
-    'aria-hidden': true,
-    className,
-    fill: 'none',
-    ...(hit
-      ? { pointerEvents: 'all', 'data-hit': '' }
-      : { strokeWidth: 2, strokeDasharray: '4 3', pointerEvents: 'none' }),
-  } as const
+function AreaShape({ area, className, ...rest }: { area: Area; className?: string } & SVGProps<SVGRectElement & SVGCircleElement>) {
   return area.kind === 'rect' ? (
-    <rect x={area.x} y={area.y} width={area.width} height={area.height} rx={8} {...common} />
+    <rect x={area.x} y={area.y} width={area.width} height={area.height} rx={8} className={className} {...rest} />
   ) : (
-    <circle r={area.r} {...common} />
+    <circle r={area.r} className={className} {...rest} />
   )
 }
 
-// One thing in the garden: a button when the scene is interactive, a picture otherwise.
-function Item({
-  item,
-  label,
-  area,
-  transform,
-  selected,
-  onSelect,
-  data,
-  children,
-}: {
+// One thing in the garden, with what both of its layers need.
+interface Entry {
   item: GardenItem
   label: string
   area: Area
   transform?: string
+  data?: Record<`data-${string}`, string>
+  art: ReactNode
+}
+
+// The art of a thing: a button when the scene is interactive, a picture otherwise. Its hit area is
+// not here but in the layer under all the art (HitLayer), so a tap on drawn art always goes to the
+// thing drawn there, and the 44-unit area only catches taps on the empty sand around it.
+function Item({
+  entry,
+  selected,
+  onSelect,
+}: {
+  entry: Entry
   selected: boolean
   onSelect?: (item: GardenItem) => void
-  data?: Record<`data-${string}`, string>
-  children: ReactNode
 }) {
-  const interactive = onSelect !== undefined
+  const { item, label, area, transform, data, art } = entry
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
@@ -114,7 +108,7 @@ function Item({
       data-item={itemId(item)}
       data-selected={selected ? '' : undefined}
       {...data}
-      {...(interactive
+      {...(onSelect
         ? {
             role: 'button',
             tabIndex: 0,
@@ -127,21 +121,77 @@ function Item({
           }
         : { 'aria-hidden': true })}
     >
-      <AreaShape area={area} className="" hit />
-      <g aria-hidden="true">{children}</g>
-      <AreaShape area={area} className="garden-ring stroke-brand" />
+      <g aria-hidden="true">{art}</g>
+      <AreaShape
+        area={area}
+        aria-hidden="true"
+        className="garden-ring stroke-brand"
+        fill="none"
+        strokeWidth={2}
+        strokeDasharray="4 3"
+        pointerEvents="none"
+      />
     </g>
   )
 }
 
-// The stones: from the base outwards, one to the right and one to the left, alternating between a
-// back row (y=128) and a front row (y=140); the back row is drawn first so the front one covers it.
-function stonePlaces(count: number) {
-  return Array.from({ length: Math.min(count, MAX_STONES) }, (_, i) => {
-    const step = Math.floor(i / 2)
-    const side = i % 2 === 0 ? 1 : -1
-    return { index: i, x: CENTRE_X + side * (34 + step * 17), y: step % 2 === 0 ? 140 : 128 }
-  }).sort((a, b) => a.y - b.y)
+// The transparent hit areas of every thing, in one layer under all the art. The same choice as the
+// button above it; a pointer only, since the keyboard reaches the button itself.
+function HitLayer({ entries, onSelect }: { entries: Entry[]; onSelect: (item: GardenItem) => void }) {
+  return (
+    <g aria-hidden="true">
+      {entries.map(({ item, area, transform }) => (
+        <g key={itemId(item)} transform={transform}>
+          <AreaShape
+            area={area}
+            fill="none"
+            pointerEvents="all"
+            className="garden-hit"
+            data-hit={itemId(item)}
+            onClick={() => {
+              onSelect(item)
+            }}
+          />
+        </g>
+      ))}
+    </g>
+  )
+}
+
+// The stones, from the base outwards on both sides, alternating between a back row (y=128) and a
+// front row (y=140); the back row is drawn first so the front one covers it. A stone is 28.8 units
+// wide, so its centre stays 14.4 units inside the card. With flowers in the front right corner, the
+// right side ends left of their area and the rest go to the left, closer together.
+const STONE_HALF = STONE_SIZE / 2
+const STONE_FIRST = 34
+const STONE_STEP = 16
+const STONE_REACH = CENTRE_X - STONE_HALF
+
+function stoneSide(count: number, sign: 1 | -1, reach: number) {
+  const step = count > 1 ? Math.min(STONE_STEP, (reach - STONE_FIRST) / (count - 1)) : STONE_STEP
+  return Array.from({ length: count }, (_, k) => ({
+    x: Math.round((CENTRE_X + sign * (STONE_FIRST + k * step)) * 100) / 100,
+    y: k % 2 === 0 ? 140 : 128,
+  }))
+}
+
+function stonePlaces(count: number, flowers: Area | null) {
+  const n = Math.min(count, MAX_STONES)
+  const rightReach = flowers?.kind === 'rect' ? Math.min(STONE_REACH, flowers.x - STONE_HALF - CENTRE_X) : STONE_REACH
+  const rightRoom = Math.max(0, Math.floor((rightReach - STONE_FIRST) / STONE_STEP) + 1)
+  const rightCount = Math.min(Math.ceil(n / 2), rightRoom)
+  const leftCount = n - rightCount
+  const right = stoneSide(rightCount, 1, rightReach)
+  const left = stoneSide(leftCount, -1, STONE_REACH)
+  // Stone i goes right and left in turn while the right side has room, then left.
+  const places: { index: number; x: number; y: number }[] = []
+  let r = 0
+  let l = 0
+  for (let i = 0; i < n; i++) {
+    const place = (i % 2 === 0 && r < rightCount) || l >= leftCount ? right[r++] : left[l++]
+    if (place) places.push({ index: i, ...place })
+  }
+  return places.sort((a, b) => a.y - b.y)
 }
 
 // The flowers of the streak, the branches above them, or the buds: in the front right corner,
@@ -170,11 +220,74 @@ function flowersArea(model: GardenModel): Area {
 }
 
 export function GardenScene({ model, selected, onSelect, play, label, className }: GardenSceneProps): JSX.Element {
-  const art = STAGE_ART[model.stage]
-  const treeHeight = Math.max(HIT, art.height + 8)
-  const treeWidth = Math.max(HIT, art.width)
-  const pick = { onSelect }
+  const stageArt = STAGE_ART[model.stage]
+  const treeHeight = Math.max(HIT, stageArt.height + 8)
+  const treeWidth = Math.max(HIT, stageArt.width)
   const showFlowers = model.flowers + model.branches + model.buds > 0
+  const flowers = showFlowers ? flowersArea(model) : null
+
+  const entries: Entry[] = [
+    {
+      item: { kind: 'tree' },
+      label: en.garden.scene.stage[model.stage],
+      area: { kind: 'rect', x: -treeWidth / 2, y: 4 - treeHeight, width: treeWidth, height: treeHeight },
+      transform: `translate(${String(CENTRE_X)} ${String(BASE_Y)})`,
+      data: { 'data-stage': model.stage },
+      art: (
+        <>
+          <g className={play === 'open' ? 'garden-sway' : undefined}>
+            <StagePlant stage={model.stage} />
+            {stageArt.leaves.slice(0, model.leaves).map((spot) => (
+              <Leaf key={spot.join(',')} spot={spot} />
+            ))}
+          </g>
+          {play === 'open' && (
+            <g transform={`translate(${String(stageArt.fall[0])} ${String(stageArt.fall[1])})`}>
+              <path d={LEAF} className="garden-leaf-fall fill-sprout stroke-brand" strokeWidth={1} strokeLinejoin="round" />
+            </g>
+          )}
+        </>
+      ),
+    },
+    ...model.plants.slice(0, PLANT_X.length).map((plant, i): Entry => {
+      const x = PLANT_X[i] ?? CENTRE_X
+      return {
+        item: { kind: 'plant', id: plant.id },
+        label: isolate(plant.name),
+        area: { kind: 'rect', x: -HIT / 2, y: -42, width: HIT, height: 46 },
+        transform: `translate(${String(x)} ${String(BASE_Y)})`,
+        data: { 'data-x': String(x) },
+        art: <PlantShape growth={plant.growth} colorIndex={plant.colorIndex} />,
+      }
+    }),
+    ...stonePlaces(model.stones.length, flowers).flatMap(({ index, x, y }): Entry[] => {
+      const stone = model.stones[index]
+      if (stone === undefined) return []
+      return [
+        {
+          item: { kind: 'stone', key: stone.key },
+          label: badgeName(stone.key),
+          area: { kind: 'circle', r: HIT / 2 },
+          transform: `translate(${String(x)} ${String(y)})`,
+          art: (
+            <g transform={`translate(${String(-STONE_HALF)} ${String(-STONE_HALF)}) scale(${String(STONE_SCALE)})`}>
+              <StoneShape group={stone.group} earned />
+            </g>
+          ),
+        },
+      ]
+    }),
+    ...(flowers === null
+      ? []
+      : [
+          {
+            item: { kind: 'flowers' } as const,
+            label: model.streakCurrent > 0 ? en.garden.celebrate.streak(model.streakCurrent) : en.garden.scene.buds,
+            area: flowers,
+            art: <Flowers model={model} />,
+          },
+        ]),
+  ]
 
   return (
     <div className={cx('relative overflow-hidden rounded-card bg-linear-to-b from-sky-from to-sky-to', className)}>
@@ -215,79 +328,11 @@ export function GardenScene({ model, selected, onSelect, play, label, className 
           />
         )}
 
-        <Item
-          item={{ kind: 'tree' }}
-          label={en.garden.scene.stage[model.stage]}
-          area={{ kind: 'rect', x: -treeWidth / 2, y: 4 - treeHeight, width: treeWidth, height: treeHeight }}
-          transform={`translate(${String(CENTRE_X)} ${String(BASE_Y)})`}
-          selected={sameItem(selected, { kind: 'tree' })}
-          data={{ 'data-stage': model.stage }}
-          {...pick}
-        >
-          <g className={play === 'open' ? 'garden-sway' : undefined}>
-            <StagePlant stage={model.stage} />
-            {art.leaves.slice(0, model.leaves).map((spot) => (
-              <Leaf key={spot.join(',')} spot={spot} />
-            ))}
-          </g>
-          {play === 'open' && (
-            <g transform={`translate(${String(art.fall[0])} ${String(art.fall[1])})`}>
-              <path d={LEAF} className="garden-leaf-fall fill-sprout stroke-brand" strokeWidth={1} strokeLinejoin="round" />
-            </g>
-          )}
-        </Item>
+        {onSelect && <HitLayer entries={entries} onSelect={onSelect} />}
 
-        {model.plants.slice(0, PLANT_X.length).map((plant, i) => {
-          const x = PLANT_X[i] ?? CENTRE_X
-          const item: GardenItem = { kind: 'plant', id: plant.id }
-          return (
-            <Item
-              key={plant.id}
-              item={item}
-              label={isolate(plant.name)}
-              area={{ kind: 'rect', x: -HIT / 2, y: -42, width: HIT, height: 46 }}
-              transform={`translate(${String(x)} ${String(BASE_Y)})`}
-              selected={sameItem(selected, item)}
-              data={{ 'data-x': String(x) }}
-              {...pick}
-            >
-              <PlantShape growth={plant.growth} colorIndex={plant.colorIndex} />
-            </Item>
-          )
-        })}
-
-        {stonePlaces(model.stones.length).map(({ index, x, y }) => {
-          const stone = model.stones[index]
-          if (stone === undefined) return null
-          const item: GardenItem = { kind: 'stone', key: stone.key }
-          return (
-            <Item
-              key={stone.key}
-              item={item}
-              label={badgeName(stone.key)}
-              area={{ kind: 'circle', r: HIT / 2 }}
-              transform={`translate(${String(x)} ${String(y)})`}
-              selected={sameItem(selected, item)}
-              {...pick}
-            >
-              <g transform={`translate(${String(-STONE_SIZE / 2)} ${String(-STONE_SIZE / 2)}) scale(${String(STONE_SCALE)})`}>
-                <StoneShape group={stone.group} earned />
-              </g>
-            </Item>
-          )
-        })}
-
-        {showFlowers && (
-          <Item
-            item={{ kind: 'flowers' }}
-            label={model.streakCurrent > 0 ? en.garden.celebrate.streak(model.streakCurrent) : en.garden.story.buds}
-            area={flowersArea(model)}
-            selected={sameItem(selected, { kind: 'flowers' })}
-            {...pick}
-          >
-            <Flowers model={model} />
-          </Item>
-        )}
+        {entries.map((entry) => (
+          <Item key={itemId(entry.item)} entry={entry} selected={sameItem(selected, entry.item)} onSelect={onSelect} />
+        ))}
       </svg>
     </div>
   )

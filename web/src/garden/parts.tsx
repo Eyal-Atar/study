@@ -97,7 +97,7 @@ function StemLeaves({ at }: { at: number[] }) {
 }
 
 const stem = (top: number) => (
-  <path d={`M0 0C.5 ${String(top / 3)}-.5 ${String((top * 2) / 3)} 0 ${String(top)}`} fill="none" className="stroke-brand" strokeWidth={1.75} strokeLinecap="round" />
+  <path d={`M0 0C.5 ${String(top / 3)}-.5 ${String((top * 2) / 3)} 0 ${String(top)}`} fill="none" className="stroke-brand" strokeWidth={1.75} strokeLinecap="round" data-part="stem" />
 )
 
 // The centre of the flower of a bloom, above its base.

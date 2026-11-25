@@ -155,7 +155,7 @@ describe('GardenScene', () => {
     for (const button of buttons) {
       expect(button).toHaveAttribute('tabindex', '0')
       expect(button.getAttribute('aria-label')).toBeTruthy()
-      const hit = button.querySelector('[data-hit]')
+      const hit = svg.querySelector(`[data-hit="${button.getAttribute('data-item') ?? ''}"]`)
       if (hit === null) throw new Error('no hit area')
       const size =
         hit.tagName === 'circle'
@@ -163,6 +163,91 @@ describe('GardenScene', () => {
           : Math.min(Number(hit.getAttribute('width')), Number(hit.getAttribute('height')))
       expect(size).toBeGreaterThanOrEqual(44)
     }
+  })
+
+  it('draws every hit area in one layer under all the art, so drawn art takes its own taps', () => {
+    const { svg } = scene({ model: FULL, onSelect: vi.fn() })
+
+    const hits = [...svg.querySelectorAll('[data-hit]')]
+    const buttons = [...svg.querySelectorAll('[role="button"]')]
+    expect(hits).toHaveLength(buttons.length)
+    for (const hit of hits) {
+      expect(hit.closest('[role="button"]')).toBeNull()
+      for (const button of buttons) {
+        expect(hit.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      }
+    }
+  })
+
+  it('a tap on empty sand inside an item\'s area selects that item', async () => {
+    const onSelect = vi.fn()
+    const { svg } = scene({ model: FULL, onSelect })
+
+    const hit = svg.querySelector('[data-hit="stone:task_master_10"]')
+    if (hit === null) throw new Error('no hit area')
+    await userEvent.click(hit)
+    expect(onSelect).toHaveBeenLastCalledWith({ kind: 'stone', key: 'task_master_10' })
+  })
+
+  it('a tap on the art of a back-row stone or on the stem of plant 140 selects that thing', async () => {
+    const onSelect = vi.fn()
+    const stones = Array.from({ length: 6 }, (_, i) => stone({ key: `k${String(i)}` }))
+    const { svg } = scene({ model: model({ plants: [plant({ id: 'a' })], stones }), onSelect })
+
+    // The stone at (129, 128) is in the back row; its front neighbours are drawn after it.
+    const back = svg.querySelector('[data-item="stone:k3"]')
+    expect(back?.getAttribute('transform')).toMatch(/ 128\)$/)
+    const art = back?.querySelector('[data-part="stone"]')
+    if (!art) throw new Error('no stone art')
+    await userEvent.click(art)
+    expect(onSelect).toHaveBeenLastCalledWith({ kind: 'stone', key: 'k3' })
+
+    const stem = svg.querySelector('[data-item="plant:a"] [data-part="stem"]')
+    if (stem === null) throw new Error('no stem')
+    await userEvent.click(stem)
+    expect(onSelect).toHaveBeenLastCalledWith({ kind: 'plant', id: 'a' })
+  })
+
+  it('keeps every stone inside the card and clear of the streak flowers', () => {
+    const stones = Array.from({ length: 18 }, (_, i) => stone({ key: `k${String(i)}` }))
+    const widest = model({ stones, flowers: 6, branches: 4, streakCurrent: 34 })
+    const { svg } = scene({ model: widest, onSelect: vi.fn() })
+
+    const flowers = svg.querySelector('[data-hit="flowers"]')
+    if (flowers === null) throw new Error('no flowers area')
+    const fx = Number(flowers.getAttribute('x'))
+    const fy = Number(flowers.getAttribute('y'))
+    const fw = Number(flowers.getAttribute('width'))
+    const fh = Number(flowers.getAttribute('height'))
+    const placed = [...svg.querySelectorAll('[data-item^="stone:"]')]
+    expect(placed).toHaveLength(18)
+    for (const item of placed) {
+      const [x = NaN, y = NaN] = (/translate\(([-\d.]+) ([-\d.]+)\)/.exec(item.getAttribute('transform') ?? '') ?? [])
+        .slice(1)
+        .map(Number)
+      const half = 14.4
+      expect(x - half).toBeGreaterThanOrEqual(0)
+      expect(x + half).toBeLessThanOrEqual(360)
+      const apart = x + half <= fx || x - half >= fx + fw || y + half <= fy || y - half >= fy + fh
+      expect(apart).toBe(true)
+    }
+  })
+
+  it('without flowers the stones still stay inside the card', () => {
+    const stones = Array.from({ length: 18 }, (_, i) => stone({ key: `k${String(i)}` }))
+    const { svg } = scene({ model: model({ stones }) })
+
+    for (const item of svg.querySelectorAll('[data-item^="stone:"]')) {
+      const x = Number(/translate\(([-\d.]+) /.exec(item.getAttribute('transform') ?? '')?.[1])
+      expect(x).toBeGreaterThanOrEqual(14.4)
+      expect(x).toBeLessThanOrEqual(360 - 14.4)
+    }
+  })
+
+  it('the buds have a short name', () => {
+    const { svg } = scene({ model: model({ buds: 3 }), onSelect: vi.fn() })
+
+    expect(svg.querySelector('[data-item="flowers"]')).toHaveAttribute('aria-label', en.garden.scene.buds)
   })
 
   it('names each item by its short name', () => {

@@ -1,6 +1,7 @@
 /* The garden scene (S33, Task 5, GardenScene.tsx).
 
-   An item of the garden is a <g role="button"> when the scene is interactive. It shows no outline
+   An item of the garden is a <g role="button"> when the scene is interactive; its transparent hit
+   area (.garden-hit) lies in one layer under all the art (GardenScene.tsx). The item shows no outline
    of its own: the dashed brand line around its hit area (.garden-ring) is its focus ring, shown
    for a keyboard focus and for the selected item.
 
@@ -14,7 +15,8 @@
   outline: none;
 }
 
-.garden-item[role='button'] {
+.garden-item[role='button'],
+.garden-hit {
   cursor: pointer;
 }
 
