@@ -88,7 +88,7 @@ function ringCentre() {
 // The arrow has the same name as the button with the words; this is the one with the words.
 function backButton() {
   const button = screen.getAllByRole('button', { name: en.focus.back }).find((b) => b.textContent === en.focus.back)
-  if (button === undefined) throw new Error('no Back to my calendar button with words')
+  if (button === undefined) throw new Error('no Back to the calendar button with words')
   return button
 }
 
@@ -251,7 +251,10 @@ describe('FocusPage, Done', () => {
     expect(primaries[0]?.textContent).toBe(en.focus.back)
     expect(back).toBeInTheDocument()
     expect(router.state.location.pathname).toBe(focusPath(RUNNING.id))
-    expect(archiMayInterrupt(Date.now())).toBe(false)
+    // Noted once the server said yes.
+    await waitFor(() => {
+      expect(archiMayInterrupt(Date.now())).toBe(false)
+    })
     // The server's answer and the refetch make the block done: the screen still shows its own break.
     await waitFor(() => {
       expect(fake.calls('GET', '/today').length).toBeGreaterThan(1)
@@ -263,6 +266,125 @@ describe('FocusPage, Done', () => {
     await user.click(primaries[0] as HTMLElement)
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/calendar')
+    })
+  })
+})
+
+// Two done blocks of 45 minutes, 09:30–11:00: with a focus from 11:05 to now (11:25), Done earns a break.
+const DONE_A = makeBlock({ id: 'b-a', task_id: 't-a', study_date: CAL_TODAY, status: 'done', state: 'done', starts_at: '2026-11-24T07:30:00Z', ends_at: '2026-11-24T08:15:00Z' })
+const DONE_B = makeBlock({ id: 'b-b', task_id: 't-b', study_date: CAL_TODAY, status: 'done', state: 'done', starts_at: '2026-11-24T08:15:00Z', ends_at: '2026-11-24T09:00:00Z' })
+
+describe('FocusPage, the break and the arrow', () => {
+  it('leaving the break more than 20 minutes later: the calendar does not pour the tea again', async () => {
+    writeSession(USER_ID, fullSession(NOW - 20 * MINUTE))
+    const { router } = open([DONE_A, DONE_B, RUNNING, LATER])
+    await heading()
+    await user.click(screen.getByRole('button', { name: en.board.completeLabel(blockName(RUNNING)) }))
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent(en.calendar.archi.breakTitle)
+    })
+    await waitFor(() => {
+      expect(archiMayInterrupt(Date.now())).toBe(false)
+    })
+    // Past the block's planned end (12:30), where the calendar would see the run as just over.
+    vi.setSystemTime(RUNNING_ENDS + 5 * MINUTE)
+    await user.click(backButton())
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/calendar')
+    })
+    await screen.findByRole('navigation', { name: en.shell.mainNav })
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(screen.queryByText(en.calendar.archi.breakTitle)).not.toBeInTheDocument()
+  })
+
+  it('when the time is over, the arrow ends the session too, like the button of the same name', async () => {
+    writeSession(USER_ID, fullSession(NOW - 30 * MINUTE, NOW - MINUTE))
+    const { router } = open([RUNNING])
+    await heading()
+    const arrow = screen.getAllByRole('button', { name: en.focus.back }).find((b) => b.textContent !== en.focus.back)
+    await user.click(arrow as HTMLElement)
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/calendar')
+    })
+    expect(stored()).toBeNull()
+  })
+
+  it('the h1 is described by Archi’s line, so a screen reader hears the tiny task on the way in', async () => {
+    writeSession(USER_ID, fiveSession())
+    open([RUNNING, LATER])
+    const h1 = await heading()
+    expect(h1).toHaveAccessibleDescription(en.focus.fiveTask.learn)
+  })
+})
+
+describe('FocusPage, a Done that fails', () => {
+  function failing(blocks: Block[]) {
+    const opened = open(blocks)
+    opened.fake.on({ method: 'POST', path: /^\/blocks\/[^/]+\/complete$/ }, problem(500, 'internal'))
+    return opened
+  }
+
+  it('without a break: the session comes back, with the same start, and the block stays planned', async () => {
+    writeSession(USER_ID, fullSession(NOW - 5 * MINUTE))
+    const { fake, router } = failing([RUNNING, LATER])
+    await heading()
+    await user.click(screen.getByRole('button', { name: en.board.completeLabel(blockName(RUNNING)) }))
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/calendar')
+    })
+    await waitFor(() => {
+      expect(fake.calls('POST', `/blocks/${RUNNING.id}/complete`)).toHaveLength(1)
+    })
+    await waitFor(() => {
+      expect(stored()?.startedAt).toBe(NOW - 5 * MINUTE)
+    })
+    expect(stored()?.blockId).toBe(RUNNING.id)
+  })
+
+  it('with a break: the screen goes back to the timer and the calendar may still speak', async () => {
+    writeSession(USER_ID, fullSession(NOW - 20 * MINUTE))
+    const { router } = failing([DONE_A, DONE_B, RUNNING, LATER])
+    await heading()
+    await user.click(screen.getByRole('button', { name: en.board.completeLabel(blockName(RUNNING)) }))
+    expect(await screen.findByRole('meter', { name: en.focus.timerLabel })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(stored()?.startedAt).toBe(NOW - 20 * MINUTE)
+    })
+    expect(en.focus.running).toContain(screen.getByRole('status').textContent)
+    expect(screen.getByRole('button', { name: en.board.completeLabel(blockName(RUNNING)) })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe(focusPath(RUNNING.id))
+    expect(archiMayInterrupt(Date.now())).toBe(true)
+  })
+})
+
+describe('FocusPage, the focus between views', () => {
+  it('Done keeps the focus when the time runs out', async () => {
+    writeSession(USER_ID, fullSession(NOW - 10 * MINUTE, NOW + 2 * MINUTE))
+    open([RUNNING, LATER])
+    await heading()
+    const done = screen.getByRole('button', { name: en.board.completeLabel(blockName(RUNNING)) })
+    act(() => {
+      done.focus()
+    })
+    expect(done).toHaveFocus()
+    advance(2 * MINUTE)
+    await screen.findByText(en.focus.over)
+    expect(isPrimary(screen.getByRole('button', { name: en.board.completeLabel(blockName(RUNNING)) }))).toBe(true)
+    expect(document.activeElement).toBe(done)
+  })
+
+  it('after a Done that brings the break, the focus is on the h1', async () => {
+    writeSession(USER_ID, fullSession(NOW - 20 * MINUTE))
+    open([DONE_A, DONE_B, RUNNING, LATER])
+    const h1 = await heading()
+    await user.click(screen.getByRole('button', { name: en.board.completeLabel(blockName(RUNNING)) }))
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent(en.calendar.archi.breakTitle)
+    })
+    await waitFor(() => {
+      expect(document.activeElement).toBe(h1)
     })
   })
 })
@@ -376,7 +498,7 @@ describe('FocusPage, leaving', () => {
     expect(stored()?.blockId).toBe(RUNNING.id)
   })
 
-  it('when the time is over, Back to my calendar ends the session', async () => {
+  it('when the time is over, Back to the calendar ends the session', async () => {
     writeSession(USER_ID, fullSession(NOW - 30 * MINUTE, NOW - MINUTE))
     const { router } = open([RUNNING])
     await heading()

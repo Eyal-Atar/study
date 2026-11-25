@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { errorMessage } from '../api/client'
 import type { ArchieMood } from '../archie/Archie'
@@ -55,6 +56,30 @@ function dayOfYear(date: string): number {
   return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 1)) / 86_400_000) + 1
 }
 
+// Calls back once the next complete of this block settles (I1). It watches the mutation cache, not the
+// screen, so it still hears the answer after Done has taken the student back to the calendar; the first
+// mutation of the block to start after the call is ours, since Done disables itself while one runs.
+function onCompleteSettled(client: QueryClient, blockId: string, on: { success(): void; error(): void }) {
+  let ours: unknown = null
+  const unsubscribe = client.getMutationCache().subscribe((event) => {
+    if (event.type !== 'updated') return
+    const { mutation } = event
+    if (ours === null) {
+      const vars = mutation.state.variables as { block?: Block } | undefined
+      if (mutation.state.status !== 'pending' || vars?.block?.id !== blockId) return
+      ours = mutation
+    }
+    if (mutation !== ours) return
+    if (mutation.state.status === 'success') {
+      unsubscribe()
+      on.success()
+    } else if (mutation.state.status === 'error') {
+      unsubscribe()
+      on.error()
+    }
+  })
+}
+
 function moodOf(view: FocusView): ArchieMood {
   switch (view) {
     case 'over':
@@ -83,6 +108,7 @@ export function FocusPage() {
   const userId = useBoardUserId()
   const tz = useProfileTimezone()
   const actions = useBlockActions()
+  const queryClient = useQueryClient()
   const today = useToday()
   const session = useFocusSession()
   const own = session !== null && session.blockId === blockId ? session : null
@@ -91,6 +117,21 @@ export function FocusPage() {
   // The block a session was started or ended for here: a session is written from the address once,
   // also under StrictMode, and never again after Stop cleared it on the way out.
   const handled = useRef<string | null>(null)
+  const mounted = useRef(false)
+  const heading = useRef<HTMLHeadingElement>(null)
+  const lineId = useId()
+
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+
+  // The button that was pressed is gone when the break comes: the focus goes to the heading (I2).
+  useEffect(() => {
+    if (finished === 'break') heading.current?.focus()
+  }, [finished])
 
   const view = focusView({
     finished,
@@ -128,6 +169,12 @@ export function FocusPage() {
     leave()
   }
 
+  // Leaving the break: the calendar must not pour the tea again (M6).
+  function leaveBreak() {
+    noteArchiInterrupt(Date.now())
+    leave()
+  }
+
   function stop() {
     endAndLeave()
     toast.show({ text: en.focus.stopped, tone: 'info' })
@@ -138,14 +185,27 @@ export function FocusPage() {
     const at = Date.now()
     // Before the call, while the block is still planned in the cache.
     const brk = breakAfterFocus(today.data.blocks, block, own ?? newSession(block, 'full', at), at)
+    // A Done that fails puts the block back to planned (useBlockActions): the session comes back with
+    // it, and the screen, if still here, goes back to the timer. The break is noted only once it is real.
+    const saved = own
+    onCompleteSettled(queryClient, block.id, {
+      success: () => {
+        if (brk) noteArchiInterrupt(Date.now())
+      },
+      error: () => {
+        if (saved !== null && userId !== null) writeSession(userId, saved)
+        if (mounted.current) setFinished(null)
+      },
+    })
     actions.complete(block)
     handled.current = blockId
     if (userId !== null) clearSession(userId)
     setFinished(brk ? 'break' : 'leaving')
-    if (brk) noteArchiInterrupt(at)
-    else leave()
+    if (!brk) leave()
   }
 
+  const back = view === 'over' ? endAndLeave : view === 'break' ? leaveBreak : leave
+  const hasDone = view === 'five' || view === 'full' || view === 'over' || view === 'ended'
   const timed = view === 'five' || view === 'full' || view === 'over'
   const endsAtIso = own === null ? null : new Date(own.endsAt).toISOString()
   const untilTime = endsAtIso === null ? '' : formatTime(endsAtIso, tz)
@@ -180,13 +240,14 @@ export function FocusPage() {
     )
 
   return (
-    <div className="flex min-h-dvh flex-col bg-canvas px-page pt-[calc(0.75rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+    <div className="flex min-h-dvh flex-col px-page pt-[calc(0.75rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
       <div className="flex justify-start">
-        <IconButton aria-label={en.focus.back} onPress={leave}>
+        <IconButton aria-label={en.focus.back} onPress={back}>
           <ChevronLeft aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
         </IconButton>
       </div>
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-5 text-center">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-5 text-center lg:gap-4">
+        {/* lg:gap-4: the over view, Archi at his tallest and two lines of words, fits 1280x800 with no scroll. */}
         {/* He stands on the line of the surface, with no backdrop and no frame (the audit, 3). */}
         <div className="flex w-full justify-center border-b border-line">
           <div className="w-[220px] lg:w-[260px]">
@@ -194,7 +255,7 @@ export function FocusPage() {
           </div>
         </div>
         {/* The one live region: its text changes only when the phase does, never each minute. */}
-        <p role="status" className="text-[17px] leading-[1.3] font-semibold text-ink">
+        <p id={lineId} role="status" className="text-body leading-[1.3] font-semibold text-ink">
           {line}
         </p>
 
@@ -228,7 +289,12 @@ export function FocusPage() {
 
         <div className="flex w-full flex-col items-center gap-1">
           {/* The same h1 in every view, so the focus after a navigation lands on it (decision 14). */}
-          <h1 tabIndex={-1} className="text-[20px] font-semibold break-words text-ink outline-none">
+          <h1
+            ref={heading}
+            tabIndex={-1}
+            aria-describedby={lineId}
+            className="text-title font-semibold break-words text-ink outline-none"
+          >
             {block === undefined ? en.focus.title : <UserText>{block.task_title}</UserText>}
           </h1>
           {block === undefined || KindIcon === null ? null : (
@@ -253,33 +319,27 @@ export function FocusPage() {
           />
         ) : null}
 
+        {/* Done keeps its place in every view that has it, and only its look changes, so the focus stays
+            on it when the time runs out (I2). */}
         <div className="flex w-full flex-col gap-2">
+          {hasDone ? doneButton(view === 'over' || view === 'ended' ? 'primary' : 'secondary') : null}
           {view === 'five' || view === 'full' ? (
-            <>
-              {doneButton('secondary')}
-              <Button variant="quiet" onPress={stop}>
-                {en.focus.stop}
-              </Button>
-            </>
+            <Button variant="quiet" onPress={stop}>
+              {en.focus.stop}
+            </Button>
           ) : null}
           {view === 'over' ? (
-            <>
-              {doneButton('primary')}
-              <Button variant="quiet" onPress={endAndLeave}>
-                {en.focus.back}
-              </Button>
-            </>
+            <Button variant="quiet" onPress={endAndLeave}>
+              {en.focus.back}
+            </Button>
           ) : null}
           {view === 'ended' ? (
-            <>
-              {doneButton('primary')}
-              <Button variant="secondary" onPress={leave}>
-                {en.focus.back}
-              </Button>
-            </>
+            <Button variant="secondary" onPress={leave}>
+              {en.focus.back}
+            </Button>
           ) : null}
           {view === 'alreadyDone' || view === 'gone' || view === 'notToday' || view === 'break' ? (
-            <Button variant="primary" onPress={leave}>
+            <Button variant="primary" onPress={back}>
               {en.focus.back}
             </Button>
           ) : null}
@@ -313,7 +373,7 @@ function ProgressTimer({
       valueText={en.focus.valueText(total, until)}
     >
       <span className="flex flex-col items-center gap-1">
-        <span className="text-[44px] leading-none font-semibold tabular-nums">{en.focus.minutesLeft(n)}</span>
+        <span className="text-[2.75rem] leading-none font-semibold tabular-nums">{en.focus.minutesLeft(n)}</span>
         <span className="text-small font-normal text-ink-muted">{view === 'five' ? en.focus.ofFive : en.focus.unit(n)}</span>
       </span>
     </ProgressRing>

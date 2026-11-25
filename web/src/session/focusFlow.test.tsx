@@ -136,6 +136,36 @@ describe('from the calendar into focus and out', () => {
     expect(stored()).toBeNull()
   })
 
+  it('Done on the screen flies the XP once, on the calendar it goes back to', async () => {
+    // jsdom lays nothing out: every element counts as shown.
+    Object.defineProperty(HTMLElement.prototype, 'offsetParent', { configurable: true, get: () => document.body })
+    const animate = vi.fn<(keyframes: Keyframe[], options: KeyframeAnimationOptions) => unknown>(() => ({
+      finished: new Promise(() => undefined),
+      cancel: vi.fn(),
+    }))
+    Object.defineProperty(Element.prototype, 'animate', { configurable: true, writable: true, value: animate })
+    try {
+      stubMedia({ reducedMotion: false })
+      open()
+      await user.click(await runningBlock())
+      await user.click((await sheet()).getByRole('button', { name: en.focus.startLabel(blockName(RUNNING)) }))
+      await heading(RUNNING)
+      await user.click(screen.getByRole('button', { name: en.board.completeLabel(blockName(RUNNING)) }))
+      const chip = await screen.findByText(en.calendar.page.xp(20))
+      expect(chip.closest('[aria-hidden="true"]')).not.toBeNull()
+      // The flight is the animation of 600 ms; nothing else on these screens takes that long.
+      const flights = () => animate.mock.calls.filter(([, options]) => options.duration === 600)
+      expect(flights()).toHaveLength(1)
+      act(() => {
+        vi.advanceTimersByTime(2000)
+      })
+      expect(flights()).toHaveLength(1)
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'offsetParent')
+      Reflect.deleteProperty(Element.prototype, 'animate')
+    }
+  })
+
   it('Just 5 minutes on a block that has not started: five minutes of a small task, then the same session goes on, with no dialog', async () => {
     open()
     await user.click(await laterBlock())
@@ -197,6 +227,9 @@ describe('from the calendar into focus and out', () => {
     await waitFor(() => {
       expect(state.blocks.find((b) => b.id === RUNNING.id)?.status).toBe('planned')
     })
+    // The grid too: its box offers to mark the block done again.
+    expect(await screen.findAllByRole('button', { name: en.board.completeLabel(blockName(RUNNING)) })).not.toHaveLength(0)
+    expect(screen.queryByRole('button', { name: en.board.uncompleteLabel(blockName(RUNNING)) })).not.toBeInTheDocument()
     expect(stored()).toBeNull()
     // And the grid offers to start it again.
     await user.click(await runningBlock())
