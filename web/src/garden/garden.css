@@ -1,0 +1,91 @@
+/* The garden scene (S33, Task 5, GardenScene.tsx).
+
+   An item of the garden is a <g role="button"> when the scene is interactive. It shows no outline
+   of its own: the dashed brand line around its hit area (.garden-ring) is its focus ring, shown
+   for a keyboard focus and for the selected item.
+
+   The motion runs once and only for whoever did not ask the system for less: the sway of the
+   centre and one falling leaf when the progress screen opens (--duration-ceremony, 1.5s), and the
+   petals of a bloom opening one after another (240ms each, the last one starting at 480ms). With
+   less motion nothing here moves: the scene is drawn in its final state, and the falling leaf,
+   which is extra to the leaves of the model, is not shown at all. */
+
+.garden-item {
+  outline: none;
+}
+
+.garden-item[role='button'] {
+  cursor: pointer;
+}
+
+.garden-ring {
+  visibility: hidden;
+}
+
+.garden-item:focus-visible .garden-ring,
+.garden-item[data-selected] .garden-ring {
+  visibility: visible;
+}
+
+/* The falling leaf ends invisible, and without the motion it never shows. */
+.garden-leaf-fall {
+  opacity: 0;
+}
+
+/* Scaled and turned from their base: the bottom centre of their own box. */
+.garden-sway,
+.garden-petal {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .garden-sway {
+    animation: garden-sway var(--duration-ceremony) var(--ease-standard) 1;
+  }
+
+  .garden-leaf-fall {
+    animation: garden-leaf-fall var(--duration-ceremony) var(--ease-standard) 1 both;
+  }
+
+  .garden-petal {
+    animation: garden-petal 240ms var(--ease-standard) 1 both;
+  }
+
+  @keyframes garden-sway {
+    0% {
+      transform: rotate(0deg);
+    }
+    33% {
+      transform: rotate(1.5deg);
+    }
+    66% {
+      transform: rotate(-1.5deg);
+    }
+    100% {
+      transform: rotate(0deg);
+    }
+  }
+
+  @keyframes garden-leaf-fall {
+    from {
+      transform: translate(0, 0);
+      opacity: 1;
+    }
+    to {
+      transform: translate(-12px, 40px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes garden-petal {
+    from {
+      transform: scale(0.4);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+}

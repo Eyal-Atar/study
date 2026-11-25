@@ -68,6 +68,7 @@ export const SECTIONS = [
   { id: 'commitment-dialog', title: 'Commitment dialog' },
   { id: 'timetable-import', title: 'Timetable import' },
   { id: 'badge-stones', title: 'Badge stones' },
+  { id: 'garden-scene', title: 'Garden scene' },
 ] as const
 
 export type SectionId = (typeof SECTIONS)[number]['id']
@@ -646,5 +647,18 @@ export const devText = {
     },
     earned: 'Earned',
     notYet: 'Not yet earned',
+    garden: {
+      intro:
+        'The garden of the progress screen, drawn in code on a 360 by 160 grid. Every stage of the centre with its leaves and rings, then every growth of an exam plant, the stones and the streak in front. Tab reaches every item, Enter or Space selects it.',
+      stage: (stage: string, level: number, leaves: number, rings: number) =>
+        `${stage}: level ${String(level)}, ${String(leaves)} leaves, ${String(rings)} rings`,
+      plants: 'Every growth of an exam plant: seed, sprout, stem, bud and bloom, in five exam colours',
+      interactive: 'Interactive, with stones, three flowers and a branch: select an item',
+      buds: 'A streak that ended: four buds',
+      opening: 'The opening of a bloom (plays once, not with reduced motion)',
+      replay: 'Play again',
+      selected: (item: string) => `Selected: ${item}`,
+      none: 'Nothing selected',
+    },
   },
 } as const
