@@ -56,6 +56,9 @@ describe('celebrate/seen', () => {
     '{"day":5,"level":3,"badges":[]}',
     '{"day":null,"level":3,"badges":[1]}',
     '{"day":null,"level":3}',
+    '{"day":null,"level":0,"badges":[]}',
+    '{"day":null,"level":2.5,"badges":[]}',
+    '{"day":null,"level":-1,"badges":[]}',
   ])('treats %s as the default without throwing', (raw) => {
     window.localStorage.setItem('archi.celebrated.u-bad', raw)
     expect(readCelebrated('u-bad')).toEqual(DEFAULT)

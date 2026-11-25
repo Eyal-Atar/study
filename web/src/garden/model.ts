@@ -191,7 +191,7 @@ function plantStory(plant: GardenPlant): string {
 export function storyOf(model: GardenModel, item: GardenItem, badgeName: (key: string) => string): string {
   switch (item.kind) {
     case 'tree':
-      return text.story.tree(text.scene.stage[model.stage], model.level, model.leaves)
+      return text.story.tree(text.scene.stage[model.stage], model.level, model.leaves, model.level >= model.maxLevel)
     case 'plant': {
       const plant = model.plants.find((p) => p.id === item.id)
       return plant === undefined ? summaryOf(model) : plantStory(plant)

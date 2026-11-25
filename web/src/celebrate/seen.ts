@@ -23,7 +23,8 @@ function isCelebrated(value: unknown): value is Celebrated {
   return (
     (v.day === null || typeof v.day === 'string') &&
     typeof v.level === 'number' &&
-    Number.isFinite(v.level) &&
+    Number.isInteger(v.level) &&
+    v.level >= 1 &&
     Array.isArray(v.badges) &&
     v.badges.every((b) => typeof b === 'string')
   )

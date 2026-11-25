@@ -58,10 +58,12 @@ export const enGarden = {
   // The caption when a thing in the garden is selected.
   story: {
     // leaves: the new leaves of this level (0–9).
-    tree: (stage: string, level: number, leaves: number) => {
+    // atTop: the level is max_level; the leaves stay at nine there, so none "grows".
+    tree: (stage: string, level: number, leaves: number, atTop: boolean) => {
       const rings = ringsFull(level)
         ? 'I’ve raked all eight rings around it.'
         : 'I rake a ring around it at every level.'
+      if (atTop) return `${stage} at level ${String(level)}, the top level. It has all nine leaves, and ${rings}`
       const grown = leaves > 0 ? ` ${plural(leaves, 'new leaf', 'new leaves')} so far.` : ''
       return `${stage} at level ${String(level)}. It grows a leaf for every 100 XP of a level, up to nine, and ${rings}${grown}`
     },

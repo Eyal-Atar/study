@@ -211,7 +211,18 @@ describe('storyOf and summaryOf', () => {
 
   it('tells the story of the tree', () => {
     const m = model(makeProgress({ total_xp: 3450, level: 4, level_start_xp: 3000, next_level_xp: 4000 }))
-    expect(storyOf(m, { kind: 'tree' }, badgeName)).toBe(g.story.tree(g.scene.stage.sprout, 4, 4))
+    expect(storyOf(m, { kind: 'tree' }, badgeName)).toBe(g.story.tree(g.scene.stage.sprout, 4, 4, false))
+  })
+
+  it('at the top level the tree has all nine leaves and grows no more', () => {
+    const top = model(makeProgress({ total_xp: 49_000, level: 50, level_start_xp: 49_000, next_level_xp: null }))
+    expect(storyOf(top, { kind: 'tree' }, badgeName)).toBe(
+      'A whole zen garden at level 50, the top level. It has all nine leaves, and I’ve raked all eight rings around it.',
+    )
+    const below = model(makeProgress({ total_xp: 48_950, level: 49, level_start_xp: 48_000, next_level_xp: 49_000 }))
+    expect(storyOf(below, { kind: 'tree' }, badgeName)).toBe(
+      'A whole zen garden at level 49. It grows a leaf for every 100 XP of a level, up to nine, and I’ve raked all eight rings around it. 9 new leaves so far.',
+    )
   })
 
   it('tells the story of each kind of plant, with the Hebrew name isolated', () => {
