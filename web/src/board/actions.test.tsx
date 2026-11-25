@@ -679,7 +679,7 @@ describe('useBlockActions: the XP of a complete', () => {
     await user.click(screen.getByRole('button', { name: 'complete' }))
     await (await toasts()).findByText(`${en.board.completed}. ${en.board.xpGained(20)}`)
     expect(queryClient.getQueryData(progressKey(USER_ID))).toEqual({ ...progressOf(1220, 3), total_xp: 1240, level: 4 })
-    expect(listener).toHaveBeenCalledExactlyOnceWith({ blockId: 'block-1', xp: 20 })
+    expect(listener).toHaveBeenCalledExactlyOnceWith({ blockId: 'block-1', xp: 20, level: 4, levelUp: false, badgesEarned: [] })
     off()
   })
 
@@ -697,6 +697,67 @@ describe('useBlockActions: the XP of a complete', () => {
 
     await user.click(screen.getByRole('button', { name: 'complete' }))
     await (await toasts()).findByText(en.board.completed)
+    expect(listener).not.toHaveBeenCalled()
+    off()
+  })
+
+  // Decision 2: a level or a badge is a moment of its own, also with no XP (a split block's part).
+  it('a Done that rises a level and earns a badge carries them in the event', async () => {
+    const user = userEvent.setup()
+    const { fake } = setupCalls()
+    await loaded()
+    const listener = vi.fn()
+    const off = onCompleted(listener)
+    fake.on('POST /blocks/block-1/complete', {
+      block: makeBlock({ status: 'done', state: 'done' }),
+      task_status: 'done',
+      progress: { ...change, level: 5, level_up: true, badges_earned: ['first_task'] },
+    })
+
+    await user.click(screen.getByRole('button', { name: 'complete' }))
+    await waitFor(() => {
+      expect(listener).toHaveBeenCalledExactlyOnceWith({ blockId: 'block-1', xp: 20, level: 5, levelUp: true, badgesEarned: ['first_task'] })
+    })
+    off()
+  })
+
+  it('a Done with no XP that earns a badge still tells the listeners', async () => {
+    const user = userEvent.setup()
+    const { fake } = setupCalls()
+    await loaded()
+    const listener = vi.fn()
+    const off = onCompleted(listener)
+    fake.on('POST /blocks/block-1/complete', {
+      block: makeBlock({ status: 'done', state: 'done' }),
+      task_status: 'done',
+      progress: { ...change, xp_change: 0, badges_earned: ['task_master_10'] },
+    })
+
+    await user.click(screen.getByRole('button', { name: 'complete' }))
+    await waitFor(() => {
+      expect(listener).toHaveBeenCalledExactlyOnceWith({ blockId: 'block-1', xp: 0, level: 4, levelUp: false, badgesEarned: ['task_master_10'] })
+    })
+    off()
+  })
+
+  it('the complete that undoes "Not done" tells no listener, even with a level and a badge', async () => {
+    const user = userEvent.setup()
+    const done = makeBlock({ status: 'done', state: 'done' })
+    const { fake } = setupCalls({ block: done })
+    await loaded()
+    const listener = vi.fn()
+    const off = onCompleted(listener)
+    fake.on('POST /blocks/block-1/uncomplete', { block: makeBlock(), task_status: 'todo', progress: { ...change, xp_change: -20, total_xp: 1220 } })
+    fake.on('POST /blocks/block-1/complete', { block: done, task_status: 'done', progress: { ...change, level_up: true, badges_earned: ['first_task'] } })
+
+    await user.click(screen.getByRole('button', { name: 'uncomplete' }))
+    await user.click(await (await toasts()).findByRole('button', { name: en.common.undo }))
+    await waitFor(() => {
+      expect(fake.calls('POST', '/blocks/block-1/complete')).toHaveLength(1)
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('pending')).toHaveTextContent('false')
+    })
     expect(listener).not.toHaveBeenCalled()
     off()
   })
@@ -747,7 +808,7 @@ describe('useBlockActions: the XP of a complete', () => {
       expect(fake.calls('POST', '/blocks/block-1/complete')).toHaveLength(2)
     })
     await waitFor(() => {
-      expect(listener).toHaveBeenCalledExactlyOnceWith({ blockId: 'block-1', xp: 20 })
+      expect(listener).toHaveBeenCalledExactlyOnceWith({ blockId: 'block-1', xp: 20, level: 4, levelUp: false, badgesEarned: [] })
     })
     off()
   })

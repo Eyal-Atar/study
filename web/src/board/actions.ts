@@ -36,7 +36,8 @@ import { undoOnce } from './undoOnce'
 // POST /blocks/{id}/skip; one that did not end yet skips its task (PATCH /tasks/{id}).
 //
 // complete also writes the new XP total and level into the progress cache at once, and tells the
-// calendar once that XP was earned (board/xpEvents.ts); the refetch then brings the rest.
+// calendar once that XP, a level or a badge was earned (board/xpEvents.ts); the refetch then brings
+// the rest.
 //
 // After every action the whole board (['board', userId]) is refetched.
 //
@@ -237,7 +238,17 @@ export function useBlockActions(): BlockActions {
         queryClient.setQueryData<Progress>(progressKey(userId), (data) =>
           data === undefined ? undefined : { ...data, total_xp: progress.total_xp, level: progress.level },
         )
-        if (progress.xp_change > 0 && undo !== true) emitCompleted({ blockId: result.block.id, xp: progress.xp_change })
+        // S33 decision 2: XP, a level or a badge is a moment; the Undo of "Not done" never is.
+        const moment = progress.xp_change > 0 || progress.level_up || progress.badges_earned.length > 0
+        if (moment && undo !== true) {
+          emitCompleted({
+            blockId: result.block.id,
+            xp: progress.xp_change,
+            level: progress.level,
+            levelUp: progress.level_up,
+            badgesEarned: progress.badges_earned,
+          })
+        }
       }
       undoToast(completeText(result, false), () => {
         uncompleteMutation.mutate(started(result.block))

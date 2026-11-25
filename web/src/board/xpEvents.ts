@@ -1,4 +1,5 @@
-// The moment a block was marked done and earned XP (S32): the calendar plays its reward once.
+// The moment a block was marked done and earned XP (S32), a level or a badge (S33 decision 2): the
+// calendar plays its reward once, and the celebration inbox keeps it for the journal.
 //
 // An event and not state: the moment happens once, and a refetch of the cache must never play it
 // again. The listeners live at the module level, with no tie to React; a component subscribes in an
@@ -6,7 +7,12 @@
 
 export interface CompletedEvent {
   blockId: string
+  // 0 when the Done earned a level or a badge alone (a part of a split task); XpBurst then stays still.
   xp: number
+  // The level after the Done, whether it rose, and the badges it earned, as the server sent them.
+  level: number
+  levelUp: boolean
+  badgesEarned: string[]
 }
 
 type Listener = (event: CompletedEvent) => void

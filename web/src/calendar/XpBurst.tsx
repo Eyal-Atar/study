@@ -41,6 +41,8 @@ export function XpBurst() {
 
   useEffect(() => {
     return onCompleted((event: CompletedEvent) => {
+      // A level or a badge with no XP has no chip to fly (S33 decision 2).
+      if (event.xp <= 0) return
       if (prefersReducedMotion() || typeof Element.prototype.animate !== 'function') return
       const box = firstShown(`[data-check="${CSS.escape(event.blockId)}"]`)
       const ring = firstShown('[data-part="level"]')

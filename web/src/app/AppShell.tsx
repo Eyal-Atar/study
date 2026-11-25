@@ -1,6 +1,7 @@
 import { CalendarDays, FileText, SproutIcon, type IconType } from '../ui/icons'
 import { useRef, useState, type MouseEvent } from 'react'
 import { NavLink, Outlet, useLocation, useMatch } from 'react-router'
+import { useCelebrationInbox } from '../celebrate/inbox'
 import { en } from '../i18n/en'
 import { InstallHint } from '../notifications/InstallHint'
 import { PushSync } from '../notifications/PushSync'
@@ -72,6 +73,8 @@ export function AppShell() {
   const focusRoute = useMatch(`${FOCUS_PATH}/:blockId`) !== null
   const bare = frame.bare || focusRoute
   useRouteFocus(main)
+  // Every Done of the session waits here for the calendar's celebration (S33), on every screen.
+  useCelebrationInbox()
 
   // The link is a real anchor to #main, so it reads and behaves as a link. The move itself is done
   // here: following the href would add a history entry for the router to handle, and a browser
