@@ -11,6 +11,7 @@ import { enControls } from './enControls'
 import { enCrash } from './enCrash'
 import { enEntry } from './enEntry'
 import { enExams } from './enExams'
+import { enFocus } from './enFocus'
 import { enOnboardingFlow } from './enOnboardingFlow'
 import { enPwa } from './enPwa'
 import { enSettingsScreen } from './enSettingsScreen'
@@ -51,6 +52,7 @@ export const en = {
   controls: enControls,
   entry: enEntry,
   exams: enExams,
+  focus: enFocus,
   onboardingFlow: enOnboardingFlow,
   settingsScreen: enSettingsScreen,
   shell: {
