@@ -114,6 +114,11 @@
     background: radial-gradient(circle, rgba(255, 226, 140, 0.8), rgba(255, 200, 80, 0.2) 45%, transparent 70%);
     animation: archie-glow-hand 2.4s ease-in-out infinite;
   }
+  /* Dusk (S43): on the dark page the day gradient reads as a lit disc with an edge. Here it starts
+     dimmer and fades out over more steps, so it stays a soft light around the stone. */
+  :root[data-theme='dusk'] .archie-glow {
+    background: radial-gradient(circle, rgba(255, 220, 130, 0.5), rgba(255, 210, 110, 0.28) 20%, rgba(255, 200, 90, 0.12) 40%, rgba(255, 195, 80, 0.04) 55%, transparent 70%);
+  }
 
   /* wisdom: an ink line written near the brush, held, and faded, every 6 seconds. */
   .archie-ink {

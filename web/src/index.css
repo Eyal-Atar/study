@@ -378,8 +378,10 @@ body {
   font-synthesis: none;
 }
 
-/* The lantern light: a soft glow from the top of the page, in the evening only. */
-:root[data-theme='dusk'] body { background-image: radial-gradient(120% 70% at 50% 0%, var(--color-canvas-glow), var(--color-canvas) 72%); }
+/* The lantern light: a soft glow from the top of the page, in the evening only. The body's
+   background is the document's, so a size in % would follow the page height and stretch the glow
+   down a long page: it is drawn once, one viewport high, at the top. */
+:root[data-theme='dusk'] body { background-image: radial-gradient(120% 70% at 50% 0%, var(--color-canvas-glow), var(--color-canvas) 72%); background-size: 100% 100vh; background-repeat: no-repeat; }
 
 /* In @layer base, so ring-offset-inverse of the toast (utilities) still wins. */
 @layer base {

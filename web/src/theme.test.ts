@@ -494,6 +494,29 @@ describe('dusk: the rules outside the block', () => {
     expect(css.replace(media, '')).not.toContain('data-theme-switching')
   })
 
+  // S2 of the screenshots: on the dark page the day glow of Archi's gold stone reads as a lit disc
+  // with an edge. In the evening both glows (stone and hand) get a softer gradient that fades out
+  // over many steps, and the day rule stays as it was.
+  it("Archi's glow is softer in the evening, and the day glow is unchanged", () => {
+    const archie = readFileSync(new URL('./archie/archie.css', import.meta.url), 'utf8')
+    const rule = /:root\[data-theme='dusk'\] \.archie-glow[^{]*\{([^}]*)\}/.exec(archie)?.[1] ?? ''
+    expect(rule).toMatch(/radial-gradient\(/)
+    const alphas = [...rule.matchAll(/rgba\([^)]*,\s*([0-9.]+)\)/g)].map((m) => Number(m[1]))
+    expect(alphas.length).toBeGreaterThanOrEqual(3)
+    expect(Math.max(...alphas)).toBeLessThanOrEqual(0.6)
+    expect(rule).toMatch(/transparent\s*7\d%\)/)
+    expect(archie).toContain('background: radial-gradient(circle, rgba(255, 226, 140, 0.85), rgba(255, 200, 80, 0.25) 45%, transparent 70%);')
+    expect(archie).toContain('background: radial-gradient(circle, rgba(255, 226, 140, 0.8), rgba(255, 200, 80, 0.2) 45%, transparent 70%);')
+  })
+
+  // M3 / S3: the page background is the document's, so a size in % follows the page height and
+  // the glow stretched down long pages. It is one viewport high, at the top, and does not repeat.
+  it('the lantern glow is one viewport high, whatever the page height', () => {
+    const rule = /:root\[data-theme='dusk'\] body \{([^}]*)\}/.exec(css)?.[1] ?? ''
+    expect(rule).toMatch(/background-size:\s*100% 100vh;/)
+    expect(rule).toMatch(/background-repeat:\s*no-repeat;/)
+  })
+
   it('the lantern glow is drawn only in the evening', () => {
     const lines = css.split('\n').filter((l) => l.includes('radial-gradient'))
     expect(lines.length).toBeGreaterThan(0)
