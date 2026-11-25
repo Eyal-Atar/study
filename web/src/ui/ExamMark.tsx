@@ -49,7 +49,7 @@ export interface ExamProgressBarProps {
   valueText: string
 }
 
-// The 5px bar under the name of an exam in the list: the surface-muted track, filled in the strong
+// The 5px bar under the name of an exam in the list: the track, filled in the strong
 // colour of the exam (exam-N is a checked 3:1 mark on surface; S34 decision 11: here the bar names
 // the exam, green stays "done"). With max 0 it is empty.
 export function ExamProgressBar({ colorIndex, value, max, 'aria-label': ariaLabel, valueText }: ExamProgressBarProps) {
@@ -58,7 +58,7 @@ export function ExamProgressBar({ colorIndex, value, max, 'aria-label': ariaLabe
   const percent = top === 0 ? 0 : (now / top) * 100
   return (
     <AriaProgressBar value={now} maxValue={top} valueLabel={valueText} aria-label={ariaLabel}>
-      <div className="h-[5px] overflow-hidden rounded-full bg-surface-muted">
+      <div className="h-[5px] overflow-hidden rounded-full bg-track">
         <div
           data-fill=""
           className={cx('h-full rounded-full transition-[width]', examColor(colorIndex).solid)}

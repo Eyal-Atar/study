@@ -337,8 +337,8 @@ describe('ProgressBar', () => {
     expect(within(bar).getByText('60 of 345 minutes')).toHaveClass('text-small', 'font-medium', 'tabular-nums')
     const fill = bar.querySelector('[data-fill]')
     expect(fill).toHaveClass('bg-success', 'rounded-full')
-    // The 6px rounded bar of the prototype's exams, on the surface-muted track.
-    expect(fill?.parentElement).toHaveClass('h-1.5', 'rounded-full', 'bg-surface-muted')
+    // The 6px rounded bar of the prototype's exams, on the track (surface-muted in the day).
+    expect(fill?.parentElement).toHaveClass('h-1.5', 'rounded-full', 'bg-track')
     expect((fill as HTMLElement).style.width).toMatch(/^17\.39/)
   })
 
@@ -371,7 +371,7 @@ describe('ProgressBar without a visible label', () => {
     expect(bar).toHaveAttribute('aria-valuetext', '40%')
     expect(bar).toHaveTextContent('')
     expect(bar.children).toHaveLength(1)
-    expect(bar.firstElementChild).toHaveClass('h-1.5', 'bg-surface-muted')
+    expect(bar.firstElementChild).toHaveClass('h-1.5', 'bg-track')
     expect((bar.querySelector('[data-fill]') as HTMLElement).style.width).toBe('40%')
   })
 

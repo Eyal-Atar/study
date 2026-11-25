@@ -65,9 +65,12 @@
   --color-canvas: #eef0e4;
   /* Cards, fields, menus, the top bar: anything that sits on the page. */
   --color-surface: #f8f7f0;
-  /* A quiet fill inside a surface, and the track of a progress bar: a neutral badge, a note, a
-     hovered row, the rail of the segmented switch (the --soft of the all-screens mockup). */
+  /* A quiet fill inside a surface: a neutral badge, a note, a hovered row, the rail of the
+     segmented switch (the --soft of the all-screens mockup). */
   --color-surface-muted: #e6e7d8;
+  /* The empty track of a progress bar: surface-muted in the day, its own token so the evening can
+     lift it alone (S43). */
+  --color-track: #e6e7d8;
   /* The white of a field and of a choice card (the mockup's .field and .opt), so a place to type or
      to choose stands out of the surface around it. Its border is still line-strong. */
   --color-field: #ffffff;
@@ -275,6 +278,10 @@
   --color-canvas-glow: #2c2219;
   --color-surface: #251e18;
   --color-surface-muted: #322920;
+  /* The progress track, lighter than the quiet fill so an empty bar still shows on the page; 3:1
+     is not reachable, since the fill must keep 3:1 on it (1.65 on canvas, 1.51 on surface, brand
+     4.22 on it). */
+  --color-track: #463b31;
   /* The field is darker than its card, so a place to type still stands out. */
   --color-field: #15110d;
 

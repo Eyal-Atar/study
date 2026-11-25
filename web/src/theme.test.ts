@@ -126,6 +126,8 @@ const NON_TEXT_PAIRS: [string, string][] = [
   // The filled part of a progress bar on its track.
   ['success', 'surface-muted'],
   ['brand', 'surface-muted'],
+  ['success', 'track'],
+  ['brand', 'track'],
   // The "now" line of the calendar (a line, not text; its time is now-text).
   ['now', 'surface'],
   ['now', 'canvas'],
@@ -154,7 +156,7 @@ const COLOR_NAMES = [
     'now-text', 'danger', 'danger-soft', 'success', 'success-soft', 'warning', 'warning-soft', 'inverse',
     'on-inverse', 'inverse-action', 'inverse-success', 'inverse-danger',
     ...EXAM.flatMap((n) => [`exam-${n}`, `exam-${n}-soft`, `exam-${n}-line`]),
-    'busy', 'busy-soft', 'busy-line', 'scrim',
+    'busy', 'busy-soft', 'busy-line', 'scrim', 'track',
 ]
 
 const TOKENS = [
@@ -362,6 +364,21 @@ describe('the brand green as text', () => {
   })
 })
 
+// The empty track of a progress bar (ui/ProgressBar, ExamProgressBar; S43 closing patch): its own
+// token, so the evening can lift it without lifting every quiet fill. In the day it is surface-muted
+// exactly, so the day stays pixel-identical.
+describe('the progress track', () => {
+  it('in the day is surface-muted', () => {
+    expect(color('track')).toBe(color('surface-muted'))
+  })
+
+  // 3:1 is not reachable in this dark theme: the filled part must keep 3:1 on the track, which caps
+  // how light the track can be. The day value itself is 1.09 on canvas; the evening floor is 1.5.
+  it.each(['canvas', 'surface'])('in the evening reaches 1.5:1 on %s', (bg) => {
+    expect(contrast(duskColor('track'), duskColor(bg))).toBeGreaterThanOrEqual(1.5)
+  })
+})
+
 describe('large text pairs (S34)', () => {
   it.each(LARGE_TEXT_PAIRS)('%s on %s passes 3:1 for large text', (fg, bg) => {
     expect(contrast(color(fg), color(bg))).toBeGreaterThanOrEqual(3)
@@ -379,7 +396,7 @@ const DUSK_VALUES: [string, string][] = [
   ['danger', '#f08a6c'], ['danger-soft', '#3d1f17'], ['success', '#9cc47f'], ['success-soft', '#23331f'],
   ['warning', '#e2b05a'], ['warning-soft', '#382a12'], ['inverse', '#efe3cc'], ['on-inverse', '#241c15'],
   ['inverse-action', '#2f5a22'], ['inverse-success', '#3f6a2c'], ['inverse-danger', '#9a3518'],
-  ['busy', '#a39684'], ['busy-soft', '#2c261f'], ['busy-line', '#463d33'], ['scrim', '#080604'],
+  ['busy', '#a39684'], ['busy-soft', '#2c261f'], ['busy-line', '#463d33'], ['scrim', '#080604'], ['track', '#463b31'],
   ['exam-0', '#b5c36e'], ['exam-0-soft', '#2a2d18'], ['exam-0-line', '#4a5128'],
   ['exam-1', '#e8946d'], ['exam-1-soft', '#3a221a'], ['exam-1-line', '#63392a'],
   ['exam-2', '#94b6d1'], ['exam-2-soft', '#1d2833'], ['exam-2-line', '#34495b'],
