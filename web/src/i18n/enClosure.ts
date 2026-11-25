@@ -61,8 +61,8 @@ export const enClosure = {
   // The card on the exam screen of a closed exam.
   archived: {
     say: (name: string) => `${isolate(name)} is in full bloom.`,
-    // date: '16 November 2026'
-    closedOn: (date: string) => `I closed it on ${date}.`,
+    // date: '16 November 2026'. The student closed it: Archi never closes an exam by himself.
+    closedOn: (date: string) => `You closed it on ${date}.`,
   },
   // The Moed B form (MoedBForm) and the state after it.
   moedB: {
@@ -73,9 +73,9 @@ export const enClosure = {
     gradeError: 'Enter a whole number from 0 to 100.',
     hard: 'What felt hard?',
     hardHint: 'I’ll put these right after the practice exams.',
+    // The notes field and its description, only when the topic list is shown: the server takes a
+    // topic from the free text only when its full name appears there (7.13), and nothing else.
     notes: 'Anything else that felt hard? (optional)',
-    // The description of notes, only when the topic list is shown: the server takes a topic from
-    // the free text only when its full name appears there (7.13).
     notesHint: 'If you write a topic’s name as it appears above, I’ll put it right after the practice exams too.',
     notesTooLong: 'That’s a bit long. I can take up to 1,000 characters.',
     submit: 'Plan my Moed B',
@@ -87,8 +87,9 @@ export const enClosure = {
       const first = `I’ve put the ${simulations === 1 ? 'practice exam' : 'practice exams'} first`
       return weak.length === 0 ? `${first}.` : `${first}, then ${names(weak)}.`
     },
-    // When unscheduled or shortfalls are not empty.
-    short: 'Not everything fits before Moed B. Your calendar shows what’s left.',
+    // When the answer has a shortfall of this exam (the replan covers the whole board). The calendar
+    // shows what did not fit in the banner's row of unplaced tasks.
+    short: 'Not everything fits before Moed B. Your calendar shows what didn’t fit.',
     undone: (name: string) => `I put ${isolate(name)} back to waiting for Moed B.`,
     // Undo of moed_b_opened refused with invalid_state: a Moed B task was done or skipped, or a
     // block of it is running now.
