@@ -391,7 +391,8 @@ body {
 }
 
 /* When the theme switches while the app is open (the attribute is set for 400ms by theme/), every
-   colour fades. Not for whoever asked for less motion. */
+   colour fades. Not for whoever asked for less motion. During those 400ms a component's own
+   transition (a dialog's fade, a switch's knob) is replaced; a switch is rare, so this is accepted. */
 @media (prefers-reduced-motion: no-preference) {
   :root[data-theme-switching] *,
   :root[data-theme-switching] ::before,

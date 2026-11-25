@@ -14,7 +14,27 @@ function color(name: string): string {
 
 // The evening values (S43): the block `:root[data-theme='dusk'] { ... }`, which comes after @theme,
 // so color() above keeps reading the day.
-const duskBlock = /:root\[data-theme='dusk'\]\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? ''
+const DUSK_BLOCK = /:root\[data-theme='dusk'\]\s*\{([\s\S]*?)\n\}/
+const THEME_BLOCK = /@theme \{([\s\S]*?)\n\}/
+const duskBlock = DUSK_BLOCK.exec(css)?.[1] ?? ''
+// The stylesheet without the evening block: what the day defines on its own.
+const outsideDusk = css.replace(DUSK_BLOCK, '')
+
+// The colour names a block defines (`--color-<name>:`), sorted.
+function colorNamesOf(block: string): string[] {
+  return [...new Set([...block.matchAll(/--color-([a-z0-9-]+):/g)].map((m) => m[1] ?? ''))].sort()
+}
+
+// The evening-only token: the lantern glow has no day value.
+const DUSK_ONLY = ['canvas-glow']
+
+// What the evening block is missing against @theme, and what it has that @theme does not, in a
+// stylesheet. Empty both ways means every day colour has an evening value and nothing more.
+function duskGaps(text: string): { missing: string[]; extra: string[] } {
+  const day = colorNamesOf(THEME_BLOCK.exec(text)?.[1] ?? '')
+  const dusk = colorNamesOf(DUSK_BLOCK.exec(text)?.[1] ?? '').filter((n) => !DUSK_ONLY.includes(n))
+  return { missing: day.filter((n) => !dusk.includes(n)), extra: dusk.filter((n) => !day.includes(n)) }
+}
 
 function duskColor(name: string): string {
   const match = new RegExp(`--color-${name}:\\s*(#[0-9a-fA-F]{6})`).exec(duskBlock)
@@ -219,8 +239,9 @@ describe('theme colours', () => {
 })
 
 describe('design tokens', () => {
+  // Outside the evening block, so a day token removed from @theme is not "defined" by the dusk one.
   it.each(TOKENS)('%s is defined', (token) => {
-    expect(css).toMatch(new RegExp(`${token}:\\s*[^;]+;`))
+    expect(outsideDusk).toMatch(new RegExp(`${token}:\\s*[^;]+;`))
   })
 
   it('the eight exam colours differ from each other', () => {
@@ -375,6 +396,25 @@ describe('dusk: the block', () => {
     expect(/:root\[data-theme='dusk'\]\s*\{/.exec(css)?.index ?? -1).toBeGreaterThan(css.indexOf('@theme {'))
   })
 
+  // The set is read from @theme, not from a list: a new day colour without an evening value (or an
+  // evening colour with no day one) fails here (I1 of the final review).
+  it('defines exactly the colours of @theme, plus the evening-only canvas-glow', () => {
+    expect(colorNamesOf(THEME_BLOCK.exec(css)?.[1] ?? '').length).toBeGreaterThan(0)
+    expect(duskGaps(css)).toEqual({ missing: [], extra: [] })
+  })
+
+  it('the check fails on a colour added to @theme only, and on one added to the evening only', () => {
+    const dayOnly = css.replace('@theme {', '@theme {\n  --color-foo: #123456;')
+    expect(duskGaps(dayOnly)).toEqual({ missing: ['foo'], extra: [] })
+    const duskOnly = css.replace(":root[data-theme='dusk'] {", ":root[data-theme='dusk'] {\n  --color-bar: #123456;")
+    expect(duskGaps(duskOnly)).toEqual({ missing: [], extra: ['bar'] })
+  })
+
+  // So the pairs and the tables above never fall behind @theme either.
+  it('COLOR_NAMES is the colours of @theme', () => {
+    expect([...COLOR_NAMES].sort()).toEqual(colorNamesOf(THEME_BLOCK.exec(css)?.[1] ?? ''))
+  })
+
   it.each(COLOR_NAMES)('%s is defined in the block as #rrggbb', (name) => {
     expect(() => duskColor(name.replace('--color-', ''))).not.toThrow()
   })
@@ -396,9 +436,13 @@ describe('dusk: the block', () => {
   })
 
   it('the day scrim and the theme duration are set outside the block', () => {
-    const outside = css.replace(/:root\[data-theme='dusk'\]\s*\{[\s\S]*?\n\}/, '')
-    expect(outside).toMatch(/--scrim-opacity:\s*35%;/)
-    expect(outside).toMatch(/--duration-theme:\s*400ms;/)
+    expect(outsideDusk).toMatch(/--scrim-opacity:\s*35%;/)
+    expect(outsideDusk).toMatch(/--duration-theme:\s*400ms;/)
+  })
+
+  it('the day scrim is the day ink, so the dialog backdrop matches the old bg-ink/35', () => {
+    expect(color('scrim')).toBe('#3b2a1e')
+    expect(color('scrim')).toBe(color('ink'))
   })
 })
 

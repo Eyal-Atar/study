@@ -26,7 +26,7 @@ const ALLOW: { path: string; reason: string }[] = [
   { path: 'index.css', reason: 'the source of the colour tokens themselves' },
   { path: 'archie/', reason: 'the paper colours of the Archi illustration, drawn as art' },
   { path: 'pwa/manifest.ts', reason: 'the web app manifest is not CSS and needs literal colours' },
-  { path: 'theme/', reason: 'the browser theme-color meta, set per theme (Task 3); a missing folder allows nothing' },
+  { path: 'theme/theme.ts', reason: 'THEME_COLOR, the browser theme-color per theme: a meta tag cannot read CSS variables' },
   { path: 'commitments/downscale.ts', reason: 'a white background painted under an image before upload' },
 ]
 
@@ -69,6 +69,22 @@ describe('the colour rules of the source', () => {
       ),
     )
     expect(hits).toEqual([])
+  })
+
+  // The guard is only as good as what it reads: the walk must reach the product code, and only it.
+  it('scans the product code and no test', () => {
+    expect(FILES.length).toBeGreaterThan(200)
+    expect(FILES.map((f) => f.name)).toEqual(expect.arrayContaining(['index.css', 'ui/Dialog.tsx', 'theme/theme.ts']))
+    expect(FILES.filter((f) => /\.test\.tsx?$/.test(f.name) || f.name.startsWith('test/'))).toEqual([])
+  })
+
+  it('the allow list lets in its files and folders, and nothing beside them', () => {
+    expect(isAllowed('theme/theme.ts')).toBe(true)
+    expect(isAllowed('theme/ThemeProvider.tsx')).toBe(false)
+    expect(isAllowed('archie/x.tsx')).toBe(true)
+    expect(isAllowed('archiesque.ts')).toBe(false)
+    expect(isAllowed('pwa/manifest.ts')).toBe(true)
+    expect(isAllowed('pwa/manifest.test.ts')).toBe(false)
   })
 
   it('the patterns catch what they are for', () => {
