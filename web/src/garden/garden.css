@@ -9,7 +9,11 @@
    centre and one falling leaf when the progress screen opens (--duration-ceremony, 1.5s), and the
    petals of a bloom opening one after another (240ms each, the last one starting at 480ms). With
    less motion nothing here moves: the scene is drawn in its final state, and the falling leaf,
-   which is extra to the leaves of the model, is not shown at all. */
+   which is extra to the leaves of the model, is not shown at all.
+
+   The celebration sheet (S33, Task 9, celebrate/CelebrationSheet.tsx) adds two entrances, once each:
+   the garden "after" a new stage fades and grows in beside "before" (--duration-celebrate), and a
+   new badge's stone comes down 8px to its place (400ms). With less motion both are simply there. */
 
 .garden-item {
   outline: none;
@@ -52,6 +56,36 @@
 
   .garden-petal {
     animation: garden-petal 240ms var(--ease-standard) 1 both;
+  }
+
+  .garden-enter {
+    animation: garden-enter var(--duration-celebrate) var(--ease-standard) 1 both;
+  }
+
+  .garden-settle {
+    animation: garden-settle 400ms var(--ease-standard) 1 both;
+  }
+
+  @keyframes garden-enter {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes garden-settle {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   @keyframes garden-sway {

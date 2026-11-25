@@ -10,6 +10,9 @@ import { REPORT_HASH } from '../board/offerReplan'
 import { useReview } from '../board/review'
 import { addDays, dateIn, useProfileTimezone } from '../board/time'
 import type { Block } from '../board/types'
+import { takeEvents, useInboxSize } from '../celebrate/inbox'
+import { pickCelebration } from '../celebrate/rules'
+import { readCelebrated, writeCelebrated } from '../celebrate/seen'
 import { useClosures } from '../closure/api'
 import { seenKey, wasShown } from '../closure/seen'
 import { en } from '../i18n/en'
@@ -18,7 +21,7 @@ import { Button } from '../ui/Button'
 import { ButtonLink } from '../ui/ButtonLink'
 import { Note } from '../ui/Note'
 import { ErrorState, LoadingState } from '../ui/states'
-import { archiMoment } from './archi'
+import { archiMoment, noteArchiInterrupt } from './archi'
 import { useHiddenBusy } from './busyActions'
 import { instantOf } from './busyTime'
 import { BreakNotice } from './BreakNotice'
@@ -82,6 +85,11 @@ function nextHourDraft(date: string, today: string, now: number, tz: string): { 
 //   is a branch of SheetState: the banner's row opens it, and it opens by itself once per exam and
 //   sitting on this device (closure/seen.ts), when no other sheet is open. It is not about the week on
 //   screen, so a move to another date or view leaves it open.
+// - The celebration of S33 (plan decision 15): the Done events of this session wait in the inbox
+//   (celebrate/inbox.ts) and are pulled when nothing else is open or about to open: no sheet, no
+//   tasks sheet, GET /closures answered, GET /today not on its way, and no closure opening by itself in the same pass (that one
+//   goes first: it is a decision, the celebration can wait). Not about the week either, so a move
+//   leaves it open.
 export function CalendarPage() {
   useShellFrame({ fullBleed: true, ownPhoneHeader: true })
   const desktop = useIsDesktop()
@@ -104,6 +112,11 @@ export function CalendarPage() {
   // once in this visit: the X on the first of two exams of the same evening leaves the second to the
   // banner's row (which counts them), instead of opening it at once.
   const offered = useRef(new Set<string>())
+  // Set when the closure effect below opened the sheet in this pass: the celebration effect after it
+  // still sees `sheet === null` there (and again in StrictMode's second run), so it waits for it.
+  // Any sheet on screen clears it.
+  const closureOpening = useRef(false)
+  const inboxSize = useInboxSize()
   const [ghosts, setGhosts] = useState<Ghost[]>([])
   const [bannerGhosts, setBannerGhosts] = useState<Ghost[]>([])
   // The heading above the banner: where the focus goes when the split row leaves from under it.
@@ -118,7 +131,7 @@ export function CalendarPage() {
   if (shownNavigation !== navigation) {
     setShownNavigation(navigation)
     // The closure sheet is about an exam, not the range that was left.
-    if (sheet?.kind !== 'closure') setSheet(null)
+    if (sheet?.kind !== 'closure' && sheet?.kind !== 'celebration') setSheet(null)
     setGhosts([])
   }
 
@@ -135,8 +148,43 @@ export function CalendarPage() {
     const item = pendingClosures.find((i) => !wasShown(userId, i) && !offered.current.has(seenKey(i)))
     if (item === undefined) return
     for (const i of pendingClosures) offered.current.add(seenKey(i))
+    closureOpening.current = true
     setSheet({ kind: 'closure', examId: item.exam_id })
   }, [today, sheet, tasksOpen, userId, pendingClosures])
+
+  // The celebration (plan decisions 3, 13–15): after the closure's effect, so a closure that opens by
+  // itself goes first. The events are taken out of the inbox and what they earned is stored as
+  // celebrated at once, even if the sheet is replaced later: a moment is offered once.
+  const closuresKnown = pendingClosures !== undefined || closures.isError
+  const badgeList = data.progress.data?.badges
+  // Today as the server has it after the Done: a calendar that comes back from another screen first
+  // shows the cache from before, and a refetch is on its way.
+  const todayFetching = data.today.isFetching
+  useEffect(() => {
+    if (sheet !== null) {
+      closureOpening.current = false
+      return
+    }
+    if (inboxSize === 0 || tasksOpen || todayData === undefined || todayFetching || userId === null || !closuresKnown) return
+    if (closureOpening.current) return
+    const events = takeEvents()
+    if (events.length === 0) return
+    const { celebration, seen } = pickCelebration({
+      events,
+      now: Date.now(),
+      today: todayData.date,
+      todayBlocks: todayData.blocks,
+      seen: readCelebrated(userId),
+      badgeOrder: (badgeList ?? []).map((badge) => badge.key),
+    })
+    writeCelebrated(userId, seen)
+    if (celebration === null) return
+    noteArchiInterrupt(Date.now())
+    // The inbox is an external store whose read takes the events out: it cannot happen during the
+    // render (StrictMode renders twice), so the sheet it earns is set here, once.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the answer to an external store, once
+    setSheet({ kind: 'celebration', celebration })
+  }, [inboxSize, sheet, tasksOpen, todayData, todayFetching, userId, closuresKnown, badgeList])
   const selected = date ?? today
   const week = selected === undefined ? [] : weekDays(selected)
   const days = selected === undefined ? [] : view === 'week' ? week : [selected]
@@ -194,6 +242,9 @@ export function CalendarPage() {
     hour,
   })
   // What the free-time sheet can bring forward: the next blocks from now, not the week on screen.
+  // Tomorrow's first planned block, for the celebration of a completed day.
+  const tomorrow = today === undefined ? undefined : addDays(today, 1)
+  const tomorrowFirst = sortByStart(aheadBlocks.filter((b) => b.study_date === tomorrow && b.status === 'planned'))[0] ?? null
   const upcoming = sortByStart(
     mergeBlocks(aheadBlocks, todayBlocks, today).filter((b) => b.status === 'planned' && Date.parse(b.starts_at) > now),
   )
@@ -319,6 +370,9 @@ export function CalendarPage() {
         now={now}
         pending={pendingClosures ?? []}
         focusAfter={planHeading}
+        progress={data.progress.data}
+        todayBlocks={todayBlocks}
+        tomorrowFirst={tomorrowFirst}
       />
     )
 

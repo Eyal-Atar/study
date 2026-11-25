@@ -1,11 +1,9 @@
 import { useEffect, useId, useMemo, useState, type KeyboardEvent } from 'react'
 import { useProfileTimezone } from '../board/time'
-import { useExamProgress } from '../calendar/examProgress'
-import { examState } from '../closure/types'
 import { GardenScene } from '../garden/GardenScene'
-import { gardenModel, storyOf, summaryOf, type GardenExam, type GardenItem } from '../garden/model'
+import { gardenModel, storyOf, summaryOf, type GardenItem } from '../garden/model'
+import { useGardenExams } from '../garden/useGardenExams'
 import { en } from '../i18n/en'
-import { useExams } from '../onboarding/api'
 import type { Progress } from './types'
 
 /*
@@ -39,27 +37,8 @@ const sameItem = (a: GardenItem, b: GardenItem) =>
 export function GardenCard({ progress }: { progress: Progress }) {
   const titleId = useId()
   const timeZone = useProfileTimezone()
-  const exams = useExams()
-  const open = useMemo(() => (exams.data ?? []).filter((exam) => examState(exam) !== 'done'), [exams.data])
-  const percents = useExamProgress(open.map((exam) => exam.id))
-
-  const model = useMemo(() => {
-    const live: GardenExam[] = open.flatMap((exam) => {
-      const known = percents.get(exam.id)
-      if (known === undefined) return []
-      return [
-        {
-          id: exam.id,
-          name: exam.name,
-          colorIndex: exam.color_index,
-          examDate: exam.exam_date,
-          state: examState(exam),
-          percent: known.percent,
-        },
-      ]
-    })
-    return gardenModel({ progress, exams: live, timeZone })
-  }, [open, percents, progress, timeZone])
+  const exams = useGardenExams()
+  const model = useMemo(() => gardenModel({ progress, exams, timeZone }), [exams, progress, timeZone])
 
   const [selected, setSelected] = useState<GardenItem | null>(null)
   const [opening, setOpening] = useState(true)
