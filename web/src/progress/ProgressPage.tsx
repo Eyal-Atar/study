@@ -1,8 +1,10 @@
+import { useProfileTimezone } from '../board/time'
 import { errorMessage } from '../api/client'
 import { en } from '../i18n/en'
 import { PageHeader } from '../ui/PageHeader'
 import { ErrorState, LoadingState } from '../ui/states'
 import { useProgress } from './api'
+import { ArchiveList } from './ArchiveList'
 import { BadgeGrid } from './BadgeGrid'
 import { LevelCard } from './LevelCard'
 import { StreakCard } from './StreakCard'
@@ -12,6 +14,7 @@ import { StreakCard } from './StreakCard'
 // The eye goes down the page in the order of weight: the level, the streak, then the badges.
 export function ProgressPage() {
   const progress = useProgress()
+  const timeZone = useProfileTimezone()
 
   return (
     <div className="space-y-section">
@@ -39,6 +42,7 @@ export function ProgressPage() {
             <StreakCard progress={progress.data} />
           </div>
           <BadgeGrid progress={progress.data} />
+          <ArchiveList archive={progress.data.archive} timeZone={timeZone} />
         </>
       )}
     </div>

@@ -6,7 +6,7 @@ import { createFakeApi, problem } from '../test/fakeApi'
 import { USER_ID, makeMe, renderBoard } from '../test/boardFixtures'
 import { ProgressPage } from './ProgressPage'
 import { makeBadges, makeProgress, newUserProgress } from './testFixtures'
-import type { Progress } from './types'
+import type { ArchivedExam, Progress } from './types'
 
 const t = en.progress
 
@@ -170,6 +170,53 @@ describe('the progress board', () => {
     expect(await screen.findByText(t.level.level(3))).toBeInTheDocument()
     await waitFor(() => {
       expect(fake.calls('GET', '/progress')).toHaveLength(2)
+    })
+  })
+
+  describe('the archive', () => {
+    const closed = en.closure.progress
+    function archived(overrides: Partial<ArchivedExam> = {}): ArchivedExam {
+      return {
+        exam_id: 'exam-1',
+        name: 'הסתברות',
+        color_index: 2,
+        exam_date: '2026-11-23',
+        first_exam_date: null,
+        sitting: 1,
+        closed_at: '2026-11-16T10:00:00Z',
+        studied_minutes: 1260,
+        tasks_done: 14,
+        tasks_total: 17,
+        completion_percent: 86,
+        ...overrides,
+      }
+    }
+
+    it('without an archive there is no Archive heading', async () => {
+      setup(makeProgress())
+      await screen.findByRole('region', { name: t.badges.title })
+      expect(screen.queryByRole('heading', { level: 2, name: closed.title })).not.toBeInTheDocument()
+    })
+
+    it('lists the exams in the server order, each a link to its exam', async () => {
+      setup(
+        makeProgress({
+          archive: [
+            archived(),
+            archived({ exam_id: 'exam-2', name: 'Algorithms', closed_at: null, exam_date: '2026-11-20', sitting: 2, studied_minutes: 600, completion_percent: 70 }),
+          ],
+        }),
+      )
+      expect(await screen.findByRole('heading', { level: 2, name: closed.title })).toBeInTheDocument()
+      const list = screen.getByRole('list', { name: closed.title })
+      const [first, second, ...rest] = within(list).getAllByRole('listitem')
+      if (first === undefined || second === undefined) throw new Error('two rows expected')
+      expect(rest).toHaveLength(0)
+      expect(within(first).getByRole('link', { name: 'הסתברות' })).toHaveAttribute('href', '/exams/exam-1')
+      expect(within(first).getByText('Closed on 16 November 2026')).toBeInTheDocument()
+      expect(within(first).getByText('21 hours studied, 86% of the plan')).toBeInTheDocument()
+      expect(within(second).getByRole('link', { name: 'Algorithms' })).toHaveAttribute('href', '/exams/exam-2')
+      expect(within(second).getByText('Moed B. Closed on 20 November 2026')).toBeInTheDocument()
     })
   })
 })
