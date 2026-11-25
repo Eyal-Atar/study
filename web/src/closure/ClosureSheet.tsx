@@ -4,14 +4,16 @@ import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
 import { Note } from '../ui/Note'
 import { useToast } from '../ui/useToast'
-import { useClosureActions } from './closureActions'
+import { useClosureActions, type CloseFailure } from './closureActions'
 import { MoedBDone, MoedBForm, SheetFigure, StatusLine } from './MoedBSheet'
 import { moedBDoneStatus, moedBDoneText, statsText, useMounted, type MoedBAnswer } from './sheetParts'
 import type { ClosureItem, Outcome } from './types'
 
-// The closure sheet (S45): on the evening of an exam Archi asks how it felt. "Nailed it" closes it
-// and puts it in the archive; "Keep open for Moed B" keeps its materials quietly, and "I have the
-// date" plans Moed B in the same sheet. Every decision has its Undo here, while the sheet is open.
+// The closure sheet (S45, S45b): on the evening of an exam Archi asks what to do with it now, with
+// three answers. "Keep it as a memory" closes it and puts it in the archive; "Keep it open for a
+// retake" keeps its materials quietly (Moed A only), and "I have the date" plans the retake in the same
+// sheet; "Delete it" deletes the exam, without a confirmation and without a bloom. Every decision has
+// its Undo here, while the sheet is open.
 //
 // The sheet is a local state machine:
 //   question → after (the decision, its Undo, the next exam) → moedB (the form) → moedBAfter.
@@ -20,6 +22,9 @@ import type { ClosureItem, Outcome } from './types'
 
 const s = en.closure.sheet
 const m = en.closure.moedB
+
+// The three answers to the question; a delete is not an outcome of a close.
+type Choice = Outcome | 'delete'
 
 export interface ClosureSheetProps {
   // The exam the sheet opens on.
@@ -34,7 +39,8 @@ export interface ClosureSheetProps {
 type State =
   // held: back from an Undo, before the refetch has put the exam back into pending.
   | { step: 'question'; item: ClosureItem; held: boolean; notice: string | null; focus: boolean }
-  | { step: 'after'; item: ClosureItem; outcome: Outcome; versionId: string; undoError: string | null }
+  // versionId: null only for a delete the server wrote no version for; then there is no Undo.
+  | { step: 'after'; item: ClosureItem; outcome: Choice; versionId: string | null; undoError: string | null }
   | { step: 'moedB'; item: ClosureItem; notice: string | null; round: number }
   | { step: 'moedBAfter'; item: ClosureItem; answer: MoedBAnswer; round: number }
 
@@ -50,7 +56,7 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
     const item = pending.find((i) => i.exam_id === examId)
     return item === undefined ? null : question(item)
   })
-  const [chosen, setChosen] = useState<Outcome | null>(null)
+  const [chosen, setChosen] = useState<Choice | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [formPending, setFormPending] = useState(false)
   // The exams decided in this sheet: not offered as "next" while pending still holds them.
@@ -79,8 +85,13 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
   const live = state?.step === 'question' ? pending.find((i) => i.exam_id === state.item.exam_id) : undefined
   // A refetch (the interval, the window's focus) can answer without the exam once the server has
   // committed and before the close itself answers: the sheet waits for its own answer (decision 7).
+  // The same for a delete.
   const inFlight =
-    state !== null && (actions.closing(state.item.exam_id) || actions.planning(state.item.exam_id) || formPending)
+    state !== null &&
+    (actions.closing(state.item.exam_id) ||
+      actions.deleting(state.item.exam_id) ||
+      actions.planning(state.item.exam_id) ||
+      formPending)
   useEffect(() => {
     if (state === null) {
       close()
@@ -113,33 +124,34 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
   if (state === null) return null
   const item = live ?? state.item
   const name = item.exam_name
-  const closing = actions.closing(item.exam_id)
+  // A close or a delete of this exam on its way: the question waits for its answer.
+  const deciding = actions.closing(item.exam_id) || actions.deleting(item.exam_id)
   const busy =
-    closing ||
+    deciding ||
     formPending ||
     actions.planning(item.exam_id) ||
-    (state.step === 'after' && actions.undoing(state.versionId)) ||
+    (state.step === 'after' && state.versionId !== null && actions.undoing(state.versionId)) ||
     (state.step === 'moedBAfter' && actions.undoing(state.answer.result.version_id))
 
-  function decide(outcome: Outcome) {
-    if (closing) return
-    setChosen(outcome)
+  function decide(choice: Choice) {
+    if (deciding) return
+    setChosen(choice)
     setError(null)
     // Each handler says whether the sheet showed the answer; once it is gone, the action says it in a toast.
-    actions.close(item, outcome, {
-      onSuccess: (result) => {
-        if (!mounted.current) return false
-        setDecided((list) => [...list, item.exam_id])
-        setState({ step: 'after', item, outcome, versionId: result.version_id, undoError: null })
-        return true
-      },
-      onError: (failure) => {
-        if (!mounted.current) return false
-        if (failure.kind === 'stale') close()
-        else setError(failure.message)
-        return true
-      },
-    })
+    const toAfter = (versionId: string | null) => {
+      if (!mounted.current) return false
+      setDecided((list) => [...list, item.exam_id])
+      setState({ step: 'after', item, outcome: choice, versionId, undoError: null })
+      return true
+    }
+    const failed = (failure: CloseFailure) => {
+      if (!mounted.current) return false
+      if (failure.kind === 'stale') close()
+      else setError(failure.message)
+      return true
+    }
+    if (choice === 'delete') actions.remove(item, { onSuccess: toAfter, onError: failed })
+    else actions.close(item, choice, { onSuccess: (result) => toAfter(result.version_id), onError: failed })
   }
 
   let title: string
@@ -165,12 +177,13 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
               {error}
             </Note>
           )}
+          {/* The pressed answer waits; the other two are disabled. */}
           <div className="flex flex-col gap-2">
             <Button
               className="w-full"
               autoFocus={state.focus}
-              isPending={closing && chosen !== 'moed_b'}
-              isDisabled={closing && chosen === 'moed_b'}
+              isPending={deciding && chosen === 'done'}
+              isDisabled={deciding && chosen !== 'done'}
               onPress={() => {
                 decide('done')
               }}
@@ -181,8 +194,8 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
               <Button
                 variant="secondary"
                 className="w-full"
-                isPending={closing && chosen === 'moed_b'}
-                isDisabled={closing && chosen !== 'moed_b'}
+                isPending={deciding && chosen === 'moed_b'}
+                isDisabled={deciding && chosen !== 'moed_b'}
                 onPress={() => {
                   decide('moed_b')
                 }}
@@ -190,6 +203,17 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
                 {s.keepOpen}
               </Button>
             ) : null}
+            <Button
+              variant="danger"
+              className="w-full"
+              isPending={deciding && chosen === 'delete'}
+              isDisabled={deciding && chosen !== 'delete'}
+              onPress={() => {
+                decide('delete')
+              }}
+            >
+              {s.delete}
+            </Button>
           </div>
         </>
       )
@@ -197,11 +221,12 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
     }
     case 'after': {
       const { outcome, versionId, undoError } = state
-      title = outcome === 'done' ? s.bloomed(name) : s.kept(name)
+      title = outcome === 'done' ? s.bloomed(name) : outcome === 'moed_b' ? s.kept(name) : s.deleted(name)
       status = title
+      // Only "Keep it as a memory" blooms.
       figure = outcome === 'done' ? <SheetFigure mood="eureka" bloom /> : <SheetFigure mood="rest" />
       const next = pending.find((i) => i.exam_id !== item.exam_id && !decided.includes(i.exam_id))
-      const undoing = actions.undoing(versionId)
+      const undoing = versionId !== null && actions.undoing(versionId)
       body = (
         <>
           {undoError === null ? null : (
@@ -235,12 +260,13 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
                 {s.haveDate}
               </Button>
             ) : null}
-            {undoError === null ? (
+            {undoError === null && versionId !== null ? (
               <Button
                 variant="quiet"
                 isPending={undoing}
                 onPress={() => {
-                  actions.undo(versionId, 'close', item.exam_name, {
+                  // A delete undone puts the exam back as it was, as a close undone does.
+                  actions.undo(versionId, outcome === 'delete' ? 'delete' : 'close', item.exam_name, {
                     onSuccess: () => {
                       if (!mounted.current) return false
                       setDecided((list) => list.filter((id) => id !== item.exam_id))

@@ -1,4 +1,5 @@
 import type { ClosureItem, CloseResult, MoedBResult } from '../closure/types'
+import type { ExamDeleteResponse } from '../onboarding/types'
 
 // Test data for the closure (only tests import this file): the example of 7.13 on the week of the
 // calendar tests.
@@ -71,4 +72,9 @@ export function makeMoedBResult(overrides: Partial<MoedBResult> = {}): MoedBResu
     shortfalls: [],
     ...overrides,
   }
+}
+
+// DELETE /exams/{id} (S45b): the server always writes a version.
+export function makeDeleteResult(overrides: Partial<ExamDeleteResponse> = {}): ExamDeleteResponse {
+  return { version_id: 'v-del', plan_affected: true, ...overrides }
 }

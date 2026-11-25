@@ -9,10 +9,10 @@ import { tasksKey, useExamTasks } from '../exam/api'
 import type { ExamTask, TaskKind, TaskStatus } from '../exam/types'
 import { codeText } from '../i18n/codes'
 import { en } from '../i18n/en'
-import { useExams } from '../onboarding/api'
+import { materialsKey, useExams } from '../onboarding/api'
 import { useProgress } from '../progress/api'
 import { makeBlock, makeMe, makePlan, makeToday, renderBoard, USER_ID } from '../test/boardFixtures'
-import { makeClosureItem, makeCloseResult, makeMoedBResult } from '../test/closureFixtures'
+import { makeClosureItem, makeCloseResult, makeDeleteResult, makeMoedBResult } from '../test/closureFixtures'
 import { createFakeApi, problem, type Reply } from '../test/fakeApi'
 import { useClosures } from './api'
 import { onBloom, rethrowLater } from './bloomEvents'
@@ -20,6 +20,7 @@ import {
   useClosureActions,
   type CloseFailure,
   type ClosureActions,
+  type DeleteHandlers,
   type MoedBFailure,
   type UndoFailure,
 } from './closureActions'
@@ -35,6 +36,7 @@ const ITEM = makeClosureItem()
 const CLOSE_PATH = '/exams/exam-1/close'
 const MOED_B_PATH = '/exams/exam-1/moed-b'
 const TASKS_PATH = '/exams/exam-1/tasks'
+const DELETE_PATH = '/exams/exam-1'
 const BODY: MoedBBody = { exam_date: '2026-12-20', grade: 55, hard_topic_ids: ['topic-1'] }
 
 let actions: ClosureActions
@@ -53,6 +55,7 @@ function Caller() {
       <p data-testid="closing">{String(current.closing('exam-1'))}</p>
       <p data-testid="planning">{String(current.planning('exam-1'))}</p>
       <p data-testid="undoing">{String(current.undoing('version-1'))}</p>
+      <p data-testid="deleting">{String(current.deleting('exam-1'))}</p>
     </>
   )
 }
@@ -100,7 +103,8 @@ function setup({
   moedB = makeMoedBResult(),
   undo = {},
   tasks = [task('learn')],
-}: { close?: Reply; moedB?: Reply; undo?: Reply; tasks?: Reply } = {}) {
+  remove = makeDeleteResult(),
+}: { close?: Reply; moedB?: Reply; undo?: Reply; tasks?: Reply; remove?: Reply } = {}) {
   const fake = createFakeApi()
     .on('GET /me', makeMe())
     .on('GET /today', makeToday([makeBlock({ id: 'b1' })]))
@@ -113,6 +117,7 @@ function setup({
     .on(`POST ${CLOSE_PATH}`, close)
     .on(`POST ${MOED_B_PATH}`, moedB)
     .on('POST /plan/undo', undo)
+    .on(`DELETE ${DELETE_PATH}`, remove)
   const view = renderBoard(<Harness />, { api: fake.api })
   return { fake, ...view }
 }
@@ -620,7 +625,7 @@ describe('useClosureActions when the caller did not show the answer', () => {
     expect(fake.calls('POST', '/plan/undo').map((x) => x.body)).toEqual([{ version_id: 'version-1' }])
   })
 
-  it('a close kept for Moed B: the kept toast with its Undo', async () => {
+  it('a close kept open for a retake: the kept toast with its Undo', async () => {
     const { fake } = setup()
     await ready(fake)
     act(() => {
@@ -774,5 +779,240 @@ describe('useClosureActions openMoedB, more failures', () => {
       expect(onError).toHaveBeenCalledWith({ kind: 'error', message: errorMessage(problem(500, 'internal')) })
     })
     expect(fake.calls('POST', MOED_B_PATH)).toHaveLength(0)
+  })
+})
+
+// S45b Task 3: "Delete it" for an exam that has passed. No bloom; the toast with its Undo lives on the
+// mutation, as a close's does.
+describe('useClosureActions remove', () => {
+  it('sends one DELETE for two presses in the same tick', async () => {
+    const reply = later<unknown>()
+    const { fake } = setup({ remove: () => reply.promise })
+    await ready(fake)
+    const onSuccess = vi.fn(() => true)
+    act(() => {
+      actions.remove(ITEM, { onSuccess })
+      actions.remove(ITEM, { onSuccess })
+    })
+    await act(async () => {
+      reply.resolve(makeDeleteResult())
+      await Promise.resolve()
+    })
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledTimes(1)
+    })
+    expect(fake.calls('DELETE', DELETE_PATH)).toHaveLength(1)
+    expect(onSuccess).toHaveBeenCalledWith('v-del')
+  })
+
+  it('one decision at a time: no delete while the exam is being closed, no close or finish while it is being deleted', async () => {
+    const closeReply = later<CloseResult>()
+    const { fake } = setup({ close: () => closeReply.promise })
+    await ready(fake)
+    act(() => {
+      actions.close(ITEM, 'done')
+    })
+    act(() => {
+      actions.remove(ITEM)
+    })
+    expect(fake.calls('DELETE', DELETE_PATH)).toHaveLength(0)
+    await act(async () => {
+      closeReply.resolve(makeCloseResult())
+      await Promise.resolve()
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('closing')).toHaveTextContent('false')
+    })
+    expect(fake.calls('DELETE', DELETE_PATH)).toHaveLength(0)
+
+    const removeReply = later<unknown>()
+    fake.on(`DELETE ${DELETE_PATH}`, () => removeReply.promise)
+    act(() => {
+      actions.remove(ITEM)
+    })
+    act(() => {
+      actions.close(ITEM, 'moed_b')
+      actions.finish(ITEM)
+    })
+    expect(fake.calls('POST', CLOSE_PATH)).toHaveLength(1)
+    // Another exam is not held back.
+    act(() => {
+      actions.close(makeClosureItem({ exam_id: 'exam-2' }), 'done')
+    })
+    await waitFor(() => {
+      expect(fake.calls('POST', '/exams/exam-2/close')).toHaveLength(1)
+    })
+    expect(fake.calls('POST', CLOSE_PATH)).toHaveLength(1)
+    await act(async () => {
+      removeReply.resolve(makeDeleteResult())
+      await Promise.resolve()
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('deleting')).toHaveTextContent('false')
+    })
+    expect(fake.calls('DELETE', DELETE_PATH)).toHaveLength(1)
+    expect(fake.calls('POST', CLOSE_PATH)).toHaveLength(1)
+  })
+
+  it('deleting(examId) is true only while the DELETE waits', async () => {
+    const reply = later<unknown>()
+    const { fake } = setup({ remove: () => reply.promise })
+    await ready(fake)
+    expect(screen.getByTestId('deleting')).toHaveTextContent('false')
+    act(() => {
+      actions.remove(ITEM)
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('deleting')).toHaveTextContent('true')
+    })
+    expect(actions.deleting('exam-2')).toBe(false)
+    expect(actions.closing('exam-1')).toBe(false)
+    expect(blockPending('b1')).toBe(false)
+    expect(splitting('exam-1')).toBe(false)
+    await act(async () => {
+      reply.resolve(makeDeleteResult())
+      await Promise.resolve()
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('deleting')).toHaveTextContent('false')
+    })
+  })
+
+  it('without a handler: the deleted toast with its Undo, which puts it back in a toast', async () => {
+    const { fake } = setup()
+    await ready(fake)
+    act(() => {
+      actions.remove(ITEM)
+    })
+    expect(await screen.findByText(c.sheet.deleted('הסתברות'))).toBeInTheDocument()
+    act(() => {
+      unmountCaller()
+    })
+    await user().click(screen.getByRole('button', { name: en.common.undo }))
+    expect(await screen.findByText(c.sheet.undone('הסתברות'))).toBeInTheDocument()
+    expect(fake.calls('POST', '/plan/undo').map((x) => x.body)).toEqual([{ version_id: 'v-del' }])
+    expect(bloom.events).toEqual([])
+  })
+
+  it('a handler that did not show it: the same toast with its Undo', async () => {
+    const { fake } = setup()
+    await ready(fake)
+    act(() => {
+      actions.remove(ITEM, { onSuccess: () => false })
+    })
+    expect(await screen.findByText(c.sheet.deleted('הסתברות'))).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.common.undo })).toBeInTheDocument()
+  })
+
+  it('a handler that showed it: no toast', async () => {
+    const { fake } = setup()
+    await ready(fake)
+    const onSuccess = vi.fn<NonNullable<DeleteHandlers['onSuccess']>>(() => true)
+    act(() => {
+      actions.remove(ITEM, { onSuccess })
+    })
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledTimes(1)
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    expect(screen.queryByText(c.sheet.deleted('הסתברות'))).not.toBeInTheDocument()
+  })
+
+  it('an answer without a version: the sentence without an Undo', async () => {
+    const { fake } = setup({ remove: makeDeleteResult({ version_id: null }) })
+    await ready(fake)
+    act(() => {
+      actions.remove(ITEM)
+    })
+    expect(await screen.findByText(c.sheet.deleted('הסתברות'))).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: en.common.undo })).not.toBeInTheDocument()
+  })
+
+  it('never blooms', async () => {
+    const { fake } = setup()
+    await ready(fake)
+    const onSuccess = vi.fn(() => true)
+    act(() => {
+      actions.remove(ITEM, { onSuccess })
+    })
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledTimes(1)
+    })
+    expect(bloom.events).toEqual([])
+  })
+
+  it('refreshes every read a close refreshes, and lets the exam’s materials go', async () => {
+    const { fake, queryClient } = setup()
+    await ready(fake)
+    queryClient.setQueryData(materialsKey(USER_ID, 'exam-1'), [])
+    const before = counts(fake)
+    act(() => {
+      actions.remove(ITEM)
+    })
+    await refreshed(fake, before)
+    expect(queryClient.getQueryData(materialsKey(USER_ID, 'exam-1'))).toBeUndefined()
+  })
+
+  it('an Undo of a delete refreshes the materials too', async () => {
+    const { fake, queryClient } = setup()
+    await ready(fake)
+    queryClient.setQueryData(materialsKey(USER_ID, 'exam-2'), [])
+    const before = counts(fake)
+    const onSuccess = vi.fn(() => true)
+    act(() => {
+      actions.undo('v-del', 'delete', ITEM.exam_name, { onSuccess })
+    })
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledTimes(1)
+    })
+    await refreshed(fake, before)
+    expect(queryClient.getQueryState(materialsKey(USER_ID, 'exam-2'))?.isInvalidated).toBe(true)
+  })
+
+  it('a failed Undo of a delete is the code text', async () => {
+    const { fake } = setup({ undo: problem(409, 'invalid_state') })
+    await ready(fake)
+    const onError = vi.fn<(f: UndoFailure) => boolean>(() => true)
+    act(() => {
+      actions.undo('v-del', 'delete', ITEM.exam_name, { onError })
+    })
+    await waitFor(() => {
+      expect(onError).toHaveBeenCalledWith({ message: codeText('invalid_state') })
+    })
+  })
+
+  it('a 404 says it is gone and reports stale', async () => {
+    const { fake } = setup({ remove: problem(404, 'not_found') })
+    await ready(fake)
+    const onError = vi.fn<(f: CloseFailure) => boolean>(() => true)
+    act(() => {
+      actions.remove(ITEM, { onError })
+    })
+    expect(await screen.findByText(codeText('not_found'))).toBeInTheDocument()
+    expect(onError).toHaveBeenCalledWith({ kind: 'stale' })
+  })
+
+  it('another error the caller showed is not a toast; one it did not show is', async () => {
+    const failure = problem(500, 'internal')
+    const { fake } = setup({ remove: failure })
+    await ready(fake)
+    const onError = vi.fn<(f: CloseFailure) => boolean>(() => true)
+    act(() => {
+      actions.remove(ITEM, { onError })
+    })
+    await waitFor(() => {
+      expect(onError).toHaveBeenCalledWith({ kind: 'error', message: errorMessage(failure) })
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    expect(screen.queryByText(errorMessage(failure))).not.toBeInTheDocument()
+    act(() => {
+      actions.remove(ITEM, { onError: () => false })
+    })
+    expect(await screen.findAllByText(errorMessage(failure))).toHaveLength(1)
+    expect(bloom.events).toEqual([])
   })
 })

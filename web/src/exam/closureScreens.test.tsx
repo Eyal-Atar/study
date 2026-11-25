@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { durationText } from '../board/time'
 import { en } from '../i18n/en'
 import { makeProgress } from '../progress/testFixtures'
-import { makeClosureItem, makeCloseResult, makeMoedBResult } from '../test/closureFixtures'
+import { makeClosureItem, makeCloseResult, makeDeleteResult, makeMoedBResult } from '../test/closureFixtures'
 import { problem } from '../test/fakeApi'
 import { examServer, openRoute, taskFixture } from '../test/examFixtures'
 import type { Material } from '../onboarding/types'
@@ -213,7 +213,7 @@ describe('the exam screen by closure state', () => {
     expect(await screen.findByRole('dialog', { name: c.sheet.title('הסתברות') })).toBeInTheDocument()
   })
 
-  it('waiting for Moed B: what is kept, Plan Moed B, and I’m done with it; no edit and no plan request', async () => {
+  it('waiting for a retake: what is kept, Plan the retake, and Keep it as a memory; no edit and no plan request', async () => {
     const fake = setup([WAITING])
     fake.on({ method: 'GET', path: /^\/exams\/w1\/materials$/ }, [
       material('m1'),
@@ -276,7 +276,7 @@ describe('the exam screen by closure state', () => {
     expect(screen.getByRole('dialog', { name: c.moedB.done(1, ['התפלגות בינומית']) })).toBe(done)
   })
 
-  it('Plan Moed B waits while the exam is being closed', async () => {
+  it('Plan the retake waits while the exam is being closed', async () => {
     const fake = setup([WAITING])
     const reply = later<ReturnType<typeof makeCloseResult>>()
     fake.on('POST /exams/w1/close', () => reply.promise)
@@ -292,7 +292,7 @@ describe('the exam screen by closure state', () => {
     })
   })
 
-  it('after I’m done with it, the focus lands on the archive card, not on the page', async () => {
+  it('after Keep it as a memory, the focus lands on the archive card, not on the page', async () => {
     const fake = setup([WAITING])
     fake.on('POST /exams/w1/close', () => {
       fake.on('GET /exams', [{ ...WAITING, state: 'done', closed_at: '2026-11-23T11:00:00Z' }])
@@ -352,5 +352,139 @@ describe('the exam screen by closure state', () => {
     openRoute(fake, '/exams/p1')
     expect(await screen.findByText(c.sheet.title('הסתברות'))).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: c.sheet.title('הסתברות') })).not.toBeInTheDocument()
+  })
+})
+
+// The server of a delete in small: DELETE takes the exam out of GET /exams and GET /closures, the Undo
+// puts it back as it was. ACTIVE stays, so the list after it has its h1.
+function deletable(fake: ReturnType<typeof setup>, exam: typeof PENDING, reply: () => unknown = () => makeDeleteResult()) {
+  const item = makeClosureItem({
+    exam_id: exam.id,
+    exam_name: exam.name,
+    color_index: exam.color_index,
+    state: exam.state === 'waiting_moed_b' ? 'waiting_moed_b' : 'pending',
+    tasks_total: 17,
+  })
+  const listed = () => (exam.state === 'waiting_moed_b' ? { pending: [], waiting: [item] } : { pending: [item], waiting: [] })
+  fake.on(`DELETE /exams/${exam.id}`, async () => {
+    const answer = await reply()
+    fake.on('GET /exams', [ACTIVE])
+    fake.on('GET /closures', { pending: [], waiting: [] })
+    return answer
+  })
+  fake.on('POST /plan/undo', () => {
+    fake.on('GET /exams', [exam, ACTIVE])
+    fake.on('GET /closures', listed())
+    return {}
+  })
+}
+
+// S45b Task 3: "Delete it" on the exam screen.
+describe('the exam screen: Delete it', () => {
+  it('waiting for a retake: three buttons; Delete it goes to the exams list with a toast and its Undo', async () => {
+    const fake = setup([WAITING, ACTIVE])
+    deletable(fake, WAITING)
+    openRoute(fake, '/exams/w1')
+    expect(await screen.findByText(c.waiting.say('אלגוריתמים'))).toBeInTheDocument()
+    expect(within(screen.getByRole('main')).getAllByRole('button').map((b) => b.textContent)).toEqual(['Plan the retake', 'Keep it as a memory', 'Delete it'])
+
+    const u = user()
+    await u.click(screen.getByRole('button', { name: c.waiting.delete }))
+    expect(await screen.findByRole('heading', { level: 1, name: t.list.title })).toBeInTheDocument()
+    expect(fake.calls('DELETE', '/exams/w1')).toHaveLength(1)
+    const region = await screen.findByRole('region', { name: en.common.notifications })
+    expect(within(region).getByText(c.sheet.deleted('אלגוריתמים'))).toBeInTheDocument()
+    expect(fake.calls('POST', /close$/)).toHaveLength(0)
+
+    await u.click(within(region).getByRole('button', { name: en.common.undo }))
+    expect(await screen.findByText(c.sheet.undone('אלגוריתמים'))).toBeInTheDocument()
+    expect(fake.calls('POST', '/plan/undo').map((x) => x.body)).toEqual([{ version_id: 'v-del' }])
+    // The list has it back.
+    expect(await screen.findByRole('link', { name: /אלגוריתמים/ })).toBeInTheDocument()
+  })
+
+  it('waiting: while it is being deleted the other two wait', async () => {
+    const fake = setup([WAITING, ACTIVE])
+    const reply = later<unknown>()
+    deletable(fake, WAITING, () => reply.promise)
+    openRoute(fake, '/exams/w1')
+    const u = user()
+    await u.click(await screen.findByRole('button', { name: c.waiting.delete }))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: c.waiting.plan })).toBeDisabled()
+    })
+    expect(screen.getByRole('button', { name: c.waiting.done })).toBeDisabled()
+    await act(async () => {
+      reply.resolve(makeDeleteResult())
+      await Promise.resolve()
+    })
+    expect(await screen.findByRole('heading', { level: 1, name: t.list.title })).toBeInTheDocument()
+  })
+
+  it('pending: Choose opens the sheet; after Delete it the sheet and its Undo stay once the exam is gone; Close goes to the list', async () => {
+    const fake = setup([PENDING, ACTIVE])
+    deletable(fake, PENDING)
+    openRoute(fake, '/exams/p1')
+    const u = user()
+    await u.click(await screen.findByRole('button', { name: c.card.open }))
+    const sheet = await screen.findByRole('dialog', { name: c.sheet.title('הסתברות') })
+    const before = fake.calls('GET', '/exams').length
+    await u.click(within(sheet).getByRole('button', { name: c.sheet.delete }))
+    const after = await screen.findByRole('dialog', { name: c.sheet.deleted('הסתברות') })
+    await waitFor(() => {
+      expect(fake.calls('GET', '/exams').length).toBeGreaterThan(before)
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    expect(screen.getByRole('dialog', { name: c.sheet.deleted('הסתברות') })).toBe(after)
+    expect(within(after).getByRole('button', { name: en.common.undo })).toBeInTheDocument()
+    // The screen under it says the exam is gone.
+    expect(screen.getByText(t.notFound)).toBeInTheDocument()
+    const close = within(after)
+      .getAllByRole('button', { name: en.common.close })
+      .find((b) => b.textContent === en.common.close)
+    if (close === undefined) throw new Error('no primary Close')
+    await u.click(close)
+    expect(await screen.findByRole('heading', { level: 1, name: t.list.title })).toBeInTheDocument()
+  })
+
+  it('pending: Undo in the sheet brings the exam back, and its screen shows it with the question', async () => {
+    const fake = setup([PENDING, ACTIVE])
+    deletable(fake, PENDING)
+    openRoute(fake, '/exams/p1')
+    const u = user()
+    await u.click(await screen.findByRole('button', { name: c.card.open }))
+    const sheet = await screen.findByRole('dialog', { name: c.sheet.title('הסתברות') })
+    await u.click(within(sheet).getByRole('button', { name: c.sheet.delete }))
+    const after = await screen.findByRole('dialog', { name: c.sheet.deleted('הסתברות') })
+    await waitFor(() => {
+      expect(screen.getByText(t.notFound)).toBeInTheDocument()
+    })
+    await u.click(within(after).getByRole('button', { name: en.common.undo }))
+    const back = await screen.findByRole('dialog', { name: c.sheet.title('הסתברות') })
+    expect(within(back).getByRole('status')).toHaveTextContent(c.sheet.undone('הסתברות'))
+    expect(fake.calls('POST', '/plan/undo').map((x) => x.body)).toEqual([{ version_id: 'v-del' }])
+    // Under the modal sheet the screen is hidden from the accessibility tree.
+    expect(await screen.findByRole('heading', { level: 1, name: 'הסתברות', hidden: true })).toBeInTheDocument()
+    expect(screen.queryByText(t.notFound)).not.toBeInTheDocument()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    expect(screen.getByRole('dialog', { name: c.sheet.title('הסתברות') })).toBeInTheDocument()
+  })
+
+  it('an exam that passed a week ago, never decided: the same card and the same three answers', async () => {
+    const OLD = examFixture({ id: 'o1', name: 'הסתברות', exam_date: '2026-11-16', color_index: 2, state: 'pending', sitting: 1 })
+    const fake = setup([OLD])
+    openRoute(fake, '/exams/o1')
+    expect(await screen.findByText(c.sheet.title('הסתברות'))).toBeInTheDocument()
+    await user().click(screen.getByRole('button', { name: c.card.open }))
+    const sheet = await screen.findByRole('dialog', { name: c.sheet.title('הסתברות') })
+    expect(within(sheet).getAllByRole('button', { name: /it/ }).map((b) => b.textContent)).toEqual([
+      c.sheet.nailed,
+      c.sheet.keepOpen,
+      c.sheet.delete,
+    ])
   })
 })

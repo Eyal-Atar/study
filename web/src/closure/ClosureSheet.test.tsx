@@ -3,9 +3,10 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import { userEvent, type UserEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { errorMessage } from '../api/client'
+import { codeText } from '../i18n/codes'
 import { en } from '../i18n/en'
 import { makeMe, renderBoard } from '../test/boardFixtures'
-import { makeClosureItem, makeCloseResult, makeMoedBResult } from '../test/closureFixtures'
+import { makeClosureItem, makeCloseResult, makeDeleteResult, makeMoedBResult } from '../test/closureFixtures'
 import { createFakeApi, problem, type Reply } from '../test/fakeApi'
 import { useClosures } from './api'
 import { ClosureSheet } from './ClosureSheet'
@@ -69,7 +70,8 @@ function setup({
   close,
   undo = {},
   moedB = makeMoedBResult(),
-}: { pending?: ClosureItem[]; close?: Reply; undo?: Reply; moedB?: Reply } = {}) {
+  remove,
+}: { pending?: ClosureItem[]; close?: Reply; undo?: Reply; moedB?: Reply; remove?: Reply } = {}) {
   let live = [...pending]
   let lastClosed: string | null = null
   const fake = createFakeApi()
@@ -82,6 +84,13 @@ function setup({
       lastClosed = id
       live = live.filter((i) => i.exam_id !== id)
       return makeCloseResult({ version_id: `version-${id}` })
+    })
+    .on({ method: 'DELETE', path: /^\/exams\/exam-\d$/ }, (call: { path: string }) => {
+      const id = call.path.split('/')[2] ?? ''
+      if (remove !== undefined) return typeof remove === 'function' ? (remove as (c: unknown) => unknown)(call) : remove
+      lastClosed = id
+      live = live.filter((i) => i.exam_id !== id)
+      return makeDeleteResult()
     })
     .on('POST /exams/exam-1/moed-b', moedB)
     .on('POST /plan/undo', () => {
@@ -115,22 +124,26 @@ async function typeDate(u: UserEvent, iso: string) {
 }
 
 describe('ClosureSheet: the question', () => {
-  it('asks how it felt, with the summary and both answers', async () => {
+  it('asks what to do with it, with the summary and the three answers in order', async () => {
     const { onShown } = setup()
     const sheet = await dialog(s.title('הסתברות'))
     expect(within(sheet).getByText('You studied 21 hours and finished 86% of the plan.')).toBeInTheDocument()
-    expect(within(sheet).getByRole('button', { name: s.nailed })).toBeInTheDocument()
-    expect(within(sheet).getByRole('button', { name: s.keepOpen })).toBeInTheDocument()
+    expect(within(sheet).getAllByRole('button', { name: /it/ }).map((b) => b.textContent)).toEqual([
+      'Keep it as a memory',
+      'Keep it open for a retake',
+      'Delete it',
+    ])
+    expect([s.nailed, s.keepOpen, s.delete]).toEqual(['Keep it as a memory', 'Keep it open for a retake', 'Delete it'])
     await waitFor(() => {
       expect(onShown).toHaveBeenCalledTimes(1)
     })
     expect(onShown).toHaveBeenCalledWith(FIRST)
   })
 
-  it('offers only Nailed it in Moed B', async () => {
+  it('offers Keep it as a memory and Delete it in a retake, not another retake', async () => {
     setup({ pending: [makeClosureItem({ options: ['done'], sitting: 2 })] })
     const sheet = await dialog(s.title('הסתברות'))
-    expect(within(sheet).getByRole('button', { name: s.nailed })).toBeInTheDocument()
+    expect(within(sheet).getAllByRole('button', { name: /it/ }).map((b) => b.textContent)).toEqual([s.nailed, s.delete])
     expect(within(sheet).queryByRole('button', { name: s.keepOpen })).not.toBeInTheDocument()
   })
 
@@ -160,7 +173,7 @@ describe('ClosureSheet: the question', () => {
 })
 
 describe('ClosureSheet: the decision', () => {
-  it('Nailed it closes done; the sheet holds while it waits, then blooms', async () => {
+  it('Keep it as a memory closes done; the sheet holds while it waits, then blooms', async () => {
     const reply = later<CloseResult>()
     const { fake, onClose } = setup({ close: () => reply.promise })
     const u = user()
@@ -222,7 +235,7 @@ describe('ClosureSheet: the decision', () => {
     expect(within(region).getAllByText(s.stale)).toHaveLength(1)
   })
 
-  it('Keep open for Moed B keeps it quiet and offers the date', async () => {
+  it('Keep it open for a retake keeps it quiet and offers the date', async () => {
     const { fake } = setup()
     const u = user()
     const sheet = await dialog(s.title('הסתברות'))
@@ -277,6 +290,159 @@ describe('ClosureSheet: the decision', () => {
     expect(await within(sheet).findByText(errorMessage(failure))).toBeInTheDocument()
     expect(within(sheet).getByRole('button', { name: s.nailed })).toBeEnabled()
     expect(onClose).not.toHaveBeenCalled()
+  })
+})
+
+// S45b Task 3: "Delete it", without a confirmation and with its Undo.
+describe('ClosureSheet: Delete it', () => {
+  it('deletes; the sheet holds while it waits, even through a refetch without the exam, then says it', async () => {
+    const reply = later<unknown>()
+    const { fake, onClose, queryClient } = setup({ remove: () => reply.promise })
+    const u = user()
+    const sheet = await dialog(s.title('הסתברות'))
+    await u.click(within(sheet).getByRole('button', { name: s.delete }))
+    expect(fake.calls('DELETE', '/exams/exam-1')).toHaveLength(1)
+    await waitFor(() => {
+      expect(within(sheet).getByRole('button', { name: s.nailed })).toBeDisabled()
+    })
+    expect(within(sheet).getByRole('button', { name: s.keepOpen })).toBeDisabled()
+    expect(within(sheet).queryByRole('button', { name: en.common.close })).not.toBeInTheDocument()
+    await u.keyboard('{Escape}')
+    expect(screen.getByRole('dialog', { name: s.title('הסתברות') })).toBeInTheDocument()
+    // The server committed; a refetch answers before the delete does.
+    fake.on('GET /closures', { pending: [], waiting: [] })
+    const before = fake.calls('GET', '/closures').length
+    await act(async () => {
+      await queryClient.invalidateQueries()
+    })
+    await waitFor(() => {
+      expect(fake.calls('GET', '/closures').length).toBeGreaterThan(before)
+    })
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.queryByText(s.stale)).not.toBeInTheDocument()
+
+    await act(async () => {
+      reply.resolve(makeDeleteResult())
+      await Promise.resolve()
+    })
+    const after = await dialog(s.deleted('הסתברות'))
+    expect(within(after).getByRole('status')).toHaveTextContent(s.deleted('הסתברות'))
+    await waitFor(() => {
+      expect(primaryClose()).toHaveFocus()
+    })
+    expect(document.querySelector('[data-slot="bloom"]')).toBeNull()
+    expect(within(after).queryByRole('button', { name: s.haveDate })).not.toBeInTheDocument()
+    expect(within(after).getByRole('button', { name: en.common.undo })).toBeInTheDocument()
+    expect(fake.calls('POST', /close$/)).toHaveLength(0)
+    expect(screen.queryByText(s.stale)).not.toBeInTheDocument()
+    await u.click(primaryClose())
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('the pressed Delete it waits; the other two are disabled', async () => {
+    const reply = later<unknown>()
+    setup({ remove: () => reply.promise })
+    const u = user()
+    const sheet = await dialog(s.title('הסתברות'))
+    await u.click(within(sheet).getByRole('button', { name: s.delete }))
+    await waitFor(() => {
+      expect(within(sheet).getByRole('button', { name: s.delete })).toHaveAttribute('data-pending', 'true')
+    })
+    expect(within(sheet).getByRole('button', { name: s.nailed })).not.toHaveAttribute('data-pending')
+    await act(async () => {
+      reply.resolve(makeDeleteResult())
+      await Promise.resolve()
+    })
+    await dialog(s.deleted('הסתברות'))
+  })
+
+  it('Undo sends one /plan/undo and asks the question again', async () => {
+    const { fake } = setup()
+    const u = user()
+    await dialog(s.title('הסתברות'))
+    await u.click(screen.getByRole('button', { name: s.delete }))
+    await dialog(s.deleted('הסתברות'))
+    const undo = screen.getByRole('button', { name: en.common.undo })
+    await u.click(undo)
+    await u.click(undo)
+    const back = await dialog(s.title('הסתברות'))
+    expect(fake.calls('POST', '/plan/undo').map((c) => c.body)).toEqual([{ version_id: 'v-del' }])
+    expect(within(back).getByRole('status')).toHaveTextContent(s.undone('הסתברות'))
+    await waitFor(() => {
+      expect(within(back).getByRole('button', { name: s.nailed })).toHaveFocus()
+    })
+    // The refetch puts it back into pending: the question stays.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    expect(screen.getByRole('dialog', { name: s.title('הסתברות') })).toBeInTheDocument()
+  })
+
+  it('without a version there is no Undo', async () => {
+    setup({ remove: makeDeleteResult({ version_id: null }) })
+    const u = user()
+    await dialog(s.title('הסתברות'))
+    await u.click(screen.getByRole('button', { name: s.delete }))
+    const after = await dialog(s.deleted('הסתברות'))
+    expect(within(after).queryByRole('button', { name: en.common.undo })).not.toBeInTheDocument()
+    expect(primaryClose()).toBeInTheDocument()
+  })
+
+  it('goes on to the next exam of the day', async () => {
+    setup({ pending: [FIRST, SECOND] })
+    const u = user()
+    await dialog(s.title('הסתברות'))
+    await u.click(screen.getByRole('button', { name: s.delete }))
+    await dialog(s.deleted('הסתברות'))
+    const next = await screen.findByRole('button', { name: s.next('אלגוריתמים') })
+    await waitFor(() => {
+      expect(next).toHaveFocus()
+    })
+    await u.click(next)
+    expect(await dialog(s.title('אלגוריתמים'))).toBeInTheDocument()
+  })
+
+  it('a 404 closes the sheet with a word', async () => {
+    const { onClose } = setup({ remove: problem(404, 'not_found') })
+    const u = user()
+    await dialog(s.title('הסתברות'))
+    await u.click(screen.getByRole('button', { name: s.delete }))
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+    expect(await screen.findByText(codeText('not_found'))).toBeInTheDocument()
+  })
+
+  it('any other failure stays in the sheet, on the question', async () => {
+    const failure = problem(500, 'internal_error')
+    const { onClose } = setup({ remove: failure })
+    const u = user()
+    const sheet = await dialog(s.title('הסתברות'))
+    await u.click(within(sheet).getByRole('button', { name: s.delete }))
+    expect(await within(sheet).findByText(errorMessage(failure))).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: s.delete })).toBeEnabled()
+    expect(within(sheet).getByRole('button', { name: s.nailed })).toBeEnabled()
+    expect(onClose).not.toHaveBeenCalled()
+    // Said in the sheet, not in a toast too.
+    expect(screen.getAllByText(errorMessage(failure))).toHaveLength(1)
+  })
+
+  it('a delete that answers after the sheet left is one toast with its Undo', async () => {
+    const reply = later<unknown>()
+    setup({ remove: () => reply.promise })
+    const u = user()
+    await dialog(s.title('הסתברות'))
+    await u.click(screen.getByRole('button', { name: s.delete }))
+    act(() => {
+      hideSheet()
+    })
+    await act(async () => {
+      reply.resolve(makeDeleteResult())
+      await Promise.resolve()
+    })
+    const region = await screen.findByRole('region', { name: en.common.notifications })
+    expect(await within(region).findAllByText(s.deleted('הסתברות'))).toHaveLength(1)
+    expect(within(region).getByRole('button', { name: en.common.undo })).toBeInTheDocument()
   })
 })
 

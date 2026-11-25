@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router'
 import { errorMessage } from '../api/client'
 import { useBoardUserId } from '../board/api'
 import { useClosures } from '../closure/api'
@@ -6,7 +7,7 @@ import { useClosureActions } from '../closure/closureActions'
 import { ClosureSheet } from '../closure/ClosureSheet'
 import { MoedBSheet } from '../closure/MoedBSheet'
 import { markShown } from '../closure/seen'
-import { statsText } from '../closure/sheetParts'
+import { statsText, useMounted } from '../closure/sheetParts'
 import type { ClosureItem } from '../closure/types'
 import { en } from '../i18n/en'
 import { useMaterials } from '../onboarding/api'
@@ -44,26 +45,49 @@ function PendingCard({ exam, item, onOpen }: { exam: Exam; item: ClosureItem; on
   )
 }
 
+// Waiting for its retake: plan it, keep it as a memory (a toast with its Undo), or delete it.
 function WaitingCard({ exam, item, onPlan }: { exam: Exam; item: ClosureItem; onPlan: () => void }) {
   const actions = useClosureActions()
   const materials = useMaterials(exam.id)
+  const navigate = useNavigate()
+  const mounted = useMounted()
+  const closing = actions.closing(exam.id)
+  const deleting = actions.deleting(exam.id)
   return (
     <Card className="flex flex-col gap-3">
       <ArchiSays mood="rest">{c.waiting.say(exam.name)}</ArchiSays>
       {materials.isSuccess ? <p className="text-body text-ink-muted">{c.waiting.kept(materials.data.length, item.tasks_total)}</p> : null}
       <div className="flex flex-wrap gap-2">
-        {/* Not while the exam is being closed: the server would refuse Moed B of a closed exam. */}
-        <Button onPress={onPlan} isDisabled={actions.closing(exam.id)}>
+        {/* Not while the exam is being closed or deleted: the server would refuse the retake of either. */}
+        <Button onPress={onPlan} isDisabled={closing || deleting}>
           {c.waiting.plan}
         </Button>
         <Button
           variant="secondary"
-          isPending={actions.closing(exam.id)}
+          isPending={closing}
+          isDisabled={deleting}
           onPress={() => {
             actions.finish(item)
           }}
         >
           {c.waiting.done}
+        </Button>
+        <Button
+          variant="danger"
+          isPending={deleting}
+          isDisabled={closing}
+          onPress={() => {
+            actions.remove(item, {
+              onSuccess: () => {
+                // The screen of a deleted exam is "not found": the list instead, and Back does not return here.
+                if (mounted.current) void navigate('/exams', { replace: true })
+                // On purpose: the toast with its Undo is the action's, and it stays once this screen is gone.
+                return false
+              },
+            })
+          }}
+        >
+          {c.waiting.delete}
         </Button>
       </div>
     </Card>
@@ -77,7 +101,7 @@ function ArchivedCard({ exam }: { exam: Exam }) {
   const entry = progress.data?.archive.find((e) => e.exam_id === exam.id)
   const stats = entry === undefined ? null : statsText(entry)
   const closed = typeof exam.closed_at === 'string' ? c.archived.closedOn(longDate(todayIn(timeZone, new Date(exam.closed_at)))) : null
-  // After "I'm done with it" the pressed button has left the tree with the card it was on: the focus
+  // After "Keep it as a memory" the pressed button has left the tree with the card it was on: the focus
   // comes here instead of falling to the page. The toast already says the sentence.
   const focusRef = useRef<HTMLDivElement>(null)
   useEffect(() => {

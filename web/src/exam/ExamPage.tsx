@@ -1,6 +1,6 @@
 import { ChevronLeft } from '../ui/icons'
 import { useState, type ReactNode } from 'react'
-import { useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { errorMessage } from '../api/client'
 import { useMe } from '../api/me'
 import { en } from '../i18n/en'
@@ -66,6 +66,7 @@ export function ExamPage() {
   const [sheet, setSheet] = useState<ClosureSheetState>(null)
   // The same query as the task list: one request, and the same minutes (S34 decision 11).
   const tasks = useExamTasks(examId)
+  const navigate = useNavigate()
 
   if (exams.isPending) {
     return (
@@ -89,27 +90,36 @@ export function ExamPage() {
       </Frame>
     )
   }
-  if (exam === undefined) {
-    return (
-      <Frame>
-        <EmptyState title={t.notFound} description={t.notFoundHint} />
-      </Frame>
-    )
-  }
-
-  const state = examState(exam)
+  // The sheets sit outside every branch, at the same place in the tree (the second child of the
+  // fragment): an exam deleted from the sheet leaves GET /exams while the sheet still shows its "after"
+  // state and its Undo, and an Undo brings the exam back under the same sheet. React keeps it mounted
+  // through both.
   const sheets = (
     <ClosureSheets
       sheet={sheet}
       onClose={() => {
         setSheet(null)
+        // Deleted while the sheet was open: its screen is gone too, and Back does not return to it.
+        if (exam === undefined) void navigate('/exams', { replace: true })
       }}
     />
   )
-  // Pending, waiting for Moed B or closed: the header and the card of Archi, nothing the server refuses.
-  // A pending exam keeps its edit button (a wrong date put right brings it back to active). One tree
-  // for every state, with the sheets last, so they stay mounted when the state changes under them.
-  return (
+  if (exam === undefined) {
+    return (
+      <>
+        <Frame>
+          <EmptyState title={t.notFound} description={t.notFoundHint} />
+        </Frame>
+        {sheets}
+      </>
+    )
+  }
+
+  const state = examState(exam)
+  // Pending, waiting for a retake or closed: the header and the card of Archi, nothing the server
+  // refuses. A pending exam keeps its edit button (a wrong date put right brings it back to active).
+  // One tree for every state, so the sheets stay mounted when the state changes under them.
+  const content = (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <BackLink />
@@ -142,7 +152,12 @@ export function ExamPage() {
       ) : (
         <ClosureCard exam={exam} state={state} onOpen={setSheet} />
       )}
-      {sheets}
     </div>
+  )
+  return (
+    <>
+      {content}
+      {sheets}
+    </>
   )
 }

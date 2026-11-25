@@ -8,18 +8,22 @@ import { tasksKey } from '../exam/api'
 import type { ExamTask } from '../exam/types'
 import { codeText } from '../i18n/codes'
 import { en } from '../i18n/en'
-import { examsKey, planKey, todayKey } from '../onboarding/api'
+import { examsKey, materialsKey, planKey, todayKey } from '../onboarding/api'
+import type { ExamDeleteResponse } from '../onboarding/types'
 import { UNDO_TIMEOUT_MS, useToast } from '../ui/useToast'
 import { emitBloom, rethrowLater } from './bloomEvents'
 import type { MoedBErrors } from './moedBForm'
 import { moedBDoneStatus } from './sheetParts'
 import type { ClosureItem, CloseResult, MoedBBody, MoedBResult, Outcome } from './types'
 
-// The actions of closing an exam (S45): close it ("Nailed it" / "Keep open for Moed B"), open its
-// Moed B (POST /exams/{id}/moed-b builds the new plan in the same request), and Undo either.
+// The actions on an exam that has passed (S45, S45b), four of them: close it ("Keep it as a memory" /
+// "Keep it open for a retake"), delete it ("Delete it": DELETE /exams/{id}, which never blooms: the
+// bloom is S33's, for done alone), open its retake (POST /exams/{id}/moed-b builds the new plan in the
+// same request), and Undo any of them.
 //
 // The callbacks live on the mutations, not on mutate() (the pattern of calendar/splitActions.ts), so
-// the toast of "I'm done with it" and its Undo still work once the exam screen is gone. The handlers a
+// the toast of "Keep it as a memory" or "Delete it" on the exam screen, and its Undo, still work once
+// that screen is gone. The handlers a
 // caller passes travel in the variables and run from there too: the sheet checks itself whether it is
 // still mounted, and each handler returns whether it showed the answer ("I showed it"). When none did
 // (the sheet was gone by the time the answer came, or the handler threw), the action says it in a
@@ -47,6 +51,11 @@ export interface MoedBHandlers {
   onSuccess?(result: MoedBResult, simulations: number): boolean
   onError?(failure: MoedBFailure): boolean
 }
+export interface DeleteHandlers {
+  // versionId: null only if the server wrote no version (it always does today); then there is no Undo.
+  onSuccess?(versionId: string | null): boolean
+  onError?(failure: CloseFailure): boolean
+}
 export interface UndoHandlers {
   onSuccess?(): boolean
   onError?(failure: UndoFailure): boolean
@@ -54,13 +63,17 @@ export interface UndoHandlers {
 
 export interface ClosureActions {
   close(item: ExamRef, outcome: Outcome, handlers?: CloseHandlers): void
-  // "I'm done with it" from the exam screen: close done with a toast and its Undo.
+  // "Keep it as a memory" from the exam screen: close done with a toast and its Undo.
   finish(item: ExamRef): void
+  // "Delete it": DELETE /exams/{id}. No bloom.
+  remove(item: ExamRef, handlers?: DeleteHandlers): void
   openMoedB(examId: string, body: MoedBBody, handlers?: MoedBHandlers): void
   // name: the exam's, for the toast when no handler shows the answer.
-  undo(versionId: string, reason: 'close' | 'moed_b', name: string, handlers?: UndoHandlers): void
+  undo(versionId: string, reason: UndoReason, name: string, handlers?: UndoHandlers): void
   // True while the close of this exam (also through finish) is on its way.
   closing(examId: string): boolean
+  // True while the delete of this exam is on its way.
+  deleting(examId: string): boolean
   // True while the Moed B of this exam is being planned.
   planning(examId: string): boolean
   // True while the undo of this version is on its way.
@@ -74,6 +87,10 @@ interface CloseVars {
   // From finish: the hook shows the toast and its Undo itself.
   finish: boolean
 }
+interface DeleteVars {
+  item: ExamRef
+  handlers?: DeleteHandlers | undefined
+}
 interface MoedBVars {
   examId: string
   body: MoedBBody
@@ -83,9 +100,10 @@ interface MoedBAnswer {
   result: MoedBResult
   simulations: number
 }
+type UndoReason = 'close' | 'moed_b' | 'delete'
 interface UndoVars {
   versionId: string
-  reason: 'close' | 'moed_b'
+  reason: UndoReason
   name: string
   handlers?: UndoHandlers | undefined
   // The undo itself, already claimed through undoOnce.
@@ -97,6 +115,9 @@ export function closureActionKey(userId: string | null) {
 }
 function closeKey(userId: string | null) {
   return [...closureActionKey(userId), 'close'] as const
+}
+function deleteKey(userId: string | null) {
+  return [...closureActionKey(userId), 'delete'] as const
 }
 function moedBKey(userId: string | null) {
   return [...closureActionKey(userId), 'moedB'] as const
@@ -172,8 +193,10 @@ export function useClosureActions(): ClosureActions {
     mutationKey: undoKey(userId),
     mutationFn: ({ request }) => request,
     onSuccess: (_data, { reason, name, handlers }) => {
+      // The exam a delete took back has its materials again (onboarding's useUndo does the same).
+      if (reason === 'delete') void queryClient.invalidateQueries({ queryKey: materialsKey(userId) })
       if (callHandler(() => handlers?.onSuccess?.())) return
-      toast.show({ text: reason === 'close' ? s.undone(name) : en.closure.moedB.undone(name), tone: 'success' })
+      toast.show({ text: reason === 'moed_b' ? en.closure.moedB.undone(name) : s.undone(name), tone: 'success' })
     },
     onError: (error, { reason, handlers }) => {
       // invalid_state of moed_b_opened: a Moed B task was done or skipped, or a block of it runs now.
@@ -188,14 +211,14 @@ export function useClosureActions(): ClosureActions {
     onSettled: settle,
   })
 
-  function undo(versionId: string, reason: 'close' | 'moed_b', name: string, handlers?: UndoHandlers) {
+  function undo(versionId: string, reason: UndoReason, name: string, handlers?: UndoHandlers) {
     const request = undoOnce(queryClient, versionId, () => api.post('/plan/undo', { version_id: versionId }))
     if (request === null) return
     undoMutation.mutate({ versionId, reason, name, handlers, request })
   }
 
   // The answer in a toast with its Undo, for 10 seconds; the Undo says its own answer in a toast too.
-  function undoToast(text: string, versionId: string, reason: 'close' | 'moed_b', name: string) {
+  function undoToast(text: string, versionId: string, reason: UndoReason, name: string) {
     toast.show({
       text,
       tone: 'success',
@@ -232,6 +255,34 @@ export function useClosureActions(): ClosureActions {
       // The sheet shows the error itself; the exam screen has only the toast.
       const shown = callHandler(() => handlers?.onError?.({ kind: 'error', message }))
       if (finish || !shown) toast.show({ text: message, tone: 'error' })
+    },
+    onSettled: settle,
+  })
+
+  // useBoardUserId and onboarding's useUserId are the same id (the signed-in user's), so materialsKey
+  // and examsKey here are the keys the onboarding queries use.
+  const deleteMutation = useMutation<ExamDeleteResponse, ApiError, DeleteVars>({
+    mutationKey: deleteKey(userId),
+    mutationFn: ({ item }) => api.delete<ExamDeleteResponse>(`/exams/${item.exam_id}`),
+    onSuccess: (answer, { item, handlers }) => {
+      // The exam's materials go with it: no polling of a list that is gone (as useDeleteExam does).
+      queryClient.removeQueries({ queryKey: materialsKey(userId, item.exam_id) })
+      // No emitBloom: a deleted exam does not bloom.
+      if (callHandler(() => handlers?.onSuccess?.(answer.version_id))) return
+      const name = item.exam_name
+      if (answer.version_id !== null) undoToast(s.deleted(name), answer.version_id, 'delete', name)
+      else toast.show({ text: s.deleted(name), tone: 'success' })
+    },
+    onError: (error, { handlers }) => {
+      const stale = staleText(error)
+      if (stale !== null) {
+        toast.show({ text: stale, tone: 'info' })
+        callHandler(() => handlers?.onError?.({ kind: 'stale' }))
+        return
+      }
+      const message = errorMessage(error)
+      if (callHandler(() => handlers?.onError?.({ kind: 'error', message }))) return
+      toast.show({ text: message, tone: 'error' })
     },
     onSettled: settle,
   })
@@ -282,6 +333,10 @@ export function useClosureActions(): ClosureActions {
     filters: { mutationKey: closeKey(userId), status: 'pending' },
     select: (mutation) => (mutation.state.variables as CloseVars | undefined)?.item.exam_id,
   })
+  const deletingIds = useMutationState({
+    filters: { mutationKey: deleteKey(userId), status: 'pending' },
+    select: (mutation) => (mutation.state.variables as DeleteVars | undefined)?.item.exam_id,
+  })
   const planningIds = useMutationState({
     filters: { mutationKey: moedBKey(userId), status: 'pending' },
     select: (mutation) => (mutation.state.variables as MoedBVars | undefined)?.examId,
@@ -291,28 +346,34 @@ export function useClosureActions(): ClosureActions {
     select: (mutation) => (mutation.state.variables as UndoVars | undefined)?.versionId,
   })
   const closing = useCallback((examId: string) => closingIds.includes(examId), [closingIds])
+  const deleting = useCallback((examId: string) => deletingIds.includes(examId), [deletingIds])
   const planning = useCallback((examId: string) => planningIds.includes(examId), [planningIds])
   const undoing = useCallback((versionId: string) => undoingIds.includes(versionId), [undoingIds])
 
   // Read from the mutation cache, not from closingIds: a second press in the same tick comes before
   // the re-render. A mutation turns pending synchronously inside mutate().
-  function closeRunning(examId: string) {
+  // One decision at a time for each exam: a close (also through finish) or a delete of it.
+  function deciding(examId: string) {
+    const ofExam = (m: { state: { variables: unknown } }) =>
+      (m.state.variables as CloseVars | DeleteVars | undefined)?.item.exam_id === examId
     return (
-      queryClient.isMutating({
-        mutationKey: closeKey(userId),
-        predicate: (m) => (m.state.variables as CloseVars | undefined)?.item.exam_id === examId,
-      }) > 0
+      queryClient.isMutating({ mutationKey: closeKey(userId), predicate: ofExam }) > 0 ||
+      queryClient.isMutating({ mutationKey: deleteKey(userId), predicate: ofExam }) > 0
     )
   }
 
   return {
     close: (item, outcome, handlers) => {
-      if (closeRunning(item.exam_id)) return
+      if (deciding(item.exam_id)) return
       closeMutation.mutate({ item, outcome, handlers, finish: false })
     },
     finish: (item) => {
-      if (closeRunning(item.exam_id)) return
+      if (deciding(item.exam_id)) return
       closeMutation.mutate({ item, outcome: 'done', finish: true })
+    },
+    remove: (item, handlers) => {
+      if (deciding(item.exam_id)) return
+      deleteMutation.mutate({ item, handlers })
     },
     openMoedB: (examId, body, handlers) => {
       const running = queryClient.isMutating({
@@ -324,6 +385,7 @@ export function useClosureActions(): ClosureActions {
     },
     undo,
     closing,
+    deleting,
     planning,
     undoing,
   }
