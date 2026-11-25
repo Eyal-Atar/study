@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { act } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeArchived } from '../garden/testFixtures'
 import { isolate } from '../i18n/bidi'
 import { en } from '../i18n/en'
@@ -35,43 +35,79 @@ function badgeItem(name: string) {
 }
 
 describe('the progress board', () => {
+  // Only Date is frozen (the screen's data carries its own dates); timers keep running for the queries.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-16T10:00:00Z') })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('shows the level, the total XP, the blocks done and the streak', async () => {
     setup(makeProgress())
     expect(await screen.findByRole('heading', { level: 1, name: t.title })).toBeInTheDocument()
     const level = await screen.findByRole('region', { name: t.level.title })
     expect(within(level).getByText(t.level.level(2))).toBeInTheDocument()
     expect(within(level).getByText(t.level.totalXp('1,240'))).toBeInTheDocument()
-    // The bar says how far along the level is, once: no second sentence with what is left.
+    // The ring says how far along the level is, once: no second sentence with what is left.
     expect(within(level).getByText(t.level.barValue('240', '1,000'))).toBeInTheDocument()
     expect(within(level).queryByText(/760 (left|more|to go)/i)).not.toBeInTheDocument()
     expect(within(level).getByText(t.level.blocksDone(12))).toBeInTheDocument()
 
     const streak = section(t.streak.title)
     expect(within(streak).getByText(t.streak.days(4))).toBeInTheDocument()
-    expect(within(streak).getByText(t.streak.days(9))).toBeInTheDocument()
     expect(within(streak).getByText(t.streak.studiedToday)).toBeInTheDocument()
-    expect(within(streak).getByText(t.days.summary(5, 14))).toBeInTheDocument()
+    expect(within(streak).getByText(en.garden.streak.longest(t.streak.days(9)))).toBeInTheDocument()
+    expect(screen.getByText(t.days.summary(5, 14))).toBeInTheDocument()
   })
 
-  it('the bar runs from the start of this level to the next one', async () => {
+  it('a streak of 0 after a longer one: Archi says it paused; with no history it is the invitation', async () => {
+    const { unmount } = setup(makeProgress({ streak: { current: 0, longest: 3, studied_today: false, today: '2026-11-16' } }))
+    const streak = await screen.findByRole('region', { name: t.streak.title })
+    expect(within(streak).getByText(en.garden.streak.paused)).toBeInTheDocument()
+    expect(streak.querySelector('[data-archi-says]')).not.toBeNull()
+    expect(within(streak).queryByText(t.streak.start)).not.toBeInTheDocument()
+    unmount()
+    setup(makeProgress({ streak: { current: 0, longest: 0, studied_today: false, today: '2026-11-16' } }))
+    const fresh = await screen.findByRole('region', { name: t.streak.title })
+    expect(within(fresh).getByText(t.streak.start)).toBeInTheDocument()
+    expect(fresh.querySelector('[data-archi-says]')).toBeNull()
+  })
+
+  it('the 14 leaves are a section after the two cards and before the badges', async () => {
     setup(makeProgress())
-    const bar = await screen.findByRole('progressbar', { name: t.level.barLabel(3) })
-    expect(bar).toHaveAttribute('aria-valuemin', '0')
-    expect(bar).toHaveAttribute('aria-valuemax', '1000')
-    expect(bar).toHaveAttribute('aria-valuenow', '240')
-    expect(bar).toHaveAttribute('aria-valuetext', t.level.barValue('240', '1,000'))
+    const days = await screen.findByRole('heading', { level: 2, name: en.garden.days.title })
+    const streak = section(t.streak.title)
+    expect(streak).not.toContainElement(days)
+    expect(streak.compareDocumentPosition(days) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const badges = section(t.badges.title)
+    expect(days.compareDocumentPosition(badges) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const leaves = [...document.querySelectorAll('[data-day]')]
+    expect(leaves).toHaveLength(14)
+    expect(document.querySelectorAll('[data-day="studied"]')).toHaveLength(5)
+    expect(document.querySelectorAll('[data-today]')).toHaveLength(1)
+  })
+
+  it('level 4 with 620 of 1,000 XP: the number, the words, and a ring that has the words as its name', async () => {
+    setup(makeProgress({ total_xp: 3620, level: 4, level_start_xp: 3000, next_level_xp: 4000 }))
+    const level = await screen.findByRole('region', { name: t.level.title })
+    expect(within(level).getByText('Level 4')).toBeInTheDocument()
+    expect(within(level).getByText('620 of 1,000 XP')).toBeInTheDocument()
+    expect(within(level).getByRole('img', { name: '620 of 1,000 XP' })).toBeInTheDocument()
+    expect(within(level).queryByRole('progressbar')).not.toBeInTheDocument()
+    const arc = level.querySelector('[data-part="arc"]')
+    expect(arc).toHaveAttribute('stroke-dasharray', '62.0 100')
   })
 
   it('a new user: level 1, 0 XP, and a streak of 0 is an invitation', async () => {
     setup(newUserProgress())
-    const bar = await screen.findByRole('progressbar', { name: t.level.barLabel(2) })
-    expect(bar).toHaveAttribute('aria-valuenow', '0')
+    expect(await screen.findByRole('img', { name: t.level.barValue('0', '1,000') })).toBeInTheDocument()
     expect(screen.getByText(t.level.level(1))).toBeInTheDocument()
     expect(screen.getByText(t.level.totalXp('0'))).toBeInTheDocument()
     expect(screen.getByText(t.level.blocksDone(0))).toBeInTheDocument()
     const streak = section(t.streak.title)
     expect(within(streak).getByText(t.streak.start)).toBeInTheDocument()
-    expect(within(streak).getByText(t.days.summary(0, 14))).toBeInTheDocument()
+    expect(screen.getByText(t.days.summary(0, 14))).toBeInTheDocument()
     expect(screen.getByText(t.badges.summary(0, 18))).toBeInTheDocument()
     expect(screen.getAllByText(t.badges.notEarned)).toHaveLength(18)
   })
@@ -97,6 +133,7 @@ describe('the progress board', () => {
     expect(within(level).getByText(t.level.max)).toBeInTheDocument()
     expect(within(level).getByText(t.level.totalXp('1,300,000'))).toBeInTheDocument()
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(within(level).queryByRole('img')).toBeInTheDocument()
   })
 
   it('badges by group: earned ones with the date, the others say so in text with the way there', async () => {
@@ -109,12 +146,13 @@ describe('the progress board', () => {
 
     // 22:30 UTC on the 12th is the 13th in Jerusalem.
     const week = badgeItem(t.badges.items.iron_will_7.name)
-    expect(week).toHaveTextContent(t.badges.earnedOn('13 November 2026'))
+    expect(week).toHaveTextContent(t.badges.earnedOn('13 Nov'))
     expect(week).not.toHaveTextContent(t.badges.notEarned)
 
     const twenty = badgeItem(t.badges.items.task_master_20.name)
     expect(twenty).toHaveTextContent(t.badges.notEarned)
-    expect(twenty).toHaveTextContent(t.badges.items.task_master_20.description)
+    // The name already says it: the description is not repeated in the tile.
+    expect(twenty).not.toHaveTextContent(t.badges.items.task_master_20.description)
     expect(twenty).toHaveTextContent(t.badges.towards('12', '20'))
   })
 
@@ -154,13 +192,22 @@ describe('the progress board', () => {
     setup(makeProgress())
     await screen.findByRole('region', { name: t.badges.title })
     const earned = badgeItem(t.badges.items.first_task.name)
-    expect(earned.querySelector('svg')).toHaveAttribute('data-badge', 'earned')
+    expect(earned).not.toHaveClass('border-dashed')
     const open = badgeItem(t.badges.items.task_master_100.name)
-    expect(open.querySelector('svg')).toHaveAttribute('data-badge', 'open')
+    expect(open).toHaveClass('border-dashed')
     expect(within(open).getByText(t.badges.notEarned)).toBeInTheDocument()
   })
 
-  it('each group of badges is a named list of rows', async () => {
+  it('18 tiles in five groups, each with a stone', async () => {
+    setup(makeProgress())
+    const badges = await screen.findByRole('region', { name: t.badges.title })
+    expect(within(badges).getAllByRole('list')).toHaveLength(5)
+    expect(within(badges).getAllByRole('listitem')).toHaveLength(18)
+    expect(badges.querySelectorAll('svg[data-group]')).toHaveLength(18)
+    expect(within(badges).getAllByText(t.badges.notEarned)).toHaveLength(14)
+  })
+
+  it('each group of badges is a named list of tiles', async () => {
     setup(makeProgress())
     const badges = await screen.findByRole('region', { name: t.badges.title })
     const streak = within(badges).getByRole('list', { name: t.badges.groups.streak })

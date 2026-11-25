@@ -1,19 +1,20 @@
-import { Award, CircleDashed } from '../ui/icons'
 import { useId } from 'react'
 import { useProfileTimezone } from '../board/time'
+import { BadgeStone } from '../garden/BadgeStone'
+import { badgeTier } from '../garden/model'
 import { en } from '../i18n/en'
-import { List, ListRow } from '../ui/List'
 import { SectionHeading } from '../ui/SectionHeading'
-import { ICON_STROKE } from '../ui/styles'
-import { formatEarnedDate, formatNumber } from './format'
+import { cx } from '../ui/styles'
+import { formatEarnedShort, formatNumber } from './format'
 import type { Badge, BadgeGroup, Progress } from './types'
 
 const t = en.progress.badges
 
 const GROUPS: BadgeGroup[] = ['first', 'blocks', 'streak', 'level', 'xp']
+const STONE_SIZE = 44
 
-function badgeText(key: string): { name: string; description: string } {
-  return (t.items as Record<string, { name: string; description: string } | undefined>)[key] ?? t.unknown
+function badgeName(key: string): string {
+  return (t.items as Record<string, { name: string } | undefined>)[key]?.name ?? t.unknown.name
 }
 
 // Where the user stands on what the group counts (the server's rules, plan decision 4).
@@ -31,41 +32,35 @@ function currentFor(group: BadgeGroup, progress: Progress): number {
   }
 }
 
-// One badge as a row. Earned: a green award and "earned on" with the date under the name.
-// Not earned: a dashed circle, and how far along it is at the end of the row. The two differ in
-// the shape of the icon and in the words, so the colour carries nothing alone.
-function BadgeRow({ badge, current, timeZone }: { badge: Badge; current: number; timeZone: string }) {
-  const { name, description } = badgeText(badge.key)
-  if (badge.earned) {
-    const when = badge.earned_at === null ? t.earned : t.earnedOn(formatEarnedDate(badge.earned_at, timeZone))
-    return (
-      <ListRow
-        leading={<Award aria-hidden="true" data-badge="earned" size={18} strokeWidth={ICON_STROKE} className="text-success" />}
-        title={name}
-        subtitle={t.details([description, when])}
-      />
-    )
-  }
+// One badge as a tile: its stone, its name and one line under it. Earned: the stone in gold and
+// "earned on" with the day. Not earned: a dashed border, an open stone, how far along it is, and
+// the words for a screen reader. The two differ in shape and in words, so colour carries nothing
+// alone. The description is not shown: the name already says it.
+function BadgeTile({ badge, current, timeZone, progress }: { badge: Badge; current: number; timeZone: string; progress: Progress }) {
+  const known = (t.items as Record<string, unknown>)[badge.key] !== undefined
+  // badgeTier throws on a key it does not know, and the server may send a newer one.
+  const { tier, tiers } = known ? badgeTier(progress.badges, badge.key) : { tier: 1, tiers: 1 }
+  const line = badge.earned
+    ? badge.earned_at === null
+      ? t.earned
+      : t.earnedOn(formatEarnedShort(badge.earned_at, timeZone))
+    : t.towards(formatNumber(Math.min(current, badge.threshold)), formatNumber(badge.threshold))
   return (
-    <ListRow
-      leading={<CircleDashed aria-hidden="true" data-badge="open" size={18} strokeWidth={ICON_STROKE} className="text-ink-muted" />}
-      title={name}
-      subtitle={description === '' ? undefined : description}
-      trailing={
-        <>
-          {/* The count is the visible way of saying "not yet"; a screen reader hears the words first. */}
-          <span className="sr-only">{t.notEarned}</span>
-          <span className="text-small whitespace-nowrap text-ink-muted tabular-nums">
-            {t.towards(formatNumber(Math.min(current, badge.threshold)), formatNumber(badge.threshold))}
-          </span>
-        </>
-      }
-    />
+    <li
+      className={cx(
+        'flex flex-col items-center gap-1 rounded-card border bg-surface p-2',
+        badge.earned ? 'border-line' : 'border-dashed border-line',
+      )}
+    >
+      <BadgeStone group={badge.group} tier={tier} tiers={tiers} earned={badge.earned} size={STONE_SIZE} />
+      <span className="text-center text-small font-medium">{badgeName(badge.key)}</span>
+      {badge.earned ? null : <span className="sr-only">{t.notEarned}</span>}
+      <span className="text-center text-caption text-ink-muted tabular-nums">{line}</span>
+    </li>
   )
 }
 
-// Every badge, earned or not, grouped as the server orders them: a list of rows per group and not
-// a box per badge (design language 5.2), so 18 badges read as one quiet column.
+// Every badge, earned or not, as stones in a grid per group, in the order the server gives.
 export function BadgeGrid({ progress }: { progress: Progress }) {
   const titleId = useId()
   const timeZone = useProfileTimezone()
@@ -82,13 +77,13 @@ export function BadgeGrid({ progress }: { progress: Progress }) {
         if (badges.length === 0) return null
         const current = currentFor(group, progress)
         return (
-          <div key={group}>
+          <div key={group} className="flex flex-col gap-2">
             <SectionHeading level={3}>{t.groups[group]}</SectionHeading>
-            <List aria-label={t.groups[group]}>
+            <ul aria-label={t.groups[group]} className="grid grid-cols-3 gap-2 min-[360px]:grid-cols-4">
               {badges.map((badge) => (
-                <BadgeRow key={badge.key} badge={badge} current={current} timeZone={timeZone} />
+                <BadgeTile key={badge.key} badge={badge} current={current} timeZone={timeZone} progress={progress} />
               ))}
-            </List>
+            </ul>
           </div>
         )
       })}

@@ -2,6 +2,7 @@ import { StreakLeafIcon } from '../ui/icons'
 import { Link } from 'react-router'
 import { en } from '../i18n/en'
 import { useProgress } from '../progress/api'
+import { levelPercent } from '../progress/levelPercent'
 import type { Progress, Streak } from '../progress/types'
 import { cx, FOCUS_RING_NATIVE } from '../ui/styles'
 
@@ -19,15 +20,6 @@ const RING_SIZE = 34
 const RING_STROKE = 4
 const RING_CENTER = RING_SIZE / 2
 const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2
-
-// The share of the way from the start of the level to the next one, 0 to 100. The top level has no
-// next one: the ring is full.
-function levelPercent({ total_xp, level_start_xp, next_level_xp }: ChipProgress): number {
-  if (next_level_xp === null) return 100
-  const span = next_level_xp - level_start_xp
-  if (span <= 0) return 100
-  return Math.min(100, Math.max(0, ((total_xp - level_start_xp) / span) * 100))
-}
 
 // The streak and the level in the header, as a link to the progress board (S31 decision 12), in
 // the two parts of the mockup's chip (decision 29): a green pill with a leaf and the days of the

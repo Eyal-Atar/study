@@ -1,35 +1,53 @@
+import { useId } from 'react'
 import { en } from '../i18n/en'
+import { enGarden } from '../i18n/enGarden'
+import { StreakLeafIcon } from '../ui/icons'
+import { SectionHeading } from '../ui/SectionHeading'
 import { cx } from '../ui/styles'
 import { weekdayOf } from './format'
 import type { Progress } from './types'
 
 const t = en.progress.days
 
-// The last 14 study days as a row of quiet cells: filled in green where something was done (green
-// is "done"), an outline where not (never red, spec 7.9), today with a ring. Filled, outlined and
-// ringed differ in shape, not only in colour. The cells are decoration for the eye; the sentence
-// under them says the same for a screen reader, and names the 14 days, so the strip has no title.
+const LEAF_SIZE = 18
+
+// The last 14 study days as a row of leaves (plan decision 18): a day with XP is a filled leaf in
+// green ("done"), a day without is the outline of a leaf in muted ink (never red, spec 7.9), and
+// today has a line under it. Filled, outlined and underlined differ in shape, not only in colour.
+// The leaves are decoration for the eye; the sentence beside the title says the same for a screen
+// reader and names the 14 days.
 export function DayStrip({ days, today }: { days: Progress['days']; today: string }) {
+  const titleId = useId()
   const studied = days.filter((d) => d.xp > 0).length
   return (
-    // The line separates the strip from the numbers above it (5.1: a line, not a card in a card).
-    <div className="flex flex-col gap-3 border-t border-line pt-4">
-      {/* gap-1.5: the ring of today (2px and a 2px gap) must not touch the cell beside it. */}
-      <ol aria-hidden="true" className="grid grid-cols-14 gap-1.5">
-        {days.map((day) => (
-          <li key={day.date} className="flex flex-col items-center gap-1">
-            <span
-              className={cx(
-                'block aspect-square w-full max-w-6 rounded-badge',
-                day.xp > 0 ? 'bg-success' : 'border border-line-strong bg-surface',
-                day.date === today && 'ring-2 ring-brand ring-offset-2',
-              )}
-            />
-            <span className="text-small text-ink-muted">{t.weekdayLetters[weekdayOf(day.date)]}</span>
-          </li>
-        ))}
+    <section aria-labelledby={titleId} className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+        <SectionHeading id={titleId}>{enGarden.days.title}</SectionHeading>
+        <p className="text-small text-ink-muted">{t.summary(studied, days.length)}</p>
+      </div>
+      <ol aria-hidden="true" className="grid grid-cols-14 gap-1">
+        {days.map((day) => {
+          const done = day.xp > 0
+          const isToday = day.date === today
+          return (
+            <li
+              key={day.date}
+              data-day={done ? 'studied' : 'open'}
+              {...(isToday ? { 'data-today': '' } : {})}
+              className="flex flex-col items-center gap-1"
+            >
+              {/* The paper layer of the icon is the first path; "studied" fills it solid. */}
+              <span className={cx('flex flex-col items-center pb-0.5', isToday && 'border-b-2 border-brand')}>
+                <StreakLeafIcon
+                  size={LEAF_SIZE}
+                  className={cx(done ? 'text-success [&_path:first-child]:fill-current [&_path:first-child]:[fill-opacity:1]' : 'text-ink-muted')}
+                />
+              </span>
+              <span className="text-small text-ink-muted">{t.weekdayLetters[weekdayOf(day.date)]}</span>
+            </li>
+          )
+        })}
       </ol>
-      <p className="text-small text-ink-muted">{t.summary(studied, days.length)}</p>
-    </div>
+    </section>
   )
 }
