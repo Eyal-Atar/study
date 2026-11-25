@@ -67,6 +67,7 @@ export const SECTIONS = [
   { id: 'weekday-picker', title: 'Weekday picker' },
   { id: 'commitment-dialog', title: 'Commitment dialog' },
   { id: 'timetable-import', title: 'Timetable import' },
+  { id: 'badge-stones', title: 'Badge stones' },
 ] as const
 
 export type SectionId = (typeof SECTIONS)[number]['id']
@@ -628,5 +629,22 @@ export const devText = {
       title: 'Find a time',
       description: 'I look for the free hours that fit.',
     },
+  },
+  s33: {
+    stones:
+      'One stone per badge group, each with its own outline, a symbol cut into it and one dot per tier. Every tier of every group, earned and not yet earned, at 48px; first on a surface, then on the canvas.',
+    surfaces: {
+      surface: 'On a surface (bg-surface, a card)',
+      canvas: 'On the canvas (bg-canvas, the page itself)',
+    },
+    groups: {
+      first: 'first: a low round pebble with a sprout, one tier',
+      blocks: 'blocks: a flat river stone with the mark of Done, four tiers',
+      streak: 'streak: a tall standing stone with the streak leaf, five tiers',
+      level: 'level: a cairn of two stones with a small tree, five tiers',
+      xp: 'xp: a faceted stone with the XP spark, three tiers',
+    },
+    earned: 'Earned',
+    notYet: 'Not yet earned',
   },
 } as const

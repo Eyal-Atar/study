@@ -30,6 +30,7 @@ import {
 } from './fieldSections'
 import { IconsSection } from './iconSections'
 import { ColoursSection, ExamPaletteSection, ShapeSection, TypographySection } from './paletteSections'
+import { BadgeStonesSection } from './gardenSections'
 import { DialogSection, PageHeaderSection, ToastSection } from './overlaySections'
 import { NoteSection, OptionGridSection, SegmentedControlSection } from './s27Sections'
 import { CollapsibleSectionSection, CompactSelectSection, SwitchSection } from './s28Sections'
@@ -126,6 +127,8 @@ export function ComponentsPage() {
         <ProgressRingSection />
         <ActionCardSection />
         <S34Sections />
+        {/* S33: the illustrations drawn in code. */}
+        <BadgeStonesSection />
       </div>
       <ToastRegion />
     </StandalonePage>
