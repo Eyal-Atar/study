@@ -22,7 +22,7 @@ describe('enClosure: the binding sentences of the plan', () => {
     ['sheet.statsNoTime', sheet.statsNoTime(86), 'You finished 86% of the plan.'],
     ['sheet.nailed', sheet.nailed, 'Nailed it'],
     ['sheet.keepOpen', sheet.keepOpen, 'Keep open for Moed B'],
-    ['sheet.bloomed', sheet.bloomed(EXAM), `${iso(EXAM)} is in full bloom. I’ve freed up its time for what’s next.`],
+    ['sheet.bloomed', sheet.bloomed(EXAM), `${iso(EXAM)} is in full bloom. I’ve moved it to your archive.`],
     [
       'sheet.kept',
       sheet.kept(EXAM),
@@ -47,14 +47,15 @@ describe('enClosure: the binding sentences of the plan', () => {
     ['moedB.gradeHint', moedB.gradeHint, 'Your grade, from 0 to 100.'],
     ['moedB.gradeError', moedB.gradeError, 'Enter a whole number from 0 to 100.'],
     ['moedB.hard', moedB.hard, 'What felt hard?'],
-    ['moedB.hardHint', moedB.hardHint, 'I’ll put these first, right after the practice exams.'],
+    ['moedB.hardHint', moedB.hardHint, 'I’ll put these right after the practice exams.'],
     ['moedB.notes', moedB.notes, 'Anything else that felt hard? (optional)'],
+    ['moedB.notesHint', moedB.notesHint, 'If you write a topic’s name as it appears above, I’ll put it first too.'],
     ['moedB.notesTooLong', moedB.notesTooLong, 'That’s a bit long. I can take up to 1,000 characters.'],
     ['moedB.submit', moedB.submit, 'Plan my Moed B'],
     ['moedB.submitting', moedB.submitting, 'Planning…'],
     ['moedB.short', moedB.short, 'Not everything fits before Moed B. Your calendar shows what’s left.'],
     ['moedB.undone', moedB.undone(EXAM), `I put ${iso(EXAM)} back to waiting for Moed B.`],
-    ['moedB.cantUndo', moedB.cantUndo, 'You’ve already studied for Moed B, so I can’t undo this.'],
+    ['moedB.cantUndo', moedB.cantUndo, 'Moed B is already under way, so I can’t undo this.'],
     ['list.pending', list.pending, 'How did it go?'],
     ['list.waiting', list.waiting, 'Waiting for Moed B'],
     ['list.done', list.done, 'Done'],
@@ -88,7 +89,7 @@ describe('enClosure: counts', () => {
     [3, 17, 'I’m keeping its 3 files and 17 tasks for Moed B.'],
     [0, 17, 'I’m keeping its 17 tasks for Moed B.'],
     [3, 0, 'I’m keeping its 3 files for Moed B.'],
-    [0, 0, 'I’m keeping everything for Moed B.'],
+    [0, 0, 'I’ll keep this exam ready for Moed B.'],
     [1, 1, 'I’m keeping its 1 file and 1 task for Moed B.'],
     [1, 0, 'I’m keeping its 1 file for Moed B.'],
     [0, 1, 'I’m keeping its 1 task for Moed B.'],
@@ -97,36 +98,41 @@ describe('enClosure: counts', () => {
   })
 
   it.each([
-    [[], 'I’ve put the practice exams first, then a general review.'],
-    [['גרפים'], `I’ve put the practice exams first, then ${iso('גרפים')}, then a general review.`],
-    [['גרפים', 'עצים'], `I’ve put the practice exams first, then ${iso('גרפים')} and ${iso('עצים')}, then a general review.`],
+    [2, [], 'I’ve put the practice exams first.'],
+    [1, [], 'I’ve put the practice exam first.'],
+    [2, ['גרפים'], `I’ve put the practice exams first, then ${iso('גרפים')}.`],
+    [1, ['גרפים'], `I’ve put the practice exam first, then ${iso('גרפים')}.`],
+    [2, ['גרפים', 'עצים'], `I’ve put the practice exams first, then ${iso('גרפים')} and ${iso('עצים')}.`],
+    [2, ['גרפים', 'עצים', 'ערימות'], `I’ve put the practice exams first, then ${iso('גרפים')}, ${iso('עצים')} and ${iso('ערימות')}.`],
     [
-      ['גרפים', 'עצים', 'ערימות'],
-      `I’ve put the practice exams first, then ${iso('גרפים')}, ${iso('עצים')} and ${iso('ערימות')}, then a general review.`,
-    ],
-    [
+      2,
       ['גרפים', 'עצים', 'ערימות', 'מיון'],
-      `I’ve put the practice exams first, then ${iso('גרפים')}, ${iso('עצים')}, ${iso('ערימות')} and ${iso('מיון')}, then a general review.`,
+      `I’ve put the practice exams first, then ${iso('גרפים')}, ${iso('עצים')}, ${iso('ערימות')} and ${iso('מיון')}.`,
     ],
-  ])('moedB.done(%j)', (weak, expected) => {
-    expect(moedB.done(weak)).toBe(expected)
+  ])('moedB.done(%s, %j)', (simulations, weak, expected) => {
+    expect(moedB.done(simulations, weak)).toBe(expected)
+  })
+
+  it('moedB.done promises no general review: the answer cannot tell whether one is left', () => {
+    expect(moedB.done(2, ['גרפים'])).not.toMatch(/general review/)
+    expect(moedB.done(1, [])).not.toMatch(/general review/)
   })
 })
 
-describe('enClosure: user content', () => {
-  const NAMED: [string, string][] = [
-    ['sheet.title', sheet.title(EXAM)],
-    ['sheet.bloomed', sheet.bloomed(EXAM)],
-    ['sheet.kept', sheet.kept(EXAM)],
-    ['sheet.next', sheet.next(EXAM)],
-    ['sheet.undone', sheet.undone(EXAM)],
-    ['row.say', row.say(EXAM)],
-    ['waiting.say', waiting.say(EXAM)],
-    ['archived.say', archived.say(EXAM)],
-    ['moedB.undone', moedB.undone(EXAM)],
-    ['moedB.done', moedB.done([EXAM])],
-  ]
+const NAMED: [string, string][] = [
+  ['sheet.title', sheet.title(EXAM)],
+  ['sheet.bloomed', sheet.bloomed(EXAM)],
+  ['sheet.kept', sheet.kept(EXAM)],
+  ['sheet.next', sheet.next(EXAM)],
+  ['sheet.undone', sheet.undone(EXAM)],
+  ['row.say', row.say(EXAM)],
+  ['waiting.say', waiting.say(EXAM)],
+  ['archived.say', archived.say(EXAM)],
+  ['moedB.undone', moedB.undone(EXAM)],
+  ['moedB.done', moedB.done(2, [EXAM])],
+]
 
+describe('enClosure: user content', () => {
   it.each(NAMED)('%s isolates the name exactly once, without quotes', (_key, text) => {
     expect(text).toContain(iso(EXAM))
     expect(text.split(iso(EXAM)).join('')).not.toContain(EXAM)
@@ -156,7 +162,8 @@ const SENTENCES: [string, string][] = [
   ['moedB.gradeError', moedB.gradeError],
   ['moedB.hardHint', moedB.hardHint],
   ['moedB.notesTooLong', moedB.notesTooLong],
-  ['moedB.done', moedB.done(['a', 'b'])],
+  ['moedB.done', moedB.done(2, ['a', 'b'])],
+  ['moedB.notesHint', moedB.notesHint],
   ['moedB.short', moedB.short],
   ['moedB.undone', moedB.undone(EXAM)],
   ['moedB.cantUndo', moedB.cantUndo],
@@ -221,12 +228,44 @@ describe('enClosure: Archi’s voice', () => {
     expect(literals.filter((text) => /!|·/.test(text) || EMOJI.test(text))).toEqual([])
   })
 
-  it('the tables above cover every isolate() call of enClosure.ts', () => {
-    const source = readFileSync(new URL('./enClosure.ts', import.meta.url), 'utf8')
-    const calls = source.split('\n').filter((line) => line.includes('isolate(')).length
-    // Eight sentences with a name (the sheet, the row and the card share one question), and the
-    // one helper that isolates the weak topics of moedB.done: all of them are in NAMED above.
-    expect(calls).toBe(9)
+  it('every function of the file is probed, and every one that takes a name is in NAMED', () => {
+    // A sample call for every function of enClosure, by its path. A new function fails the first
+    // check until it is added here; one that takes a name fails the second until it is in NAMED.
+    const PROBES: Record<string, unknown[]> = {
+      'sheet.title': [EXAM],
+      'sheet.stats': ['21 hours', 86],
+      'sheet.statsNoTime': [86],
+      'sheet.bloomed': [EXAM],
+      'sheet.kept': [EXAM],
+      'sheet.next': [EXAM],
+      'sheet.undone': [EXAM],
+      'row.say': [EXAM],
+      'row.sayMany': [2],
+      'waiting.say': [EXAM],
+      'waiting.kept': [3, 17],
+      'archived.say': [EXAM],
+      'archived.closedOn': ['16 November 2026'],
+      'moedB.done': [2, [EXAM]],
+      'moedB.undone': [EXAM],
+      'list.moedB': ['16 Dec'],
+      'list.closedOn': ['16 Nov', '86% of the plan done'],
+      'exam.moedALine': ['16 November 2026', 55],
+      'progress.closedOn': ['16 November 2026'],
+      'progress.summary': ['21 hours', 86],
+    }
+    const functions = Object.entries(enClosure).flatMap(([group, values]) =>
+      Object.entries(values as Record<string, unknown>)
+        .filter(([, value]) => typeof value === 'function')
+        .map(([key, value]) => [`${group}.${key}`, value as (...args: unknown[]) => string] as const),
+    )
+    expect(functions.map(([path]) => path).sort()).toEqual(Object.keys(PROBES).sort())
+    const takesName = functions
+      .filter(([path]) => PROBES[path]?.some((arg) => arg === EXAM || (Array.isArray(arg) && arg.includes(EXAM))))
+      .map(([path, fn]) => {
+        expect(fn(...(PROBES[path] ?? []))).toContain(iso(EXAM))
+        return path
+      })
+    expect(takesName.sort()).toEqual(NAMED.map(([path]) => path).sort())
   })
 })
 

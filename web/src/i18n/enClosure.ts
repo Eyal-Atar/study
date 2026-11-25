@@ -25,7 +25,7 @@ export const enClosure = {
     statsNoTime: (percent: number) => `You finished ${String(percent)}% of the plan.`,
     nailed: 'Nailed it',
     keepOpen: 'Keep open for Moed B',
-    bloomed: (name: string) => `${isolate(name)} is in full bloom. I’ve freed up its time for what’s next.`,
+    bloomed: (name: string) => `${isolate(name)} is in full bloom. I’ve moved it to your archive.`,
     kept: (name: string) =>
       `I’ll keep everything for ${isolate(name)} safe and quiet. When the Moed B date is out, tell me and I’ll plan a focused round.`,
     haveDate: 'I have the date',
@@ -53,7 +53,7 @@ export const enClosure = {
       const kept = [files > 0 ? plural(files, 'file', 'files') : '', tasks > 0 ? plural(tasks, 'task', 'tasks') : '']
         .filter(Boolean)
         .join(' and ')
-      return kept ? `I’m keeping its ${kept} for Moed B.` : 'I’m keeping everything for Moed B.'
+      return kept ? `I’m keeping its ${kept} for Moed B.` : 'I’ll keep this exam ready for Moed B.'
     },
     plan: 'Plan Moed B',
     done: 'I’m done with it',
@@ -72,21 +72,27 @@ export const enClosure = {
     gradeHint: 'Your grade, from 0 to 100.',
     gradeError: 'Enter a whole number from 0 to 100.',
     hard: 'What felt hard?',
-    hardHint: 'I’ll put these first, right after the practice exams.',
+    hardHint: 'I’ll put these right after the practice exams.',
     notes: 'Anything else that felt hard? (optional)',
+    // The description of notes, only when the topic list is shown: the server takes a topic from
+    // the free text only when its full name appears there (7.13).
+    notesHint: 'If you write a topic’s name as it appears above, I’ll put it first too.',
     notesTooLong: 'That’s a bit long. I can take up to 1,000 characters.',
     submit: 'Plan my Moed B',
     submitting: 'Planning…',
-    // weak: the names of weak_topics, in the order of the answer.
-    done: (weak: string[]) =>
-      weak.length === 0
-        ? 'I’ve put the practice exams first, then a general review.'
-        : `I’ve put the practice exams first, then ${names(weak)}, then a general review.`,
+    // simulations: how many practice exams the round starts with (Moed A's simulations, at most
+    // two, or one default); weak: the names of weak_topics, in the order of the answer. No word on
+    // general review: the answer cannot tell whether the budget trimmed all of it.
+    done: (simulations: number, weak: string[]) => {
+      const first = `I’ve put the ${simulations === 1 ? 'practice exam' : 'practice exams'} first`
+      return weak.length === 0 ? `${first}.` : `${first}, then ${names(weak)}.`
+    },
     // When unscheduled or shortfalls are not empty.
     short: 'Not everything fits before Moed B. Your calendar shows what’s left.',
     undone: (name: string) => `I put ${isolate(name)} back to waiting for Moed B.`,
-    // Undo of moed_b_opened refused with invalid_state.
-    cantUndo: 'You’ve already studied for Moed B, so I can’t undo this.',
+    // Undo of moed_b_opened refused with invalid_state: a Moed B task was done or skipped, or a
+    // block of it is running now.
+    cantUndo: 'Moed B is already under way, so I can’t undo this.',
   },
   // The exams list: the chips, the Moed B detail and the archive card.
   list: {
