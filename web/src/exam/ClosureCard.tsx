@@ -81,7 +81,8 @@ function WaitingCard({ exam, item, onPlan, onDelete }: { exam: Exam; item: Closu
             actions.remove(item, {
               onSuccess: () => {
                 // The screen of a deleted exam is "not found": the list instead, and Back does not return here.
-                if (mounted.current) void navigate('/exams', { replace: true })
+                // focusTitle: the pressed button is gone, so the h1 of the list takes the focus.
+                if (mounted.current) void navigate('/exams', { replace: true, state: { focusTitle: true } })
                 // On purpose: the toast with its Undo is the action's, and it stays once this screen is gone.
                 return false
               },
@@ -176,7 +177,8 @@ export function ClosureCard({
   )
 }
 
-export function ClosureSheets({ sheet, onClose }: { sheet: ClosureSheetState; onClose: () => void }) {
+// onDelete: "Delete it" was pressed in the closure sheet (ExamPage leaves the screen once the exam is gone).
+export function ClosureSheets({ sheet, onClose, onDelete }: { sheet: ClosureSheetState; onClose: () => void; onDelete?: () => void }) {
   const closures = useClosures()
   const userId = useBoardUserId()
   if (sheet === null) return null
@@ -186,6 +188,7 @@ export function ClosureSheets({ sheet, onClose }: { sheet: ClosureSheetState; on
       examId={sheet.examId}
       pending={closures.data?.pending ?? []}
       onClose={onClose}
+      onDelete={onDelete}
       onShown={(item) => {
         if (userId !== null) markShown(userId, item)
       }}

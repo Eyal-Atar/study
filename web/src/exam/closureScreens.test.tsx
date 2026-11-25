@@ -183,7 +183,7 @@ describe('the exams list with closures', () => {
     expect(screen.queryByText(/^\d+ exams?$/)).not.toBeInTheDocument()
   })
 
-  it('says Moed B first in the detail of an exam in its second sitting', async () => {
+  it('says Retake first in the detail of an exam in its second sitting', async () => {
     const fake = setup([examFixture({ id: 'b1', exam_date: '2026-12-20', sitting: 2, first_exam_date: '2026-11-16', first_grade: 55 })])
     openRoute(fake, '/exams')
     const list = await screen.findByRole('list', { name: t.list.listTitle })
@@ -194,7 +194,7 @@ describe('the exams list with closures', () => {
 })
 
 describe('the exam screen by closure state', () => {
-  it('shows Moed A in the header of Moed B', async () => {
+  it('shows the first sitting in the header of a retake', async () => {
     const fake = setup([examFixture({ id: 'b1', exam_date: '2026-12-20', sitting: 2, first_exam_date: '2026-11-16', first_grade: 55 })])
     openRoute(fake, '/exams/b1')
     expect(await screen.findByText(c.exam.moedALine(longDate('2026-11-16'), 55))).toBeInTheDocument()
@@ -569,6 +569,66 @@ describe('the exam screen: a delete from the card that a refresh overtakes', () 
     })
     openRoute(fake, '/exams/w1')
     await user().click(await screen.findByRole('button', { name: c.waiting.delete }))
+    expect(await screen.findByRole('heading', { level: 1, name: t.list.title })).toBeInTheDocument()
+    expect(await screen.findByText(codeText('not_found'))).toBeInTheDocument()
+  })
+})
+
+// The final review of S45b: after a delete the screen it leaves is gone, and so is the pressed button;
+// the focus goes to the h1 of the list (useRouteFocus, focusTitle on a replace).
+describe('the exam screen: the focus and the way out after a delete', () => {
+  it('a delete from the waiting card puts the focus on the h1 of the list', async () => {
+    const fake = setup([WAITING, ACTIVE])
+    deletable(fake, WAITING)
+    openRoute(fake, '/exams/w1')
+    await user().click(await screen.findByRole('button', { name: c.waiting.delete }))
+    const heading = await screen.findByRole('heading', { level: 1, name: t.list.title })
+    await waitFor(() => {
+      expect(heading).toHaveFocus()
+    })
+  })
+
+  it('Close on the sheet after a delete puts the focus on the h1 of the list', async () => {
+    const fake = setup([PENDING, ACTIVE])
+    deletable(fake, PENDING)
+    openRoute(fake, '/exams/p1')
+    const u = user()
+    await u.click(await screen.findByRole('button', { name: c.card.open }))
+    const sheet = await screen.findByRole('dialog', { name: c.sheet.title('הסתברות') })
+    await u.click(within(sheet).getByRole('button', { name: c.sheet.delete }))
+    const after = await screen.findByRole('dialog', { name: c.sheet.deleted('הסתברות') })
+    await waitFor(() => {
+      expect(screen.getByText(t.notFound)).toBeInTheDocument()
+    })
+    const close = within(after)
+      .getAllByRole('button', { name: en.common.close })
+      .find((b) => b.textContent === en.common.close)
+    if (close === undefined) throw new Error('no primary Close')
+    await u.click(close)
+    const heading = await screen.findByRole('heading', { level: 1, name: t.list.title })
+    await waitFor(() => {
+      expect(heading).toHaveFocus()
+    })
+    // Still there after the frame in which React Aria would give the focus back to the trigger.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    expect(heading).toHaveFocus()
+  })
+
+  it('a 404 from the sheet on the exam screen ends on the exams list', async () => {
+    const fake = setup([PENDING, ACTIVE])
+    fake.on('DELETE /exams/p1', () => {
+      // Deleted elsewhere already: the refresh after the answer has it gone.
+      fake.on('GET /exams', [ACTIVE])
+      fake.on('GET /closures', { pending: [], waiting: [] })
+      return problem(404, 'not_found')
+    })
+    openRoute(fake, '/exams/p1')
+    const u = user()
+    await u.click(await screen.findByRole('button', { name: c.card.open }))
+    const sheet = await screen.findByRole('dialog', { name: c.sheet.title('הסתברות') })
+    await u.click(within(sheet).getByRole('button', { name: c.sheet.delete }))
     expect(await screen.findByRole('heading', { level: 1, name: t.list.title })).toBeInTheDocument()
     expect(await screen.findByText(codeText('not_found'))).toBeInTheDocument()
   })

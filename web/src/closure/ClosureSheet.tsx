@@ -34,6 +34,9 @@ export interface ClosureSheetProps {
   onClose: () => void
   // Called once for each exam and sitting, when its question first shows (markShown).
   onShown?: ((item: ClosureItem) => void) | undefined
+  // Called when "Delete it" is pressed: the exam screen leaves once the exam is gone, even when the
+  // sheet closed first (a 404 closes it before the refetch of the exams).
+  onDelete?: ((item: ClosureItem) => void) | undefined
 }
 
 type State =
@@ -48,7 +51,7 @@ function question(item: ClosureItem, rest: Partial<Extract<State, { step: 'quest
   return { step: 'question', item, held: false, notice: null, focus: false, ...rest }
 }
 
-export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheetProps) {
+export function ClosureSheet({ examId, pending, onClose, onShown, onDelete }: ClosureSheetProps) {
   const actions = useClosureActions()
   const toast = useToast()
   const mounted = useMounted()
@@ -150,7 +153,10 @@ export function ClosureSheet({ examId, pending, onClose, onShown }: ClosureSheet
       else setError(failure.message)
       return true
     }
-    if (choice === 'delete') actions.remove(item, { onSuccess: toAfter, onError: failed })
+    if (choice === 'delete') {
+      onDelete?.(item)
+      actions.remove(item, { onSuccess: toAfter, onError: failed })
+    }
     else actions.close(item, choice, { onSuccess: (result) => toAfter(result.version_id), onError: failed })
   }
 

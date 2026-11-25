@@ -67,14 +67,16 @@ export function ExamPage() {
   // The same query as the task list: one request, and the same minutes (S34 decision 11).
   const tasks = useExamTasks(examId)
   const navigate = useNavigate()
-  // "Delete it" was pressed on this screen's card. A refresh can take the card off the screen after
+  // "Delete it" was pressed on this screen (its card or its sheet). A refresh can take the card off the screen after
   // the server committed and before the answer (GET /closures every 5 minutes, GET /exams on focus),
-  // and a 404 has no onSuccess: either way the card cannot leave the screen itself, so the page does
+  // and a 404 has no onSuccess (in the sheet it closes the sheet before the exams refetch): either way
+  // neither can leave the screen itself, so the page does
   // once the exam is gone. The toast with its Undo is the action's, and stays.
   const deletedHere = useRef(false)
   const gone = exams.data !== undefined && exam === undefined
   useEffect(() => {
-    if (gone && sheet === null && deletedHere.current) void navigate('/exams', { replace: true })
+    // focusTitle: the pressed button is gone, so the h1 of the list takes the focus.
+    if (gone && sheet === null && deletedHere.current) void navigate('/exams', { replace: true, state: { focusTitle: true } })
   }, [gone, sheet, navigate])
 
   if (exams.isPending) {
@@ -106,10 +108,13 @@ export function ExamPage() {
   const sheets = (
     <ClosureSheets
       sheet={sheet}
+      onDelete={() => {
+        deletedHere.current = true
+      }}
       onClose={() => {
         setSheet(null)
         // Deleted while the sheet was open: its screen is gone too, and Back does not return to it.
-        if (exam === undefined) void navigate('/exams', { replace: true })
+        if (exam === undefined) void navigate('/exams', { replace: true, state: { focusTitle: true } })
       }}
     />
   )

@@ -248,6 +248,21 @@ describe('focus after a navigation', () => {
     expect(document.body).toHaveFocus()
   })
 
+  it('a plain replace does not take the focus; a replace that asks for the title does', async () => {
+    const { router } = open('/calendar')
+    await screen.findByRole('heading', { level: 1, name: en.board.today })
+    await router.navigate('/settings', { replace: true })
+    const settings = await screen.findByRole('heading', { level: 1, name: en.settings.title })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(settings).not.toHaveFocus()
+    // Leaving a screen that is gone (S45b: a deleted exam), where the pressed button left with it.
+    await router.navigate('/exams', { replace: true, state: { focusTitle: true } })
+    const heading = await screen.findByRole('heading', { level: 1, name: en.exam.list.title })
+    await waitFor(() => {
+      expect(heading).toHaveFocus()
+    })
+  })
+
   it('a change of the search params alone does not move the focus', async () => {
     const { router } = open('/calendar?view=week')
 
