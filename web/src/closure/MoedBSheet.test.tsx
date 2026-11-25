@@ -155,6 +155,13 @@ describe('MoedBForm', () => {
     expect(screen.queryByText(m.notesHint)).not.toBeInTheDocument()
   })
 
+  it('keeps the submit in sight: sticky at the bottom of the sheet that scrolls, on its surface', async () => {
+    const { fake } = setup()
+    await ready(fake)
+    // jsdom has no layout; the shots at 390x844 and at 200% text check the rest.
+    expect(submit().parentElement).toHaveClass('sticky', 'bottom-0', 'bg-surface')
+  })
+
   it('shows the hard topics with their hint when there are topics', async () => {
     const { fake } = setup()
     await ready(fake)

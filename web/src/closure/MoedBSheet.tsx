@@ -165,9 +165,14 @@ export function MoedBForm({ item, onDone, onPendingChange, onStale, autoFocus = 
           {general}
         </Note>
       )}
-      <Button type="submit" className="w-full" isPending={planning}>
-        {planning ? m.submitting : m.submit}
-      </Button>
+      {/* The submit stays in sight while the form scrolls inside the sheet (errors, many topics, 200%
+          text): sticky at the bottom of the sheet's scrolling box, on the sheet's own surface. The
+          negative margins reach over the dialog's padding, so at rest it sits where it always did. */}
+      <div data-sticky-submit="" className="sticky bottom-0 -mx-card -mb-card bg-surface px-card pt-2 pb-card">
+        <Button type="submit" className="w-full" isPending={planning}>
+          {planning ? m.submitting : m.submit}
+        </Button>
+      </div>
     </Form>
   )
 }
