@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react'
 import { createElement, StrictMode, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { emitCompleted, type CompletedEvent } from '../board/xpEvents'
-import { takeEvents, useCelebrationInbox, useInboxSize } from './inbox'
+import { clearInbox, takeEvents, useCelebrationInbox, useInboxSize } from './inbox'
 
 const NOW = Date.parse('2026-11-25T10:00:00Z')
 
@@ -33,6 +33,31 @@ describe('the celebration inbox', () => {
     expect(takeEvents()).toEqual([{ blockId: 'block-1', xp: 20, level: 4, levelUp: true, badgesEarned: ['first_task'], at: NOW }])
     expect(takeEvents()).toEqual([])
     unmount()
+  })
+
+  it('keeps its own copy of the badges: a change to the array sent does not reach it', () => {
+    const { unmount } = renderHook(() => { useCelebrationInbox() })
+    const badges = ['first_task']
+    emitCompleted(done('block-1', { badgesEarned: badges }))
+    badges.push('task_master_10')
+    expect(takeEvents()[0]?.badgesEarned).toEqual(['first_task'])
+    unmount()
+  })
+
+  it('clearInbox empties it and tells whoever watches the size', () => {
+    const inbox = renderHook(() => { useCelebrationInbox() })
+    const size = renderHook(() => useInboxSize())
+    act(() => {
+      emitCompleted(done('block-1'))
+    })
+    expect(size.result.current).toBe(1)
+    act(() => {
+      clearInbox()
+    })
+    expect(size.result.current).toBe(0)
+    expect(takeEvents()).toEqual([])
+    size.unmount()
+    inbox.unmount()
   })
 
   it('under StrictMode one Done is one event', () => {

@@ -23,7 +23,8 @@ function notify(): void {
 }
 
 function keep(event: CompletedEvent): void {
-  events = [...events, { ...event, at: Date.now() }].slice(-INBOX_LIMIT)
+  // A copy of the badges: the sender's array is not the inbox's to share.
+  events = [...events, { ...event, badgesEarned: [...event.badgesEarned], at: Date.now() }].slice(-INBOX_LIMIT)
   notify()
 }
 
@@ -50,6 +51,14 @@ export function takeEvents(): DoneEvent[] {
   events = []
   notify()
   return taken
+}
+
+// Signed out, or another user (auth/AuthProvider.tsx): the next user never celebrates the last one's
+// Done. AppShell stays mounted across a direct switch, so the inbox cannot rely on an unmount.
+export function clearInbox(): void {
+  if (events.length === 0) return
+  events = []
+  notify()
 }
 
 export function subscribeInbox(listener: () => void): () => void {

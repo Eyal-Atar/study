@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { clearInbox } from '../celebrate/inbox'
 import { AUTH_CALLBACK_PATH, AuthContext, type AuthState, type AuthValue } from './AuthContext'
 import type { AuthClient } from './supabase'
 
@@ -21,6 +22,8 @@ export function AuthProvider({ auth, children }: { auth: AuthClient; children: R
         // A token refresh of the same user keeps the cache.
         userId = nextUserId
         queryClient.clear()
+        // The celebration inbox (S33) holds the previous user's Done events outside the cache.
+        clearInbox()
       }
       setState(session === null ? { status: 'signed_out' } : { status: 'signed_in', session })
     })

@@ -1,11 +1,13 @@
 import type { AuthChangeEvent, Session } from '@supabase/auth-js'
 import { QueryClient } from '@tanstack/react-query'
-import { act, render, screen } from '@testing-library/react'
+import { act, render, renderHook, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { silentApi } from '../test/fakeApi'
 import { AppProviders } from '../app/AppProviders'
 import { createFakeAuth, fakeSession, type FakeAuth } from '../test/fakeAuth'
 import { createFakeStorage } from '../test/fakeStorage'
+import { emitCompleted } from '../board/xpEvents'
+import { takeEvents, useCelebrationInbox } from '../celebrate/inbox'
 import { useAuth } from './AuthContext'
 
 function Status() {
@@ -71,6 +73,43 @@ describe('AuthProvider', () => {
       auth.emit(event, session)
     })
     expect(queryClient.getQueryCache().getAll()).toEqual([])
+  })
+
+  // S33: the inbox lives outside React and AppShell stays mounted when the user changes directly,
+  // so it is emptied here, with the cache; the next user never celebrates the last one's level.
+  it.each<[AuthChangeEvent, Session | null]>([
+    ['SIGNED_OUT', null],
+    ['SIGNED_IN', fakeSession({ id: 'user-b' })],
+  ])('empties the celebration inbox when the user signs out or changes (%s)', async (event, session) => {
+    const auth = createFakeAuth(fakeSession({ id: 'user-a' }))
+    renderProvider(auth)
+    await initialSession()
+    const inbox = renderHook(() => {
+      useCelebrationInbox()
+    })
+    emitCompleted({ blockId: 'block-1', xp: 20, level: 5, levelUp: true, badgesEarned: ['first_task'] })
+
+    act(() => {
+      auth.emit(event, session)
+    })
+    expect(takeEvents()).toEqual([])
+    inbox.unmount()
+  })
+
+  it('keeps the celebration inbox when the token of the same user is refreshed', async () => {
+    const auth = createFakeAuth(fakeSession({ id: 'user-a' }))
+    renderProvider(auth)
+    await initialSession()
+    const inbox = renderHook(() => {
+      useCelebrationInbox()
+    })
+    emitCompleted({ blockId: 'block-1', xp: 20, level: 5, levelUp: true, badgesEarned: [] })
+
+    act(() => {
+      auth.emit('TOKEN_REFRESHED', fakeSession({ id: 'user-a' }))
+    })
+    expect(takeEvents()).toHaveLength(1)
+    inbox.unmount()
   })
 
   it('keeps the query cache when the token of the same user is refreshed', async () => {
