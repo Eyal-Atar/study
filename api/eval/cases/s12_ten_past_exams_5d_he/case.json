@@ -3,7 +3,7 @@
   "id": "s12_ten_past_exams_5d_he",
   "kind": "synthetic",
   "course": {
-    "name": "אלגברה לינארית",
+    "name": "אלגברה לינארית 1",
     "type": "problem_solving",
     "format": "problems",
     "language": "he",
@@ -73,42 +73,42 @@
     "topics": [
       {
         "key": "t01",
-        "name": "מושגי יסוד 1",
+        "name": "מערכות משוואות לינאריות",
         "weight": 5
       },
       {
         "key": "t02",
-        "name": "הגדרות ומשפטים 2",
+        "name": "מטריצות ופעולות",
         "weight": 4
       },
       {
         "key": "t03",
-        "name": "טכניקות פתרון 3",
+        "name": "דטרמיננטות",
         "weight": 3
       },
       {
         "key": "t04",
-        "name": "יישומים 4",
+        "name": "מרחבים וקטוריים",
         "weight": 3
       },
       {
         "key": "t05",
-        "name": "מקרי קצה 5",
+        "name": "בסיס ומימד",
         "weight": 2
       },
       {
         "key": "t06",
-        "name": "הוכחות 6",
+        "name": "העתקות לינאריות",
         "weight": 4
       },
       {
         "key": "t07",
-        "name": "דוגמאות מסכמות 7",
+        "name": "ערכים עצמיים ואלכסון",
         "weight": 1
       },
       {
         "key": "t08",
-        "name": "נושאים מתקדמים 8",
+        "name": "מכפלה פנימית",
         "weight": 2
       }
     ],

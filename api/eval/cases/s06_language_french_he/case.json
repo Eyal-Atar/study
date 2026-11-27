@@ -3,7 +3,7 @@
   "id": "s06_language_french_he",
   "kind": "synthetic",
   "course": {
-    "name": "צרפתית",
+    "name": "צרפתית למתחילים",
     "type": "language",
     "format": "mixed",
     "language": "he",
@@ -28,32 +28,32 @@
     "topics": [
       {
         "key": "t01",
-        "name": "מושגי יסוד 1",
+        "name": "זמן הווה וגזרות הפועל",
         "weight": 5
       },
       {
         "key": "t02",
-        "name": "הגדרות ומשפטים 2",
+        "name": "מין ומספר של שמות עצם",
         "weight": 4
       },
       {
         "key": "t03",
-        "name": "טכניקות פתרון 3",
+        "name": "מילות יחס ומקום",
         "weight": 3
       },
       {
         "key": "t04",
-        "name": "יישומים 4",
+        "name": "עבר מורכב (passé composé)",
         "weight": 3
       },
       {
         "key": "t05",
-        "name": "מקרי קצה 5",
+        "name": "אוצר מילים: משפחה ויומיום",
         "weight": 2
       },
       {
         "key": "t06",
-        "name": "הוכחות 6",
+        "name": "הבנת הנקרא ושיחה",
         "weight": 4
       }
     ],

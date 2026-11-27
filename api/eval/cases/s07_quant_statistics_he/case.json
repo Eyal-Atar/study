@@ -3,7 +3,7 @@
   "id": "s07_quant_statistics_he",
   "kind": "synthetic",
   "course": {
-    "name": "סטטיסטיקה",
+    "name": "סטטיסטיקה למדעי החברה",
     "type": "quantitative_social",
     "format": "problems",
     "language": "he",
@@ -38,47 +38,47 @@
     "topics": [
       {
         "key": "t01",
-        "name": "מושגי יסוד 1",
+        "name": "סטטיסטיקה תיאורית",
         "weight": 5
       },
       {
         "key": "t02",
-        "name": "הגדרות ומשפטים 2",
+        "name": "התפלגויות נפוצות",
         "weight": 4
       },
       {
         "key": "t03",
-        "name": "טכניקות פתרון 3",
+        "name": "התפלגות הדגימה",
         "weight": 3
       },
       {
         "key": "t04",
-        "name": "יישומים 4",
+        "name": "אומדים ורווחי סמך",
         "weight": 3
       },
       {
         "key": "t05",
-        "name": "מקרי קצה 5",
+        "name": "בדיקת השערות",
         "weight": 2
       },
       {
         "key": "t06",
-        "name": "הוכחות 6",
+        "name": "מבחן t",
         "weight": 4
       },
       {
         "key": "t07",
-        "name": "דוגמאות מסכמות 7",
+        "name": "מבחן חי בריבוע",
         "weight": 1
       },
       {
         "key": "t08",
-        "name": "נושאים מתקדמים 8",
+        "name": "מתאם ורגרסיה פשוטה",
         "weight": 2
       },
       {
         "key": "t09",
-        "name": "קשרים בין נושאים 9",
+        "name": "ניתוח שונות",
         "weight": 5
       }
     ],

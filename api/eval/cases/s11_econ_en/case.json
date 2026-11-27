@@ -3,7 +3,7 @@
   "id": "s11_econ_en",
   "kind": "synthetic",
   "course": {
-    "name": "Microeconomics",
+    "name": "Principles of Microeconomics",
     "type": "quantitative_social",
     "format": "problems",
     "language": "en",
@@ -33,47 +33,47 @@
     "topics": [
       {
         "key": "t01",
-        "name": "Basic concepts 1",
+        "name": "Supply and demand",
         "weight": 5
       },
       {
         "key": "t02",
-        "name": "Definitions and models 2",
+        "name": "Elasticity",
         "weight": 4
       },
       {
         "key": "t03",
-        "name": "Solution methods 3",
+        "name": "Consumer choice and utility",
         "weight": 3
       },
       {
         "key": "t04",
-        "name": "Applications 4",
+        "name": "Production and costs",
         "weight": 3
       },
       {
         "key": "t05",
-        "name": "Edge cases 5",
+        "name": "Perfect competition",
         "weight": 2
       },
       {
         "key": "t06",
-        "name": "Proofs 6",
+        "name": "Monopoly",
         "weight": 4
       },
       {
         "key": "t07",
-        "name": "Worked examples 7",
+        "name": "Oligopoly and game theory",
         "weight": 1
       },
       {
         "key": "t08",
-        "name": "Advanced topics 8",
+        "name": "Externalities and public goods",
         "weight": 2
       },
       {
         "key": "t09",
-        "name": "Connections 9",
+        "name": "Market failure and regulation",
         "weight": 5
       }
     ],

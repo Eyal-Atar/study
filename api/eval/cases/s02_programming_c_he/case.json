@@ -3,7 +3,7 @@
   "id": "s02_programming_c_he",
   "kind": "synthetic",
   "course": {
-    "name": "שפת C",
+    "name": "מבוא לתכנות בשפת C",
     "type": "programming",
     "format": "programming",
     "language": "he",
@@ -33,47 +33,47 @@
     "topics": [
       {
         "key": "t01",
-        "name": "מושגי יסוד 1",
+        "name": "טיפוסי נתונים ואופרטורים",
         "weight": 5
       },
       {
         "key": "t02",
-        "name": "הגדרות ומשפטים 2",
+        "name": "בקרת זרימה ולולאות",
         "weight": 4
       },
       {
         "key": "t03",
-        "name": "טכניקות פתרון 3",
+        "name": "פונקציות והיקף משתנים",
         "weight": 3
       },
       {
         "key": "t04",
-        "name": "יישומים 4",
+        "name": "מערכים ומחרוזות",
         "weight": 3
       },
       {
         "key": "t05",
-        "name": "מקרי קצה 5",
+        "name": "מצביעים",
         "weight": 2
       },
       {
         "key": "t06",
-        "name": "הוכחות 6",
+        "name": "הקצאת זיכרון דינמית",
         "weight": 4
       },
       {
         "key": "t07",
-        "name": "דוגמאות מסכמות 7",
+        "name": "מבנים ו-typedef",
         "weight": 1
       },
       {
         "key": "t08",
-        "name": "נושאים מתקדמים 8",
+        "name": "קלט ופלט וקבצים",
         "weight": 2
       },
       {
         "key": "t09",
-        "name": "קשרים בין נושאים 9",
+        "name": "רשימות מקושרות",
         "weight": 5
       }
     ],
