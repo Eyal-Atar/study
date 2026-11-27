@@ -1,0 +1,232 @@
+{
+  "schema": 1,
+  "profiles": [
+    {
+      "id": "full_time",
+      "group": "student",
+      "wake": "08:00",
+      "sleep": "00:00",
+      "daily_study_minutes": 300,
+      "study_windows": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "rest_days_before_exam": 1,
+      "study_start_delay_minutes": 60,
+      "commitments": [],
+      "busy": []
+    },
+    {
+      "id": "worker",
+      "group": "student",
+      "wake": "07:30",
+      "sleep": "00:00",
+      "daily_study_minutes": 240,
+      "study_windows": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "rest_days_before_exam": 1,
+      "study_start_delay_minutes": 60,
+      "commitments": [
+        {
+          "weekdays": [
+            0,
+            2,
+            4
+          ],
+          "start": "16:00",
+          "end": "22:00"
+        }
+      ],
+      "busy": []
+    },
+    {
+      "id": "reservist",
+      "group": "student",
+      "wake": "08:00",
+      "sleep": "00:00",
+      "daily_study_minutes": 300,
+      "study_windows": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "rest_days_before_exam": 1,
+      "study_start_delay_minutes": 60,
+      "commitments": [],
+      "busy": [
+        {
+          "from_day": 7,
+          "days": 14
+        }
+      ]
+    },
+    {
+      "id": "parent",
+      "group": "student",
+      "wake": "06:30",
+      "sleep": "23:30",
+      "daily_study_minutes": 120,
+      "study_windows": [
+        "evening",
+        "night"
+      ],
+      "rest_days_before_exam": 1,
+      "study_start_delay_minutes": 60,
+      "commitments": [
+        {
+          "weekdays": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "start": "17:00",
+          "end": "20:00"
+        }
+      ],
+      "busy": []
+    },
+    {
+      "id": "night_owl",
+      "group": "student",
+      "wake": "11:00",
+      "sleep": "03:00",
+      "daily_study_minutes": 240,
+      "study_windows": [
+        "evening",
+        "night"
+      ],
+      "rest_days_before_exam": 1,
+      "study_start_delay_minutes": 60,
+      "commitments": [],
+      "busy": []
+    },
+    {
+      "id": "late_starter_4d",
+      "group": "timeline",
+      "wake": "08:00",
+      "sleep": "00:00",
+      "daily_study_minutes": 300,
+      "study_windows": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "rest_days_before_exam": 1,
+      "study_start_delay_minutes": 60,
+      "commitments": [],
+      "busy": [],
+      "timeline": {
+        "days_to_exam": 4
+      }
+    },
+    {
+      "id": "early_8w",
+      "group": "timeline",
+      "wake": "08:00",
+      "sleep": "00:00",
+      "daily_study_minutes": 300,
+      "study_windows": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "rest_days_before_exam": 1,
+      "study_start_delay_minutes": 60,
+      "commitments": [],
+      "busy": [],
+      "timeline": {
+        "days_to_exam": 56
+      }
+    },
+    {
+      "id": "marathon",
+      "group": "timeline",
+      "wake": "08:00",
+      "sleep": "00:00",
+      "daily_study_minutes": 300,
+      "study_windows": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "rest_days_before_exam": 1,
+      "study_start_delay_minutes": 60,
+      "commitments": [],
+      "busy": [],
+      "timeline": {
+        "exam_offsets_days": [
+          7,
+          13,
+          19,
+          24,
+          30,
+          35
+        ]
+      }
+    },
+    {
+      "id": "moed_b",
+      "group": "timeline",
+      "wake": "08:00",
+      "sleep": "00:00",
+      "daily_study_minutes": 300,
+      "study_windows": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "rest_days_before_exam": 1,
+      "study_start_delay_minutes": 60,
+      "commitments": [],
+      "busy": [],
+      "timeline": {
+        "days_to_exam": 21,
+        "sitting": "moed_b"
+      }
+    },
+    {
+      "id": "adhd",
+      "group": "gap",
+      "wake": "08:00",
+      "sleep": "00:00",
+      "daily_study_minutes": 300,
+      "study_windows": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "rest_days_before_exam": 1,
+      "study_start_delay_minutes": 60,
+      "commitments": [],
+      "busy": [],
+      "gap": "max_block_minutes",
+      "gap_value": 25
+    },
+    {
+      "id": "extra_time",
+      "group": "gap",
+      "wake": "08:00",
+      "sleep": "00:00",
+      "daily_study_minutes": 300,
+      "study_windows": [
+        "morning",
+        "afternoon",
+        "evening"
+      ],
+      "rest_days_before_exam": 1,
+      "study_start_delay_minutes": 60,
+      "commitments": [],
+      "busy": [],
+      "gap": "exam_extra_time_percent",
+      "gap_value": 25
+    }
+  ]
+}
