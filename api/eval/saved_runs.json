@@ -1,0 +1,3513 @@
+{
+ "schema": 1,
+ "runs": [
+  {
+   "id": "saved:calculus_scanned:claude_haiku_5_5",
+   "budget": 3000,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 5
+    },
+    {
+     "key": "t02",
+     "weight": 4
+    },
+    {
+     "key": "t03",
+     "weight": 4
+    },
+    {
+     "key": "t04",
+     "weight": 3
+    },
+    {
+     "key": "t05",
+     "weight": 4
+    },
+    {
+     "key": "t06",
+     "weight": 3
+    },
+    {
+     "key": "t07",
+     "weight": 3
+    },
+    {
+     "key": "t08",
+     "weight": 3
+    },
+    {
+     "key": "t09",
+     "weight": 3
+    },
+    {
+     "key": "t10",
+     "weight": 2
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "review",
+     "minutes": 60,
+     "focus": 3,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k002",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 5,
+     "depends_on": "k001",
+     "topic": "t01"
+    },
+    {
+     "key": "k003",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k002",
+     "topic": "t01"
+    },
+    {
+     "key": "k004",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k003",
+     "topic": "t01"
+    },
+    {
+     "key": "k005",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": "k001",
+     "topic": "t02"
+    },
+    {
+     "key": "k006",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k005",
+     "topic": "t02"
+    },
+    {
+     "key": "k007",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k006",
+     "topic": "t02"
+    },
+    {
+     "key": "k008",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": "k001",
+     "topic": "t03"
+    },
+    {
+     "key": "k009",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k008",
+     "topic": "t03"
+    },
+    {
+     "key": "k010",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k009",
+     "topic": "t03"
+    },
+    {
+     "key": "k011",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": "k001",
+     "topic": "t04"
+    },
+    {
+     "key": "k012",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k011",
+     "topic": "t04"
+    },
+    {
+     "key": "k013",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": "k001",
+     "topic": "t06"
+    },
+    {
+     "key": "k014",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k013",
+     "topic": "t06"
+    },
+    {
+     "key": "k015",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k001",
+     "topic": "t05"
+    },
+    {
+     "key": "k016",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k015",
+     "topic": "t05"
+    },
+    {
+     "key": "k017",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k016",
+     "topic": "t05"
+    },
+    {
+     "key": "k018",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": "k001",
+     "topic": "t07"
+    },
+    {
+     "key": "k019",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k018",
+     "topic": "t07"
+    },
+    {
+     "key": "k020",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k019",
+     "topic": "t07"
+    },
+    {
+     "key": "k021",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": "k001",
+     "topic": "t08"
+    },
+    {
+     "key": "k022",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k021",
+     "topic": "t08"
+    },
+    {
+     "key": "k023",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k022",
+     "topic": "t08"
+    },
+    {
+     "key": "k024",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": "k001",
+     "topic": "t09"
+    },
+    {
+     "key": "k025",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k024",
+     "topic": "t09"
+    },
+    {
+     "key": "k026",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k025",
+     "topic": "t09"
+    },
+    {
+     "key": "k027",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 5,
+     "depends_on": "k001",
+     "topic": "t10"
+    },
+    {
+     "key": "k028",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k027",
+     "topic": "t10"
+    },
+    {
+     "key": "k029",
+     "kind": "review",
+     "minutes": 90,
+     "focus": 5,
+     "depends_on": "k026",
+     "topic": null
+    },
+    {
+     "key": "k030",
+     "kind": "review",
+     "minutes": 60,
+     "focus": 4,
+     "depends_on": "k001",
+     "topic": null
+    },
+    {
+     "key": "k031",
+     "kind": "simulation",
+     "minutes": 180,
+     "focus": 10,
+     "depends_on": "k029",
+     "topic": null
+    },
+    {
+     "key": "k032",
+     "kind": "simulation_review",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k031",
+     "topic": null
+    },
+    {
+     "key": "k033",
+     "kind": "simulation",
+     "minutes": 180,
+     "focus": 10,
+     "depends_on": "k032",
+     "topic": null
+    },
+    {
+     "key": "k034",
+     "kind": "simulation_review",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k033",
+     "topic": null
+    }
+   ]
+  },
+  {
+   "id": "saved:calculus_scanned:claude_opus_5_5",
+   "budget": 3000,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 2
+    },
+    {
+     "key": "t02",
+     "weight": 5
+    },
+    {
+     "key": "t03",
+     "weight": 4
+    },
+    {
+     "key": "t04",
+     "weight": 5
+    },
+    {
+     "key": "t05",
+     "weight": 5
+    },
+    {
+     "key": "t06",
+     "weight": 4
+    },
+    {
+     "key": "t07",
+     "weight": 4
+    },
+    {
+     "key": "t08",
+     "weight": 5
+    },
+    {
+     "key": "t09",
+     "weight": 3
+    },
+    {
+     "key": "t10",
+     "weight": 3
+    },
+    {
+     "key": "t11",
+     "weight": 2
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "review",
+     "minutes": 30,
+     "focus": 3,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k002",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k001",
+     "topic": "t01"
+    },
+    {
+     "key": "k003",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k002",
+     "topic": "t01"
+    },
+    {
+     "key": "k004",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k003",
+     "topic": "t02"
+    },
+    {
+     "key": "k005",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k004",
+     "topic": "t02"
+    },
+    {
+     "key": "k006",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k005",
+     "topic": "t02"
+    },
+    {
+     "key": "k007",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k006",
+     "topic": "t03"
+    },
+    {
+     "key": "k008",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k007",
+     "topic": "t03"
+    },
+    {
+     "key": "k009",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k008",
+     "topic": "t04"
+    },
+    {
+     "key": "k010",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k009",
+     "topic": "t04"
+    },
+    {
+     "key": "k011",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k010",
+     "topic": "t04"
+    },
+    {
+     "key": "k012",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k011",
+     "topic": "t05"
+    },
+    {
+     "key": "k013",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k012",
+     "topic": "t05"
+    },
+    {
+     "key": "k014",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k013",
+     "topic": "t06"
+    },
+    {
+     "key": "k015",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k014",
+     "topic": "t06"
+    },
+    {
+     "key": "k016",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k015",
+     "topic": "t07"
+    },
+    {
+     "key": "k017",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k016",
+     "topic": "t07"
+    },
+    {
+     "key": "k018",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k017",
+     "topic": "t08"
+    },
+    {
+     "key": "k019",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k018",
+     "topic": "t08"
+    },
+    {
+     "key": "k020",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k019",
+     "topic": "t08"
+    },
+    {
+     "key": "k021",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": "k020",
+     "topic": "t09"
+    },
+    {
+     "key": "k022",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k021",
+     "topic": "t09"
+    },
+    {
+     "key": "k023",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k022",
+     "topic": "t10"
+    },
+    {
+     "key": "k024",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k023",
+     "topic": "t10"
+    },
+    {
+     "key": "k025",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k024",
+     "topic": "t11"
+    },
+    {
+     "key": "k026",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k025",
+     "topic": "t11"
+    },
+    {
+     "key": "k027",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k026",
+     "topic": "t11"
+    },
+    {
+     "key": "k028",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k027",
+     "topic": "t11"
+    },
+    {
+     "key": "k029",
+     "kind": "review",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k028",
+     "topic": null
+    },
+    {
+     "key": "k030",
+     "kind": "simulation",
+     "minutes": 180,
+     "focus": 9,
+     "depends_on": "k029",
+     "topic": null
+    },
+    {
+     "key": "k031",
+     "kind": "simulation_review",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k030",
+     "topic": null
+    },
+    {
+     "key": "k032",
+     "kind": "simulation",
+     "minutes": 180,
+     "focus": 9,
+     "depends_on": "k031",
+     "topic": null
+    },
+    {
+     "key": "k033",
+     "kind": "simulation_review",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k032",
+     "topic": null
+    },
+    {
+     "key": "k034",
+     "kind": "review",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k033",
+     "topic": null
+    }
+   ]
+  },
+  {
+   "id": "saved:calculus_scanned:claude_sonnet_5_5",
+   "budget": 3000,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 4
+    },
+    {
+     "key": "t02",
+     "weight": 5
+    },
+    {
+     "key": "t03",
+     "weight": 2
+    },
+    {
+     "key": "t04",
+     "weight": 5
+    },
+    {
+     "key": "t05",
+     "weight": 3
+    },
+    {
+     "key": "t06",
+     "weight": 4
+    },
+    {
+     "key": "t07",
+     "weight": 3
+    },
+    {
+     "key": "t08",
+     "weight": 4
+    },
+    {
+     "key": "t09",
+     "weight": 2
+    },
+    {
+     "key": "t10",
+     "weight": 2
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "review",
+     "minutes": 45,
+     "focus": 4,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k002",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k001",
+     "topic": "t01"
+    },
+    {
+     "key": "k003",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k002",
+     "topic": "t01"
+    },
+    {
+     "key": "k004",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k001",
+     "topic": "t02"
+    },
+    {
+     "key": "k005",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 8,
+     "depends_on": "k004",
+     "topic": "t02"
+    },
+    {
+     "key": "k006",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k004",
+     "topic": "t02"
+    },
+    {
+     "key": "k007",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k001",
+     "topic": "t03"
+    },
+    {
+     "key": "k008",
+     "kind": "practice",
+     "minutes": 45,
+     "focus": 6,
+     "depends_on": "k007",
+     "topic": "t03"
+    },
+    {
+     "key": "k009",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k004",
+     "topic": "t04"
+    },
+    {
+     "key": "k010",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k009",
+     "topic": "t04"
+    },
+    {
+     "key": "k011",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k009",
+     "topic": "t05"
+    },
+    {
+     "key": "k012",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k011",
+     "topic": "t05"
+    },
+    {
+     "key": "k013",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k009",
+     "topic": "t06"
+    },
+    {
+     "key": "k014",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k013",
+     "topic": "t06"
+    },
+    {
+     "key": "k015",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k013",
+     "topic": "t07"
+    },
+    {
+     "key": "k016",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k015",
+     "topic": "t07"
+    },
+    {
+     "key": "k017",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k010",
+     "topic": "t08"
+    },
+    {
+     "key": "k018",
+     "kind": "learn",
+     "minutes": 45,
+     "focus": 5,
+     "depends_on": "k001",
+     "topic": "t09"
+    },
+    {
+     "key": "k019",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": "k013",
+     "topic": "t10"
+    },
+    {
+     "key": "k020",
+     "kind": "simulation",
+     "minutes": 180,
+     "focus": 9,
+     "depends_on": "k017",
+     "topic": null
+    },
+    {
+     "key": "k021",
+     "kind": "simulation_review",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k020",
+     "topic": null
+    },
+    {
+     "key": "k022",
+     "kind": "simulation",
+     "minutes": 180,
+     "focus": 9,
+     "depends_on": "k021",
+     "topic": null
+    },
+    {
+     "key": "k023",
+     "kind": "simulation_review",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k022",
+     "topic": null
+    }
+   ]
+  },
+  {
+   "id": "saved:exam2025a_three_moeds:claude_haiku_5_5",
+   "budget": 2400,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 5
+    },
+    {
+     "key": "t02",
+     "weight": 5
+    },
+    {
+     "key": "t03",
+     "weight": 4
+    },
+    {
+     "key": "t04",
+     "weight": 2
+    },
+    {
+     "key": "t05",
+     "weight": 3
+    },
+    {
+     "key": "t06",
+     "weight": 3
+    },
+    {
+     "key": "t07",
+     "weight": 4
+    },
+    {
+     "key": "t08",
+     "weight": 4
+    },
+    {
+     "key": "t09",
+     "weight": 4
+    },
+    {
+     "key": "t10",
+     "weight": 4
+    },
+    {
+     "key": "t11",
+     "weight": 3
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 6,
+     "depends_on": null,
+     "topic": "t01"
+    },
+    {
+     "key": "k002",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": null,
+     "topic": "t02"
+    },
+    {
+     "key": "k003",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": null,
+     "topic": "t03"
+    },
+    {
+     "key": "k004",
+     "kind": "learn",
+     "minutes": 45,
+     "focus": 4,
+     "depends_on": null,
+     "topic": "t05"
+    },
+    {
+     "key": "k005",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": null,
+     "topic": "t06"
+    },
+    {
+     "key": "k006",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": null,
+     "topic": "t07"
+    },
+    {
+     "key": "k007",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 7,
+     "depends_on": null,
+     "topic": "t08"
+    },
+    {
+     "key": "k008",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": null,
+     "topic": "t09"
+    },
+    {
+     "key": "k009",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 5,
+     "depends_on": null,
+     "topic": "t10"
+    },
+    {
+     "key": "k010",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 4,
+     "depends_on": null,
+     "topic": "t11"
+    },
+    {
+     "key": "k011",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k001",
+     "topic": "t01"
+    },
+    {
+     "key": "k012",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k002",
+     "topic": "t02"
+    },
+    {
+     "key": "k013",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": null,
+     "topic": "t05"
+    },
+    {
+     "key": "k014",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 7,
+     "depends_on": null,
+     "topic": "t06"
+    },
+    {
+     "key": "k015",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": null,
+     "topic": "t07"
+    },
+    {
+     "key": "k016",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": null,
+     "topic": "t08"
+    },
+    {
+     "key": "k017",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": null,
+     "topic": "t09"
+    },
+    {
+     "key": "k018",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 7,
+     "depends_on": null,
+     "topic": "t10"
+    },
+    {
+     "key": "k019",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": null,
+     "topic": "t03"
+    },
+    {
+     "key": "k020",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": null,
+     "topic": "t11"
+    },
+    {
+     "key": "k021",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 4,
+     "depends_on": null,
+     "topic": "t04"
+    },
+    {
+     "key": "k022",
+     "kind": "simulation",
+     "minutes": 150,
+     "focus": 10,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k023",
+     "kind": "simulation_review",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k022",
+     "topic": null
+    },
+    {
+     "key": "k024",
+     "kind": "simulation",
+     "minutes": 150,
+     "focus": 10,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k025",
+     "kind": "simulation_review",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k024",
+     "topic": null
+    },
+    {
+     "key": "k026",
+     "kind": "simulation",
+     "minutes": 150,
+     "focus": 10,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k027",
+     "kind": "simulation_review",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k026",
+     "topic": null
+    }
+   ]
+  },
+  {
+   "id": "saved:exam2025a_three_moeds:claude_opus_5_5",
+   "budget": 2400,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 5
+    },
+    {
+     "key": "t02",
+     "weight": 4
+    },
+    {
+     "key": "t03",
+     "weight": 4
+    },
+    {
+     "key": "t04",
+     "weight": 4
+    },
+    {
+     "key": "t05",
+     "weight": 3
+    },
+    {
+     "key": "t06",
+     "weight": 3
+    },
+    {
+     "key": "t07",
+     "weight": 4
+    },
+    {
+     "key": "t08",
+     "weight": 2
+    },
+    {
+     "key": "t09",
+     "weight": 4
+    },
+    {
+     "key": "t10",
+     "weight": 3
+    },
+    {
+     "key": "t11",
+     "weight": 3
+    },
+    {
+     "key": "t12",
+     "weight": 3
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": null,
+     "topic": "t01"
+    },
+    {
+     "key": "k002",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 7,
+     "depends_on": "k001",
+     "topic": "t01"
+    },
+    {
+     "key": "k003",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": null,
+     "topic": "t02"
+    },
+    {
+     "key": "k004",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k003",
+     "topic": "t02"
+    },
+    {
+     "key": "k005",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": null,
+     "topic": "t03"
+    },
+    {
+     "key": "k006",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 7,
+     "depends_on": null,
+     "topic": "t07"
+    },
+    {
+     "key": "k007",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k006",
+     "topic": "t07"
+    },
+    {
+     "key": "k008",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 7,
+     "depends_on": null,
+     "topic": "t04"
+    },
+    {
+     "key": "k009",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k008",
+     "topic": "t04"
+    },
+    {
+     "key": "k010",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": null,
+     "topic": "t05"
+    },
+    {
+     "key": "k011",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k010",
+     "topic": "t05"
+    },
+    {
+     "key": "k012",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": null,
+     "topic": "t06"
+    },
+    {
+     "key": "k013",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 7,
+     "depends_on": "k012",
+     "topic": "t06"
+    },
+    {
+     "key": "k014",
+     "kind": "practice",
+     "minutes": 45,
+     "focus": 6,
+     "depends_on": "k007",
+     "topic": "t08"
+    },
+    {
+     "key": "k015",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k008",
+     "topic": "t09"
+    },
+    {
+     "key": "k016",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k015",
+     "topic": "t09"
+    },
+    {
+     "key": "k017",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 8,
+     "depends_on": "k008",
+     "topic": "t10"
+    },
+    {
+     "key": "k018",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k017",
+     "topic": "t10"
+    },
+    {
+     "key": "k019",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k007",
+     "topic": "t11"
+    },
+    {
+     "key": "k020",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 8,
+     "depends_on": "k019",
+     "topic": "t11"
+    },
+    {
+     "key": "k021",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 7,
+     "depends_on": "k007",
+     "topic": "t12"
+    },
+    {
+     "key": "k022",
+     "kind": "simulation",
+     "minutes": 150,
+     "focus": 9,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k023",
+     "kind": "simulation_review",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k022",
+     "topic": null
+    },
+    {
+     "key": "k024",
+     "kind": "simulation",
+     "minutes": 150,
+     "focus": 9,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k025",
+     "kind": "simulation_review",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k024",
+     "topic": null
+    },
+    {
+     "key": "k026",
+     "kind": "simulation",
+     "minutes": 150,
+     "focus": 9,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k027",
+     "kind": "simulation_review",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k026",
+     "topic": null
+    },
+    {
+     "key": "k028",
+     "kind": "review",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k027",
+     "topic": null
+    }
+   ]
+  },
+  {
+   "id": "saved:exam2025a_three_moeds:claude_sonnet_5_5",
+   "budget": 2400,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 4
+    },
+    {
+     "key": "t02",
+     "weight": 3
+    },
+    {
+     "key": "t03",
+     "weight": 4
+    },
+    {
+     "key": "t04",
+     "weight": 4
+    },
+    {
+     "key": "t05",
+     "weight": 3
+    },
+    {
+     "key": "t06",
+     "weight": 3
+    },
+    {
+     "key": "t07",
+     "weight": 4
+    },
+    {
+     "key": "t08",
+     "weight": 4
+    },
+    {
+     "key": "t09",
+     "weight": 3
+    },
+    {
+     "key": "t10",
+     "weight": 3
+    },
+    {
+     "key": "t11",
+     "weight": 2
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "review",
+     "minutes": 45,
+     "focus": 4,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k002",
+     "kind": "review",
+     "minutes": 45,
+     "focus": 4,
+     "depends_on": "k001",
+     "topic": null
+    },
+    {
+     "key": "k003",
+     "kind": "review",
+     "minutes": 45,
+     "focus": 4,
+     "depends_on": "k002",
+     "topic": null
+    },
+    {
+     "key": "k004",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": null,
+     "topic": "t01"
+    },
+    {
+     "key": "k005",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k004",
+     "topic": "t01"
+    },
+    {
+     "key": "k006",
+     "kind": "learn",
+     "minutes": 45,
+     "focus": 5,
+     "depends_on": null,
+     "topic": "t02"
+    },
+    {
+     "key": "k007",
+     "kind": "practice",
+     "minutes": 45,
+     "focus": 5,
+     "depends_on": "k006",
+     "topic": "t02"
+    },
+    {
+     "key": "k008",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 7,
+     "depends_on": "k005",
+     "topic": "t03"
+    },
+    {
+     "key": "k009",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 8,
+     "depends_on": null,
+     "topic": "t04"
+    },
+    {
+     "key": "k010",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 9,
+     "depends_on": "k009",
+     "topic": "t04"
+    },
+    {
+     "key": "k011",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": null,
+     "topic": "t05"
+    },
+    {
+     "key": "k012",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 8,
+     "depends_on": "k011",
+     "topic": "t05"
+    },
+    {
+     "key": "k013",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k012",
+     "topic": "t06"
+    },
+    {
+     "key": "k014",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": null,
+     "topic": "t07"
+    },
+    {
+     "key": "k015",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 8,
+     "depends_on": "k014",
+     "topic": "t11"
+    },
+    {
+     "key": "k016",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 8,
+     "depends_on": "k015",
+     "topic": "t07"
+    },
+    {
+     "key": "k017",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 8,
+     "depends_on": "k009",
+     "topic": "t08"
+    },
+    {
+     "key": "k018",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 9,
+     "depends_on": "k017",
+     "topic": "t08"
+    },
+    {
+     "key": "k019",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 8,
+     "depends_on": "k018",
+     "topic": "t08"
+    },
+    {
+     "key": "k020",
+     "kind": "learn",
+     "minutes": 45,
+     "focus": 6,
+     "depends_on": "k014",
+     "topic": "t09"
+    },
+    {
+     "key": "k021",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 9,
+     "depends_on": "k020",
+     "topic": "t09"
+    },
+    {
+     "key": "k022",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 8,
+     "depends_on": "k017",
+     "topic": "t10"
+    },
+    {
+     "key": "k023",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 9,
+     "depends_on": "k022",
+     "topic": "t10"
+    },
+    {
+     "key": "k024",
+     "kind": "simulation",
+     "minutes": 150,
+     "focus": 9,
+     "depends_on": "k013",
+     "topic": null
+    },
+    {
+     "key": "k025",
+     "kind": "simulation_review",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k024",
+     "topic": null
+    },
+    {
+     "key": "k026",
+     "kind": "simulation",
+     "minutes": 150,
+     "focus": 9,
+     "depends_on": "k019",
+     "topic": null
+    },
+    {
+     "key": "k027",
+     "kind": "simulation_review",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k026",
+     "topic": null
+    },
+    {
+     "key": "k028",
+     "kind": "simulation",
+     "minutes": 150,
+     "focus": 9,
+     "depends_on": "k023",
+     "topic": null
+    },
+    {
+     "key": "k029",
+     "kind": "simulation_review",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k028",
+     "topic": null
+    },
+    {
+     "key": "k030",
+     "kind": "review",
+     "minutes": 45,
+     "focus": 5,
+     "depends_on": "k029",
+     "topic": null
+    }
+   ]
+  },
+  {
+   "id": "saved:image_page:claude_haiku_5_5",
+   "budget": 600,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 4
+    },
+    {
+     "key": "t02",
+     "weight": 3
+    },
+    {
+     "key": "t03",
+     "weight": 4
+    },
+    {
+     "key": "t04",
+     "weight": 3
+    },
+    {
+     "key": "t05",
+     "weight": 4
+    },
+    {
+     "key": "t06",
+     "weight": 4
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "learn",
+     "minutes": 30,
+     "focus": 5,
+     "depends_on": null,
+     "topic": "t01"
+    },
+    {
+     "key": "k002",
+     "kind": "practice",
+     "minutes": 35,
+     "focus": 6,
+     "depends_on": "k001",
+     "topic": "t01"
+    },
+    {
+     "key": "k003",
+     "kind": "learn",
+     "minutes": 30,
+     "focus": 4,
+     "depends_on": null,
+     "topic": "t02"
+    },
+    {
+     "key": "k004",
+     "kind": "practice",
+     "minutes": 35,
+     "focus": 6,
+     "depends_on": "k003",
+     "topic": "t02"
+    },
+    {
+     "key": "k005",
+     "kind": "learn",
+     "minutes": 30,
+     "focus": 6,
+     "depends_on": null,
+     "topic": "t03"
+    },
+    {
+     "key": "k006",
+     "kind": "practice",
+     "minutes": 35,
+     "focus": 7,
+     "depends_on": "k005",
+     "topic": "t03"
+    },
+    {
+     "key": "k007",
+     "kind": "learn",
+     "minutes": 30,
+     "focus": 5,
+     "depends_on": null,
+     "topic": "t04"
+    },
+    {
+     "key": "k008",
+     "kind": "practice",
+     "minutes": 35,
+     "focus": 6,
+     "depends_on": "k007",
+     "topic": "t04"
+    },
+    {
+     "key": "k009",
+     "kind": "learn",
+     "minutes": 30,
+     "focus": 5,
+     "depends_on": null,
+     "topic": "t05"
+    },
+    {
+     "key": "k010",
+     "kind": "practice",
+     "minutes": 35,
+     "focus": 7,
+     "depends_on": "k009",
+     "topic": "t05"
+    },
+    {
+     "key": "k011",
+     "kind": "learn",
+     "minutes": 30,
+     "focus": 6,
+     "depends_on": null,
+     "topic": "t06"
+    },
+    {
+     "key": "k012",
+     "kind": "practice",
+     "minutes": 35,
+     "focus": 7,
+     "depends_on": "k011",
+     "topic": "t06"
+    },
+    {
+     "key": "k013",
+     "kind": "simulation",
+     "minutes": 150,
+     "focus": 9,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k014",
+     "kind": "simulation_review",
+     "minutes": 45,
+     "focus": 6,
+     "depends_on": "k013",
+     "topic": null
+    }
+   ]
+  },
+  {
+   "id": "saved:image_page:claude_opus_5_5",
+   "budget": 600,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 4
+    },
+    {
+     "key": "t02",
+     "weight": 3
+    },
+    {
+     "key": "t03",
+     "weight": 4
+    },
+    {
+     "key": "t04",
+     "weight": 4
+    },
+    {
+     "key": "t05",
+     "weight": 3
+    },
+    {
+     "key": "t06",
+     "weight": 3
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "review",
+     "minutes": 30,
+     "focus": 4,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k002",
+     "kind": "learn",
+     "minutes": 45,
+     "focus": 6,
+     "depends_on": "k001",
+     "topic": "t06"
+    },
+    {
+     "key": "k003",
+     "kind": "learn",
+     "minutes": 45,
+     "focus": 6,
+     "depends_on": "k002",
+     "topic": "t01"
+    },
+    {
+     "key": "k004",
+     "kind": "practice",
+     "minutes": 45,
+     "focus": 7,
+     "depends_on": "k003",
+     "topic": "t01"
+    },
+    {
+     "key": "k005",
+     "kind": "learn",
+     "minutes": 30,
+     "focus": 6,
+     "depends_on": "k003",
+     "topic": "t02"
+    },
+    {
+     "key": "k006",
+     "kind": "practice",
+     "minutes": 45,
+     "focus": 7,
+     "depends_on": "k005",
+     "topic": "t02"
+    },
+    {
+     "key": "k007",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 8,
+     "depends_on": "k003",
+     "topic": "t03"
+    },
+    {
+     "key": "k008",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 8,
+     "depends_on": "k007",
+     "topic": "t03"
+    },
+    {
+     "key": "k009",
+     "kind": "learn",
+     "minutes": 45,
+     "focus": 7,
+     "depends_on": "k007",
+     "topic": "t04"
+    },
+    {
+     "key": "k010",
+     "kind": "practice",
+     "minutes": 45,
+     "focus": 7,
+     "depends_on": "k009",
+     "topic": "t04"
+    },
+    {
+     "key": "k011",
+     "kind": "practice",
+     "minutes": 45,
+     "focus": 8,
+     "depends_on": "k009",
+     "topic": "t05"
+    },
+    {
+     "key": "k012",
+     "kind": "simulation",
+     "minutes": 90,
+     "focus": 9,
+     "depends_on": "k011",
+     "topic": null
+    },
+    {
+     "key": "k013",
+     "kind": "simulation_review",
+     "minutes": 45,
+     "focus": 6,
+     "depends_on": "k012",
+     "topic": null
+    }
+   ]
+  },
+  {
+   "id": "saved:image_page:claude_sonnet_5_5",
+   "budget": 600,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 5
+    },
+    {
+     "key": "t02",
+     "weight": 4
+    },
+    {
+     "key": "t03",
+     "weight": 4
+    },
+    {
+     "key": "t04",
+     "weight": 4
+    },
+    {
+     "key": "t05",
+     "weight": 4
+    },
+    {
+     "key": "t06",
+     "weight": 3
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "review",
+     "minutes": 45,
+     "focus": 4,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k002",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k001",
+     "topic": "t01"
+    },
+    {
+     "key": "k003",
+     "kind": "practice",
+     "minutes": 50,
+     "focus": 7,
+     "depends_on": "k002",
+     "topic": "t01"
+    },
+    {
+     "key": "k004",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k002",
+     "topic": "t06"
+    },
+    {
+     "key": "k005",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k002",
+     "topic": "t02"
+    },
+    {
+     "key": "k006",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 8,
+     "depends_on": "k005",
+     "topic": "t02"
+    },
+    {
+     "key": "k007",
+     "kind": "learn",
+     "minutes": 45,
+     "focus": 7,
+     "depends_on": "k002",
+     "topic": "t03"
+    },
+    {
+     "key": "k008",
+     "kind": "learn",
+     "minutes": 45,
+     "focus": 6,
+     "depends_on": "k001",
+     "topic": "t04"
+    },
+    {
+     "key": "k009",
+     "kind": "learn",
+     "minutes": 50,
+     "focus": 7,
+     "depends_on": "k008",
+     "topic": "t05"
+    },
+    {
+     "key": "k010",
+     "kind": "simulation",
+     "minutes": 90,
+     "focus": 9,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k011",
+     "kind": "simulation_review",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k010",
+     "topic": null
+    }
+   ]
+  },
+  {
+   "id": "saved:no_materials:claude_haiku_5_5",
+   "budget": 1200,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 4
+    },
+    {
+     "key": "t02",
+     "weight": 4
+    },
+    {
+     "key": "t03",
+     "weight": 4
+    },
+    {
+     "key": "t04",
+     "weight": 3
+    },
+    {
+     "key": "t05",
+     "weight": 3
+    },
+    {
+     "key": "t06",
+     "weight": 2
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 5,
+     "depends_on": null,
+     "topic": "t01"
+    },
+    {
+     "key": "k002",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 6,
+     "depends_on": "k001",
+     "topic": "t01"
+    },
+    {
+     "key": "k003",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 6,
+     "depends_on": "k002",
+     "topic": "t02"
+    },
+    {
+     "key": "k004",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 7,
+     "depends_on": "k003",
+     "topic": "t02"
+    },
+    {
+     "key": "k005",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 5,
+     "depends_on": "k004",
+     "topic": "t03"
+    },
+    {
+     "key": "k006",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 6,
+     "depends_on": "k005",
+     "topic": "t03"
+    },
+    {
+     "key": "k007",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 5,
+     "depends_on": "k006",
+     "topic": "t04"
+    },
+    {
+     "key": "k008",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 6,
+     "depends_on": "k007",
+     "topic": "t04"
+    },
+    {
+     "key": "k009",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 6,
+     "depends_on": "k008",
+     "topic": "t05"
+    },
+    {
+     "key": "k010",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 7,
+     "depends_on": "k009",
+     "topic": "t05"
+    },
+    {
+     "key": "k011",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 5,
+     "depends_on": "k010",
+     "topic": "t06"
+    },
+    {
+     "key": "k012",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 6,
+     "depends_on": "k011",
+     "topic": "t06"
+    },
+    {
+     "key": "k013",
+     "kind": "simulation",
+     "minutes": 180,
+     "focus": 9,
+     "depends_on": "k012",
+     "topic": null
+    },
+    {
+     "key": "k014",
+     "kind": "simulation_review",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k013",
+     "topic": null
+    }
+   ]
+  },
+  {
+   "id": "saved:no_materials:claude_opus_5_5",
+   "budget": 1200,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 4
+    },
+    {
+     "key": "t02",
+     "weight": 5
+    },
+    {
+     "key": "t03",
+     "weight": 5
+    },
+    {
+     "key": "t04",
+     "weight": 4
+    },
+    {
+     "key": "t05",
+     "weight": 4
+    },
+    {
+     "key": "t06",
+     "weight": 3
+    },
+    {
+     "key": "t07",
+     "weight": 3
+    },
+    {
+     "key": "t08",
+     "weight": 2
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": null,
+     "topic": "t01"
+    },
+    {
+     "key": "k002",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k001",
+     "topic": "t01"
+    },
+    {
+     "key": "k003",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k002",
+     "topic": "t02"
+    },
+    {
+     "key": "k004",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 8,
+     "depends_on": "k003",
+     "topic": "t02"
+    },
+    {
+     "key": "k005",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k004",
+     "topic": "t03"
+    },
+    {
+     "key": "k006",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 8,
+     "depends_on": "k005",
+     "topic": "t03"
+    },
+    {
+     "key": "k007",
+     "kind": "learn",
+     "minutes": 50,
+     "focus": 6,
+     "depends_on": "k006",
+     "topic": "t04"
+    },
+    {
+     "key": "k008",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k007",
+     "topic": "t04"
+    },
+    {
+     "key": "k009",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 8,
+     "depends_on": "k008",
+     "topic": "t05"
+    },
+    {
+     "key": "k010",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 8,
+     "depends_on": "k009",
+     "topic": "t05"
+    },
+    {
+     "key": "k011",
+     "kind": "learn",
+     "minutes": 50,
+     "focus": 7,
+     "depends_on": "k010",
+     "topic": "t06"
+    },
+    {
+     "key": "k012",
+     "kind": "practice",
+     "minutes": 50,
+     "focus": 7,
+     "depends_on": "k011",
+     "topic": "t06"
+    },
+    {
+     "key": "k013",
+     "kind": "learn",
+     "minutes": 50,
+     "focus": 6,
+     "depends_on": "k012",
+     "topic": "t07"
+    },
+    {
+     "key": "k014",
+     "kind": "practice",
+     "minutes": 50,
+     "focus": 7,
+     "depends_on": "k013",
+     "topic": "t07"
+    },
+    {
+     "key": "k015",
+     "kind": "learn",
+     "minutes": 45,
+     "focus": 5,
+     "depends_on": "k014",
+     "topic": "t08"
+    },
+    {
+     "key": "k016",
+     "kind": "practice",
+     "minutes": 45,
+     "focus": 6,
+     "depends_on": "k015",
+     "topic": "t08"
+    },
+    {
+     "key": "k017",
+     "kind": "review",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": "k016",
+     "topic": null
+    },
+    {
+     "key": "k018",
+     "kind": "simulation",
+     "minutes": 180,
+     "focus": 9,
+     "depends_on": "k017",
+     "topic": null
+    },
+    {
+     "key": "k019",
+     "kind": "simulation_review",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k018",
+     "topic": null
+    }
+   ]
+  },
+  {
+   "id": "saved:no_materials:claude_sonnet_5_5",
+   "budget": 1200,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 4
+    },
+    {
+     "key": "t02",
+     "weight": 5
+    },
+    {
+     "key": "t03",
+     "weight": 5
+    },
+    {
+     "key": "t04",
+     "weight": 4
+    },
+    {
+     "key": "t05",
+     "weight": 4
+    },
+    {
+     "key": "t06",
+     "weight": 3
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 6,
+     "depends_on": null,
+     "topic": "t01"
+    },
+    {
+     "key": "k002",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 7,
+     "depends_on": "k001",
+     "topic": "t01"
+    },
+    {
+     "key": "k003",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k001",
+     "topic": "t02"
+    },
+    {
+     "key": "k004",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k003",
+     "topic": "t02"
+    },
+    {
+     "key": "k005",
+     "kind": "learn",
+     "minutes": 80,
+     "focus": 7,
+     "depends_on": "k003",
+     "topic": "t03"
+    },
+    {
+     "key": "k006",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k005",
+     "topic": "t03"
+    },
+    {
+     "key": "k007",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 7,
+     "depends_on": "k005",
+     "topic": "t04"
+    },
+    {
+     "key": "k008",
+     "kind": "practice",
+     "minutes": 80,
+     "focus": 8,
+     "depends_on": "k007",
+     "topic": "t04"
+    },
+    {
+     "key": "k009",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k007",
+     "topic": "t05"
+    },
+    {
+     "key": "k010",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k009",
+     "topic": "t05"
+    },
+    {
+     "key": "k011",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k005",
+     "topic": "t06"
+    },
+    {
+     "key": "k012",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k011",
+     "topic": "t06"
+    },
+    {
+     "key": "k013",
+     "kind": "simulation",
+     "minutes": 180,
+     "focus": 9,
+     "depends_on": "k012",
+     "topic": null
+    },
+    {
+     "key": "k014",
+     "kind": "simulation_review",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k013",
+     "topic": null
+    }
+   ]
+  },
+  {
+   "id": "saved:prompt_injection:claude_haiku_5_5",
+   "budget": 900,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 3
+    },
+    {
+     "key": "t02",
+     "weight": 3
+    },
+    {
+     "key": "t03",
+     "weight": 3
+    },
+    {
+     "key": "t04",
+     "weight": 3
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "review",
+     "minutes": 60,
+     "focus": 4,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k002",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k001",
+     "topic": "t01"
+    },
+    {
+     "key": "k003",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k002",
+     "topic": "t01"
+    },
+    {
+     "key": "k004",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k003",
+     "topic": "t02"
+    },
+    {
+     "key": "k005",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k004",
+     "topic": "t02"
+    },
+    {
+     "key": "k006",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k005",
+     "topic": "t03"
+    },
+    {
+     "key": "k007",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k006",
+     "topic": "t03"
+    },
+    {
+     "key": "k008",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k007",
+     "topic": "t04"
+    },
+    {
+     "key": "k009",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k008",
+     "topic": "t04"
+    },
+    {
+     "key": "k010",
+     "kind": "simulation",
+     "minutes": 120,
+     "focus": 9,
+     "depends_on": "k009",
+     "topic": null
+    },
+    {
+     "key": "k011",
+     "kind": "simulation_review",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": "k010",
+     "topic": null
+    }
+   ]
+  },
+  {
+   "id": "saved:prompt_injection:claude_opus_5_5",
+   "budget": 900,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 3
+    },
+    {
+     "key": "t02",
+     "weight": 4
+    },
+    {
+     "key": "t03",
+     "weight": 4
+    },
+    {
+     "key": "t04",
+     "weight": 5
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "review",
+     "minutes": 30,
+     "focus": 3,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k002",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": "k001",
+     "topic": "t01"
+    },
+    {
+     "key": "k003",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": "k002",
+     "topic": "t01"
+    },
+    {
+     "key": "k004",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 7,
+     "depends_on": "k001",
+     "topic": "t02"
+    },
+    {
+     "key": "k005",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 7,
+     "depends_on": "k004",
+     "topic": "t02"
+    },
+    {
+     "key": "k006",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 7,
+     "depends_on": "k005",
+     "topic": "t03"
+    },
+    {
+     "key": "k007",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 8,
+     "depends_on": "k006",
+     "topic": "t03"
+    },
+    {
+     "key": "k008",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k007",
+     "topic": "t03"
+    },
+    {
+     "key": "k009",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k008",
+     "topic": "t04"
+    },
+    {
+     "key": "k010",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k009",
+     "topic": "t04"
+    },
+    {
+     "key": "k011",
+     "kind": "simulation",
+     "minutes": 180,
+     "focus": 9,
+     "depends_on": "k010",
+     "topic": null
+    },
+    {
+     "key": "k012",
+     "kind": "simulation_review",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k011",
+     "topic": null
+    }
+   ]
+  },
+  {
+   "id": "saved:prompt_injection:claude_sonnet_5_5",
+   "budget": 900,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 3
+    },
+    {
+     "key": "t02",
+     "weight": 4
+    },
+    {
+     "key": "t03",
+     "weight": 4
+    },
+    {
+     "key": "t04",
+     "weight": 5
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "review",
+     "minutes": 40,
+     "focus": 3,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k002",
+     "kind": "learn",
+     "minutes": 70,
+     "focus": 5,
+     "depends_on": "k001",
+     "topic": "t01"
+    },
+    {
+     "key": "k003",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k002",
+     "topic": "t01"
+    },
+    {
+     "key": "k004",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k003",
+     "topic": "t02"
+    },
+    {
+     "key": "k005",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k004",
+     "topic": "t02"
+    },
+    {
+     "key": "k006",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k005",
+     "topic": "t03"
+    },
+    {
+     "key": "k007",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k006",
+     "topic": "t03"
+    },
+    {
+     "key": "k008",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k007",
+     "topic": "t04"
+    },
+    {
+     "key": "k009",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k008",
+     "topic": "t04"
+    },
+    {
+     "key": "k010",
+     "kind": "simulation",
+     "minutes": 180,
+     "focus": 9,
+     "depends_on": "k009",
+     "topic": null
+    },
+    {
+     "key": "k011",
+     "kind": "simulation_review",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k010",
+     "topic": null
+    }
+   ]
+  },
+  {
+   "id": "saved:solution_only:claude_haiku_5_5",
+   "budget": 1200,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 4
+    },
+    {
+     "key": "t02",
+     "weight": 3
+    },
+    {
+     "key": "t03",
+     "weight": 2
+    },
+    {
+     "key": "t04",
+     "weight": 5
+    },
+    {
+     "key": "t05",
+     "weight": 3
+    },
+    {
+     "key": "t06",
+     "weight": 2
+    },
+    {
+     "key": "t07",
+     "weight": 3
+    },
+    {
+     "key": "t08",
+     "weight": 3
+    },
+    {
+     "key": "t09",
+     "weight": 3
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "review",
+     "minutes": 60,
+     "focus": 4,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k002",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 6,
+     "depends_on": "k001",
+     "topic": "t01"
+    },
+    {
+     "key": "k003",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k002",
+     "topic": "t01"
+    },
+    {
+     "key": "k004",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k001",
+     "topic": "t02"
+    },
+    {
+     "key": "k005",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k004",
+     "topic": "t02"
+    },
+    {
+     "key": "k006",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k001",
+     "topic": "t04"
+    },
+    {
+     "key": "k007",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 8,
+     "depends_on": "k006",
+     "topic": "t04"
+    },
+    {
+     "key": "k008",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": "k001",
+     "topic": "t05"
+    },
+    {
+     "key": "k009",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k008",
+     "topic": "t05"
+    },
+    {
+     "key": "k010",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k001",
+     "topic": "t08"
+    },
+    {
+     "key": "k011",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k010",
+     "topic": "t08"
+    },
+    {
+     "key": "k012",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k001",
+     "topic": "t09"
+    },
+    {
+     "key": "k013",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k012",
+     "topic": "t09"
+    },
+    {
+     "key": "k014",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 5,
+     "depends_on": "k001",
+     "topic": "t03"
+    },
+    {
+     "key": "k015",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k001",
+     "topic": "t07"
+    },
+    {
+     "key": "k016",
+     "kind": "simulation",
+     "minutes": 180,
+     "focus": 9,
+     "depends_on": "k015",
+     "topic": null
+    },
+    {
+     "key": "k017",
+     "kind": "simulation_review",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k016",
+     "topic": null
+    }
+   ]
+  },
+  {
+   "id": "saved:solution_only:claude_opus_5_5",
+   "budget": 1200,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 2
+    },
+    {
+     "key": "t02",
+     "weight": 5
+    },
+    {
+     "key": "t03",
+     "weight": 4
+    },
+    {
+     "key": "t04",
+     "weight": 5
+    },
+    {
+     "key": "t05",
+     "weight": 4
+    },
+    {
+     "key": "t06",
+     "weight": 3
+    },
+    {
+     "key": "t07",
+     "weight": 4
+    },
+    {
+     "key": "t08",
+     "weight": 2
+    },
+    {
+     "key": "t09",
+     "weight": 3
+    },
+    {
+     "key": "t10",
+     "weight": 2
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "review",
+     "minutes": 30,
+     "focus": 3,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k002",
+     "kind": "learn",
+     "minutes": 30,
+     "focus": 5,
+     "depends_on": "k001",
+     "topic": "t01"
+    },
+    {
+     "key": "k003",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k002",
+     "topic": "t02"
+    },
+    {
+     "key": "k004",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 8,
+     "depends_on": "k003",
+     "topic": "t02"
+    },
+    {
+     "key": "k005",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k004",
+     "topic": "t03"
+    },
+    {
+     "key": "k006",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 8,
+     "depends_on": "k005",
+     "topic": "t03"
+    },
+    {
+     "key": "k007",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 8,
+     "depends_on": "k006",
+     "topic": "t04"
+    },
+    {
+     "key": "k008",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k007",
+     "topic": "t04"
+    },
+    {
+     "key": "k009",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k008",
+     "topic": "t05"
+    },
+    {
+     "key": "k010",
+     "kind": "practice",
+     "minutes": 75,
+     "focus": 8,
+     "depends_on": "k009",
+     "topic": "t05"
+    },
+    {
+     "key": "k011",
+     "kind": "learn",
+     "minutes": 45,
+     "focus": 6,
+     "depends_on": "k010",
+     "topic": "t06"
+    },
+    {
+     "key": "k012",
+     "kind": "practice",
+     "minutes": 45,
+     "focus": 6,
+     "depends_on": "k011",
+     "topic": "t06"
+    },
+    {
+     "key": "k013",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k012",
+     "topic": "t07"
+    },
+    {
+     "key": "k014",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k013",
+     "topic": "t07"
+    },
+    {
+     "key": "k015",
+     "kind": "learn",
+     "minutes": 45,
+     "focus": 6,
+     "depends_on": "k014",
+     "topic": "t08"
+    },
+    {
+     "key": "k016",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 6,
+     "depends_on": "k015",
+     "topic": "t09"
+    },
+    {
+     "key": "k017",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k016",
+     "topic": "t09"
+    },
+    {
+     "key": "k018",
+     "kind": "learn",
+     "minutes": 45,
+     "focus": 6,
+     "depends_on": "k017",
+     "topic": "t10"
+    },
+    {
+     "key": "k019",
+     "kind": "simulation",
+     "minutes": 180,
+     "focus": 9,
+     "depends_on": "k018",
+     "topic": null
+    },
+    {
+     "key": "k020",
+     "kind": "simulation_review",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k019",
+     "topic": null
+    }
+   ]
+  },
+  {
+   "id": "saved:solution_only:claude_sonnet_5_5",
+   "budget": 1200,
+   "topics": [
+    {
+     "key": "t01",
+     "weight": 4
+    },
+    {
+     "key": "t02",
+     "weight": 4
+    },
+    {
+     "key": "t03",
+     "weight": 4
+    },
+    {
+     "key": "t04",
+     "weight": 5
+    },
+    {
+     "key": "t05",
+     "weight": 5
+    },
+    {
+     "key": "t06",
+     "weight": 3
+    },
+    {
+     "key": "t07",
+     "weight": 4
+    },
+    {
+     "key": "t08",
+     "weight": 4
+    },
+    {
+     "key": "t09",
+     "weight": 2
+    }
+   ],
+   "tasks": [
+    {
+     "key": "k001",
+     "kind": "review",
+     "minutes": 45,
+     "focus": 3,
+     "depends_on": null,
+     "topic": null
+    },
+    {
+     "key": "k002",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 6,
+     "depends_on": "k001",
+     "topic": "t01"
+    },
+    {
+     "key": "k003",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k002",
+     "topic": "t01"
+    },
+    {
+     "key": "k004",
+     "kind": "learn",
+     "minutes": 75,
+     "focus": 7,
+     "depends_on": "k002",
+     "topic": "t02"
+    },
+    {
+     "key": "k005",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 8,
+     "depends_on": "k004",
+     "topic": "t02"
+    },
+    {
+     "key": "k006",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k002",
+     "topic": "t03"
+    },
+    {
+     "key": "k007",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 8,
+     "depends_on": "k006",
+     "topic": "t03"
+    },
+    {
+     "key": "k008",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k006",
+     "topic": "t04"
+    },
+    {
+     "key": "k009",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k008",
+     "topic": "t04"
+    },
+    {
+     "key": "k010",
+     "kind": "learn",
+     "minutes": 90,
+     "focus": 7,
+     "depends_on": "k008",
+     "topic": "t05"
+    },
+    {
+     "key": "k011",
+     "kind": "practice",
+     "minutes": 90,
+     "focus": 8,
+     "depends_on": "k010",
+     "topic": "t05"
+    },
+    {
+     "key": "k012",
+     "kind": "learn",
+     "minutes": 45,
+     "focus": 6,
+     "depends_on": "k010",
+     "topic": "t06"
+    },
+    {
+     "key": "k013",
+     "kind": "learn",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k010",
+     "topic": "t07"
+    },
+    {
+     "key": "k014",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 8,
+     "depends_on": "k013",
+     "topic": "t07"
+    },
+    {
+     "key": "k015",
+     "kind": "practice",
+     "minutes": 60,
+     "focus": 8,
+     "depends_on": "k012",
+     "topic": "t08"
+    },
+    {
+     "key": "k016",
+     "kind": "simulation",
+     "minutes": 180,
+     "focus": 9,
+     "depends_on": "k015",
+     "topic": null
+    },
+    {
+     "key": "k017",
+     "kind": "simulation_review",
+     "minutes": 60,
+     "focus": 7,
+     "depends_on": "k016",
+     "topic": null
+    }
+   ]
+  }
+ ]
+}
