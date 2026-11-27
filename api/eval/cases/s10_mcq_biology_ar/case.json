@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "s10_mcq_biology_ar",
+  "kind": "synthetic",
+  "course": {
+    "name": "علم الأحياء العام",
+    "type": "mcq_memorization",
+    "format": "mcq",
+    "language": "ar",
+    "exam_minutes": 120,
+    "days_to_exam": 28,
+    "difficulty": 3
+  },
+  "materials": [
+    {
+      "path": "syllabus.pdf",
+      "kind": "syllabus",
+      "origin": "synthetic"
+    },
+    {
+      "path": "summary.pdf",
+      "kind": "summary",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_1.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_2.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    }
+  ],
+  "profile": "full_time",
+  "expect": {
+    "topics": [
+      {
+        "key": "t01",
+        "name": "المفاهيم الأساسية 1",
+        "weight": 5
+      },
+      {
+        "key": "t02",
+        "name": "التعريفات 2",
+        "weight": 4
+      },
+      {
+        "key": "t03",
+        "name": "الآليات 3",
+        "weight": 3
+      },
+      {
+        "key": "t04",
+        "name": "التطبيقات 4",
+        "weight": 3
+      },
+      {
+        "key": "t05",
+        "name": "الحالات الخاصة 5",
+        "weight": 2
+      },
+      {
+        "key": "t06",
+        "name": "التجارب 6",
+        "weight": 4
+      },
+      {
+        "key": "t07",
+        "name": "الأمثلة 7",
+        "weight": 1
+      },
+      {
+        "key": "t08",
+        "name": "المواضيع المتقدمة 8",
+        "weight": 2
+      },
+      {
+        "key": "t09",
+        "name": "العلاقات 9",
+        "weight": 5
+      },
+      {
+        "key": "t10",
+        "name": "الملخص 10",
+        "weight": 3
+      }
+    ],
+    "missing_topic": "t10",
+    "format": "mcq",
+    "language": "ar",
+    "exam_minutes": 120,
+    "kinds_min": {
+      "recall": 4
+    },
+    "must_not": [
+      {
+        "code": "simulation_shorter_than_ratio",
+        "ratio": 0.5
+      }
+    ]
+  },
+  "notes_code": null
+}

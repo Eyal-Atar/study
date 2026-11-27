@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "id": "s08_oral_nursing_he",
+  "kind": "synthetic",
+  "course": {
+    "name": "יסודות הסיעוד",
+    "type": "oral",
+    "format": "oral",
+    "language": "he",
+    "exam_minutes": 30,
+    "days_to_exam": 21,
+    "difficulty": 3
+  },
+  "materials": [
+    {
+      "path": "syllabus.pdf",
+      "kind": "syllabus",
+      "origin": "synthetic"
+    },
+    {
+      "path": "summary.pdf",
+      "kind": "summary",
+      "origin": "synthetic"
+    }
+  ],
+  "profile": "full_time",
+  "expect": {
+    "topics": [
+      {
+        "key": "t01",
+        "name": "מושגי יסוד 1",
+        "weight": 5
+      },
+      {
+        "key": "t02",
+        "name": "הגדרות ומשפטים 2",
+        "weight": 4
+      },
+      {
+        "key": "t03",
+        "name": "טכניקות פתרון 3",
+        "weight": 3
+      },
+      {
+        "key": "t04",
+        "name": "יישומים 4",
+        "weight": 3
+      },
+      {
+        "key": "t05",
+        "name": "מקרי קצה 5",
+        "weight": 2
+      },
+      {
+        "key": "t06",
+        "name": "הוכחות 6",
+        "weight": 4
+      },
+      {
+        "key": "t07",
+        "name": "דוגמאות מסכמות 7",
+        "weight": 1
+      }
+    ],
+    "missing_topic": "t07",
+    "format": "oral",
+    "language": "he",
+    "exam_minutes": 30,
+    "kinds_min": {
+      "recall": 3
+    },
+    "must_not": []
+  },
+  "notes_code": null
+}

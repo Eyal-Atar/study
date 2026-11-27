@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "id": "s09_take_home_philosophy_he",
+  "kind": "synthetic",
+  "course": {
+    "name": "מבוא לפילוסופיה",
+    "type": "take_home",
+    "format": "take_home",
+    "language": "he",
+    "exam_minutes": 1440,
+    "days_to_exam": 21,
+    "difficulty": 3
+  },
+  "materials": [
+    {
+      "path": "syllabus.pdf",
+      "kind": "syllabus",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_1.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    }
+  ],
+  "profile": "full_time",
+  "expect": {
+    "topics": [
+      {
+        "key": "t01",
+        "name": "מושגי יסוד 1",
+        "weight": 5
+      },
+      {
+        "key": "t02",
+        "name": "הגדרות ומשפטים 2",
+        "weight": 4
+      },
+      {
+        "key": "t03",
+        "name": "טכניקות פתרון 3",
+        "weight": 3
+      },
+      {
+        "key": "t04",
+        "name": "יישומים 4",
+        "weight": 3
+      },
+      {
+        "key": "t05",
+        "name": "מקרי קצה 5",
+        "weight": 2
+      },
+      {
+        "key": "t06",
+        "name": "הוכחות 6",
+        "weight": 4
+      }
+    ],
+    "missing_topic": "t06",
+    "format": "take_home",
+    "language": "he",
+    "exam_minutes": 1440,
+    "kinds_min": {
+      "summary": 1
+    },
+    "must_not": []
+  },
+  "notes_code": null
+}

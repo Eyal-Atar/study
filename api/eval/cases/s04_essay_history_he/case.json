@@ -1,0 +1,91 @@
+{
+  "schema": 1,
+  "id": "s04_essay_history_he",
+  "kind": "synthetic",
+  "course": {
+    "name": "היסטוריה של העת החדשה",
+    "type": "essay",
+    "format": "essay",
+    "language": "he",
+    "exam_minutes": 180,
+    "days_to_exam": 35,
+    "difficulty": 3
+  },
+  "materials": [
+    {
+      "path": "syllabus.pdf",
+      "kind": "syllabus",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_1.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_2.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    }
+  ],
+  "profile": "full_time",
+  "expect": {
+    "topics": [
+      {
+        "key": "t01",
+        "name": "מושגי יסוד 1",
+        "weight": 5
+      },
+      {
+        "key": "t02",
+        "name": "הגדרות ומשפטים 2",
+        "weight": 4
+      },
+      {
+        "key": "t03",
+        "name": "טכניקות פתרון 3",
+        "weight": 3
+      },
+      {
+        "key": "t04",
+        "name": "יישומים 4",
+        "weight": 3
+      },
+      {
+        "key": "t05",
+        "name": "מקרי קצה 5",
+        "weight": 2
+      },
+      {
+        "key": "t06",
+        "name": "הוכחות 6",
+        "weight": 4
+      },
+      {
+        "key": "t07",
+        "name": "דוגמאות מסכמות 7",
+        "weight": 1
+      },
+      {
+        "key": "t08",
+        "name": "נושאים מתקדמים 8",
+        "weight": 2
+      }
+    ],
+    "missing_topic": "t08",
+    "format": "essay",
+    "language": "he",
+    "exam_minutes": 180,
+    "kinds_min": {
+      "read": 2,
+      "write": 3
+    },
+    "must_not": [
+      {
+        "code": "simulation_shorter_than_ratio",
+        "ratio": 0.5
+      }
+    ]
+  },
+  "notes_code": null
+}

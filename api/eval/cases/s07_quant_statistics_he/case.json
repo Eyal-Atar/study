@@ -1,0 +1,98 @@
+{
+  "schema": 1,
+  "id": "s07_quant_statistics_he",
+  "kind": "synthetic",
+  "course": {
+    "name": "סטטיסטיקה",
+    "type": "quantitative_social",
+    "format": "problems",
+    "language": "he",
+    "exam_minutes": 180,
+    "days_to_exam": 28,
+    "difficulty": 3
+  },
+  "materials": [
+    {
+      "path": "syllabus.pdf",
+      "kind": "syllabus",
+      "origin": "synthetic"
+    },
+    {
+      "path": "summary.pdf",
+      "kind": "summary",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_1.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_2.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    }
+  ],
+  "profile": "full_time",
+  "expect": {
+    "topics": [
+      {
+        "key": "t01",
+        "name": "מושגי יסוד 1",
+        "weight": 5
+      },
+      {
+        "key": "t02",
+        "name": "הגדרות ומשפטים 2",
+        "weight": 4
+      },
+      {
+        "key": "t03",
+        "name": "טכניקות פתרון 3",
+        "weight": 3
+      },
+      {
+        "key": "t04",
+        "name": "יישומים 4",
+        "weight": 3
+      },
+      {
+        "key": "t05",
+        "name": "מקרי קצה 5",
+        "weight": 2
+      },
+      {
+        "key": "t06",
+        "name": "הוכחות 6",
+        "weight": 4
+      },
+      {
+        "key": "t07",
+        "name": "דוגמאות מסכמות 7",
+        "weight": 1
+      },
+      {
+        "key": "t08",
+        "name": "נושאים מתקדמים 8",
+        "weight": 2
+      },
+      {
+        "key": "t09",
+        "name": "קשרים בין נושאים 9",
+        "weight": 5
+      }
+    ],
+    "missing_topic": "t09",
+    "format": "problems",
+    "language": "he",
+    "exam_minutes": 180,
+    "kinds_min": {},
+    "must_not": [
+      {
+        "code": "simulation_shorter_than_ratio",
+        "ratio": 0.5
+      }
+    ]
+  },
+  "notes_code": null
+}

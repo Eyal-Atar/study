@@ -1,0 +1,128 @@
+{
+  "schema": 1,
+  "id": "s12_ten_past_exams_5d_he",
+  "kind": "synthetic",
+  "course": {
+    "name": "אלגברה לינארית",
+    "type": "problem_solving",
+    "format": "problems",
+    "language": "he",
+    "exam_minutes": 180,
+    "days_to_exam": 5,
+    "difficulty": 3
+  },
+  "materials": [
+    {
+      "path": "syllabus.pdf",
+      "kind": "syllabus",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_1.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_2.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_3.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_4.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_5.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_6.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_7.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_8.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_9.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_10.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    }
+  ],
+  "profile": "full_time",
+  "expect": {
+    "topics": [
+      {
+        "key": "t01",
+        "name": "מושגי יסוד 1",
+        "weight": 5
+      },
+      {
+        "key": "t02",
+        "name": "הגדרות ומשפטים 2",
+        "weight": 4
+      },
+      {
+        "key": "t03",
+        "name": "טכניקות פתרון 3",
+        "weight": 3
+      },
+      {
+        "key": "t04",
+        "name": "יישומים 4",
+        "weight": 3
+      },
+      {
+        "key": "t05",
+        "name": "מקרי קצה 5",
+        "weight": 2
+      },
+      {
+        "key": "t06",
+        "name": "הוכחות 6",
+        "weight": 4
+      },
+      {
+        "key": "t07",
+        "name": "דוגמאות מסכמות 7",
+        "weight": 1
+      },
+      {
+        "key": "t08",
+        "name": "נושאים מתקדמים 8",
+        "weight": 2
+      }
+    ],
+    "missing_topic": "t08",
+    "format": "problems",
+    "language": "he",
+    "exam_minutes": 180,
+    "kinds_min": {},
+    "must_not": [
+      {
+        "code": "simulation_shorter_than_ratio",
+        "ratio": 0.5
+      }
+    ]
+  },
+  "notes_code": "many_past_exams_short_window"
+}

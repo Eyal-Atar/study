@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "id": "s11_econ_en",
+  "kind": "synthetic",
+  "course": {
+    "name": "Microeconomics",
+    "type": "quantitative_social",
+    "format": "problems",
+    "language": "en",
+    "exam_minutes": 180,
+    "days_to_exam": 35,
+    "difficulty": 3
+  },
+  "materials": [
+    {
+      "path": "syllabus.pdf",
+      "kind": "syllabus",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_1.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    },
+    {
+      "path": "past_2.pdf",
+      "kind": "past_exam",
+      "origin": "synthetic"
+    }
+  ],
+  "profile": "full_time",
+  "expect": {
+    "topics": [
+      {
+        "key": "t01",
+        "name": "Basic concepts 1",
+        "weight": 5
+      },
+      {
+        "key": "t02",
+        "name": "Definitions and models 2",
+        "weight": 4
+      },
+      {
+        "key": "t03",
+        "name": "Solution methods 3",
+        "weight": 3
+      },
+      {
+        "key": "t04",
+        "name": "Applications 4",
+        "weight": 3
+      },
+      {
+        "key": "t05",
+        "name": "Edge cases 5",
+        "weight": 2
+      },
+      {
+        "key": "t06",
+        "name": "Proofs 6",
+        "weight": 4
+      },
+      {
+        "key": "t07",
+        "name": "Worked examples 7",
+        "weight": 1
+      },
+      {
+        "key": "t08",
+        "name": "Advanced topics 8",
+        "weight": 2
+      },
+      {
+        "key": "t09",
+        "name": "Connections 9",
+        "weight": 5
+      }
+    ],
+    "missing_topic": "t09",
+    "format": "problems",
+    "language": "en",
+    "exam_minutes": 180,
+    "kinds_min": {},
+    "must_not": [
+      {
+        "code": "simulation_shorter_than_ratio",
+        "ratio": 0.5
+      }
+    ]
+  },
+  "notes_code": null
+}
