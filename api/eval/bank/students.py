@@ -150,6 +150,19 @@ def morning(profile: Profile, day: dt.date) -> dt.datetime:
     return (wake.astimezone(dt.UTC) + profile.study_start_delay).astimezone(profile.timezone)
 
 
+def first_study_day(profile: Profile, now: dt.datetime) -> dt.date:
+    """Day 0 of a period: the first study day whose waking hours end after now.
+
+    study_date(now) alone is not it when now falls in the sleep after a study day (a night
+    owl at 08:30): that day is already over, and counting from it would start late_start
+    and the weekly replans a day early on such a profile only.
+    """
+    day = study_date(profile, now)
+    while local_span(day, profile.wake_time, profile.sleep_time, profile.timezone)[1] <= now:
+        day += _ONE_DAY
+    return day
+
+
 def simulate_period(board: Board, behavior: Behavior, *, seed: str, rep: int = 0) -> PeriodResult:
     """One student with this behaviour living the board's period, from its clock to the
     last exam. rep is only recorded: the caller puts it in the seed."""
@@ -214,7 +227,8 @@ def _run(board: Board, behavior: Behavior, *, seed: str, rep: int) -> tuple[Peri
     )
     _apply(state, first_plan, "p0")
 
-    first = study_date(profile, board.now)
+    # Day 0 of every count below: late_start, the drift and the weekly replans.
+    first = first_study_day(profile, board.now)
     if any(exam.exam_date <= first for exam in board.exams):
         raise ValueError(f"board {board.id}: an exam on or before the first study day")
     last_exam = max((exam.exam_date for exam in board.exams), default=first)

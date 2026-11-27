@@ -9,7 +9,6 @@ Jerusalem, and day offset 0 is that date.
 
 import dataclasses
 import datetime as dt
-import time
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from functools import cache
@@ -48,6 +47,7 @@ from eval.bank.students import (
     ProbeResult,
     _run,
     _settled,
+    first_study_day,
     missed_day_probe,
     morning,
     simulate_period,
@@ -225,7 +225,7 @@ def marathon_board() -> Board:
 
 @cache
 def period(board_id: str, behavior: Behavior, seed: str) -> PeriodResult:
-    boards = {b.id: b for b in (small_board(), marathon_board(), fitting_board())}
+    boards = {b.id: b for b in (small_board(), half_board(), marathon_board(), fitting_board())}
     return simulate_period(boards[board_id], behavior, seed=seed)
 
 
@@ -395,8 +395,8 @@ def test_ideal_student_covers_planned() -> None:
 
 def test_same_seed_same_result() -> None:
     board = small_board()
-    first = simulate_period(board, TYPICAL, seed="a")
-    simulate_period(board, TYPICAL, seed="b")  # another period in between changes nothing
+    first = period(board.id, TYPICAL, "a")  # cached: the same object as in the next test
+    period(board.id, TYPICAL, "b")  # another period in between changes nothing
     again = simulate_period(board, TYPICAL, seed="a")
     assert _no_time(first) == _no_time(again)
 
@@ -408,7 +408,7 @@ def test_other_seed_differs() -> None:
 
 def test_missing_everything_covers_nothing() -> None:
     all_miss = _behavior("all_miss", miss_rate=1.0)  # capped at MAX_MISS = 0.95 a block
-    result = period(small_board().id, all_miss, "1")
+    result = period(half_board().id, all_miss, "1")
     assert result.coverage is not None
     assert result.coverage < 0.2
     assert result.review_moves > 0
@@ -444,6 +444,33 @@ def test_late_start_misses_first_days() -> None:
     assert min(days) >= first + dt.timedelta(days=late.late_start)
 
 
+def test_first_study_day_skips_a_day_already_over() -> None:
+    profiles = load_profiles()
+    # 08:30 is after a full-time student's wake-up: day 0 is today.
+    assert first_study_day(profile_by_id(profiles, "full_time").profile, NOW) == TODAY
+    # A night owl (wake 11:00, sleep 03:00) is asleep at 08:30, after Saturday's study day
+    # ended at 03:00: day 0 is Sunday, not Saturday.
+    owl = profile_by_id(profiles, "night_owl").profile
+    assert study_date(owl, NOW) == TODAY - dt.timedelta(days=1)
+    assert first_study_day(owl, NOW) == TODAY
+
+
+def test_late_start_on_night_owl_misses_late_start_days_with_blocks() -> None:
+    # late_start counts real study days on every profile: the days with blocks before the
+    # first done one are exactly the first late_start days.
+    cases = [case for case in load_cases() if case.id.startswith("s01")]
+    (board,) = build_boards(cases, (), [profile_by_id(load_profiles(), "night_owl")], fills=(0.5,))
+    late = next(b for b in BEHAVIORS if b.id == "late")
+    _, state = _run(board, late, seed="1", rep=0)
+    done = _done_days(board, state.blocks)
+    assert done
+    with_blocks = sorted(
+        {study_date(board.profile, block.interval.start) for block in state.blocks.values()}
+    )
+    skipped = [day for day in with_blocks if day < done[0]]
+    assert skipped == [TODAY + dt.timedelta(days=k) for k in range(late.late_start)]
+
+
 def test_marathon_records_each_exam() -> None:
     board = marathon_board()
     result = period(board.id, TYPICAL, "1")
@@ -455,7 +482,7 @@ def test_marathon_records_each_exam() -> None:
 
 def test_churn_per_replan_is_the_ratio() -> None:
     struggling = next(b for b in BEHAVIORS if b.id == "struggling")
-    result = simulate_period(small_board(), struggling, seed="1")
+    result = simulate_period(half_board(), struggling, seed="1")
     assert result.replans > 0
     assert result.churn_per_replan == pytest.approx(result.churn / result.replans)
 
@@ -484,9 +511,12 @@ def test_probe_by_hand() -> None:
         assert missed_day_probe(board, first_plan, which) == ProbeResult(core_reported=0, churn=0)
 
 
-def test_hundred_periods_are_fast() -> None:
-    board = small_board()
-    started = time.perf_counter()
-    for rep in range(100):
-        simulate_period(board, TYPICAL, seed=f"t/{rep}", rep=rep)
-    assert time.perf_counter() - started < 60
+def test_periods_do_not_depend_on_order() -> None:
+    # One period per behaviour, run forwards and then backwards: each period has its own
+    # Random, so the order they run in changes nothing. (The 1,000-period timing is a
+    # measurement of the CLI, not a test.)
+    board = half_board()
+    forwards = [_no_time(simulate_period(board, b, seed=f"o/{b.id}")) for b in BEHAVIORS]
+    backwards = [_no_time(simulate_period(board, b, seed=f"o/{b.id}")) for b in reversed(BEHAVIORS)]
+    assert forwards == backwards[::-1]
+    assert [r.behavior_id for r in forwards] == [b.id for b in BEHAVIORS]
