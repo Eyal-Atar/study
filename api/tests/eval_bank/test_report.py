@@ -530,6 +530,133 @@ def test_compare_marks_regressions() -> None:
     assert "0.2 (0.3, -0.1)" in text
 
 
+def _with_counts(summary: dict[str, Any], by_type: dict[str, dict[str, int]]) -> dict[str, Any]:
+    out = copy.deepcopy(summary)
+    out["value_counts"] = {"planner": {"by_course_type": by_type}}
+    return out
+
+
+def _regression_section(text: str) -> str:
+    return text.split("## Regressions", 1)[1].split("\n## ", 1)[0]
+
+
+def test_compare_flags_a_mean_that_rose_over_fewer_values() -> None:
+    # essay: between_next_share rose 0.4 to 0.6, but over 1 board instead of 3 of the same 3
+    # (the planner emptied the gap on two boards, which then left the mean). oral: the same
+    # rise over 3 of 3 on both sides is a real improvement. open_book: 1 of 2 boards now
+    # against 3 of 3 before are different board sets, not fewer values inside the same rows.
+    base = _with_counts(
+        _fake(
+            {
+                "essay": {"between_next_share": 0.4, "last20_core_share": 0.2},
+                "oral": {"between_next_share": 0.4},
+                "open_book": {"between_next_share": 0.4},
+            }
+        ),
+        {
+            "essay": {"rows": 3, "between_next_share": 3, "last20_core_share": 3},
+            "oral": {"rows": 3, "between_next_share": 3},
+            "open_book": {"rows": 3, "between_next_share": 3},
+        },
+    )
+    now = _with_counts(
+        _fake(
+            {
+                "essay": {"between_next_share": 0.6, "last20_core_share": 0.3},
+                "oral": {"between_next_share": 0.6},
+                "open_book": {"between_next_share": 0.6},
+            }
+        ),
+        {
+            "essay": {"rows": 3, "between_next_share": 1, "last20_core_share": 3},
+            "oral": {"rows": 3, "between_next_share": 3},
+            "open_book": {"rows": 2, "between_next_share": 1},
+        },
+    )
+    changes = {(c.group, c.metric): c for c in report.compare_summaries(now, base)}
+    flagged = changes[("course_type=essay", "between_next_share")]
+    assert flagged.verdict == "fewer_values"
+    assert (flagged.now_n, flagged.base_n) == (1, 3)
+    assert changes[("course_type=essay", "last20_core_share")].verdict == "improved"
+    assert changes[("course_type=oral", "between_next_share")].verdict == "improved"
+    assert changes[("course_type=open_book", "between_next_share")].verdict == "improved"
+    text = report.render_markdown(now, base)
+    section = _regression_section(text)
+    assert "essay" in section
+    assert "between_next_share" in section
+    assert "fewer_values" in section
+    assert "oral" not in section
+    assert "open_book" not in section
+    # The counts are in the table: 1 now, 3 in the baseline.
+    row = next(line for line in section.splitlines() if "essay" in line)
+    assert row.rstrip().endswith("| 1 | 3 |")
+
+
+def test_compare_a_value_lost_is_a_regression() -> None:
+    # Every essay board emptied its gap: between_util is None now, 0.8 in the baseline.
+    base = _with_counts(
+        _fake({"essay": {"between_util": 0.8}, "oral": {"between_util": 0.8}}),
+        {"essay": {"rows": 2, "between_util": 2}, "oral": {"rows": 2, "between_util": 2}},
+    )
+    now = _with_counts(
+        _fake({"essay": {"between_util": None}, "oral": {"between_util": 0.9}}),
+        {"essay": {"rows": 2, "between_util": 0}, "oral": {"rows": 2, "between_util": 2}},
+    )
+    changes = {(c.group, c.metric): c for c in report.compare_summaries(now, base)}
+    lost = changes[("course_type=essay", "between_util")]
+    assert lost.verdict == "lost_values"
+    assert lost.now is None
+    assert lost.base == 0.8
+    assert (lost.now_n, lost.base_n) == (0, 2)
+    assert changes[("course_type=oral", "between_util")].verdict == "improved"
+    section = _regression_section(report.render_markdown(now, base))
+    assert "essay" in section
+    assert "lost_values" in section
+    assert "oral" not in section
+    assert "1 lost_values" in section  # the tally line
+
+
+def test_target_status_is_not_met_by_fewer_values() -> None:
+    # higher than the baseline, but over 1 of 3 boards against 3 of 3: no verdict.
+    fewer = {"n": 1, "rows": 3, "base_n": 3, "base_rows": 3}
+    assert report.target_status("higher_than_baseline", 0.7, 0.6, **fewer) == "n/a (n changed)"
+    assert report.target_status("lower_than_baseline", 0.5, 0.6, **fewer) == "n/a (n changed)"
+    assert report.target_status("not_higher_than_baseline", 0.5, 0.6, **fewer) == (
+        "n/a (n changed)"
+    )
+    same = {"n": 3, "rows": 3, "base_n": 3, "base_rows": 3}
+    assert report.target_status("higher_than_baseline", 0.7, 0.6, **same) == "met"
+    # Other board sets (rows differ): the count is not compared.
+    other = {"n": 1, "rows": 2, "base_n": 3, "base_rows": 3}
+    assert report.target_status("higher_than_baseline", 0.7, 0.6, **other) == "met"
+    # An absolute target does not look at the baseline.
+    assert report.target_status("ge_0.15", 0.2, 0.1, **fewer) == "met"
+    # Nothing now, something before: a relative target is not met.
+    assert report.target_status("higher_than_baseline", None, 0.6, **same) == "not met"
+    assert report.target_status("higher_than_baseline", None, None, **same) == "n/a"
+
+
+def test_targets_table_shows_n_changed() -> None:
+    now = _with_counts(_fake({}), {})
+    base = copy.deepcopy(now)
+    now["targets"] = [
+        {
+            "id": "s47_between_next_share",
+            "metric": "between_next_share",
+            "scope": "overall",
+            "value": 0.7,
+            "target": "higher_than_baseline",
+        }
+    ]
+    now["planner"]["overall"] = {"between_next_share": 0.7}
+    base["planner"]["overall"] = {"between_next_share": 0.6}
+    now["value_counts"] = {"planner": {"overall": {"rows": 3, "between_next_share": 1}}}
+    base["value_counts"] = {"planner": {"overall": {"rows": 3, "between_next_share": 3}}}
+    text = report.render_markdown(now, base)
+    line = next(line for line in text.splitlines() if line.startswith("| s47_between_next_share"))
+    assert "n/a (n changed)" in line
+
+
 def test_compare_with_no_regressions_says_so() -> None:
     text = report.render_markdown(BASE, BASE)
     section = text.split("## Regressions", 1)[1].split("\n## ", 1)[0]

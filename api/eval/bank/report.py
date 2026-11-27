@@ -492,10 +492,39 @@ def _walk(obj: object, path: str, *, top: bool = False) -> None:
 # --- targets, performance verdicts ----------------------------------------------------------
 
 
-def target_status(code: str, value: float | None, base: float | None) -> str:
-    """met, not met, or n/a (no value, or a target against a baseline that is not there)."""
+def fewer_values(
+    n: int | None, rows: int | None, base_n: int | None, base_rows: int | None
+) -> bool:
+    """True when fewer boards (or periods) have a value now than in the baseline's same rows.
+
+    Only compared when the group has the same number of rows on both sides: a different set
+    of boards is another situation (the run's header warns about it), not fewer values.
+    """
+    if n is None or base_n is None or rows is None or rows != base_rows:
+        return False
+    return n < base_n
+
+
+def target_status(
+    code: str,
+    value: float | None,
+    base: float | None,
+    *,
+    n: int | None = None,
+    rows: int | None = None,
+    base_n: int | None = None,
+    base_rows: int | None = None,
+) -> str:
+    """met, not met, or n/a.
+
+    n/a: no value, or a target against a baseline that is not there. A target against the
+    baseline is also n/a ("n/a (n changed)") when fewer values are behind the mean than in the
+    baseline's same rows: a mean over fewer boards says nothing. A relative target with no
+    value now but one in the baseline is not met.
+    """
+    relative = code.endswith("_than_baseline")
     if value is None:
-        return "n/a"
+        return "not met" if relative and base is not None else "n/a"
     if code == "eq_0":
         return _met(value == 0)
     if code == "eq_1":
@@ -506,6 +535,8 @@ def target_status(code: str, value: float | None, base: float | None) -> str:
         return _met(value <= float(code[3:]))
     if base is None:
         return "n/a"
+    if fewer_values(n, rows, base_n, base_rows):
+        return "n/a (n changed)"
     if code == "lower_than_baseline":
         return _met(value < base)
     if code == "higher_than_baseline":
@@ -547,14 +578,24 @@ def timing_verdicts(summary: Mapping[str, Any]) -> tuple[str, str]:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Change:
-    """One mean against its baseline. ``delta`` is now minus base, in the metric's own sign."""
+    """One mean against its baseline. ``delta`` is now minus base, in the metric's own sign.
+
+    ``now`` is None for a lost value (a mean with nothing behind it now); ``now_n`` and
+    ``base_n`` are the values behind each mean (None when the summary has no counts).
+    """
 
     group: str
     metric: str
-    now: float
+    now: float | None
     base: float
-    delta: float
-    verdict: str  # improved | worsened | unchanged
+    delta: float | None
+    verdict: str  # improved | worsened | unchanged | fewer_values | lost_values
+    now_n: int | None = None
+    base_n: int | None = None
+
+
+# Verdicts that go to the Regressions table.
+REGRESSION_VERDICTS: Final = ("worsened", "fewer_values", "lost_values")
 
 
 def _unit(metric: str) -> str:
@@ -565,36 +606,80 @@ def _unit(metric: str) -> str:
     return "ratio"
 
 
-def _compared_groups(summary: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
+def _compared_groups(summary: Mapping[str, Any]) -> dict[str, tuple[str, ...]]:
+    """Group label to the path of its metric dict (and of its value counts)."""
     planner = summary.get("planner", {})
     students = summary.get("students", {})
-    groups: dict[str, Mapping[str, Any]] = {"overall": planner.get("overall", {})}
-    for course_type, metrics in planner.get("by_course_type", {}).items():
-        groups[f"course_type={course_type}"] = metrics
-    for behavior, metrics in students.get("by_behavior", {}).items():
-        groups[f"behavior={behavior}"] = metrics
+    groups: dict[str, tuple[str, ...]] = {"overall": ("planner", "overall")}
+    for course_type in planner.get("by_course_type", {}):
+        groups[f"course_type={course_type}"] = ("planner", "by_course_type", course_type)
+    for behavior in students.get("by_behavior", {}):
+        groups[f"behavior={behavior}"] = ("students", "by_behavior", behavior)
     for course_type, behaviors in students.get("by_course_type", {}).items():
-        for behavior, metrics in behaviors.items():
-            groups[f"course_type={course_type}/behavior={behavior}"] = metrics
+        for behavior in behaviors:
+            groups[f"course_type={course_type}/behavior={behavior}"] = (
+                "students",
+                "by_course_type",
+                course_type,
+                behavior,
+            )
     return groups
 
 
+def _int_or_none(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
 def compare_summaries(summary: Mapping[str, Any], baseline: Mapping[str, Any]) -> list[Change]:
-    """Every (group, metric) with a direction that has a value in both: improved, worsened
-    or unchanged, by the metric's direction and its threshold (see THRESHOLD)."""
+    """Every (group, metric) with a direction that has a value in the baseline.
+
+    By the metric's direction and threshold (see THRESHOLD): improved, worsened or unchanged.
+    But a mean never counts as better when fewer values are behind it: with the same rows in
+    the group, a lower count of values (a board that left the mean because the planner emptied
+    its gap) turns improved or unchanged into ``fewer_values``; a worsened mean stays worsened.
+    A mean that is None now while the baseline has one is ``lost_values``. A metric with no
+    value in the baseline has nothing to compare with and is left out.
+    """
     base_groups = _compared_groups(baseline)
     changes: list[Change] = []
-    for group, metrics in _compared_groups(summary).items():
-        base_metrics = base_groups.get(group, {})
+    for group, path in _compared_groups(summary).items():
+        metrics = _dig(summary, path)
+        base_path = base_groups.get(group)
+        base_metrics = _dig(baseline, base_path) if base_path else {}
+        counts = _counts_of(summary, path)
+        base_counts = _counts_of(baseline, base_path) if base_path else {}
         for metric, now in metrics.items():
             direction = DIRECTION.get(metric, "info")
             base = base_metrics.get(metric)
-            if direction == "info" or now is None or base is None:
+            if direction == "info" or base is None:
+                continue
+            now_n = _int_or_none(counts.get(metric))
+            base_n = _int_or_none(base_counts.get(metric))
+            if now is None:
+                changes.append(
+                    Change(
+                        group=group,
+                        metric=metric,
+                        now=None,
+                        base=float(base),
+                        delta=None,
+                        verdict="lost_values",
+                        now_n=now_n,
+                        base_n=base_n,
+                    )
+                )
                 continue
             delta = float(now) - float(base)
             gain = delta if direction == "up" else -delta
             limit = THRESHOLD[_unit(metric)] + 1e-9
             verdict = "unchanged" if abs(gain) <= limit else "improved" if gain > 0 else "worsened"
+            if verdict != "worsened" and fewer_values(
+                now_n,
+                _int_or_none(counts.get("rows")),
+                base_n,
+                _int_or_none(base_counts.get("rows")),
+            ):
+                verdict = "fewer_values"
             changes.append(
                 Change(
                     group=group,
@@ -603,6 +688,8 @@ def compare_summaries(summary: Mapping[str, Any], baseline: Mapping[str, Any]) -
                     base=float(base),
                     delta=delta,
                     verdict=verdict,
+                    now_n=now_n,
+                    base_n=base_n,
                 )
             )
     return changes
@@ -723,7 +810,15 @@ def _target_rows(summary: Mapping[str, Any], baseline: Mapping[str, Any] | None)
                 target["scope"],
                 _cell(metric, now, counts, base, base_counts, compared=baseline is not None),
                 target["target"],
-                target_status(target["target"], now, base),
+                target_status(
+                    target["target"],
+                    now,
+                    base,
+                    n=_int_or_none(counts.get(metric)),
+                    rows=_int_or_none(counts.get("rows")),
+                    base_n=_int_or_none(base_counts.get(metric)),
+                    base_rows=_int_or_none(base_counts.get("rows")),
+                ),
             ]
         )
     return rows
@@ -859,24 +954,31 @@ def _regressions(summary: Mapping[str, Any], baseline: Mapping[str, Any]) -> lis
     lines = [
         f"Compared {len(changes)} values (course type x metric, behavior x metric): "
         f"{tally['improved']} improved, {tally['worsened']} worsened, "
-        f"{tally['unchanged']} unchanged. A change counts above 0.01 for a share, 5 minutes "
-        "for minutes and 0.5 for a count of days or blocks.",
+        f"{tally['unchanged']} unchanged, {tally['fewer_values']} fewer_values, "
+        f"{tally['lost_values']} lost_values. A change counts above 0.01 for a share, 5 minutes "
+        "for minutes and 0.5 for a count of days or blocks. fewer_values: the mean did not get "
+        "worse but fewer boards or periods have a value than in the baseline (same rows); "
+        "lost_values: the baseline has a value and now there is none. Both are regressions.",
         "",
     ]
-    worsened = [change for change in changes if change.verdict == "worsened"]
-    if not worsened:
+    listed = [change for change in changes if change.verdict in REGRESSION_VERDICTS]
+    if not listed:
         return [*lines, "none"]
     rows = [
         [
             change.group,
             _header(change.metric),
-            _fmt(change.now),
+            change.verdict,
+            "-" if change.now is None else _fmt(change.now),
             _fmt(change.base),
-            _signed(change.delta),
+            "-" if change.delta is None else _signed(change.delta),
+            "-" if change.now_n is None else str(change.now_n),
+            "-" if change.base_n is None else str(change.base_n),
         ]
-        for change in worsened
+        for change in listed
     ]
-    return [*lines, *_table(["group", "metric", "now", "base", "change"], rows)]
+    headers = ["group", "metric", "verdict", "now", "base", "change", "n now", "n base"]
+    return [*lines, *_table(headers, rows)]
 
 
 def render_console(summary: Mapping[str, Any], baseline: Mapping[str, Any] | None = None) -> str:
