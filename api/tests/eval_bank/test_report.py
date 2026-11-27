@@ -72,7 +72,10 @@ class QuickRun:
             self.code = bank_eval.main(["planner", "--quick", "--seed", str(seed)])
         finally:
             patch.undo()
-        self.json_files = sorted(self.results.glob("bank-*.json"))
+        # The summaries; the rows files beside them end in -rows.json.
+        self.json_files = sorted(
+            p for p in self.results.glob("bank-*.json") if not p.name.endswith("-rows.json")
+        )
         self.md_files = sorted(self.results.glob("bank-*.md"))
 
     @property
@@ -864,10 +867,279 @@ def test_planner_track_row_has_every_metric_and_the_probe_keys() -> None:
         assert metric in row
     for key in (
         "miss_first_core_reported",
+        "miss_first_core_added",
         "miss_first_churn",
         "miss_mid_core_reported",
+        "miss_mid_core_added",
         "miss_mid_churn",
         "plan_seconds",
     ):
         assert key in row
     assert isinstance(row["plan_seconds"], float)
+    assert isinstance(row["miss_first_core_added"], int)
+    assert isinstance(row["miss_mid_core_added"], int)
+
+
+# --- final fix wave: the new probe metrics, thresholds, the guard, the CLI -------------
+
+
+def test_every_listed_metric_has_a_direction_and_a_threshold() -> None:
+    # A metric missing from DIRECTION silently becomes info and is never judged.
+    listed = (*report.ROW_METRIC_IDS, *report.STUDENT_METRIC_IDS, *report.BEHAVIOR_METRIC_IDS)
+    for metric in listed:
+        assert metric in report.DIRECTION, metric
+        if report.DIRECTION[metric] != "info":
+            assert metric in report.THRESHOLDS, metric
+    for metric in ("miss_first_core_added", "miss_mid_core_added"):
+        assert metric in report.ROW_METRIC_IDS
+        assert report.DIRECTION[metric] == "down"
+        assert metric in report.MINUTES_METRICS
+    assert set(report.THRESHOLDS) == {m for m, d in report.DIRECTION.items() if d != "info"}
+    assert all(report.threshold(m) == 5.0 for m in report.MINUTES_METRICS)
+
+
+def test_the_probe_columns_sit_next_to_each_other() -> None:
+    ids = report.PROBE_IDS
+    assert ids == (
+        "miss_first_core_reported",
+        "miss_first_core_added",
+        "miss_first_churn",
+        "miss_mid_core_reported",
+        "miss_mid_core_added",
+        "miss_mid_churn",
+    )
+    assert "miss_first_core_added" in report.TARGET_METRICS
+
+
+def test_new_probe_targets() -> None:
+    summary = report.summarize(
+        [_row("a:full_time", "essay", miss_first_core_added=60, miss_mid_core_added=0)],
+        [],
+        seed=1,
+        timings={"planner_track_seconds": 1.0, "students_seconds": 0.0},
+        counts={"boards": 1, "periods": 0},
+    )
+    targets = {t["id"]: t for t in summary["targets"]}
+    first = targets["s47_miss_first_core_added"]
+    assert (first["metric"], first["scope"], first["target"], first["value"]) == (
+        "miss_first_core_added",
+        "overall",
+        "lower_than_baseline",
+        60.0,
+    )
+    assert targets["s47_miss_mid_core_added"]["target"] == "lower_than_baseline"
+    text = report.render_markdown(summary)
+    header = next(line for line in text.splitlines() if line.startswith("| course type"))
+    assert "miss_first_core_reported ↓ | miss_first_core_added ↓ | miss_first_churn ↓" in header
+
+
+def test_thresholds_by_metric() -> None:
+    expected = {
+        "coverage": 0.02,
+        "coverage_p10": 0.02,
+        "coverage_learned": 0.02,
+        "churn": 0.5,
+        "churn_per_replan": 0.5,
+        "review_failures": 0.5,
+        "empty_days": 0.05,
+        "longest_empty_run": 0.05,
+        "miss_first_churn": 0.05,
+        "miss_mid_churn": 0.05,
+        "unscheduled_minutes": 5.0,
+        "miss_first_core_added": 5.0,
+        "core_left_minutes": 5.0,
+        "day_util_mean": 0.01,
+        "between_next_share": 0.01,
+        "dropped_weight_mean": 0.01,
+    }
+    for metric, value in expected.items():
+        assert report.threshold(metric) == value, metric
+
+
+def test_compare_uses_each_metrics_threshold() -> None:
+    # empty_days is deterministic: +0.04 is unchanged, +0.06 is worse (0.05). typical
+    # coverage moves by seed: +0.015 is unchanged, +0.025 is better (0.02). churn_per_replan
+    # 3.84 -> 4.14 (+0.30, seed noise) is unchanged, 3.84 -> 4.40 (+0.56) is worse (0.5).
+    base = _fake(
+        {"essay": {"empty_days": 2.0}, "oral": {"empty_days": 2.0}},
+        behaviors={
+            "typical": {"coverage": 0.795, "churn_per_replan": 3.84},
+            "struggling": {"coverage": 0.795, "churn_per_replan": 3.84},
+        },
+    )
+    now = _fake(
+        {"essay": {"empty_days": 2.04}, "oral": {"empty_days": 2.06}},
+        behaviors={
+            "typical": {"coverage": 0.81, "churn_per_replan": 4.14},
+            "struggling": {"coverage": 0.82, "churn_per_replan": 4.40},
+        },
+    )
+    verdicts = {(c.group, c.metric): c.verdict for c in report.compare_summaries(now, base)}
+    assert verdicts[("course_type=essay", "empty_days")] == "unchanged"
+    assert verdicts[("course_type=oral", "empty_days")] == "worsened"
+    assert verdicts[("behavior=typical", "coverage")] == "unchanged"
+    assert verdicts[("behavior=struggling", "coverage")] == "improved"
+    assert verdicts[("behavior=typical", "churn_per_replan")] == "unchanged"
+    assert verdicts[("behavior=struggling", "churn_per_replan")] == "worsened"
+
+
+def test_relative_targets_use_the_threshold() -> None:
+    # A change inside the threshold is no change: not met for "higher" or "lower", met for
+    # "not higher".
+    cov = report.threshold("coverage")  # 0.02
+    assert report.target_status("higher_than_baseline", 0.81, 0.795, threshold=cov) == "not met"
+    assert report.target_status("higher_than_baseline", 0.82, 0.795, threshold=cov) == "met"
+    churn = report.threshold("churn_per_replan")  # 0.5
+    assert report.target_status("not_higher_than_baseline", 4.14, 3.84, threshold=churn) == "met"
+    assert report.target_status("not_higher_than_baseline", 4.4, 3.84, threshold=churn) == (
+        "not met"
+    )
+    minutes = report.threshold("miss_first_core_added")  # 5
+    assert report.target_status("lower_than_baseline", 196.0, 199.1, threshold=minutes) == (
+        "not met"
+    )
+    assert report.target_status("lower_than_baseline", 190.0, 199.1, threshold=minutes) == "met"
+    share = report.threshold("between_util")  # 0.01
+    assert report.target_status("higher_than_baseline", 0.505, 0.5, threshold=share) == "not met"
+    assert report.target_status("higher_than_baseline", 0.52, 0.5, threshold=share) == "met"
+
+
+def test_targets_table_judges_by_the_threshold() -> None:
+    base = _fake({}, behaviors={"typical": {"coverage": 0.795}})
+    now = copy.deepcopy(base)
+    now["students"]["by_behavior"]["typical"]["coverage"] = 0.81  # +0.015: inside 0.02
+    now["targets"] = [
+        {
+            "id": "s48_coverage_typical",
+            "metric": "coverage",
+            "scope": "behavior:typical",
+            "value": 0.81,
+            "target": "higher_than_baseline",
+        }
+    ]
+    line = next(
+        line
+        for line in report.render_markdown(now, base).splitlines()
+        if line.startswith("| s48_coverage_typical")
+    )
+    assert line.rstrip().endswith("| not met |")
+
+
+def test_console_shows_the_warning_and_the_regression_count() -> None:
+    # NOW_SUMMARY against BASE: three worsened (see test_compare_classifies_each_metric...).
+    text = report.render_console(NOW_SUMMARY, BASE)
+    assert "Regressions: 3 (worsened 3, fewer_values 0, lost_values 0)" in text
+    assert "differ" not in text
+    other = copy.deepcopy(BASE)
+    other["counts"] = {"boards": 462, "periods": 1188}
+    text = report.render_console(BASE, other)
+    assert "Warning: the counts differ from the baseline's" in text
+    assert "Regressions: 0" in text
+    # Without a baseline neither line is printed.
+    alone = report.render_console(BASE)
+    assert "Regressions" not in alone
+    assert "Warning" not in alone
+
+
+def test_planner_track_reads_synthetic_cases_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Part B adds real and trap cases to the same folder; they must not enter the means.
+    seen: list[object] = []
+    real = load_cases
+
+    def spy(*args: Any, **kwargs: Any) -> Any:
+        seen.append(kwargs.get("kinds"))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(bank_eval, "load_cases", spy)
+    cases, _, _, _ = bank_eval._inputs(quick=True, saved_path=SAVED_RUNS_FILE)
+    assert seen == [("synthetic",)]
+    assert {case.kind for case in cases} == {"synthetic"}
+
+
+@pytest.mark.parametrize(
+    "flags",
+    [["--quick"], ["--periods", "5"], ["--saved", "x.json"], ["--reps", "1"], ["--reps", "2"]],
+)
+def test_main_refuses_a_sampled_baseline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, flags: list[str]
+) -> None:
+    monkeypatch.setattr(bank_eval, "EVAL_DIR", tmp_path / "eval")
+    monkeypatch.setattr(bank_eval, "RESULTS_DIR", tmp_path / "results")
+
+    def boom(*args: object, **kwargs: object) -> None:
+        raise AssertionError("the run started")
+
+    monkeypatch.setattr(report, "run_planner_track", boom)
+    assert bank_eval.main(["planner", "--write-baseline", *flags]) == 2
+    assert not (tmp_path / "eval").exists()
+    assert not (tmp_path / "results").exists()
+
+
+def test_rows_are_written_beside_the_summary(tmp_path: Path) -> None:
+    eval_dir = tmp_path / "eval"
+    results = tmp_path / "results"
+    eval_dir.mkdir()
+    summary = _fake({"essay": {"empty_days": 1.0}})
+    rows = [_row("a:full_time", "essay", empty_days=1)]
+    stamp = dt.datetime(2026, 11, 27, 10, 0, 0, tzinfo=dt.UTC)
+    written = bank_eval.write_outputs(
+        summary,
+        "text",
+        rows=rows,
+        results_dir=results,
+        eval_dir=eval_dir,
+        baseline=True,
+        stamp=stamp,
+    )
+    today = f"{dt.date.today():%Y-%m-%d}"
+    assert {p.name for p in written} >= {
+        "bank-20261127T100000Z-rows.json",
+        f"baseline-{today}-rows.json",
+    }
+    data = json.loads((eval_dir / f"baseline-{today}-rows.json").read_text(encoding="utf-8"))
+    assert data["schema"] == 1
+    assert data["generated_at"] == summary["generated_at"]
+    assert len(data["rows"]) == 1
+    assert "plan_seconds" not in data["rows"][0]
+    assert data["rows"][0]["board_id"] == "a:full_time"
+    assert data["rows"][0]["empty_days"] == 1
+    report.check_codes_only(data)
+    # A row with text in it stops everything: nothing is written.
+    bad = [_row("Some Course Name", "essay")]
+    other = tmp_path / "other"
+    with pytest.raises(ValueError):
+        bank_eval.write_outputs(
+            summary, "text", rows=bad, results_dir=other, eval_dir=other, baseline=True
+        )
+    assert not other.exists()
+
+
+def test_a_baseline_refuses_an_existing_rows_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    eval_dir = tmp_path / "eval"
+    eval_dir.mkdir()
+    (eval_dir / f"baseline-{dt.date.today():%Y-%m-%d}-rows.json").write_text("{}", "utf-8")
+    monkeypatch.setattr(bank_eval, "EVAL_DIR", eval_dir)
+    monkeypatch.setattr(bank_eval, "RESULTS_DIR", tmp_path / "results")
+
+    def boom(*args: object, **kwargs: object) -> None:
+        raise AssertionError("the run started")
+
+    monkeypatch.setattr(report, "run_planner_track", boom)
+    assert bank_eval.main(["planner", "--write-baseline"]) == 2
+    assert not (tmp_path / "results").exists()
+
+
+def test_quick_run_writes_its_rows(quick_run: QuickRun) -> None:
+    files = sorted(quick_run.results.glob("bank-*-rows.json"))
+    assert len(files) == 1
+    data = json.loads(files[0].read_text(encoding="utf-8"))
+    report.check_codes_only(data)
+    assert len(data["rows"]) == 2
+    for row in data["rows"]:
+        assert "plan_seconds" not in row
+        for metric in report.ROW_METRIC_IDS:
+            assert metric in row
+    # The summary keeps its own file: the rows are not in it.
+    assert "rows" not in quick_run.summary

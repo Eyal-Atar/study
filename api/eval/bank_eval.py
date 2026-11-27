@@ -15,7 +15,11 @@ cases at fill 1.0 and of the ``claude-sonnet-5-5`` saved runs, times the six beh
 ``--write-baseline`` it also writes ``eval/baseline-<today>.json`` and ``.md`` and refuses to
 overwrite an existing one. With ``--compare PATH`` (an earlier JSON) every number is shown
 beside its baseline and the regressions are listed. ``--quick`` is a small subset for tests
-and local work. Exit code 0 on success, 1 when a period could not run, 2 on a refusal.
+and local work. A baseline needs the whole bank: ``--write-baseline`` refuses every sampling
+flag (``--quick``, ``--periods``, ``--saved``, ``--reps``). Beside each JSON summary go the
+per-board rows of the planner track (``bank-<UTC>-rows.json``, ``baseline-<today>-rows.json``;
+codes and numbers, without ``plan_seconds``); ``--compare`` reads only the summary. Exit code
+0 on success, 1 when a period could not run, 2 on a refusal.
 
 No network, no database, no ``ANTHROPIC_API_KEY``. No title, topic name or course name is read
 into the output: ids, codes and numbers only (``report.check_codes_only``).
@@ -27,7 +31,7 @@ import json
 import sys
 import time
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 # Running a file puts its own folder on sys.path, not api/; add api/ so that `app` imports.
@@ -49,10 +53,12 @@ QUICK_BEHAVIORS = ("ideal", "typical", "struggling")
 STUDENT_MODEL_SUFFIX = ":claude_sonnet_5_5"
 
 
-def baseline_paths(eval_dir: Path, today: dt.date) -> tuple[Path, Path]:
+def baseline_paths(eval_dir: Path, today: dt.date) -> tuple[Path, Path, Path]:
+    """The baseline's summary JSON, its Markdown and its per-board rows."""
     return (
         eval_dir / f"baseline-{today:%Y-%m-%d}.json",
         eval_dir / f"baseline-{today:%Y-%m-%d}.md",
+        eval_dir / f"baseline-{today:%Y-%m-%d}-rows.json",
     )
 
 
@@ -63,26 +69,44 @@ def write_outputs(
     results_dir: Path,
     eval_dir: Path,
     baseline: bool,
+    rows: Sequence[Mapping[str, object]] | None = None,
     stamp: dt.datetime | None = None,
 ) -> list[Path]:
-    """Write the JSON and the Markdown to results/, and with ``baseline`` to eval/ as well.
+    """Write the JSON and the Markdown (and with ``rows`` the rows file) to results/, and with
+    ``baseline`` to eval/ as well.
 
-    ``check_codes_only`` runs first, so nothing is written for a summary with text in it.
-    An existing baseline file is never overwritten: FileExistsError, and nothing is written.
+    The rows file holds ``report.public_rows(rows)`` (no ``plan_seconds``) with the summary's
+    schema, generated_at, seed and planner fingerprint. ``check_codes_only`` runs on the
+    summary and the rows first, so nothing is written when either has text in it. An existing
+    baseline file is never overwritten: FileExistsError, and nothing is written.
     """
     report.check_codes_only(summary)
+    rows_doc: dict[str, object] | None = None
+    if rows is not None:
+        rows_doc = {
+            key: summary[key]
+            for key in ("schema", "generated_at", "seed", "planner_fingerprint")
+            if key in summary
+        }
+        rows_doc["rows"] = report.public_rows(rows)
+        report.check_codes_only(rows_doc)
     when = (stamp or dt.datetime.now(dt.UTC)).astimezone(dt.UTC)
     text = json.dumps(summary, indent=1, allow_nan=False) + "\n"
+    rows_text = None if rows_doc is None else json.dumps(rows_doc, allow_nan=False) + "\n"
     targets = [
         (results_dir / f"bank-{when:%Y%m%dT%H%M%SZ}.json", text),
         (results_dir / f"bank-{when:%Y%m%dT%H%M%SZ}.md", markdown),
     ]
+    if rows_text is not None:
+        targets.append((results_dir / f"bank-{when:%Y%m%dT%H%M%SZ}-rows.json", rows_text))
     if baseline:
-        json_path, md_path = baseline_paths(eval_dir, dt.date.today())
-        for path in (json_path, md_path):
+        json_path, md_path, rows_path = baseline_paths(eval_dir, dt.date.today())
+        for path in (json_path, md_path, rows_path):
             if path.exists():
                 raise FileExistsError(f"{path.name} already exists")
         targets += [(json_path, text), (md_path, markdown)]
+        if rows_text is not None:
+            targets.append((rows_path, rows_text))
     written: list[Path] = []
     for path, content in targets:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -96,7 +120,9 @@ def write_outputs(
 def _inputs(
     *, quick: bool, saved_path: Path
 ) -> tuple[tuple[Case, ...], tuple[EvalProfile, ...], tuple[TaskList, ...], tuple[Board, ...]]:
-    cases = load_cases()
+    # The planner track and the students are synthetic only: part B's real and trap cases
+    # live in the same folder and must not move these means.
+    cases = load_cases(kinds=("synthetic",))
     profiles = load_profiles()
     saved = load_saved_runs(saved_path)
     fills: Sequence[float] = FILLS
@@ -133,8 +159,21 @@ def _check() -> int:
 def _planner(args: argparse.Namespace) -> int:
     saved_path: Path = args.saved or SAVED_RUNS_FILE
     if args.write_baseline:
-        if args.quick:
-            print("error: a baseline needs the whole bank; leave out --quick", file=sys.stderr)
+        sampled = [
+            flag
+            for flag, given in (
+                ("--quick", args.quick),
+                ("--periods", args.periods is not None),
+                ("--saved", args.saved is not None),
+                ("--reps", args.reps is not None),
+            )
+            if given
+        ]
+        if sampled:
+            print(
+                f"error: a baseline needs the whole bank; leave out {', '.join(sampled)}",
+                file=sys.stderr,
+            )
             return 2
         for path in baseline_paths(EVAL_DIR, dt.date.today()):
             if path.exists():
@@ -164,7 +203,7 @@ def _planner(args: argparse.Namespace) -> int:
         _student_boards(boards),
         behaviors,
         seed=args.seed,
-        reps=args.reps,
+        reps=args.reps or 1,
         periods=args.periods,
         errors=errors,
     )
@@ -197,6 +236,7 @@ def _planner(args: argparse.Namespace) -> int:
         results_dir=RESULTS_DIR,
         eval_dir=EVAL_DIR,
         baseline=write_baseline,
+        rows=rows,
         stamp=now,
     )
 
@@ -228,7 +268,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub.add_parser("check", help="load and count the cases, profiles, saved runs and boards")
     run = sub.add_parser("planner", help="the planner track and the virtual students")
     run.add_argument("--seed", type=int, default=1)
-    run.add_argument("--reps", type=_positive, default=1)
+    run.add_argument("--reps", type=_positive, default=None, help="periods per pair (1)")
     run.add_argument("--periods", type=_positive, default=None, help="an even sample of N periods")
     run.add_argument("--saved", type=Path, default=None, help="saved runs file")
     run.add_argument("--write-baseline", action="store_true")

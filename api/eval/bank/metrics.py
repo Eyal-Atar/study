@@ -20,6 +20,7 @@ import datetime as dt
 import statistics
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
+from functools import cache
 from itertools import pairwise
 from typing import Final
 from uuid import UUID
@@ -29,6 +30,7 @@ from app.domain.planner import (
     PlanResult,
     Task,
     TaskKind,
+    day_fits,
     last_study_day,
     study_date,
     study_days,
@@ -41,6 +43,10 @@ Value = float | int | None
 NEW_KINDS: Final = frozenset({"learn", "review", "read"})
 # A study day counts as active from this capacity up (the planner's shortest part).
 MIN_ACTIVE_MINUTES: Final = 30
+# day_capacity fills a day in chunks of at most this many minutes (the synthetic recipe's
+# longest focused task), and looks for its total in these steps.
+MAX_CHUNK_MINUTES: Final = 90
+CAPACITY_STEP_MINUTES: Final = 5
 # The block-length gap of the adhd profile, measured at two lengths.
 GAP_BLOCK_MINUTES: Final = (25, 45)
 MAX_BLOCK_GAP: Final = "max_block_minutes"
@@ -95,18 +101,48 @@ def is_core(task: Task) -> bool:
 
 
 def day_capacity(board: Board) -> dict[dt.date, int]:
-    """min(daily_study_minutes, Σ windows) per study day of study_days(profile, exams, now),
-    only days with capacity >= 30 and on or before the latest last_study_day."""
+    """What each study day of study_days(profile, exams, now) can hold by the planner's own
+    rule (``fits_day``), only days with capacity >= 30 and on or before the latest
+    last_study_day."""
     profile = board.profile
     if not board.exams:
         return {}
     last = max(last_study_day(exam, profile) for exam in board.exams)
     capacity: dict[dt.date, int] = {}
     for day in study_days(profile, board.exams, board.now):
-        minutes = min(profile.daily_study_minutes, sum(w.minutes for w in day.windows))
-        if minutes >= MIN_ACTIVE_MINUTES and day.date <= last:
+        if day.date > last:
+            continue
+        windows = tuple(window.minutes for window in day.windows)
+        minutes = fits_day(windows, profile.daily_study_minutes)
+        if minutes >= MIN_ACTIVE_MINUTES:
             capacity[day.date] = minutes
     return capacity
+
+
+@cache
+def fits_day(windows: tuple[int, ...], daily: int) -> int:
+    """The most a day with these window lengths holds: the largest total, from
+    min(daily, Σ windows) down in steps of 5, that ``day_fits`` accepts when the day is filled
+    in the fewest chunks of at most MAX_CHUNK_MINUTES; 0 when none fits.
+
+    Once a day is bound by its windows, the breaks and the window reserves make a share of
+    the raw window sum unreachable (one 180-minute window holds 150). A day bound by
+    daily_study_minutes keeps it. Cached: few distinct days exist over the whole bank.
+    """
+    total = min(daily, sum(windows))
+    while total > 0:
+        if day_fits(windows, _chunks(total)):
+            return total
+        total -= CAPACITY_STEP_MINUTES
+    return 0
+
+
+def _chunks(total: int) -> list[int]:
+    """total in the fewest parts of at most MAX_CHUNK_MINUTES, as even as whole minutes go
+    (day_fits looks only at their count and sum)."""
+    count = -(-total // MAX_CHUNK_MINUTES)
+    size, extra = divmod(total, count)
+    return [size + 1] * extra + [size] * (count - extra)
 
 
 def exam_coverage(board: Board, exam_id: UUID, minutes_by_task: Mapping[UUID, int]) -> float | None:

@@ -8,9 +8,11 @@ from typing import Any
 
 import pytest
 
-from app.domain.planner import Exam, Profile, study_days
+from app.domain.planner import Exam, Profile, exam_budgets, study_days, sunday_weekday
+from eval.bank.boards import build_boards
 from eval.bank.cases import load_cases
 from eval.bank.clock import NOW, TZ, stable_id
+from eval.bank.metrics import day_capacity
 from eval.bank.profiles import ProfileError, load_profiles, profile_by_id
 
 IDS = [
@@ -54,8 +56,54 @@ def test_profiles_build_valid_planner_profiles() -> None:
 def test_worker_commitments() -> None:
     commitments = _by_id("worker").profile.commitments
     assert [c.weekday for c in commitments] == [0, 2, 4]
-    assert all(c.start == dt.time(16) and c.end == dt.time(22) for c in commitments)
+    assert all(c.start == dt.time(8) and c.end == dt.time(18) for c in commitments)
     assert all(c.valid_from == NOW.date() for c in commitments)
+
+
+def test_worker_shift_days_are_bound_by_their_windows() -> None:
+    # study_days of the domain itself: on Sunday, Tuesday and Thursday the shift leaves
+    # 18:00-21:00 (180 minutes) of the windows, below the daily cap of 240, and between 120
+    # and 200; the other days keep 08:30-21:00.
+    worker = _by_id("worker").profile
+    exam = Exam(id=stable_id("x"), exam_date=NOW.date() + dt.timedelta(days=28), difficulty=3)
+    days = [d for d in study_days(worker, [exam], NOW) if d.windows]
+    shift = [d for d in days if sunday_weekday(d.date) in (0, 2, 4)]
+    assert shift
+    for day in shift:
+        minutes = sum(w.minutes for w in day.windows)
+        assert minutes == 180
+        assert 120 <= minutes <= 200 < worker.daily_study_minutes
+    assert all(sum(w.minutes for w in d.windows) == 750 for d in days if d not in shift)
+
+
+def test_worker_has_days_below_its_cap() -> None:
+    (board,) = build_boards(_reference_cases(), (), [_by_id("worker")], fills=(1.0,))
+    capacity = day_capacity(board)
+    assert any(minutes < 240 for minutes in capacity.values())
+
+
+def _reference_cases() -> list[Any]:
+    return [case for case in load_cases() if case.id.startswith("s01")]
+
+
+def test_no_two_profiles_measure_the_same() -> None:
+    # On a reference case, no two non-gap profiles give the same per-day capacities and the
+    # same exam budgets: each profile measures something of its own. adhd and extra_time
+    # are documented copies of full_time (their gaps are not in the planner yet).
+    seen: dict[object, str] = {}
+    for eval_profile in load_profiles():
+        if eval_profile.gap is not None:
+            continue
+        (board,) = build_boards(_reference_cases(), (), [eval_profile], fills=(1.0,))
+        budgets = exam_budgets(board.profile, board.exams, board.now)
+        # The budgets in exam order: exam ids differ from profile to profile.
+        key = (
+            tuple(sorted(day_capacity(board).items())),
+            tuple(budgets[exam.id] for exam in board.exams),
+        )
+        assert key not in seen, (eval_profile.id, seen.get(key))
+        seen[key] = eval_profile.id
+    assert len(seen) == 9
 
 
 def test_reservist_busy_is_fourteen_local_days() -> None:

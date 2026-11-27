@@ -28,13 +28,14 @@ from app.domain.planner import (
     TaskKind,
     TaskStatus,
     plan,
+    replan,
     study_date,
     sunday_weekday,
 )
 from eval.bank.boards import Board, TopicRef, build_boards, planner_tasks
 from eval.bank.cases import load_cases
 from eval.bank.clock import NOW, TZ, stable_id
-from eval.bank.metrics import planned_coverage
+from eval.bank.metrics import is_core, planned_coverage
 from eval.bank.profiles import load_profiles, profile_by_id
 from eval.bank.students import (
     BEHAVIORS,
@@ -45,6 +46,7 @@ from eval.bank.students import (
     Behavior,
     PeriodResult,
     ProbeResult,
+    _loaded,
     _run,
     _settled,
     first_study_day,
@@ -508,7 +510,107 @@ def test_probe_by_hand() -> None:
     first_plan = _first_plan(board)
     assert len(first_plan.blocks) == 1
     for which in ("first", "mid"):
-        assert missed_day_probe(board, first_plan, which) == ProbeResult(core_reported=0, churn=0)
+        assert missed_day_probe(board, first_plan, which) == ProbeResult(
+            core_reported=0, core_added=0, churn=0
+        )
+
+
+@cache
+def pair_board() -> Board:
+    """Exam on day 3 (Wed), one rest day: study days 0 and 1, 60 morning minutes each.
+
+    Two learn tasks of 60 minutes: the plan puts one on day 0 and the other on day 1.
+    """
+    exam = _exam(3)
+    return _hand_board(
+        "st:pair",
+        _profile(daily=60, windows=frozenset({StudyWindow.MORNING})),
+        exam,
+        [_task("p_a", exam, TaskKind.LEARN, 60), _task("p_b", exam, TaskKind.LEARN, 60)],
+        {"p_a": ("a", 1), "p_b": ("b", 1)},
+    )
+
+
+def test_probe_core_added_by_hand() -> None:
+    # The plan: one 60-minute block on day 0 and one on day 1, so first = day 0, mid = day 1.
+    # first: the morning of day 1 holds 60 minutes for 120 minutes of work when day 0 was
+    # missed: 60 core minutes reported. The control (day 0 done) has one task left and the
+    # 60 minutes for it: 0 reported. Added: 60 - 0 = 60.
+    # mid: the morning of day 2 has no study day left. Missed: day 1's task, 60 reported;
+    # control: day 1 done, 0 reported. Added: 60.
+    board = pair_board()
+    first_plan = _first_plan(board)
+    days = sorted({study_date(board.profile, b.interval.start) for b in first_plan.blocks})
+    assert days == [TODAY, TODAY + dt.timedelta(days=1)]
+    for which in ("first", "mid"):
+        probe = missed_day_probe(board, first_plan, which)
+        assert probe is not None
+        assert (probe.core_reported, probe.core_added) == (60, 60)
+
+
+def test_probe_core_added_is_zero_when_the_miss_costs_nothing() -> None:
+    # The single board: the missed hour fits on day 1, so the miss reports 0, the control
+    # reports 0, and the added minutes are 0 (not negative).
+    board = single_board()
+    first_plan = _first_plan(board)
+    for which in ("first", "mid"):
+        probe = missed_day_probe(board, first_plan, which)
+        assert probe is not None
+        assert probe.core_added == 0
+
+
+def test_probe_core_added_is_the_difference_on_a_real_board() -> None:
+    board = small_board()
+    first_plan = _first_plan(board)
+    for which in ("first", "mid"):
+        probe = missed_day_probe(board, first_plan, which)
+        assert probe is not None
+        control = _probe_control(board, first_plan, which)
+        assert probe.core_added == probe.core_reported - control
+
+
+def _probe_control(board: Board, result: PlanResult, which: str) -> int:
+    """The control by hand: the probed day's blocks done, the same morning, one replan."""
+    profile = board.profile
+    days = sorted({study_date(profile, block.interval.start) for block in result.blocks})
+    day = days[0] if which == "first" else days[len(days) // 2]
+    blocks: dict[UUID, ExistingBlock] = {}
+    for k, block in enumerate(result.blocks):
+        start = study_date(profile, block.interval.start)
+        status = BlockStatus.DONE if start <= day else BlockStatus.PLANNED
+        block_id = stable_id(board.id, "control", which, k)
+        blocks[block_id] = ExistingBlock(
+            id=block_id, task_id=block.task_id, interval=block.interval, status=status, pinned=False
+        )
+    now = morning(profile, day + dt.timedelta(days=1))
+    tasks = _settled({task.id: task for task in planner_tasks(board)}, blocks, now)
+    exams, live_tasks, live_blocks = _loaded(board, tasks, blocks, now)
+    after = replan(profile, exams, live_tasks, live_blocks, now)
+    return sum(item.minutes for item in after.unscheduled if is_core(tasks[item.task_id]))
+
+
+def test_loaded_passes_blocks_by_start_then_id() -> None:
+    # load_board reads blocks ORDER BY starts_at, id; _loaded must hand them over the same
+    # way whatever order the dict holds them in.
+    board = fitting_board()
+    task = board.tasks[0]
+
+    def block(key: str, hour: int) -> ExistingBlock:
+        local = dt.datetime.combine(TODAY + dt.timedelta(days=1), dt.time(hour), tzinfo=TZ)
+        start = local.astimezone(dt.UTC)
+        return ExistingBlock(
+            id=stable_id("st", "order", key),
+            task_id=task.id,
+            interval=Interval(start, start + dt.timedelta(minutes=30)),
+            status=BlockStatus.PLANNED,
+            pinned=False,
+        )
+
+    late, early, tie_a, tie_b = block("late", 11), block("early", 9), block("x", 10), block("y", 10)
+    shuffled = {b.id: b for b in (late, tie_b, early, tie_a)}
+    _, _, loaded = _loaded(board, {t.id: t for t in board.tasks}, shuffled, NOW)
+    ties = sorted((tie_a, tie_b), key=lambda b: b.id)
+    assert [b.id for b in loaded] == [early.id, ties[0].id, ties[1].id, late.id]
 
 
 def test_periods_do_not_depend_on_order() -> None:

@@ -47,8 +47,10 @@ STUDENTS_LIMIT_PERIODS: Final = 1000
 
 PROBE_IDS: Final = (
     "miss_first_core_reported",
+    "miss_first_core_added",
     "miss_first_churn",
     "miss_mid_core_reported",
+    "miss_mid_core_added",
     "miss_mid_churn",
 )
 ROW_METRIC_IDS: Final = (*SCHEDULE_METRIC_IDS, *PROBE_IDS)
@@ -91,6 +93,8 @@ DIRECTION: Final[Mapping[str, str]] = {
     "gap_sims_short_share": "down",
     "miss_first_core_reported": "down",
     "miss_mid_core_reported": "down",
+    "miss_first_core_added": "down",
+    "miss_mid_core_added": "down",
     "miss_first_churn": "down",
     "miss_mid_churn": "down",
     "coverage": "up",
@@ -105,9 +109,7 @@ DIRECTION: Final[Mapping[str, str]] = {
 }
 ARROWS: Final = {"up": "↑", "down": "↓", "info": "·"}
 
-# How much a mean must move before it counts as a change: a share or a weight (0 to 5) by
-# 0.01, minutes by 5, a count of days or blocks by half. The class is the metric's unit.
-THRESHOLD: Final = {"ratio": 0.01, "minutes": 5.0, "count": 0.5}
+# The metrics measured in minutes; each has MINUTES_THRESHOLD in THRESHOLDS.
 MINUTES_METRICS: Final = frozenset(
     {
         "unscheduled_minutes",
@@ -115,24 +117,72 @@ MINUTES_METRICS: Final = frozenset(
         "max_new_minutes_day",
         "miss_first_core_reported",
         "miss_mid_core_reported",
+        "miss_first_core_added",
+        "miss_mid_core_added",
         "core_left_minutes",
         "core_reported_minutes",
     }
 )
-COUNT_METRICS: Final = frozenset(
-    {
-        "active_days",
-        "empty_days",
-        "longest_empty_run",
-        "topic_gap_median_days",
-        "miss_first_churn",
-        "miss_mid_churn",
-        "replans",
-        "churn",
-        "churn_per_replan",
-        "review_failures",
-    }
-)
+# How much a mean must move before it counts as a change, for every metric that is judged.
+# The one table both the comparison and the relative targets use; a change inside it is
+# "unchanged" (for a target: not met for higher_ and lower_than_baseline, met for
+# not_higher_than_baseline).
+# - minutes, both tracks: 5.
+# - planner-track counts (empty_days, longest_empty_run, miss_*_churn): 0.05. The planner
+#   track is deterministic, so any real change of a mean over hundreds of boards counts.
+# - planner-track shares and weight means: 0.01.
+# - students' coverage metrics: 0.02, and students' churn and churn_per_replan (and
+#   review_failures): 0.5. These move with the seed: on 198 periods, seeds 1/2/3 gave typical
+#   coverage 0.795 / 0.798 / 0.786 and churn_per_replan 3.84 / 4.11 / 4.14.
+STUDENT_COVERAGE_THRESHOLD: Final = 0.02
+STUDENT_COUNT_THRESHOLD: Final = 0.5
+PLANNER_COUNT_THRESHOLD: Final = 0.05
+MINUTES_THRESHOLD: Final = 5.0
+SHARE_THRESHOLD: Final = 0.01
+THRESHOLDS: Final[Mapping[str, float]] = {
+    "unscheduled_minutes": MINUTES_THRESHOLD,
+    "unscheduled_core_minutes": MINUTES_THRESHOLD,
+    "empty_days": PLANNER_COUNT_THRESHOLD,
+    "empty_day_share": SHARE_THRESHOLD,
+    "longest_empty_run": PLANNER_COUNT_THRESHOLD,
+    "day_util_mean": SHARE_THRESHOLD,
+    "day_util_p10": SHARE_THRESHOLD,
+    "days_util_ge90_share": SHARE_THRESHOLD,
+    "last20_core_share": SHARE_THRESHOLD,
+    "between_util": SHARE_THRESHOLD,
+    "between_next_share": SHARE_THRESHOLD,
+    "topics_met_twice_share": SHARE_THRESHOLD,
+    "max_new_minutes_day": MINUTES_THRESHOLD,
+    "new_over60_day_share": SHARE_THRESHOLD,
+    "planned_coverage": SHARE_THRESHOLD,
+    "dropped_weight_mean": SHARE_THRESHOLD,
+    "gap_blocks_over_25_share": SHARE_THRESHOLD,
+    "gap_blocks_over_45_share": SHARE_THRESHOLD,
+    "gap_sims_short_share": SHARE_THRESHOLD,
+    "miss_first_core_reported": MINUTES_THRESHOLD,
+    "miss_mid_core_reported": MINUTES_THRESHOLD,
+    "miss_first_core_added": MINUTES_THRESHOLD,
+    "miss_mid_core_added": MINUTES_THRESHOLD,
+    "miss_first_churn": PLANNER_COUNT_THRESHOLD,
+    "miss_mid_churn": PLANNER_COUNT_THRESHOLD,
+    "coverage": STUDENT_COVERAGE_THRESHOLD,
+    "coverage_p10": STUDENT_COVERAGE_THRESHOLD,
+    "coverage_learned": STUDENT_COVERAGE_THRESHOLD,
+    "churn": STUDENT_COUNT_THRESHOLD,
+    "churn_per_replan": STUDENT_COUNT_THRESHOLD,
+    "core_left_minutes": MINUTES_THRESHOLD,
+    "core_reported_minutes": MINUTES_THRESHOLD,
+    "review_failures": STUDENT_COUNT_THRESHOLD,
+}
+# Float noise on means rounded to 4 places is not a change.
+_EPSILON: Final = 1e-9
+
+
+def threshold(metric: str) -> float:
+    """The metric's threshold (THRESHOLDS); KeyError for a metric that is never judged."""
+    return THRESHOLDS[metric]
+
+
 # The count behind these means is always shown: a board with no value is left out of them.
 ALWAYS_COUNTED: Final = frozenset({"between_util", "between_next_share"})
 
@@ -146,6 +196,8 @@ TARGETS: Final = (
     ("s47_between_next_share", "between_next_share", "overall", "higher_than_baseline"),
     ("s47_miss_first_core_reported", "miss_first_core_reported", "overall", "lower_than_baseline"),
     ("s47_miss_mid_core_reported", "miss_mid_core_reported", "overall", "lower_than_baseline"),
+    ("s47_miss_first_core_added", "miss_first_core_added", "overall", "lower_than_baseline"),
+    ("s47_miss_mid_core_added", "miss_mid_core_added", "overall", "lower_than_baseline"),
     ("s47_longest_empty_run", "longest_empty_run", "overall", "le_3"),
     ("s48_coverage_typical", "coverage", "behavior:typical", "higher_than_baseline"),
     ("s48_coverage_struggling", "coverage", "behavior:struggling", "higher_than_baseline"),
@@ -172,7 +224,9 @@ TARGET_METRICS: Final = (
     "between_next_share",
     "longest_empty_run",
     "miss_first_core_reported",
+    "miss_first_core_added",
     "miss_mid_core_reported",
+    "miss_mid_core_added",
 )
 
 _CODE: Final = re.compile(r"^[a-z0-9][a-z0-9_:.\-]{0,79}$")
@@ -206,10 +260,16 @@ def run_planner_track(boards: Sequence[Board]) -> list[dict[str, Value | str]]:
         for which in ("first", "mid"):
             probe = missed_day_probe(board, result, which)
             row[f"miss_{which}_core_reported"] = None if probe is None else probe.core_reported
+            row[f"miss_{which}_core_added"] = None if probe is None else probe.core_added
             row[f"miss_{which}_churn"] = None if probe is None else probe.churn
         row["plan_seconds"] = plan_seconds
         rows.append(row)
     return rows
+
+
+def public_rows(rows: Sequence[Mapping[str, object]]) -> list[dict[str, object]]:
+    """The rows as written next to the summary: every code and number but plan_seconds."""
+    return [{key: value for key, value in row.items() if key != "plan_seconds"} for row in rows]
 
 
 # --- the students ------------------------------------------------------------------------
@@ -514,8 +574,13 @@ def target_status(
     rows: int | None = None,
     base_n: int | None = None,
     base_rows: int | None = None,
+    threshold: float = 0.0,
 ) -> str:
     """met, not met, or n/a.
+
+    A relative target is judged by the metric's threshold (``threshold(metric)``, passed in):
+    a change inside it is no change, so "lower" and "higher" are not met and "not higher" is
+    met. 0 (the default) compares exactly.
 
     n/a: no value, or a target against a baseline that is not there. A target against the
     baseline is also n/a ("n/a (n changed)") when fewer values are behind the mean than in the
@@ -537,12 +602,13 @@ def target_status(
         return "n/a"
     if fewer_values(n, rows, base_n, base_rows):
         return "n/a (n changed)"
+    limit = threshold + _EPSILON
     if code == "lower_than_baseline":
-        return _met(value < base)
+        return _met(base - value > limit)
     if code == "higher_than_baseline":
-        return _met(value > base)
+        return _met(value - base > limit)
     if code == "not_higher_than_baseline":
-        return _met(value <= base)
+        return _met(value - base <= limit)
     raise ValueError("unknown target code")
 
 
@@ -598,14 +664,6 @@ class Change:
 REGRESSION_VERDICTS: Final = ("worsened", "fewer_values", "lost_values")
 
 
-def _unit(metric: str) -> str:
-    if metric in MINUTES_METRICS:
-        return "minutes"
-    if metric in COUNT_METRICS:
-        return "count"
-    return "ratio"
-
-
 def _compared_groups(summary: Mapping[str, Any]) -> dict[str, tuple[str, ...]]:
     """Group label to the path of its metric dict (and of its value counts)."""
     planner = summary.get("planner", {})
@@ -633,7 +691,7 @@ def _int_or_none(value: object) -> int | None:
 def compare_summaries(summary: Mapping[str, Any], baseline: Mapping[str, Any]) -> list[Change]:
     """Every (group, metric) with a direction that has a value in the baseline.
 
-    By the metric's direction and threshold (see THRESHOLD): improved, worsened or unchanged.
+    By the metric's direction and threshold (see THRESHOLDS): improved, worsened or unchanged.
     But a mean never counts as better when fewer values are behind it: with the same rows in
     the group, a lower count of values (a board that left the mean because the planner emptied
     its gap) turns improved or unchanged into ``fewer_values``; a worsened mean stays worsened.
@@ -671,7 +729,7 @@ def compare_summaries(summary: Mapping[str, Any], baseline: Mapping[str, Any]) -
                 continue
             delta = float(now) - float(base)
             gain = delta if direction == "up" else -delta
-            limit = THRESHOLD[_unit(metric)] + 1e-9
+            limit = threshold(metric) + _EPSILON
             verdict = "unchanged" if abs(gain) <= limit else "improved" if gain > 0 else "worsened"
             if verdict != "worsened" and fewer_values(
                 now_n,
@@ -818,6 +876,7 @@ def _target_rows(summary: Mapping[str, Any], baseline: Mapping[str, Any] | None)
                     rows=_int_or_none(counts.get("rows")),
                     base_n=_int_or_none(base_counts.get(metric)),
                     base_rows=_int_or_none(base_counts.get("rows")),
+                    threshold=THRESHOLDS.get(metric, 0.0),
                 ),
             ]
         )
@@ -864,19 +923,7 @@ def render_markdown(
             f"{baseline.get('seed', '-')}, planner fingerprint "
             f"{baseline.get('planner_fingerprint', '-')}. Each cell is now (base, change)."
         )
-        unlike = [
-            name
-            for name, now, base in (
-                ("seed", summary.get("seed"), baseline.get("seed")),
-                ("counts", summary.get("counts"), baseline.get("counts")),
-            )
-            if now != base
-        ]
-        if unlike:
-            lines.append(
-                f"Warning: the {' and '.join(unlike)} differ from the baseline's, so the "
-                "comparison may mislead."
-            )
+        lines += _unlike_warning(summary, baseline)
 
     lines += ["", "## Targets (S47, S48)", ""]
     target_rows = _target_rows(summary, baseline)
@@ -948,6 +995,34 @@ def render_markdown(
     return "\n".join(lines) + "\n"
 
 
+def _unlike_warning(summary: Mapping[str, Any], baseline: Mapping[str, Any]) -> list[str]:
+    """The warning line when the seed or the counts differ from the baseline's (or none)."""
+    unlike = [
+        name
+        for name, now, base in (
+            ("seed", summary.get("seed"), baseline.get("seed")),
+            ("counts", summary.get("counts"), baseline.get("counts")),
+        )
+        if now != base
+    ]
+    if not unlike:
+        return []
+    return [
+        f"Warning: the {' and '.join(unlike)} differ from the baseline's, so the "
+        "comparison may mislead."
+    ]
+
+
+def _regression_count(changes: Sequence[Change]) -> str:
+    tally = Counter(change.verdict for change in changes)
+    total = sum(tally[verdict] for verdict in REGRESSION_VERDICTS)
+    return (
+        f"Regressions: {total} (worsened {tally['worsened']}, fewer_values "
+        f"{tally['fewer_values']}, lost_values {tally['lost_values']}) of {len(changes)} "
+        "compared values."
+    )
+
+
 def _regressions(summary: Mapping[str, Any], baseline: Mapping[str, Any]) -> list[str]:
     changes = compare_summaries(summary, baseline)
     tally = Counter(change.verdict for change in changes)
@@ -955,8 +1030,10 @@ def _regressions(summary: Mapping[str, Any], baseline: Mapping[str, Any]) -> lis
         f"Compared {len(changes)} values (course type x metric, behavior x metric): "
         f"{tally['improved']} improved, {tally['worsened']} worsened, "
         f"{tally['unchanged']} unchanged, {tally['fewer_values']} fewer_values, "
-        f"{tally['lost_values']} lost_values. A change counts above 0.01 for a share, 5 minutes "
-        "for minutes and 0.5 for a count of days or blocks. fewer_values: the mean did not get "
+        f"{tally['lost_values']} lost_values. A change counts above the metric's threshold "
+        "(THRESHOLDS in report.py): 5 for minutes, 0.05 for a count on the planner track, "
+        "0.01 for a share on the planner track, 0.02 for the students' coverage and 0.5 for "
+        "their churn and churn_per_replan. fewer_values: the mean did not get "
         "worse but fewer boards or periods have a value than in the baseline (same rows); "
         "lost_values: the baseline has a value and now there is none. Both are regressions.",
         "",
@@ -982,11 +1059,19 @@ def _regressions(summary: Mapping[str, Any], baseline: Mapping[str, Any]) -> lis
 
 
 def render_console(summary: Mapping[str, Any], baseline: Mapping[str, Any] | None = None) -> str:
-    """The short table for the screen: the targets, and their metrics for every course type."""
+    """The short table for the screen: the targets, and their metrics for every course type.
+
+    With a baseline it also says, as the Markdown does, when the seed or the counts differ,
+    and how many regressions the comparison found (fewer_values and lost_values included).
+    """
     planner = summary.get("planner", {})
     groups: list[tuple[str, Sequence[str]]] = [("overall", ("planner", "overall"))]
     groups += [(t, ("planner", "by_course_type", t)) for t in planner.get("by_course_type", {})]
-    lines = _table(_TARGET_HEADERS, _target_rows(summary, baseline))
+    lines: list[str] = []
+    if baseline is not None:
+        lines += _unlike_warning(summary, baseline)
+        lines += [_regression_count(compare_summaries(summary, baseline)), ""]
+    lines += _table(_TARGET_HEADERS, _target_rows(summary, baseline))
     lines += [""]
     lines += _group_table(summary, baseline, groups, TARGET_METRICS, "course type")
     return "\n".join(lines)

@@ -2,9 +2,14 @@
 
 A period starts with ``plan()`` at the board's clock. Then, every morning up to the last
 exam, the student's behaviour decides which of yesterday's blocks were done, the exams of
-the day are scored, the morning review moves each block that ended without a mark (as
-``app.services.review`` does: mark it missed, then ``place_task`` with nothing released),
-and ``replan`` runs after a failed move or once a week. Its headline number, the weighted
+the day are scored, the morning review moves each block that ended without a mark
+(``place_task`` with nothing released, the block missed), and ``replan`` runs after a
+failed move or once a week. One difference from ``app.services.review``: the product calls
+``place_task`` first and marks the block missed only when the move succeeds; after a
+failure the block stays planned and comes back in the next morning's review. The simulated
+student gives up after a failed move (the block stays missed), so ``review_failures``
+counts each failure once. The weekly replan has no counterpart in the product, where every
+replan follows an event; it is a modelling choice. Its headline number, the weighted
 coverage on exam day, is what S47 and S48 are accepted or rejected on, so the domain is
 driven the way the product drives it:
 
@@ -117,8 +122,12 @@ class PeriodResult:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ProbeResult:
-    core_reported: int
-    churn: int
+    core_reported: int  # core minutes in the report of the replan after the miss
+    # core_reported less the control's (the same morning with that day done): the cost of
+    # the miss alone, without the overflow the plan had anyway. It can be negative when the
+    # replan after the miss happens to place more than the control's; it is never clamped.
+    core_added: int
+    churn: int  # blocks the replan after the miss removed
 
 
 @dataclass(slots=True, kw_only=True)
@@ -177,8 +186,11 @@ def missed_day_probe(
 
     The day is the first or the middle study day that holds a block of result. Every block
     before it is done, its blocks are missed, the later ones are planned; the tasks settle
-    as the product settles them, and replan runs at the next morning. None when result has
-    no block.
+    as the product settles them, and replan runs at the next morning. The control is the
+    same replan at the same instant with that day's blocks done instead of missed; both
+    sides load the board the same way (``_loaded``), so an exam already sat cancels out.
+    ``core_added`` is the miss's reported core minutes less the control's. None when result
+    has no block.
     """
     if which not in ("first", "mid"):
         raise ValueError("which must be first or mid")
@@ -187,13 +199,32 @@ def missed_day_probe(
     if not days:
         return None
     missed = days[0] if which == "first" else days[len(days) // 2]
+    now = morning(profile, missed + _ONE_DAY)
+    after, reported = _probe_replan(board, result, which, missed, BlockStatus.MISSED, now)
+    _, control = _probe_replan(board, result, which, missed, BlockStatus.DONE, now)
+    return ProbeResult(
+        core_reported=reported, core_added=reported - control, churn=len(after.removed)
+    )
+
+
+def _probe_replan(
+    board: Board,
+    result: PlanResult,
+    which: str,
+    day: dt.date,
+    status_of_day: BlockStatus,
+    now: dt.datetime,
+) -> tuple[PlanResult, int]:
+    """The replan at now with result's blocks before day done, day's blocks at
+    status_of_day and the later ones planned; and its reported core minutes."""
+    profile = board.profile
     blocks: dict[UUID, ExistingBlock] = {}
     for k, block in enumerate(result.blocks):
-        day = study_date(profile, block.interval.start)
-        if day < missed:
+        start = study_date(profile, block.interval.start)
+        if start < day:
             status = BlockStatus.DONE
-        elif day == missed:
-            status = BlockStatus.MISSED
+        elif start == day:
+            status = status_of_day
         else:
             status = BlockStatus.PLANNED
         block_id = stable_id(board.id, "probe", which, k)
@@ -204,11 +235,10 @@ def missed_day_probe(
             status=status,
             pinned=False,
         )
-    now = morning(profile, missed + _ONE_DAY)
     tasks = _settled({task.id: task for task in planner_tasks(board)}, blocks, now)
     exams, live_tasks, live_blocks = _loaded(board, tasks, blocks, now)
     after = replan(profile, exams, live_tasks, live_blocks, now)
-    return ProbeResult(core_reported=_core_minutes(tasks, after), churn=len(after.removed))
+    return after, _core_minutes(tasks, after)
 
 
 def _run(board: Board, behavior: Behavior, *, seed: str, rep: int) -> tuple[PeriodResult, _State]:
@@ -254,6 +284,8 @@ def _run(board: Board, behavior: Behavior, *, seed: str, rep: int) -> tuple[Peri
             loaded = _loaded(board, state.tasks, state.blocks, now)
             moved = place_task(profile, *loaded, block.task_id, now)
             if moved.unscheduled:
+                # The product would keep the block planned and retry it tomorrow; the
+                # student gives up here, so each failure counts once (module docstring).
                 review_failures += 1
                 changed = True
             else:
@@ -360,13 +392,17 @@ def _loaded(
     now: dt.datetime,
 ) -> tuple[tuple[Exam, ...], tuple[Task, ...], tuple[ExistingBlock, ...]]:
     """What load_board gives the planner at now: the exams dated today or later, their
-    tasks, and those tasks' blocks."""
+    tasks, and those tasks' blocks in load_board's order (ORDER BY starts_at, id)."""
     today = local_date(now, board.profile.timezone)
     exams = tuple(exam for exam in board.exams if exam.exam_date >= today)
     live = {exam.id for exam in exams}
     loaded = tuple(task for task in tasks.values() if task.exam_id in live)
     ids = {task.id for task in loaded}
-    return exams, loaded, tuple(block for block in blocks.values() if block.task_id in ids)
+    kept = sorted(
+        (block for block in blocks.values() if block.task_id in ids),
+        key=lambda block: (block.interval.start, block.id),
+    )
+    return exams, loaded, tuple(kept)
 
 
 def _apply(state: _State, result: PlanResult, salt: str) -> None:

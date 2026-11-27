@@ -7,7 +7,7 @@ Sunday 2026-12-06 08:30 in Jerusalem, and day offset 0 is that date.
 
 import datetime as dt
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import cast
 from uuid import UUID
 
@@ -25,7 +25,9 @@ from app.domain.planner import (
     TaskStatus,
     Unscheduled,
     UnscheduledReason,
+    last_study_day,
     plan,
+    study_days,
 )
 from eval.bank.boards import Board, TopicRef, build_boards, planner_tasks
 from eval.bank.cases import load_cases
@@ -257,17 +259,72 @@ def test_inactive_day_does_not_break_run() -> None:
 
 
 def test_util_uses_window_cap() -> None:
-    # Only the evening window, cut by sleep at 19:00: 17:00-19:00 = 120 minutes a day.
+    # Only the evening window, cut by sleep at 19:00: 17:00-19:00 = 120 minutes a day. The
+    # planner's rule (day_fits, chunks of at most 90): 120 needs two chunks, 120 - 120 - 10
+    # (break) - 20 (long break extra) < 0; 95 needs two as well (-5); 90 is one chunk and
+    # leaves 30. The day holds 90.
     profile = _profile(windows=frozenset({StudyWindow.EVENING}), sleep=dt.time(19))
     exam = _exam("a", 3)  # last study day +1: days 0 and 1
     task = _task("k1", exam, minutes=120)
     board = _board([exam], [task], profile=profile)
-    assert day_capacity(board) == {TODAY: 120, TODAY + dt.timedelta(days=1): 120}
+    assert day_capacity(board) == {TODAY: 90, TODAY + dt.timedelta(days=1): 90}
 
     metrics = schedule_metrics(board, _result([_block(task, 0, 120, hour=17)]))
     assert metrics["day_util_mean"] == pytest.approx(0.5)  # 1.0 and 0.0
     assert metrics["day_util_p10"] == 0.0  # sorted index ceil(0.2) - 1 = 0
     assert metrics["days_util_ge90_share"] == pytest.approx(0.5)
+
+
+def test_capacity_follows_the_planners_day_rule() -> None:
+    # One evening window cut by sleep at 20:00: 17:00-20:00 = 180 against a cap of 240.
+    # 180 is two chunks: 180 - 180 - 10 - 20 < 0. 150 is two chunks: 180 - 150 - 30 = 0, fits.
+    # So a 180-minute window holds 150 (0.83 of it), not 180.
+    one = _board(
+        [_exam("a", 3)],
+        [],
+        profile=_profile(windows=frozenset({StudyWindow.EVENING}), sleep=dt.time(20)),
+    )
+    assert set(day_capacity(one).values()) == {150}
+
+    # Morning 09:00-12:00 (180) and evening 17:00-21:00 (240): 420 minutes in two windows,
+    # against a cap of 360. 360 is four chunks: 420 - 360 - 30 (three breaks) - 20 - 70 (the
+    # reserve of the second window) = -60. Every step of 5 down to 305 still needs four
+    # chunks and fails; 300 leaves 420 - 300 - 30 - 20 - 70 = 0 and fits.
+    two_windows = replace(
+        _profile(windows=frozenset({StudyWindow.MORNING, StudyWindow.EVENING})),
+        daily_study_minutes=360,
+    )
+    two = _board([_exam("a", 3)], [], profile=two_windows)
+    assert set(day_capacity(two).values()) == {300}
+
+    # A day that is not window-bound keeps the daily cap: 09:00-21:00 is 720 minutes, and
+    # 240 in three chunks leaves 720 - 240 - 20 - 20 = 440.
+    assert set(day_capacity(_board([_exam("a", 3)], [])).values()) == {240}
+
+
+def test_capacity_unchanged_where_no_day_is_window_bound() -> None:
+    # On every profile but the worker no study day is bound by its windows, so the
+    # planner's rule gives exactly min(daily, sum of windows) there, as before.
+    cases = [case for case in load_cases() if case.id.startswith("s01")]
+    for eval_profile in load_profiles():
+        (board,) = build_boards(cases, (), [eval_profile], fills=(1.0,))
+        profile = board.profile
+        last = max(last_study_day(exam, profile) for exam in board.exams)
+        old = {
+            day.date: min(profile.daily_study_minutes, sum(w.minutes for w in day.windows))
+            for day in study_days(profile, board.exams, board.now)
+            if day.date <= last
+        }
+        old = {date: minutes for date, minutes in old.items() if minutes >= 30}
+        capacity = day_capacity(board)
+        assert set(capacity) == set(old), eval_profile.id
+        if eval_profile.id != "worker":
+            assert capacity == old, eval_profile.id
+        else:
+            # The worker's shift days leave 18:00-21:00 (180 minutes): 150 by the rule.
+            assert {old[d] for d in old if capacity[d] != old[d]} == {180}
+            assert {capacity[d] for d in old if capacity[d] != old[d]} == {150}
+            assert {capacity[d] for d in old if capacity[d] == old[d]} == {240}
 
 
 def test_util_p10_takes_the_sorted_index() -> None:
