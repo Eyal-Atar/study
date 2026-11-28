@@ -74,6 +74,7 @@ flowchart TB
   - `['board', uid, 'progress']`
   - `['board', uid, 'exams']`
   - `['board', uid, 'plan', from, to]`, בלי מפתח שמסתיים ב-`'waiting'`, ורק `MAX_PLAN_RANGES = 4` הטווחים עם ה-`dataUpdatedAt` החדש ביותר.
+  - `['tasks', uid, examId]` (ההתקדמות של כל מבחן בסרגל הצד ובגן; נוסף בסקירה הסופית)
 - **קבועים:** `WRITE_DELAY_MS = 1000` (כתיבה אחת לכל צרור תשובות), `MAX_SNAPSHOT_CHARS = 2_000_000` (snapshot גדול מזה לא נכתב, והקודם נשאר), `MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000` (snapshot ישן מזה לא נטען, ונמחק), `ANNOUNCE_CLEAR_MS = 5000`.
 - **פרטיות:** שום דבר של משתמש אחד לא מוצג לאחר. ה-snapshot נמחק ביציאה (`SIGNED_OUT` ו-`signOut()`), בכל החלפת משתמש (session של userId שונה מהבעלים), וכש-`INITIAL_SESSION` מגיע עם `null` כשיש רשת.
 - **הסימון של הזמן:** "as of" לוקח את ה-`dataUpdatedAt` של `['board', uid, 'today']`, באזור הזמן של הפרופיל (`useProfileTimezone`). באותו יום: `formatTime` בלבד (`11:20`). ביום אחר: `` `${shortDate(date)}, ${time}` `` (`Sun, 22 Nov, 09:00`), לפי archi-voice.

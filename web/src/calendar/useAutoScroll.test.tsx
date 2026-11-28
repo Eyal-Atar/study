@@ -11,6 +11,9 @@ const TOPS: Record<string, { top: number; height: number }> = {
   sticky: { top: 0, height: 130 },
   banner: { top: 130, height: 90 },
   columns: { top: 220, height: 1200 },
+  // Read only (S38): the offline notice sits in the sticky block, over the header; no banner.
+  stickyOffline: { top: 0, height: 210 },
+  columnsOffline: { top: 210, height: 1200 },
 }
 
 function stubLayout() {
@@ -25,17 +28,19 @@ function stubLayout() {
   return scrollTo
 }
 
-function Page({ banner, nowY }: { banner: boolean; nowY: number }) {
+function Page({ banner, nowY, offline = false }: { banner: boolean; nowY: number; offline?: boolean }) {
   const grid = useRef<HTMLDivElement>(null)
   const none = useRef<HTMLElement>(null)
   useAutoScroll(none, grid, 'day|2026-11-24', true)
   return (
     <>
-      <div data-box="sticky" {...{ [STICKY_ATTRIBUTE]: '' }} />
+      <div data-box={offline ? 'stickyOffline' : 'sticky'} {...{ [STICKY_ATTRIBUTE]: '' }}>
+        {offline ? <div data-offline-notice="" /> : null}
+      </div>
       {banner ? <div data-box="banner" data-banner-row="review" /> : null}
       <div ref={grid}>
         <div data-first-y="0" data-now-y={String(nowY)}>
-          <div data-box="columns" data-date="2026-11-24" />
+          <div data-box={offline ? 'columnsOffline' : 'columns'} data-date="2026-11-24" />
         </div>
       </div>
     </>
@@ -53,6 +58,17 @@ describe('useAutoScroll on a phone', () => {
     render(<Page banner={false} nowY={600} />)
     // 220 + 600 - 130 - (844 - 130) / 3
     expect(scrollTo).toHaveBeenCalledWith({ top: 220 + 600 - 130 - (844 - 130) / 3, behavior: 'auto' })
+  })
+
+  it('with the offline notice in the sticky block, puts now a third of the way down under the taller block', () => {
+    const scrollTo = stubLayout()
+    render(<Page banner={false} nowY={600} offline />)
+    const top = 210 + 600 - 210 - (844 - 210) / 3
+    expect(scrollTo).toHaveBeenCalledWith({ top, behavior: 'auto' })
+    // Where now lands in the window: below the whole sticky block (notice included), on screen.
+    const nowInWindow = 210 + 600 - top
+    expect(nowInWindow).toBeGreaterThan(210)
+    expect(nowInWindow).toBeLessThan(844)
   })
 
   it('with a banner, never scrolls it under the sticky header', () => {

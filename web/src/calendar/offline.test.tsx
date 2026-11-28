@@ -1,4 +1,4 @@
-import { onlineManager, type QueryClient } from '@tanstack/react-query'
+import { onlineManager, QueryClient } from '@tanstack/react-query'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -8,13 +8,15 @@ import { blockName } from '../board/blockName'
 import { addDays, blockMinutes } from '../board/time'
 import type { Block, Plan } from '../board/types'
 import { closuresKey } from '../closure/api'
+import { tasksKey } from '../exam/api'
 import { en } from '../i18n/en'
 import { asOf } from '../offline/asOf'
-import { SNAPSHOT_KEY } from '../offline/snapshot'
+import { restoreSnapshot, SNAPSHOT_KEY, startSnapshot, WRITE_DELAY_MS } from '../offline/snapshot'
 import { examsKey } from '../onboarding/api'
 import { progressKey } from '../progress/api'
 import { makeProgress } from '../progress/testFixtures'
 import { makeClosureItem } from '../test/closureFixtures'
+import { taskFixture } from '../test/examFixtures'
 import { makeBlock, makeMe, makePlan, makeToday, USER_ID } from '../test/boardFixtures'
 import type { FakeApi } from '../test/fakeApi'
 import { focusStorageKey, type FocusSession } from '../session/focusSession'
@@ -62,16 +64,36 @@ function seed(queryClient: QueryClient, blocks: Block[]) {
   queryClient.setQueryData(examsKey(USER_ID), [makeExam()])
 }
 
+// A real device snapshot, written by startSnapshot from a cache that holds `fill`: what comes back
+// is what the closed list of saved keys lets through.
+function writeSnapshot(fill: (queryClient: QueryClient) => void) {
+  const source = new QueryClient()
+  vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+  vi.setSystemTime(new Date(CAL_NOW))
+  const stop = startSnapshot(source, () => USER_ID)
+  fill(source)
+  vi.advanceTimersByTime(WRITE_DELAY_MS)
+  stop()
+  source.clear()
+  vi.useRealTimers()
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(CAL_NOW))
+}
+
 // The calendar with no network, from the cache alone. The server behind it answers as
-// openCalendar's does, for the test that brings the network back.
-function openOffline({ closures = false }: { closures?: boolean } = {}) {
+// openCalendar's does, for the test that brings the network back. `fromSnapshot`: the cache is the
+// device snapshot already written (writeSnapshot), loaded as main.tsx loads it.
+function openOffline({ closures = false, fromSnapshot = false }: { closures?: boolean; fromSnapshot?: boolean } = {}) {
   onlineManager.setOnline(false)
   // The snapshot's owner, as main.tsx leaves it after loading the snapshot: AuthProvider keeps the
   // cache for the same user (with no owner it would clear it when the session arrives).
-  window.localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({ version: 1, userId: USER_ID, state: { mutations: [], queries: [] } }))
+  if (!fromSnapshot) {
+    window.localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({ version: 1, userId: USER_ID, state: { mutations: [], queries: [] } }))
+  }
   const result = openCalendar('/calendar', { blocks: BLOCKS, unplaced: UNPLACED })
   act(() => {
-    seed(result.queryClient, BLOCKS)
+    if (fromSnapshot) expect(restoreSnapshot(result.queryClient)).toBe(USER_ID)
+    else seed(result.queryClient, BLOCKS)
     if (closures) {
       result.queryClient.setQueryData(closuresKey(USER_ID), { pending: [makeClosureItem({ opens_at: '2026-11-23T17:00:00Z' })], waiting: [] })
     }
@@ -176,8 +198,8 @@ describe('the calendar without a network', () => {
     window.localStorage.removeItem(focusStorageKey(USER_ID))
     await user.click(blockEl(LATER))
     const later = within(await screen.findByRole('dialog', { name: en.calendar.sheets.actions.title }))
-    const five = later.queryByRole('button', { name: en.focus.fiveLabel(blockName(LATER)) })
-    if (five !== null) expect(five).toBeDisabled()
+    // LATER is today's next block of an hour: the sheet offers Just 5 minutes for it, disabled.
+    expect(later.getByRole('button', { name: en.focus.fiveLabel(blockName(LATER)) })).toBeDisabled()
   })
 
   it('a block does not move by keyboard, and a press on empty space opens no busy time', async () => {
@@ -191,13 +213,31 @@ describe('the calendar without a network', () => {
     expect(document.querySelector('[data-ghost]')).toBeNull()
 
     const col = column('2026-11-26')
+    // A drag past the mouse slop (4px), which online draws a ghost and opens the busy sheet on release.
     fireEvent.pointerDown(col, { button: 0, pointerId: 1, pointerType: 'mouse', clientX: 10, clientY: 200 })
-    fireEvent.pointerUp(col, { button: 0, pointerId: 1, pointerType: 'mouse', clientX: 10, clientY: 200 })
+    fireEvent.pointerMove(col, { button: 0, pointerId: 1, pointerType: 'mouse', clientX: 10, clientY: 260 })
+    expect(document.querySelector('[data-ghost]')).toBeNull()
+    fireEvent.pointerUp(col, { button: 0, pointerId: 1, pointerType: 'mouse', clientX: 10, clientY: 260 })
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 20))
     })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(document.querySelector('[data-ghost]')).toBeNull()
+  })
+
+  it('a coming exam keeps its progress from the device snapshot', async () => {
+    writeSnapshot((queryClient) => {
+      seed(queryClient, BLOCKS)
+      // One of two tasks of an hour done: 50%.
+      queryClient.setQueryData(tasksKey(USER_ID, 'exam-1'), [
+        taskFixture({ id: 'task-1', exam_id: 'exam-1', status: 'done' }),
+        taskFixture({ id: 'task-2', exam_id: 'exam-1' }),
+      ])
+    })
+    openOffline({ fromSnapshot: true })
+    await screen.findByText(LATER.task_title, { selector: '[data-block-id] *' })
+    const bar = within(screen.getByRole('complementary')).getByRole('progressbar')
+    expect(bar).toHaveAttribute('aria-valuetext', en.calendar.side.examProgress(50))
   })
 
   it('a pending closure in the cache does not open its sheet', async () => {
@@ -241,15 +281,20 @@ describe('the calendar without a network, on a phone', () => {
     stubMedia({ desktop: false })
   })
 
-  it('the notice sits above the header, and the tasks sheet’s checks and buttons are disabled', async () => {
+  it('the notice sits in the sticky block above the header, and the tasks sheet’s checks and buttons are disabled', async () => {
     const user = userEvent.setup()
     openOffline()
     await screen.findByText(LATER.task_title, { selector: '[data-block-id] *' })
+    // The page opens scrolled to now: in the sticky block, the notice stays on screen.
+    const sticky = document.querySelector('[data-calendar-sticky]')
+    expect(sticky).not.toBeNull()
     const box = notice()
     expect(box).not.toBeNull()
-    const sticky = document.querySelector('[data-calendar-sticky], .sticky')
-    if (box !== null && sticky !== null) {
-      expect(box.compareDocumentPosition(sticky) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(sticky?.contains(box)).toBe(true)
+    const header = sticky?.querySelector('header') ?? null
+    expect(header).not.toBeNull()
+    if (box !== null && header !== null) {
+      expect(box.compareDocumentPosition(header) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     }
     await user.click(screen.getByRole('button', { name: new RegExp(en.today.blocks) }))
     const dialog = within(await screen.findByRole('dialog', { name: en.today.blocks }))

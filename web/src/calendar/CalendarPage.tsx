@@ -305,11 +305,19 @@ export function CalendarPage() {
     void data.plan.refetch()
   }
 
+  // Read only, LoadingState says in words that nothing is saved: it needs the page's gutters (the
+  // online skeleton keeps its own look).
+  const notSaved = (
+    <div className="px-4 py-6">
+      <LoadingState shape="card" />
+    </div>
+  )
+
   // What stands in the place of the grid: the loading, an error, the empty calendar, or the grid.
   function body(hourPx: number, onSwipeDay?: (direction: 1 | -1) => void) {
     // Read only, a week the device never saved has nothing to show: not even the last week kept on
     // screen while it loads (placeholder data), which would sit under the new week's header.
-    if (readOnly && data.plan.isPlaceholderData) return <LoadingState shape="card" />
+    if (readOnly && data.plan.isPlaceholderData) return notSaved
     if (todayData === undefined || planData === undefined) {
       const failed = todayData === undefined ? data.today : data.plan
       if (failed.isError) {
@@ -322,7 +330,7 @@ export function CalendarPage() {
           />
         )
       }
-      return <LoadingState shape="card" />
+      return readOnly ? notSaved : <LoadingState shape="card" />
     }
     if (!showGrid) return <EmptyCalendar />
     return (
@@ -484,10 +492,17 @@ export function CalendarPage() {
   return (
     // Room under the last hour for the tasks bar, which floats above the navigation.
     <div className="pb-16">
-      {/* Above the header and not sticky, as in the prototype. */}
-      <OfflineNotice className="mx-3.5 mt-1 mb-1.5" />
       <div {...{ [STICKY_ATTRIBUTE]: '' }} className="sticky top-0 z-30 bg-canvas">
+        {/* Above the header, as in the prototype, but in the sticky block: the page opens scrolled to
+            now, and the notice must be on screen. It takes the notch's padding from the header, and
+            padding (not margin), so no gap above the block lets the grid show through. */}
+        {readOnly ? (
+          <div className="px-3.5 pt-[calc(env(safe-area-inset-top)+0.25rem)] pb-1.5">
+            <OfflineNotice />
+          </div>
+        ) : null}
         <PhoneHeader
+          padNotch={!readOnly}
           date={phoneDate}
           today={today ?? phoneDate}
           onWeek={(step) => {

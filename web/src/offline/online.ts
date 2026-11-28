@@ -3,6 +3,8 @@ import { useSyncExternalStore } from 'react'
 
 // The one place that knows whether there is a network. Everything else asks onlineManager (or useOnline).
 // Call once at startup, before the query client is created.
+// Tests never call it: its setup re-reads navigator.onLine whenever the first subscriber comes
+// back, which would overwrite a manual onlineManager.setOnline(false).
 export function initOnline(): void {
   onlineManager.setEventListener((setOnline) => {
     // Read navigator.onLine right away: TanStack's default listener only reacts to events, so a page

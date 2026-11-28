@@ -10,7 +10,8 @@ export const STICKY_ATTRIBUTE = 'data-calendar-sticky'
 // today on screen, the first block just under the top. The grid says both, in px from the top of its
 // columns (data-now-y, data-first-y). On a computer the grid scrolls in its own box (`scroller`); on
 // a phone (no box) the window scrolls, under the sticky header, and never so far that the banner
-// goes under it (S32 screenshot pass). A refresh of the data does not
+// goes under it (S32 screenshot pass). Read only there is no banner: the offline notice is part of
+// the sticky block (S38), so its height is in `sticky` and now lands below it. A refresh of the data does not
 // scroll again: the user may have scrolled since. `behavior: 'auto'`: the page opens where it is,
 // with no motion.
 export function useAutoScroll(

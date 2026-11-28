@@ -74,6 +74,29 @@ describe('snapshot', () => {
     expect(read()?.state.queries.map((q) => q.queryKey)).toEqual([['me', 'u1']])
   })
 
+  it('saves the tasks of one exam (its progress), and not the tasks of all exams or its topics', () => {
+    startSnapshot(client, () => 'u1')
+    client.setQueryData(['tasks', 'u1', 'e1'], [])
+    client.setQueryData(['tasks', 'u1'], [])
+    client.setQueryData(['topics', 'u1', 'e1'], [])
+    client.setQueryData(['tasks', 'u2', 'e1'], [])
+    vi.advanceTimersByTime(WRITE_DELAY_MS)
+    expect(read()?.state.queries.map((q) => q.queryKey)).toEqual([['tasks', 'u1', 'e1']])
+  })
+
+  it('does not write while a saved query that holds data failed its last refetch, so the previous snapshot keeps it', async () => {
+    startSnapshot(client, () => 'u1')
+    client.setQueryData(['board', 'u1', 'today'], { a: 1 })
+    vi.advanceTimersByTime(WRITE_DELAY_MS)
+    await client
+      .query({ queryKey: ['board', 'u1', 'today'], queryFn: () => Promise.reject(new Error('flaky')), retry: false, staleTime: 0 })
+      .catch(() => undefined)
+    expect(client.getQueryState(['board', 'u1', 'today'])?.status).toBe('error')
+    client.setQueryData(['me', 'u1'], { b: 2 })
+    vi.advanceTimersByTime(WRITE_DELAY_MS)
+    expect(read()?.state.queries.map((q) => q.queryKey)).toContainEqual(['board', 'u1', 'today'])
+  })
+
   it('keeps only the 4 newest plan ranges, null range included', () => {
     startSnapshot(client, () => 'u1')
     for (let i = 0; i < 5; i++) {

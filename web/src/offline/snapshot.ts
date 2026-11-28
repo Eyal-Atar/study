@@ -3,6 +3,8 @@ import { dehydrate, defaultShouldDehydrateQuery, hydrate, type DehydratedState, 
 // The last calendar, kept on the device. It knows nothing about auth: whoever starts it says who the
 // owner is and when to clear (see AuthProvider).
 export const SNAPSHOT_KEY = 'studyflow.offline.v1'
+// Restored data renders before any refetch, online too: a change to the shape of a saved response
+// must bump the version, or the first screen draws the old shape.
 const VERSION = 1
 export const WRITE_DELAY_MS = 1000
 export const MAX_SNAPSHOT_CHARS = 2_000_000
@@ -22,6 +24,8 @@ function isPlanKey(key: readonly unknown[]): boolean {
 function isSavedKey(key: readonly unknown[], userId: string): boolean {
   if (key[1] !== userId) return false
   if (key[0] === 'me' || key[0] === 'exams') return key.length === 2
+  // ['tasks', uid, examId]: the progress of each exam, in the sidebar and in the garden.
+  if (key[0] === 'tasks') return key.length === 3
   if (key[0] !== 'board') return false
   if (key.length === 3 && typeof key[2] === 'string' && BOARD_PARTS.has(key[2])) return true
   return isPlanKey(key)
@@ -36,10 +40,21 @@ function buildState(client: QueryClient, userId: string): DehydratedState {
   return { ...state, mutations: [], queries: state.queries.filter((q) => !dropped.has(q)) }
 }
 
+// A saved query whose last refetch failed still holds its data, but dehydrate would leave it out:
+// on a flaky connection one write would erase it (today, say) from the device.
+function hasFailedSaved(client: QueryClient, userId: string): boolean {
+  return client
+    .getQueryCache()
+    .getAll()
+    .some((query) => query.state.status === 'error' && query.state.data !== undefined && isSavedKey(query.queryKey, userId))
+}
+
 function writeNow(client: QueryClient, getOwner: () => string | null): void {
   try {
     const userId = getOwner()
     if (userId === null) return
+    // The previous snapshot stays until every saved query is in success again.
+    if (hasFailedSaved(client, userId)) return
     const json = JSON.stringify({ version: VERSION, userId, state: buildState(client, userId) } satisfies Stored)
     if (json.length > MAX_SNAPSHOT_CHARS) return
     localStorage.setItem(SNAPSHOT_KEY, json)
