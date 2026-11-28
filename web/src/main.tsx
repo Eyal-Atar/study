@@ -13,6 +13,7 @@ import { createSupabase } from './auth/supabase'
 import { EnvError, readEnv, type WebEnv } from './config/env'
 import { ConfigErrorScreen } from './pages/ConfigErrorScreen'
 import { initOnline } from './offline/online'
+import { restoreSnapshot } from './offline/snapshot'
 import { registerServiceWorker } from './pwa/register'
 import './index.css'
 
@@ -30,6 +31,8 @@ function createApp(): ReactNode {
   const api = createAppApi(env.apiUrl, supabase.auth)
   const storage = createStorage(supabase)
   const queryClient = createQueryClient()
+  // Synchronous, so the first render already shows the last calendar. startSnapshot runs in AuthProvider.
+  restoreSnapshot(queryClient)
   const router = createBrowserRouter(routes)
   return (
     <AppProviders auth={supabase.auth} api={api} storage={storage} queryClient={queryClient} vapidPublicKey={env.vapidPublicKey}>
