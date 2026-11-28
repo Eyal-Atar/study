@@ -220,6 +220,7 @@ export function createApiClient({
 // The text to show the user: our own English text for a code we know, else the server's title.
 export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) {
+    if (error.code === 'offline') return en.errors.offline
     if (error.code !== null && isKnownCode(error.code)) return codeText(error.code, error.details)
     if (error.title !== null) return error.title
     if (error.status === 0) return en.errors.unreachable

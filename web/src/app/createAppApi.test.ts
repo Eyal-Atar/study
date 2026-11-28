@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
+import { onlineManager } from '@tanstack/react-query'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { createAppApi } from './createAppApi'
 
@@ -11,6 +12,10 @@ function stubFetch(response: () => Response) {
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock
 }
+
+afterEach(() => {
+  onlineManager.setOnline(true)
+})
 
 describe('createAppApi', () => {
   it('sends the access token of the current session', async () => {
@@ -87,5 +92,28 @@ describe('createAppApi', () => {
     const results = await Promise.allSettled([api.get('/a'), api.get('/b'), api.get('/c')])
     expect(results.map((r) => r.status)).toEqual(['rejected', 'rejected', 'rejected'])
     expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('without a network a write fails at once, without fetch or Auth', async () => {
+    const fetchMock = stubFetch(() => jsonResponse(200, {}))
+    const auth = createFakeAuth(fakeSession())
+    const getSession = vi.spyOn(auth.client, 'getSession')
+    const api = createAppApi('http://api.test', auth.client)
+    onlineManager.setOnline(false)
+
+    for (const write of [() => api.post('/x', {}), () => api.patch('/x', {}), () => api.delete('/x')]) {
+      await expect(write()).rejects.toMatchObject({ status: 0, code: 'offline' })
+    }
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(getSession).not.toHaveBeenCalled()
+  })
+
+  it('without a network a read is not blocked by the guard', async () => {
+    const fetchMock = stubFetch(() => jsonResponse(200, { id: 'user-a', email: null }))
+    const api = createAppApi('http://api.test', createFakeAuth(fakeSession({ id: 'user-a' })).client)
+    onlineManager.setOnline(false)
+
+    await expect(api.get('/me')).resolves.toBeDefined()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

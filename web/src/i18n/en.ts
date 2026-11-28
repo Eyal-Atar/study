@@ -103,6 +103,7 @@ export const en = {
   errors: {
     generic: 'Something went wrong. Please try again in a moment.',
     unreachable: 'I couldn’t reach the server. Please try again in a moment.',
+    offline: 'You’re offline, so I couldn’t save that. Try again once the connection is back.',
   },
   // The text of every code the API, the worker and the planner send (codes.ts reads it).
   // A function takes the problem's extra fields, already checked by codes.ts.

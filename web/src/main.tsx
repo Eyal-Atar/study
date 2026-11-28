@@ -12,6 +12,7 @@ import { createStorage } from './auth/storage'
 import { createSupabase } from './auth/supabase'
 import { EnvError, readEnv, type WebEnv } from './config/env'
 import { ConfigErrorScreen } from './pages/ConfigErrorScreen'
+import { initOnline } from './offline/online'
 import { registerServiceWorker } from './pwa/register'
 import './index.css'
 
@@ -24,6 +25,7 @@ function createApp(): ReactNode {
     if (error instanceof EnvError) return <ConfigErrorScreen problems={error.problems} />
     throw error
   }
+  initOnline()
   const supabase = createSupabase(env)
   const api = createAppApi(env.apiUrl, supabase.auth)
   const storage = createStorage(supabase)

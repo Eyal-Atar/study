@@ -421,6 +421,10 @@ describe('createApiClient on concurrent 401s', () => {
 })
 
 describe('errorMessage', () => {
+  it('says the user is offline for the offline code', () => {
+    expect(errorMessage(new ApiError(0, 'offline', null))).toBe(en.errors.offline)
+  })
+
   it('prefers our own text for a known code', () => {
     expect(errorMessage(new ApiError(422, 'exam_in_past', 'A title from the server'))).toBe(en.codes.exam_in_past)
   })

@@ -11,5 +11,12 @@ export function shouldRetry(failureCount: number, error: unknown): boolean {
 
 // One client for the life of the app (main.tsx).
 export function createQueryClient(): QueryClient {
-  return new QueryClient({ defaultOptions: { queries: { retry: shouldRetry } } })
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: shouldRetry },
+      // 'always': a mutation without a network fails now. The default pauses it and it resumes by itself
+      // when the network returns, which is a write queue, and we decided against one (18.11).
+      mutations: { networkMode: 'always' },
+    },
+  })
 }

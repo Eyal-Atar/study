@@ -1,4 +1,5 @@
-import { createApiClient, type ApiClient } from '../api/client'
+import { onlineManager } from '@tanstack/react-query'
+import { ApiError, createApiClient, type ApiClient } from '../api/client'
 import type { AuthClient } from '../auth/supabase'
 
 // An Auth failure that says nothing about the session: no answer (our timeout, or the browser's
@@ -12,7 +13,7 @@ function isTemporary(error: Error): boolean {
 // bounded by the client's timeout), and signs the user out in this browser only when the session is
 // not valid.
 export function createAppApi(apiUrl: string, auth: AuthClient): ApiClient {
-  return createApiClient({
+  const client = createApiClient({
     baseUrl: apiUrl,
     getAccessToken: async () => {
       const { data, error } = await auth.getSession()
@@ -30,4 +31,13 @@ export function createAppApi(apiUrl: string, auth: AuthClient): ApiClient {
       void auth.signOut({ scope: 'local' })
     },
   })
+  // Without a network a write fails at once: no fetch, no token, no waiting. Reads go through (a query
+  // pauses by its own networkMode and shows the cached data).
+  const offline = () => Promise.reject(new ApiError(0, 'offline', null))
+  return {
+    get: (path, init) => client.get(path, init),
+    post: (path, body, init) => (onlineManager.isOnline() ? client.post(path, body, init) : offline()),
+    patch: (path, body, init) => (onlineManager.isOnline() ? client.patch(path, body, init) : offline()),
+    delete: (path, init) => (onlineManager.isOnline() ? client.delete(path, init) : offline()),
+  }
 }
