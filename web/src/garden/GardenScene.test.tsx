@@ -33,6 +33,7 @@ function model(overrides: Partial<GardenModel> = {}): GardenModel {
     stage: 'sapling',
     level: 7,
     maxLevel: 50,
+    atTop: false,
     leaves: 0,
     rings: 0,
     plants: [],
@@ -131,6 +132,30 @@ describe('GardenScene', () => {
 
     expect(svg.querySelectorAll('[data-bud]')).toHaveLength(4)
     expect(svg.querySelector('[data-item="flowers"]')).not.toBeNull()
+  })
+
+  // Fix wave 2: on the dusk sand the dark gold-soft stone was a hole. In the scene an earned stone
+  // is pebble, the light fill of what lies on the sand (3:1 on sand in the evening, theme.test.ts),
+  // under the same gold-ink line; in the day pebble is gold-soft, so the day stone is unchanged.
+  it('an earned stone on the sand is pebble under the gold-ink line', () => {
+    const { svg } = scene({ model: FULL })
+    const parts = svg.querySelectorAll('[data-item^="stone:"] [data-part="stone"]')
+    expect(parts.length).toBeGreaterThan(0)
+    for (const part of parts) {
+      expect(part).toHaveClass('fill-pebble', 'stroke-gold-ink')
+      expect(part).not.toHaveClass('fill-gold-soft')
+    }
+  })
+
+  // Fix wave 3: the buds of an ended streak were surface-muted, nearly black on the dusk sand.
+  it('a bud of a streak that ended is pebble too, under its line-strong outline', () => {
+    const { svg } = scene({ model: model({ buds: 3 }) })
+    const heads = svg.querySelectorAll('[data-bud] [data-part="bud-head"]')
+    expect(heads).toHaveLength(3)
+    for (const head of heads) {
+      expect(head).toHaveClass('fill-pebble', 'stroke-line-strong')
+      expect(head).not.toHaveClass('fill-surface-muted')
+    }
   })
 
   it('has no flower item when there is nothing to show there', () => {

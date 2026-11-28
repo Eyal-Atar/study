@@ -156,6 +156,17 @@ describe('the progress board', () => {
     expect(twenty).toHaveTextContent(t.badges.towards('12', '20'))
   })
 
+  // Fix wave 15: a badge the web has no name for yet (a newer server) still comes from
+  // progress.badges, so its stone has its real tier: the fifth of five in its group.
+  it('a badge from a newer server has its real tier in its group', async () => {
+    const newer = { key: 'task_master_200', group: 'blocks' as const, threshold: 200, earned: true, earned_at: '2026-11-15T10:00:00Z' }
+    setup(makeProgress({ blocks_done: 210, badges: [...makeBadges({ task_master_10: '2026-11-01T10:00:00Z' }), newer] }))
+    await screen.findByRole('region', { name: t.badges.title })
+    const tile = badgeItem(t.badges.unknown.name)
+    expect(tile.querySelectorAll('[data-dot]')).toHaveLength(5)
+    expect(tile.querySelectorAll('[data-dot="filled"]')).toHaveLength(5)
+  })
+
   it('a badge not earned shows how far along it is', async () => {
     setup(makeProgress())
     await screen.findByRole('region', { name: t.badges.title })

@@ -89,9 +89,9 @@ function nextHourDraft(date: string, today: string, now: number, tz: string): { 
 //   screen, so a move to another date or view leaves it open.
 // - The celebration of S33 (plan decision 15): the Done events of this session wait in the inbox
 //   (celebrate/inbox.ts) and are pulled when nothing else is open or about to open: no sheet, no
-//   tasks sheet, GET /closures answered, GET /today and GET /progress not on their way, and no closure opening by itself in the same pass (that one
-//   goes first: it is a decision, the celebration can wait). Not about the week either, so a move
-//   leaves it open.
+//   tasks sheet, GET /closures answered, GET /today and GET /progress not on their way, and no
+//   closure opening by itself in the same pass (that one goes first: it is a decision, the
+//   celebration can wait). Not about the week either, so a move leaves it open.
 export function CalendarPage() {
   useShellFrame({ fullBleed: true, ownPhoneHeader: true })
   const desktop = useIsDesktop()
@@ -179,7 +179,9 @@ export function CalendarPage() {
       closureOpening.current = false
       return
     }
-    if (inboxSize === 0 || tasksOpen || todayData === undefined || todayFetching || progressFetching || userId === null || !closuresKnown) return
+    const waiting =
+      tasksOpen || todayData === undefined || todayFetching || progressFetching || userId === null || !closuresKnown
+    if (inboxSize === 0 || waiting) return
     if (closureOpening.current) return
     const events = takeEvents()
     if (events.length === 0) return

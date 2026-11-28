@@ -107,6 +107,10 @@
   --color-gold-soft: #f6e7c6;
   --color-gold-ink: #6b4a12;
   --color-gold-track: #eadfc4;
+  /* Pebble (S33): the fill of what lies on the sand of the garden, an earned stone and a closed bud.
+     By day it is gold-soft, and the gold-ink line of a stone carries its shape on the sand; in the
+     evening it is light enough to stand 3:1 on sand by itself. Decoration, never text. */
+  --color-pebble: #f6e7c6;
   /* The dawn sky of the celebration sheet and the garden (Archi has no background; S33 decides whether
      the sky tokens stay): a gradient from sky-from to
      sky-to. Text on it is ink, measured on both ends and on sky, the tone between them. */
@@ -311,6 +315,8 @@
   --color-gold-soft: #3a2d14;
   --color-gold-ink: #f0c36a;
   --color-gold-track: #2b241a;
+  /* Pebble: a pale gold stone, 3:1 on the evening sand (the dark gold-soft was a hole in it). */
+  --color-pebble: #ecdcb4;
 
   /* The sky behind Archie, now a dusk sky. */
   --color-sky-from: #1d2a3a;

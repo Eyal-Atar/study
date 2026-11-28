@@ -205,12 +205,12 @@ export function StreakBranch({ x, y }: { x: number; y: number }): JSX.Element {
   )
 }
 
-/** A bud of a streak that ended: closed, on surface-muted. */
+/** A bud of a streak that ended: closed, in pebble, which stands 3:1 on the evening sand. */
 export function StreakBud({ x, y }: { x: number; y: number }): JSX.Element {
   return (
     <g transform={`translate(${String(x)} ${String(y)})`} data-bud="">
       <path d="M0 0v8" className="stroke-brand" strokeWidth={1.25} strokeLinecap="round" />
-      <ellipse cx={0} cy={-.5} rx={2.6} ry={3.4} className="fill-surface-muted stroke-line-strong" strokeWidth={1} />
+      <ellipse cx={0} cy={-.5} rx={2.6} ry={3.4} className="fill-pebble stroke-line-strong" strokeWidth={1} data-part="bud-head" />
     </g>
   )
 }

@@ -225,6 +225,17 @@ describe('storyOf and summaryOf', () => {
     )
   })
 
+  // atTop is the one rule of the top (fix wave 14): the level reaching max_level, or the server
+  // having no next level, whichever comes first; the leaves and the tree's sentence both read it.
+  it('atTop: at max_level, or with no next level below it', () => {
+    expect(model(makeProgress({ level: 50, max_level: 50, next_level_xp: null })).atTop).toBe(true)
+    expect(model(makeProgress({ level: 50, max_level: 50, next_level_xp: 99_000 })).atTop).toBe(true)
+    expect(model(makeProgress({ level: 4, level_start_xp: 3000, next_level_xp: 4000 })).atTop).toBe(false)
+    const noNext = model(makeProgress({ total_xp: 30_100, level: 30, max_level: 50, level_start_xp: 30_000, next_level_xp: null }))
+    expect(noNext.atTop).toBe(true)
+    expect(storyOf(noNext, { kind: 'tree' }, badgeName)).toBe(g.story.tree(g.scene.stage.bonsai, 30, 9, true))
+  })
+
   it('tells the story of each kind of plant, with the Hebrew name isolated', () => {
     const name = 'אלגוריתמים'
     const m = model(makeProgress({ archive: [makeArchived({ exam_id: 'c', name, studied_minutes: 90 })] }), [

@@ -13,7 +13,8 @@ import { DOT_LINE, DOT_R, STONE_LINE, STONE_SHAPES } from './stoneShapes'
   A 48 grid with 3 units of air on every side (the geometry is in stoneShapes.ts). The stone has no
   colour of its own: earned is gold (gold-soft under a gold-ink line), not yet earned is a dashed
   outline on surface-muted. Both tokens exist in the day and in the dusk theme, so the stone
-  follows the theme with no branch.
+  follows the theme with no branch. On the sand of the garden an earned stone is pebble instead of
+  gold-soft (StoneShape's onSand), a token that is gold-soft by day and light on the evening sand.
 
   Decoration only: the tile beside it says the badge in words.
 */
@@ -66,10 +67,13 @@ function symbolOf(group: BadgeGroup, scale: number): ReactNode {
   }
 }
 
-/** The stone alone, with no symbol and no dots: a <g> for the garden to place in its own SVG. */
-export function StoneShape({ group, earned }: { group: BadgeGroup; earned: boolean }): JSX.Element {
+/** The stone alone, with no symbol and no dots: a <g> for the garden to place in its own SVG.
+ *  `onSand`: on the sand of the garden an earned stone is pebble, which stands on the evening sand
+ *  where the dark gold-soft did not (pebble is gold-soft by day, so the day stone is the same). */
+export function StoneShape({ group, earned, onSand = false }: { group: BadgeGroup; earned: boolean; onSand?: boolean }): JSX.Element {
   const shape = STONE_SHAPES[group]
-  const stone = earned ? 'fill-gold-soft stroke-gold-ink' : 'fill-surface-muted stroke-line-strong'
+  const fill = onSand ? 'fill-pebble' : 'fill-gold-soft'
+  const stone = earned ? `${fill} stroke-gold-ink` : 'fill-surface-muted stroke-line-strong'
   // A dashed line keeps butt caps: round caps close the gaps of "3 3" at small sizes.
   const dash = earned ? {} : ({ strokeDasharray: '3 3', strokeLinecap: 'butt' } as const)
   return (

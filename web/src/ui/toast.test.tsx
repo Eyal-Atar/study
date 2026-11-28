@@ -1,24 +1,48 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
+import { useEffect, useState, type ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { en } from '../i18n/en'
+import { Dialog } from './Dialog'
 import { ToastProvider, ToastRegion } from './toast'
 import { useToast, type ToastApi } from './useToast'
 
-function setup() {
+function setup(withSheet: ReactNode = null) {
   const holder: { api?: ToastApi } = {}
   function Grab() {
-    holder.api = useToast()
+    const api = useToast()
+    useEffect(() => {
+      holder.api = api
+    }, [api])
     return null
   }
   render(
     <ToastProvider>
       <Grab />
+      {withSheet}
       <ToastRegion />
     </ToastProvider>,
   )
   if (holder.api === undefined) throw new Error('no toast api')
   return holder.api
+}
+
+const BOTTOM = ['bottom-[calc(env(safe-area-inset-bottom)+6rem)]', 'lg:bottom-4']
+const TOP = 'top-[calc(env(safe-area-inset-top)+1rem)]'
+
+const sheet: { close?: () => void } = {}
+function Sheet() {
+  const [open, setOpen] = useState(true)
+  useEffect(() => {
+    sheet.close = () => {
+      setOpen(false)
+    }
+  }, [])
+  return (
+    <Dialog title="Your garden is a sprout now" isOpen={open} onOpenChange={setOpen}>
+      <p>Body</p>
+    </Dialog>
+  )
 }
 
 describe('toast', () => {
@@ -144,5 +168,40 @@ describe('toast', () => {
     for (const element of region.querySelectorAll('[class]')) {
       expect(element.getAttribute('class')).not.toMatch(/(^|\s)bg-surface(\s|$)/)
     }
+  })
+
+  // Fix wave 4 of S33: on a phone the toast of Done sat over the celebration sheet's body. While a
+  // modal sheet is open the stack moves to the top of the viewport, inside the safe area; Undo stays.
+  it('without a sheet the stack sits at the bottom', () => {
+    const toast = setup()
+    act(() => {
+      toast.show({ text: 'Marked as done.', action: { label: 'Undo', onAction: () => undefined } })
+    })
+    const region = screen.getByRole('region', { name: en.common.notifications })
+    expect(region).toHaveAttribute('data-placement', 'bottom')
+    expect(region).toHaveClass(...BOTTOM)
+    expect(region).not.toHaveClass(TOP)
+  })
+
+  it('while a sheet is open the stack sits at the top, with Undo, and goes back down after it', async () => {
+    const onAction = vi.fn()
+    const toast = setup(<Sheet />)
+    act(() => {
+      toast.show({ text: 'Saved', timeoutMs: 60_000 })
+      toast.show({ text: 'Marked as done.', action: { label: 'Undo', onAction } })
+    })
+    const region = screen.getByRole('region', { name: en.common.notifications, hidden: true })
+    expect(region).toHaveAttribute('data-placement', 'top')
+    expect(region).toHaveClass('fixed', 'z-[60]', TOP)
+    for (const c of BOTTOM) expect(region).not.toHaveClass(c)
+
+    await userEvent.setup().click(within(region).getByRole('button', { name: 'Undo', hidden: true }))
+    expect(onAction).toHaveBeenCalledOnce()
+
+    act(() => {
+      sheet.close?.()
+    })
+    expect(region).toHaveAttribute('data-placement', 'bottom')
+    expect(region).toHaveClass(...BOTTOM)
   })
 })

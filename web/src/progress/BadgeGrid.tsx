@@ -7,15 +7,12 @@ import { SectionHeading } from '../ui/SectionHeading'
 import { cx } from '../ui/styles'
 import { formatEarnedShort, formatNumber } from './format'
 import type { Badge, BadgeGroup, Progress } from './types'
+import { badgeName } from './badgeNames'
 
 const t = en.progress.badges
 
 const GROUPS: BadgeGroup[] = ['first', 'blocks', 'streak', 'level', 'xp']
 const STONE_SIZE = 44
-
-function badgeName(key: string): string {
-  return (t.items as Record<string, { name: string } | undefined>)[key]?.name ?? t.unknown.name
-}
 
 // Where the user stands on what the group counts (the server's rules, plan decision 4).
 function currentFor(group: BadgeGroup, progress: Progress): number {
@@ -37,9 +34,8 @@ function currentFor(group: BadgeGroup, progress: Progress): number {
 // the words for a screen reader. The two differ in shape and in words, so colour carries nothing
 // alone. The description is not shown: the name already says it.
 function BadgeTile({ badge, current, timeZone, progress }: { badge: Badge; current: number; timeZone: string; progress: Progress }) {
-  const known = (t.items as Record<string, unknown>)[badge.key] !== undefined
-  // badgeTier throws on a key it does not know, and the server may send a newer one.
-  const { tier, tiers } = known ? badgeTier(progress.badges, badge.key) : { tier: 1, tiers: 1 }
+  // The badge comes from progress.badges, so badgeTier always finds it, a newer server's key too.
+  const { tier, tiers } = badgeTier(progress.badges, badge.key)
   const line = badge.earned
     ? badge.earned_at === null
       ? t.earned

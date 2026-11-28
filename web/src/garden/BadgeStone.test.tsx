@@ -210,4 +210,20 @@ describe('StoneShape', () => {
     expect(root?.querySelector('[stroke-dasharray]')).not.toBeNull()
     expect(root?.querySelector('[data-dot]')).toBeNull()
   })
+
+  // Fix wave 2: the badge grid keeps gold-soft; only the garden's sand asks for pebble.
+  it('earned, it is gold-soft by default and pebble on the sand', () => {
+    const { container } = render(
+      <svg>
+        <g data-testid="grid">
+          <StoneShape group="first" earned />
+        </g>
+        <g data-testid="sand">
+          <StoneShape group="first" earned onSand />
+        </g>
+      </svg>,
+    )
+    expect(container.querySelector('[data-testid="grid"] [data-part="stone"]')).toHaveClass('fill-gold-soft', 'stroke-gold-ink')
+    expect(container.querySelector('[data-testid="sand"] [data-part="stone"]')).toHaveClass('fill-pebble', 'stroke-gold-ink')
+  })
 })

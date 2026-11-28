@@ -7,6 +7,7 @@ import './garden.css'
 import type { GardenItem, GardenModel } from './model'
 import { LEAF, POND, rakeLine, STAGE_ART } from './gardenShapes'
 import { Leaf, PlantShape, StagePlant, StreakBranch, StreakBud, StreakFlower } from './parts'
+import { badgeName } from '../progress/badgeNames'
 
 export { PlantShape } from './parts'
 
@@ -35,6 +36,9 @@ export interface GardenSceneProps {
   className?: string
 }
 
+/** The opening sway of the centre (decision 11, garden.css): 1,200ms. The falling leaf ends with it. */
+export const SWAY_MS = 1200
+
 const CENTRE_X = 180
 const BASE_Y = 118
 const GROUND_Y = 112
@@ -55,11 +59,6 @@ const sameItem = (a: GardenItem | null | undefined, b: GardenItem) => {
 
 const itemId = (item: GardenItem) =>
   item.kind === 'plant' ? `plant:${item.id}` : item.kind === 'stone' ? `stone:${item.key}` : item.kind
-
-function badgeName(key: string): string {
-  const items: Partial<Record<string, { name: string }>> = en.progress.badges.items
-  return items[key]?.name ?? en.progress.badges.unknown.name
-}
 
 // The hit area of an item and the dashed line of its focus, the same shape.
 type Area = { kind: 'rect'; x: number; y: number; width: number; height: number } | { kind: 'circle'; r: number }
@@ -271,7 +270,7 @@ export function GardenScene({ model, selected, onSelect, play, label, className 
           transform: `translate(${String(x)} ${String(y)})`,
           art: (
             <g transform={`translate(${String(-STONE_HALF)} ${String(-STONE_HALF)}) scale(${String(STONE_SCALE)})`}>
-              <StoneShape group={stone.group} earned />
+              <StoneShape group={stone.group} earned onSand />
             </g>
           ),
         },

@@ -55,7 +55,7 @@ export const enGarden = {
     },
     // The short name of the buds of a streak that ended (the label of that item of the scene).
     buds: 'Buds',
-    hint: 'Tap anything in the garden for its story.',
+    hint: 'Tap a plant, a stone or the flowers for its story.',
   },
   // The caption when a thing in the garden is selected.
   story: {
@@ -111,11 +111,12 @@ export const enGarden = {
     tomorrow: (time: string) => `Tomorrow starts at ${time}.`,
     levelTitle: (level: number) => `Level ${String(level)}`,
     // level: the new level. Up to level 9 it adds a ring; after that the rings are full and only
-    // the leaves start again.
+    // the leaves start again. "The plant at the centre": from level 2 to 10 it is a seed, a sprout
+    // or a seedling, not yet a tree.
     levelBody: (level: number) =>
       level - 1 > MAX_RINGS
-        ? 'Your tree already has all eight rings, so its leaves start over.'
-        : 'I’ve raked one more ring around your tree.',
+        ? 'All eight rings are raked, so the leaves start over.'
+        : 'I’ve raked one more ring around the plant at the centre.',
     // stage: a name of scene.stage.
     stageTitle: (stage: string) => `Your garden is ${lower(stage)} now`,
     stageBody: (level: number) => `Level ${String(level)}. Here it is before and after.`,
@@ -130,11 +131,5 @@ export const enGarden = {
     // The chips. xp: formatNumber of today's XP.
     xpToday: (xp: string) => `+${xp} XP today`,
     streak: (days: number) => `${String(days)}-day streak`,
-  },
-  // The badge stones of the progress screen.
-  badge: {
-    towards: (current: string, threshold: string) => `${current} of ${threshold}`,
-    // date: dayMonth ("13 Nov").
-    earnedOn: (date: string) => `Earned ${date}`,
   },
 } as const

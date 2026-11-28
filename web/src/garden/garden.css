@@ -6,7 +6,8 @@
    for a keyboard focus and for the selected item.
 
    The motion runs once and only for whoever did not ask the system for less: the sway of the
-   centre and one falling leaf when the progress screen opens (--duration-ceremony, 1.5s), and the
+   centre and one falling leaf when the progress screen opens (1,200ms, decision 11; SWAY_MS in
+   GardenScene.tsx, the timer of GardenCard, must match it), and the
    petals of a bloom opening one after another (240ms each, the last one starting at 480ms). With
    less motion nothing here moves: the scene is drawn in its final state, and the falling leaf,
    which is extra to the leaves of the model, is not shown at all.
@@ -47,11 +48,11 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .garden-sway {
-    animation: garden-sway var(--duration-ceremony) var(--ease-standard) 1;
+    animation: garden-sway 1200ms var(--ease-standard) 1;
   }
 
   .garden-leaf-fall {
-    animation: garden-leaf-fall var(--duration-ceremony) var(--ease-standard) 1 both;
+    animation: garden-leaf-fall 1200ms var(--ease-standard) 1 both;
   }
 
   .garden-petal {

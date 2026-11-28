@@ -9,6 +9,7 @@ import { cx } from '../ui/styles'
 import { devText } from './devText'
 import { sample } from './sampleContent'
 import { Example, ROW, Section } from './Section'
+import { badgeName } from '../progress/badgeNames'
 
 // The illustrations S33 drew in code (web/src/garden/). Their texts are in devText.s33.
 const t = devText.s33
@@ -91,6 +92,7 @@ const EMPTY: GardenModel = {
   stage: 'seed',
   level: 1,
   maxLevel: 50,
+  atTop: false,
   leaves: 0,
   rings: 0,
   plants: [],
@@ -126,11 +128,6 @@ const FULL_GARDEN: GardenModel = {
   flowers: 3,
   branches: 1,
   streakCurrent: 10,
-}
-
-function badgeName(key: string): string {
-  const items: Partial<Record<string, { name: string }>> = en.progress.badges.items
-  return items[key]?.name ?? en.progress.badges.unknown.name
 }
 
 function InteractiveGarden() {

@@ -210,8 +210,10 @@ describe('the celebration sheet on a computer', () => {
     expect(inSheet.getByText(t.streak(4))).toBeInTheDocument()
     // Only the day happened: no line of anything else.
     expect(inSheet.queryByText(t.alsoDay)).not.toBeInTheDocument()
-    // The toast still says it all in words.
+    // The toast still says it all in words, from the top of the screen while the sheet is open
+    // (fix wave 4), so it never covers the sheet's body.
     await doneToast()
+    expect(screen.getByRole('region', { name: en.common.notifications, hidden: true })).toHaveAttribute('data-placement', 'top')
 
     await userEvent.click(primaryClose(sheet))
     await waitFor(() => {

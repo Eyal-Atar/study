@@ -17,6 +17,7 @@ import { Dialog } from '../ui/Dialog'
 import { StreakLeafIcon, XpSparkIcon } from '../ui/icons'
 import { prefersReducedMotion } from '../ui/reducedMotion'
 import type { Celebration } from './rules'
+import { badgeName, knownBadgeName } from '../progress/badgeNames'
 
 /*
   The celebration sheet of the calendar (S33, Task 9; plan decisions 3, 11, 16): one sheet for the
@@ -38,13 +39,6 @@ const RING_SIZE = 96
 const RING_STROKE = 8
 const STONE_SIZE = 96
 
-// A badge the web does not know yet (a newer API) has no name to say: it is left out of the lines,
-// and only a sheet led by it alone falls back to the generic name.
-function badgeName(key: string): string | null {
-  const items: Partial<Record<string, { name: string }>> = en.progress.badges.items
-  return items[key]?.name ?? null
-}
-
 export interface CelebrationSheetProps {
   celebration: Celebration
   // GET /progress, when the calendar has it: the chips, the ring, the gardens and the stone.
@@ -61,16 +55,18 @@ export interface CelebrationSheetProps {
 export function CelebrationSheet({ celebration, progress, todayBlocks, tomorrowFirst, gardenExams, tz, onClose }: CelebrationSheetProps) {
   const [motion] = useState(() => !prefersReducedMotion())
   const { lead } = celebration
-  const known = celebration.badges.filter((key) => badgeName(key) !== null)
+  // A badge the web does not know yet (a newer API) has no name to say: it is left out of the lines,
+  // and only a sheet led by it alone falls back to the generic name.
+  const known = celebration.badges.filter((key) => knownBadgeName(key) !== null)
   const leadBadge = lead === 'badge' ? (known[0] ?? celebration.badges[0] ?? null) : null
 
   let title: string
   if (lead === 'stage' && celebration.stageAfter !== null) title = t.stageTitle(en.garden.scene.stage[celebration.stageAfter])
   else if ((lead === 'level' || lead === 'stage') && celebration.level !== null) title = t.levelTitle(celebration.level)
-  else if (lead === 'badge') title = t.badgeTitle((leadBadge === null ? null : badgeName(leadBadge)) ?? en.progress.badges.unknown.name)
+  else if (lead === 'badge') title = t.badgeTitle(leadBadge === null ? en.progress.badges.unknown.name : badgeName(leadBadge))
   else title = t.dayTitle
 
-  const others = known.filter((key) => key !== leadBadge).map((key) => badgeName(key) ?? '')
+  const others = known.filter((key) => key !== leadBadge).map((key) => knownBadgeName(key) ?? '')
   const also = [
     // Unreachable today: rules.ts lets a level always lead, or stageBody states it. Kept for the key.
     celebration.level !== null && lead !== 'level' && lead !== 'stage' ? t.alsoLevel(celebration.level) : null,
@@ -206,9 +202,13 @@ function Gardens({
   tz: string
   motion: boolean
 }) {
+  // Before this Done: the lower level, no new leaves, and none of the stones of the badges this
+  // same Done earned (they are in "after" only).
   const before = useMemo(() => {
     const lower = Math.max(1, beforeLevel(celebration, level))
-    return { ...gardenModel({ progress: { ...progress, level: lower }, exams, timeZone: tz }), leaves: 0 }
+    const model = gardenModel({ progress: { ...progress, level: lower }, exams, timeZone: tz })
+    const stones = model.stones.filter((stone) => !celebration.badges.includes(stone.key))
+    return { ...model, leaves: 0, stones }
   }, [celebration, level, progress, exams, tz])
   const after = useMemo(() => gardenModel({ progress: { ...progress, level }, exams, timeZone: tz }), [level, progress, exams, tz])
   return (

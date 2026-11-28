@@ -1,10 +1,11 @@
 import { useEffect, useId, useMemo, useState, type KeyboardEvent } from 'react'
 import { useProfileTimezone } from '../board/time'
-import { GardenScene } from '../garden/GardenScene'
-import { gardenModel, storyOf, summaryOf, type GardenItem } from '../garden/model'
+import { GardenScene, SWAY_MS } from '../garden/GardenScene'
+import { gardenModel, storyOf, summaryOf, type GardenItem, type GardenModel } from '../garden/model'
 import { useGardenExams } from '../garden/useGardenExams'
 import { en } from '../i18n/en'
 import type { Progress } from './types'
+import { badgeName } from './badgeNames'
 
 /*
   The garden at the top of the progress screen (S33, Task 7). Three sources, no new request:
@@ -16,23 +17,33 @@ import type { Progress } from './types'
   it already has its own loading and error states, for GET /progress.
 
   Tapping a thing selects it and the caption under the scene tells its story; tapping it again, or
-  Escape inside the scene, lets it go. The caption is the garden's only live region.
+  Escape inside the scene, lets it go. With nothing selected the caption is the garden's summary and
+  then the hint (decision 9). The caption is the garden's only live region.
 */
 
-// The opening motion of the screen lasts --duration-ceremony (index.css); after it the scene stops
-// asking for it, so a re-render later (a refresh of GET /progress) never plays it again, and a
-// re-render during it (the exams arriving) does not cut it short.
-const OPENING_MS = 1500
-
-function badgeName(key: string): string {
-  const items: Partial<Record<string, { name: string }>> = en.progress.badges.items
-  return items[key]?.name ?? en.progress.badges.unknown.name
-}
+// The opening motion of the screen lasts as long as the sway (SWAY_MS, decision 11); after it the
+// scene stops asking for it, so a re-render later (a refresh of GET /progress) never plays it again,
+// and a re-render during it (the exams arriving) does not cut it short.
 
 const sameItem = (a: GardenItem, b: GardenItem) =>
   a.kind === b.kind &&
   (a.kind !== 'plant' || b.kind !== 'plant' || a.id === b.id) &&
   (a.kind !== 'stone' || b.kind !== 'stone' || a.key === b.key)
+
+// Whether the garden still has the thing: a badge lost on undo, or a plant gone with a refresh, is
+// not in it any more. The tree is always there; the flowers only while there are flowers or buds.
+function inGarden(model: GardenModel, item: GardenItem): boolean {
+  switch (item.kind) {
+    case 'tree':
+      return true
+    case 'plant':
+      return model.plants.some((p) => p.id === item.id)
+    case 'stone':
+      return model.stones.some((s) => s.key === item.key)
+    case 'flowers':
+      return model.flowers + model.branches + model.buds > 0
+  }
+}
 
 export function GardenCard({ progress }: { progress: Progress }) {
   const titleId = useId()
@@ -40,24 +51,26 @@ export function GardenCard({ progress }: { progress: Progress }) {
   const exams = useGardenExams()
   const model = useMemo(() => gardenModel({ progress, exams, timeZone }), [exams, progress, timeZone])
 
-  const [selected, setSelected] = useState<GardenItem | null>(null)
+  const [chosen, setChosen] = useState<GardenItem | null>(null)
+  // A chosen thing the garden no longer has counts as nothing selected.
+  const selected = chosen !== null && inGarden(model, chosen) ? chosen : null
   const [opening, setOpening] = useState(true)
   useEffect(() => {
     const timer = setTimeout(() => {
       setOpening(false)
-    }, OPENING_MS)
+    }, SWAY_MS)
     return () => {
       clearTimeout(timer)
     }
   }, [])
 
   const onSelect = (item: GardenItem) => {
-    setSelected((current) => (current !== null && sameItem(current, item) ? null : item))
+    setChosen(selected !== null && sameItem(selected, item) ? null : item)
   }
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Escape' && selected !== null) {
       event.stopPropagation()
-      setSelected(null)
+      setChosen(null)
     }
   }
 
@@ -77,7 +90,7 @@ export function GardenCard({ progress }: { progress: Progress }) {
         />
       </div>
       <p role="status" className={selected === null ? 'text-small text-ink-muted' : 'text-body'}>
-        {selected === null ? en.garden.scene.hint : storyOf(model, selected, badgeName)}
+        {selected === null ? `${summaryOf(model)} ${en.garden.scene.hint}` : storyOf(model, selected, badgeName)}
       </p>
     </section>
   )

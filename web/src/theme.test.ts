@@ -156,7 +156,7 @@ const COLOR_NAMES = [
     'now-text', 'danger', 'danger-soft', 'success', 'success-soft', 'warning', 'warning-soft', 'inverse',
     'on-inverse', 'inverse-action', 'inverse-success', 'inverse-danger',
     ...EXAM.flatMap((n) => [`exam-${n}`, `exam-${n}-soft`, `exam-${n}-line`]),
-    'busy', 'busy-soft', 'busy-line', 'scrim', 'track',
+    'busy', 'busy-soft', 'busy-line', 'scrim', 'track', 'pebble',
 ]
 
 const TOKENS = [
@@ -379,6 +379,28 @@ describe('the progress track', () => {
   })
 })
 
+// Pebble (S33 fix wave, items 2 and 3): the fill of what lies on the sand of the garden, an earned
+// stone and a closed bud. On the dusk sand the dark gold-soft and surface-muted were holes; pebble
+// is light enough to stand 3:1 on sand there. In the day it is gold-soft, so the day garden is as it
+// was, and the gold-ink line of a stone carries its shape on the sand.
+describe('pebble', () => {
+  it('in the day is gold-soft', () => {
+    expect(color('pebble')).toBe(color('gold-soft'))
+  })
+
+  it('in the evening stands 3:1 on sand', () => {
+    expect(contrast(duskColor('pebble'), duskColor('sand'))).toBeGreaterThanOrEqual(3)
+  })
+
+  it('in the day the gold-ink line of a stone stands 3:1 on sand', () => {
+    expect(contrast(color('gold-ink'), color('sand'))).toBeGreaterThanOrEqual(3)
+  })
+
+  it('in the evening the line-strong outline of a bud stands 3:1 on it', () => {
+    expect(contrast(duskColor('line-strong'), duskColor('pebble'))).toBeGreaterThanOrEqual(3)
+  })
+})
+
 describe('large text pairs (S34)', () => {
   it.each(LARGE_TEXT_PAIRS)('%s on %s passes 3:1 for large text', (fg, bg) => {
     expect(contrast(color(fg), color(bg))).toBeGreaterThanOrEqual(3)
@@ -405,6 +427,7 @@ const DUSK_VALUES: [string, string][] = [
   ['exam-5', '#7cc6b3'], ['exam-5-soft', '#17302b'], ['exam-5-line', '#2a5249'],
   ['exam-6', '#e494a5'], ['exam-6-soft', '#3a1f25'], ['exam-6-line', '#633844'],
   ['exam-7', '#d0a682'], ['exam-7-soft', '#33261c'], ['exam-7-line', '#574131'],
+  ['pebble', '#ecdcb4'],
 ]
 
 describe('dusk: the block', () => {

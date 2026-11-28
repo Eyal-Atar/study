@@ -1,5 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
+import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { durationText } from '../board/time'
 import { longDate } from '../exam/dates'
@@ -11,7 +12,8 @@ import { taskFixture } from '../test/examFixtures'
 import { createFakeApi, problem, type FakeApi } from '../test/fakeApi'
 import { examFixture } from '../test/onboardingFixtures'
 import { GardenCard } from './GardenCard'
-import { makeProgress } from './testFixtures'
+import { SWAY_MS } from '../garden/GardenScene'
+import { makeBadges, makeProgress } from './testFixtures'
 import type { Progress } from './types'
 
 // The garden on the progress screen (S33, Task 7): three sources (GET /progress, GET /exams and the
@@ -164,5 +166,54 @@ describe('the garden card', () => {
     expect(container.querySelector('.garden-sway')).toBeNull()
     expect(container.querySelector('.garden-leaf-fall')).toBeNull()
     expect(fake.calls('GET', '/me')).toHaveLength(1)
+  })
+
+  // Decision 11: the sway is 1,200ms, and the scene stops asking for it when the sway ends.
+  it('the opening lasts exactly the sway, 1,200ms', () => {
+    expect(SWAY_MS).toBe(1200)
+    vi.useFakeTimers()
+    const { container } = setup()
+    expect(container.querySelector('.garden-sway')).not.toBeNull()
+    act(() => {
+      vi.advanceTimersByTime(SWAY_MS - 1)
+    })
+    expect(container.querySelector('.garden-sway')).not.toBeNull()
+    act(() => {
+      vi.advanceTimersByTime(1)
+    })
+    expect(container.querySelector('.garden-sway')).toBeNull()
+  })
+
+  // Decision 9: with nothing selected the caption is the garden's summary, then the hint.
+  it('with nothing selected, the caption is the summary and then the hint', async () => {
+    setup()
+    await plantButton('Algorithms')
+    expect(caption().textContent).toBe(`${g.scene.summary(g.scene.stage.seed, 2, 1, 4)} ${g.scene.hint}`)
+  })
+
+  // Fix wave 13: a selected thing that leaves the garden (a badge lost on undo, a refresh) is no
+  // selection any more: the caption goes back to the summary and the hint, not a story.
+  it('a selected thing that is no longer in the garden counts as nothing selected', async () => {
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) })
+    const first = makeProgress({ archive: [CLOSED] })
+    const holder: { set?: (p: Progress) => void } = {}
+    function Holder() {
+      const [progress, setProgress] = useState(first)
+      holder.set = setProgress
+      return <GardenCard progress={progress} />
+    }
+    renderBoard(<Holder />, { api: server().api })
+    await plantButton('Algorithms')
+    const week = en.progress.badges.items.iron_will_7.name
+    await user.click(within(garden()).getByRole('button', { name: week }))
+    expect(caption()).toHaveTextContent(week)
+
+    const lost = makeProgress({ archive: [CLOSED], badges: makeBadges() })
+    act(() => {
+      holder.set?.(lost)
+    })
+    expect(within(garden()).queryByRole('button', { name: week })).not.toBeInTheDocument()
+    expect(caption().textContent).toBe(`${g.scene.summary(g.scene.stage.seed, 2, 1, 0)} ${g.scene.hint}`)
+    expect(caption()).toHaveClass('text-small', 'text-ink-muted')
   })
 })

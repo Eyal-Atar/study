@@ -12,7 +12,7 @@ const FSI = String.fromCodePoint(0x2068)
 const PDI = String.fromCodePoint(0x2069)
 const EXAM = 'הסתברות'
 const iso = (name: string) => `${FSI}${name}${PDI}`
-const { scene, story, streak, days, celebrate, badge } = enGarden
+const { scene, story, streak, days, celebrate } = enGarden
 
 describe('enGarden: en.garden', () => {
   it('is part of en', () => {
@@ -31,7 +31,7 @@ describe('enGarden: the binding sentences of the plan', () => {
     ['scene.stage.bonsai', scene.stage.bonsai, 'A bonsai'],
     ['scene.stage.garden', scene.stage.garden, 'A whole zen garden'],
     ['scene.buds', scene.buds, 'Buds'],
-    ['scene.hint', scene.hint, 'Tap anything in the garden for its story.'],
+    ['scene.hint', scene.hint, 'Tap a plant, a stone or the flowers for its story.'],
     [
       'story.tree',
       story.tree('A young tree', 12, 0, false),
@@ -102,9 +102,9 @@ describe('enGarden: the binding sentences of the plan', () => {
     ['celebrate.dayBody', celebrate.dayBody(1, '45 min'), '1 block, 45 min.'],
     ['celebrate.tomorrow', celebrate.tomorrow('09:00'), 'Tomorrow starts at 09:00.'],
     ['celebrate.levelTitle', celebrate.levelTitle(4), 'Level 4'],
-    ['celebrate.levelBody', celebrate.levelBody(4), 'I’ve raked one more ring around your tree.'],
-    ['celebrate.levelBody', celebrate.levelBody(9), 'I’ve raked one more ring around your tree.'],
-    ['celebrate.levelBody', celebrate.levelBody(10), 'Your tree already has all eight rings, so its leaves start over.'],
+    ['celebrate.levelBody', celebrate.levelBody(4), 'I’ve raked one more ring around the plant at the centre.'],
+    ['celebrate.levelBody', celebrate.levelBody(9), 'I’ve raked one more ring around the plant at the centre.'],
+    ['celebrate.levelBody', celebrate.levelBody(10), 'All eight rings are raked, so the leaves start over.'],
     ['celebrate.stageTitle', celebrate.stageTitle('A young tree'), 'Your garden is a young tree now'],
     ['celebrate.stageBody', celebrate.stageBody(11), 'Level 11. Here it is before and after.'],
     ['celebrate.before', celebrate.before, 'Before'],
@@ -115,8 +115,6 @@ describe('enGarden: the binding sentences of the plan', () => {
     ['celebrate.alsoDay', celebrate.alsoDay, 'And that’s every block for today.'],
     ['celebrate.xpToday', celebrate.xpToday('60'), '+60 XP today'],
     ['celebrate.streak', celebrate.streak(5), '5-day streak'],
-    ['badge.towards', badge.towards('3', '10'), '3 of 10'],
-    ['badge.earnedOn', badge.earnedOn('13 Nov'), 'Earned 13 Nov'],
   ])('%s = "%s"', (_key, text, expected) => {
     expect(text).toBe(expected)
   })
@@ -185,8 +183,6 @@ const TITLES = [
   streak.longest('15 days'),
   celebrate.xpToday('60'),
   celebrate.streak(5),
-  badge.towards('3', '10'),
-  badge.earnedOn('13 Nov'),
 ]
 
 const SENTENCES = [

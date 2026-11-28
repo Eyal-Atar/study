@@ -10,6 +10,7 @@ import {
 import { en } from '../i18n/en'
 import { Button } from './Button'
 import { IconButton } from './IconButton'
+import { useModalOpen } from './modalOpen'
 import { cx, FOCUS_RING, ICON_STROKE } from './styles'
 import { DEFAULT_TIMEOUT_MS, ToastContext, UNDO_TIMEOUT_MS, useToastContext, type Content, type ToastApi } from './useToast'
 
@@ -56,16 +57,24 @@ const TONES: Record<NonNullable<Content['options']['tone']>, { icon: IconType | 
 // z-[60], one layer above the scrim of a Dialog (z-50): an undo toast that is on the screen when a
 // dialog opens stays visible and pressable instead of ending under the scrim. The scale has no
 // step for it, hence the arbitrary value.
+// While a modal Dialog is open (a sheet, on a phone, covers the bottom half), the stack sits at the
+// top of the screen instead, inside the safe area, so it never covers the sheet's body; nothing else
+// about the toasts changes, and Undo stays pressable (S33 fix wave 4).
 // A toast floats, so it is one of the few things with the shadow. It has no border: the dark is
 // its edge on any background. React Aria's toast (1.22) has no
 // data-entering state, so it appears without an enter animation rather than with a hand-made one.
 export function ToastRegion() {
   const { queue } = useToastContext()
+  const top = useModalOpen()
   return (
     <AriaToastRegion
       queue={queue}
       aria-label={en.common.notifications}
-      className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+6rem)] z-[60] mx-auto flex max-w-md flex-col gap-2 outline-none lg:bottom-4"
+      data-placement={top ? 'top' : 'bottom'}
+      className={cx(
+        'fixed inset-x-4 z-[60] mx-auto flex max-w-md flex-col gap-2 outline-none',
+        top ? 'top-[calc(env(safe-area-inset-top)+1rem)]' : 'bottom-[calc(env(safe-area-inset-bottom)+6rem)] lg:bottom-4',
+      )}
     >
       {({ toast }) => {
         const { options } = toast.content

@@ -1,8 +1,9 @@
 import { X } from './icons'
-import { useId, type ReactNode } from 'react'
+import { useEffect, useId, type ReactNode } from 'react'
 import { Dialog as AriaDialog, Heading, Modal, ModalOverlay } from 'react-aria-components'
 import { en } from '../i18n/en'
 import { IconButton } from './IconButton'
+import { holdModal } from './modalOpen'
 import { cx, ICON_STROKE } from './styles'
 
 export interface DialogProps {
@@ -81,6 +82,8 @@ export function Dialog({
   figure,
 }: DialogProps) {
   const dismissable = isDismissable ?? role === 'dialog'
+  // While it is open the toasts move to the top of the screen (toast.tsx), off the sheet's body.
+  useEffect(() => (isOpen ? holdModal() : undefined), [isOpen])
   // React Aria links a description by itself only for an alertdialog, so it is linked here for both.
   const descriptionId = useId()
   const body = (

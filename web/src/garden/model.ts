@@ -46,8 +46,11 @@ export interface GardenStone {
 export interface GardenModel {
   stage: Stage
   level: number
-  // progress.max_level, so a text can tell the top level apart (the leaves stop growing there).
+  // progress.max_level.
   maxLevel: number
+  // The top: level >= max_level, or the server has no next level. The leaves are all there and the
+  // tree's sentence says it is the top level.
+  atTop: boolean
   leaves: number
   rings: number
   plants: GardenPlant[]
@@ -155,6 +158,7 @@ export function gardenModel(input: { progress: Progress; exams: GardenExam[]; ti
     stage: stageFor(progress.level),
     level: progress.level,
     maxLevel: progress.max_level,
+    atTop,
     leaves,
     rings: Math.min(Math.max(progress.level - 1, 0), MAX_RINGS),
     plants: [...live, ...blooms].slice(0, MAX_PLANTS),
@@ -191,7 +195,7 @@ function plantStory(plant: GardenPlant): string {
 export function storyOf(model: GardenModel, item: GardenItem, badgeName: (key: string) => string): string {
   switch (item.kind) {
     case 'tree':
-      return text.story.tree(text.scene.stage[model.stage], model.level, model.leaves, model.level >= model.maxLevel)
+      return text.story.tree(text.scene.stage[model.stage], model.level, model.leaves, model.atTop)
     case 'plant': {
       const plant = model.plants.find((p) => p.id === item.id)
       return plant === undefined ? summaryOf(model) : plantStory(plant)
