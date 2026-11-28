@@ -76,6 +76,11 @@ function open(blocks: Block[], blockId = RUNNING.id) {
   return opened
 }
 
+// The statuses of the screen itself. The shell has one more, outside main: the offline announcer (S38).
+function inMain() {
+  return within(screen.getByRole('main'))
+}
+
 async function heading() {
   return screen.findByRole('heading', { level: 1, name: RUNNING.task_title })
 }
@@ -136,8 +141,8 @@ describe('FocusPage, a block in focus', () => {
     expect(ringCentre().getByText(en.focus.unit(65))).toBeInTheDocument()
     expect(screen.getByText(en.focus.until('12:30'))).toBeInTheDocument()
     expect(screen.getByText(en.focus.meta(RUNNING.exam_name, en.board.kinds.learn))).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent(/./)
-    expect(en.focus.running).toContain(screen.getAllByRole('status')[0]?.textContent)
+    expect(inMain().getByRole('status')).toHaveTextContent(/./)
+    expect(en.focus.running).toContain(inMain().getAllByRole('status')[0]?.textContent)
     expect(screen.queryByRole('banner')).not.toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: en.shell.mainNav })).not.toBeInTheDocument()
     // Done is there but not the primary action while the block runs; one primary at most.
@@ -166,7 +171,7 @@ describe('FocusPage, a block in focus', () => {
     writeSession(USER_ID, fiveSession())
     open([RUNNING, LATER])
     await heading()
-    const status = screen.getByRole('status')
+    const status = inMain().getByRole('status')
     expect(status).toHaveTextContent(en.focus.fiveTask.learn)
     expect(ringCentre().getByText('5')).toBeInTheDocument()
     expect(ringCentre().getByText(en.focus.ofFive)).toBeInTheDocument()
@@ -177,7 +182,7 @@ describe('FocusPage, a block in focus', () => {
     advance(FIVE_MINUTES_MS)
     expect(status).toHaveTextContent(en.focus.fiveDone('12:30'))
     // The same element: the live region speaks once, and the ring did not jump back.
-    expect(screen.getByRole('status')).toBe(status)
+    expect(inMain().getByRole('status')).toBe(status)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual(buttons)
     expect(Number(meter.getAttribute('aria-valuenow'))).toBeGreaterThan(before)
@@ -197,13 +202,13 @@ describe('FocusPage, a block in focus', () => {
     await heading()
     expect(ringCentre().getByText('2')).toBeInTheDocument()
     expect(ringCentre().getByText(en.focus.ofFive)).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent(en.focus.fiveTask.learn)
+    expect(inMain().getByRole('status')).toHaveTextContent(en.focus.fiveTask.learn)
     second.unmount()
 
     vi.setSystemTime(RUNNING_ENDS + MINUTE)
     open([RUNNING, LATER])
     await heading()
-    expect(screen.getByRole('status')).toHaveTextContent(en.focus.over)
+    expect(inMain().getByRole('status')).toHaveTextContent(en.focus.over)
     const done = screen.getByRole('button', { name: en.board.completeLabel(blockName(RUNNING)) })
     expect(isPrimary(done)).toBe(true)
     expect(screen.getAllByRole('button').filter(isPrimary)).toHaveLength(1)
@@ -238,7 +243,7 @@ describe('FocusPage, Done', () => {
     const { fake, router } = open([a, b, RUNNING, LATER])
     await heading()
     await user.click(screen.getByRole('button', { name: en.board.completeLabel(blockName(RUNNING)) }))
-    const status = await screen.findByRole('status')
+    const status = await inMain().findByRole('status')
     await waitFor(() => {
       expect(status).toHaveTextContent(en.calendar.archi.breakTitle)
     })
@@ -281,7 +286,7 @@ describe('FocusPage, the break and the arrow', () => {
     await heading()
     await user.click(screen.getByRole('button', { name: en.board.completeLabel(blockName(RUNNING)) }))
     await waitFor(() => {
-      expect(screen.getByRole('status')).toHaveTextContent(en.calendar.archi.breakTitle)
+      expect(inMain().getByRole('status')).toHaveTextContent(en.calendar.archi.breakTitle)
     })
     await waitFor(() => {
       expect(archiMayInterrupt(Date.now())).toBe(false)
@@ -352,7 +357,7 @@ describe('FocusPage, a Done that fails', () => {
     await waitFor(() => {
       expect(stored()?.startedAt).toBe(NOW - 20 * MINUTE)
     })
-    expect(en.focus.running).toContain(screen.getByRole('status').textContent)
+    expect(en.focus.running).toContain(inMain().getByRole('status').textContent)
     expect(screen.getByRole('button', { name: en.board.completeLabel(blockName(RUNNING)) })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe(focusPath(RUNNING.id))
     expect(archiMayInterrupt(Date.now())).toBe(true)
@@ -381,7 +386,7 @@ describe('FocusPage, the focus between views', () => {
     const h1 = await heading()
     await user.click(screen.getByRole('button', { name: en.board.completeLabel(blockName(RUNNING)) }))
     await waitFor(() => {
-      expect(screen.getByRole('status')).toHaveTextContent(en.calendar.archi.breakTitle)
+      expect(inMain().getByRole('status')).toHaveTextContent(en.calendar.archi.breakTitle)
     })
     await waitFor(() => {
       expect(document.activeElement).toBe(h1)
@@ -405,7 +410,7 @@ describe('FocusPage, a block that cannot be focused', () => {
     writeSession(USER_ID, fullSession())
     open([{ ...RUNNING, status: 'done', state: 'done' }])
     await heading()
-    expect(screen.getByRole('status')).toHaveTextContent(en.focus.alreadyDone)
+    expect(inMain().getByRole('status')).toHaveTextContent(en.focus.alreadyDone)
     expect(isPrimary(backButton())).toBe(true)
     expect(screen.queryByRole('meter')).not.toBeInTheDocument()
     await waitFor(() => {
@@ -417,7 +422,7 @@ describe('FocusPage, a block that cannot be focused', () => {
     const ended = { ...RUNNING, state: 'overdue' as const, starts_at: '2026-11-24T06:00:00Z', ends_at: '2026-11-24T07:00:00Z' }
     const { fake } = open([ended])
     await heading()
-    expect(screen.getByRole('status')).toHaveTextContent(en.focus.ended)
+    expect(inMain().getByRole('status')).toHaveTextContent(en.focus.ended)
     const done = screen.getByRole('button', { name: en.board.completeLabel(blockName(ended)) })
     expect(isPrimary(done)).toBe(true)
     expect(isPrimary(backButton())).toBe(false)
@@ -434,7 +439,7 @@ describe('FocusPage, a block that cannot be focused', () => {
     // A block of another study day in GET /today (the server's day turned while the screen was open).
     fake.on('GET /today', makeToday([tomorrow], { date: CAL_TODAY }))
     await screen.findByRole('heading', { level: 1, name: tomorrow.task_title })
-    expect(screen.getByRole('status')).toHaveTextContent(en.focus.notToday)
+    expect(inMain().getByRole('status')).toHaveTextContent(en.focus.notToday)
     expect(isPrimary(backButton())).toBe(true)
     expect(stored()).toBeNull()
   })

@@ -1,6 +1,7 @@
 import { CircleAlert, type IconType } from './icons'
 import type { ReactNode } from 'react'
 import { en } from '../i18n/en'
+import { useOnline } from '../offline/online'
 import { Button } from './Button'
 import { cx, ICON_STROKE } from './styles'
 
@@ -33,7 +34,19 @@ const LINE_WIDTHS = ['w-full', 'w-5/6', 'w-2/3', 'w-3/4'] as const
 // Loading, in the shape of the content, so the screen does not jump when it arrives. Never a
 // spinner over the whole screen. The label is for screen readers only (role="status" announces it
 // politely); the drawing is hidden from them.
+// Without a network (S38) nothing is loading: a query with no saved data is paused, not failed, and
+// does not end until the connection is back, so a skeleton that pulses forever would be a lie. In
+// its place, in the same status, one sentence says the data is not on this device. The network alone
+// is asked (not useReadOnly), so this file needs no session around it.
 export function LoadingState({ shape = 'list', rows = 3, label = en.common.loading }: LoadingStateProps) {
+  const online = useOnline()
+  if (!online) {
+    return (
+      <div role="status">
+        <p className="text-small text-ink-muted">{en.offline.notSaved}</p>
+      </div>
+    )
+  }
   const indexes = Array.from({ length: Math.max(0, Math.floor(rows)) }, (_, index) => index)
   return (
     <div role="status">

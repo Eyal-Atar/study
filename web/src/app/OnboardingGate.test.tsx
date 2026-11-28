@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { codeText } from '../i18n/codes'
@@ -115,7 +115,8 @@ describe('OnboardingGate', () => {
     const { router } = open(fake, '/today')
     // The shell is up (the auth check passed), and the gate holds the screen.
     expect(await screen.findByRole('banner')).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent(en.common.loading)
+    // The gate's own status, in main. The shell has one more outside it: the offline announcer (S38).
+    expect(within(screen.getByRole('main')).getByRole('status')).toHaveTextContent(en.common.loading)
     expect(router.state.location.pathname).toBe('/today')
   })
 

@@ -6,6 +6,8 @@ import { useBloomListener } from '../garden/bloomPlay'
 import { en } from '../i18n/en'
 import { InstallHint } from '../notifications/InstallHint'
 import { PushSync } from '../notifications/PushSync'
+import { OfflineAnnouncer } from '../offline/OfflineAnnouncer'
+import { OfflineNotice } from '../offline/OfflineNotice'
 import { ReplanOfferProvider } from '../plan/ReplanOffer'
 import { FOCUS_PATH } from '../session/focusSession'
 import { cx, FOCUS_RING_NATIVE, ICON_STROKE } from '../ui/styles'
@@ -61,6 +63,8 @@ function destinationClass({ isActive }: { isActive: boolean }) {
 // ReplanOfferProvider: any screen can offer a replan (useReplanOffer); TimezoneSync keeps the
 // profile's timezone in step with the browser (spec 7.3); PushSync sends this browser's push
 // subscription again (S16), and InstallHint explains, once, how iOS gets reminders.
+// Without a network (S38) the shell says so above every ordinary screen (OfflineNotice), and tells a
+// screen reader once (OfflineAnnouncer).
 export function AppShell() {
   const onboarding = useLocation().pathname.startsWith('/onboarding')
   const main = useRef<HTMLElement>(null)
@@ -172,12 +176,18 @@ export function AppShell() {
                 // wrapper takes no room when the hint is not shown). One place in the tree for both,
                 // so the hint does not mount again (and count as seen) when the frame changes.
                 <div className={frame.fullBleed ? 'px-page pt-3 empty:hidden' : undefined}>
+                  {/* S38: above an ordinary screen. A full-bleed screen (the calendar) places the
+                      notice itself, under its own header. The slot is kept either way, so the hint
+                      after it stays the same child. */}
+                  {frame.fullBleed ? null : <OfflineNotice className="mb-4" />}
                   <InstallHint />
                 </div>
               )}
               <Outlet />
             </main>
             <ToastRegion />
+            {/* S38: one live region for the life of the shell, on every screen, the bare one too. */}
+            <OfflineAnnouncer />
           </div>
         </ShellToolbarSlot>
       </ShellFrameRequest>

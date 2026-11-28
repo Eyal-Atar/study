@@ -80,6 +80,11 @@ function gridBlock(block: Block, range: string, state: string | null) {
 const runningBlock = () => gridBlock(RUNNING, '11:00–12:00', en.board.states.in_progress)
 const laterBlock = () => gridBlock(LATER, '14:00–15:00', null)
 
+// The statuses of the screen itself. The shell has one more, outside main: the offline announcer (S38).
+function inMain() {
+  return within(screen.getByRole('main'))
+}
+
 async function sheet() {
   return within(await screen.findByRole('dialog', { name: en.calendar.sheets.actions.title }))
 }
@@ -171,7 +176,7 @@ describe('from the calendar into focus and out', () => {
     await user.click(await laterBlock())
     await user.click((await sheet()).getByRole('button', { name: en.focus.fiveLabel(blockName(LATER)) }))
     await heading(LATER)
-    const status = screen.getByRole('status')
+    const status = inMain().getByRole('status')
     expect(status).toHaveTextContent(en.focus.fiveTask.learn)
     // The clock runs on a little while the test waits for the screen: a full hour from the start.
     const endsAt = stored()?.endsAt
@@ -182,7 +187,7 @@ describe('from the calendar into focus and out', () => {
         vi.advanceTimersByTime(MINUTE)
       })
     }
-    expect(screen.getByRole('status')).toHaveTextContent(en.focus.fiveDone('12:25'))
+    expect(inMain().getByRole('status')).toHaveTextContent(en.focus.fiveDone('12:25'))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(stored()?.endsAt).toBe(endsAt)
   })

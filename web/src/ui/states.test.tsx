@@ -1,7 +1,8 @@
-import { render, screen, within } from '@testing-library/react'
+import { onlineManager } from '@tanstack/react-query'
+import { act, render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { Inbox, TeaCupIcon } from './icons'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { en } from '../i18n/en'
 import { Button } from './Button'
 import { EmptyState, ErrorState, LoadingState, Skeleton } from './states'
@@ -65,6 +66,47 @@ describe('LoadingState', () => {
   it('takes another label', () => {
     render(<LoadingState label="Saving…" />)
     expect(screen.getByRole('status')).toHaveTextContent('Saving…')
+  })
+})
+
+describe('LoadingState without a network (S38)', () => {
+  afterEach(() => {
+    onlineManager.setOnline(true)
+  })
+
+  it.each(['list', 'card', 'text'] as const)('in place of the %s skeleton it says the data is not saved on the device', (shape) => {
+    onlineManager.setOnline(false)
+    render(<LoadingState shape={shape} rows={4} label="Saving…" />)
+
+    const status = screen.getByRole('status')
+    // The sentence alone, for everyone: nothing is loading, so there is no "Loading…" and no pulse.
+    expect(status.textContent).toBe(en.offline.notSaved)
+    const text = within(status).getByText(en.offline.notSaved)
+    expect(text.tagName).toBe('P')
+    expect(text).toHaveClass('text-small', 'text-ink-muted')
+    expect(text).not.toHaveClass('sr-only')
+    expect(text.closest('[aria-hidden="true"]')).toBeNull()
+    expect(skeletonRows(status)).toHaveLength(0)
+    expect(status.querySelector('[data-skeleton-card]')).toBeNull()
+    expect(status.querySelector('.animate-pulse')).toBeNull()
+  })
+
+  it('follows the network while it is on the screen', () => {
+    render(<LoadingState />)
+    expect(screen.getByRole('status').textContent).toBe(en.common.loading)
+    expect(skeletonRows(screen.getByRole('status'))).toHaveLength(3)
+
+    act(() => {
+      onlineManager.setOnline(false)
+    })
+    expect(screen.getByRole('status').textContent).toBe(en.offline.notSaved)
+    expect(skeletonRows(screen.getByRole('status'))).toHaveLength(0)
+
+    act(() => {
+      onlineManager.setOnline(true)
+    })
+    expect(screen.getByRole('status').textContent).toBe(en.common.loading)
+    expect(skeletonRows(screen.getByRole('status'))).toHaveLength(3)
   })
 })
 

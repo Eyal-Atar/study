@@ -1,8 +1,12 @@
 import type { Session } from '@supabase/auth-js'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { onlineManager, QueryClient } from '@tanstack/react-query'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { todayKey } from '../board/api'
 import { en } from '../i18n/en'
+import { focusPath } from '../session/focusSession'
+import { makeToday } from '../test/boardFixtures'
 import { COMPLETED_AT, examFixture, meFixture } from '../test/onboardingFixtures'
 import { makeProgress } from '../progress/testFixtures'
 import { SproutIcon } from '../ui/icons'
@@ -204,6 +208,110 @@ describe('AppShell', () => {
     expect(screen.queryByRole('button', { name: en.shell.profile })).not.toBeInTheDocument()
     // The skip link is part of every screen.
     expect(screen.getByRole('link', { name: en.shell.skipToContent })).toBeInTheDocument()
+  })
+})
+
+describe('without a network (S38)', () => {
+  afterEach(() => {
+    onlineManager.setOnline(true)
+  })
+
+  function goOffline() {
+    act(() => {
+      onlineManager.setOnline(false)
+    })
+  }
+
+  // The place the shell keeps above every screen, for its own notices (the install hint, and this one).
+  function shellNotices() {
+    return screen.getByRole('main').firstElementChild
+  }
+
+  it('an ordinary screen has the offline notice in main, before the screen itself', async () => {
+    const auth = createFakeAuth(fakeSession())
+    const api = createFakeApi().on('GET /me', meFixture({ onboarding_completed_at: COMPLETED_AT })).api
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    renderRoute('/exams', { auth, api, queryClient })
+    const heading = await screen.findByRole('heading', { level: 1, name: en.exam.list.title })
+    expect(document.querySelector('[data-offline-notice]')).toBeNull()
+    // The calendar was read a moment ago; the exams screen itself never asks for it.
+    queryClient.setQueryData(todayKey('user-a'), makeToday())
+
+    goOffline()
+
+    const notice = document.querySelector('[data-offline-notice]')
+    expect(notice).toHaveTextContent(/^You’re offline\. I’m showing your calendar as of \d{2}:\d{2}\. You can act again once the connection is back\.$/)
+    expect(shellNotices()).toContainElement(notice as HTMLElement)
+    expect(screen.getByRole('main')).toContainElement(notice as HTMLElement)
+    expect((notice as HTMLElement).compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // One notice, and the bar and the navigation are still there: reading goes on.
+    expect(document.querySelectorAll('[data-offline-notice]')).toHaveLength(1)
+    expect(screen.getByRole('navigation', { name: en.shell.mainNav })).toBeInTheDocument()
+
+    act(() => {
+      onlineManager.setOnline(true)
+    })
+    expect(document.querySelector('[data-offline-notice]')).toBeNull()
+  })
+
+  it('with nothing of the calendar saved, the notice gives no time', async () => {
+    open('/settings')
+    await screen.findByRole('heading', { level: 1, name: en.settings.title })
+
+    goOffline()
+
+    expect(shellNotices()?.querySelector('[data-offline-notice]')).toHaveTextContent(en.offline.noticeNoTime)
+  })
+
+  it('on the calendar, which fills the frame, the shell shows no notice of its own; on the next ordinary screen it does', async () => {
+    const { router } = open('/calendar')
+    await screen.findByRole('heading', { level: 1, name: en.board.today })
+    // Full bleed: main has no page width.
+    expect(screen.getByRole('main')).not.toHaveClass('max-w-3xl')
+
+    goOffline()
+
+    // The calendar places the notice itself, under its own header (Task 5).
+    expect(shellNotices()).toBeEmptyDOMElement()
+
+    await act(async () => {
+      await router.navigate('/settings')
+    })
+    await screen.findByRole('heading', { level: 1, name: en.settings.title })
+    expect(shellNotices()?.querySelector('[data-offline-notice]')).toBeInTheDocument()
+  })
+
+  it('the bare focus screen has no notice', async () => {
+    open(focusPath('block-1'))
+    await waitFor(() => {
+      expect(screen.getByRole('main')).toBeInTheDocument()
+    })
+    // Bare: no bar and no navigation.
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument()
+
+    goOffline()
+
+    expect(document.querySelector('[data-offline-notice]')).toBeNull()
+  })
+
+  it.each([
+    ['an ordinary screen', '/exams'],
+    ['the calendar', '/calendar'],
+    ['the bare focus screen', focusPath('block-1')],
+  ])('%s has the one announcer, which says it when the network goes', async (_, path) => {
+    open(path)
+    await waitFor(() => {
+      expect(screen.getByRole('main')).toBeInTheDocument()
+    })
+    expect(screen.queryByText(en.offline.announce)).not.toBeInTheDocument()
+
+    goOffline()
+
+    const announcer = await screen.findByText(en.offline.announce)
+    expect(announcer).toHaveAttribute('role', 'status')
+    expect(announcer).toHaveClass('sr-only')
+    // Outside main: it belongs to the frame, and a change of screen does not replace it.
+    expect(screen.getByRole('main')).not.toContainElement(announcer)
   })
 })
 

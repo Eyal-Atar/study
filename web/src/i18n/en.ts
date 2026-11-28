@@ -14,6 +14,7 @@ import { enEntry } from './enEntry'
 import { enExams } from './enExams'
 import { enFocus } from './enFocus'
 import { enGarden } from './enGarden'
+import { enOffline } from './enOffline'
 import { enOnboardingFlow } from './enOnboardingFlow'
 import { enPwa } from './enPwa'
 import { enSettingsScreen } from './enSettingsScreen'
@@ -742,6 +743,8 @@ export const en = {
   },
   // S16: the service worker's texts live in enPwa.ts, so sw.js does not bundle this file.
   pwa: enPwa,
+  // S38: without a network, the read-only state; texts in enOffline.ts.
+  offline: enOffline,
   // S19: the progress board (web/src/progress).
   progress: {
     title: 'Progress',
