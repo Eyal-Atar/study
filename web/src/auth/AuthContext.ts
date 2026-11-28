@@ -5,7 +5,13 @@ import { createContext, useContext } from 'react'
 // Redirect URLs of the Supabase project.
 export const AUTH_CALLBACK_PATH = '/auth/callback'
 
-export type AuthState = { status: 'loading' } | { status: 'signed_out' } | { status: 'signed_in'; session: Session }
+export type AuthState =
+  | { status: 'loading' }
+  | { status: 'signed_out' }
+  | { status: 'signed_in'; session: Session }
+  // No network, and the session could not be read (an expired token that cannot be refreshed offline):
+  // the snapshot's owner, read only. Never a Session: nothing here can call the API.
+  | { status: 'offline'; userId: string }
 
 // Property syntax rather than methods, so `const { signOut } = useAuth()` is not an unbound method.
 export type AuthValue = AuthState & {

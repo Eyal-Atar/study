@@ -45,3 +45,10 @@ it('shows the screen to a signed-in user', () => {
   expect(screen.getByText('inside')).toBeInTheDocument()
   expect(screen.queryByRole('status')).not.toBeInTheDocument()
 })
+
+it('shows the screen offline, as the snapshot owner, and does not send to the login screen', () => {
+  const router = renderWith({ status: 'offline', userId: 'u1' })
+
+  expect(screen.getByText('inside')).toBeInTheDocument()
+  expect(router.state.location.pathname).toBe('/')
+})

@@ -16,5 +16,6 @@ export function RequireAuth() {
     )
   }
   if (auth.status === 'signed_out') return <Navigate to="/login" replace />
+  // signed_in, or offline: the snapshot owner sees the last calendar, read only.
   return <Outlet />
 }

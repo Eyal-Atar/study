@@ -33,7 +33,8 @@ const REFRESH_MS = 60_000
 
 export function useBoardUserId(): string | null {
   const auth = useAuth()
-  return auth.status === 'signed_in' ? auth.session.user.id : null
+  // Offline: the snapshot owner, so the restored cache keys match.
+  return auth.status === 'signed_in' ? auth.session.user.id : auth.status === 'offline' ? auth.userId : null
 }
 
 export function useToday(): UseQueryResult<Today, ApiError> {

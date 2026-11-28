@@ -53,7 +53,8 @@ export interface MePatchResponse extends Me {
 // The id of the signed-in user, or null. Every query key holds it, so a different user never sees a cached answer.
 export function useUserId(): string | null {
   const auth = useAuth()
-  return auth.status === 'signed_in' ? auth.session.user.id : null
+  // Offline: the snapshot owner, so the restored cache keys match.
+  return auth.status === 'signed_in' ? auth.session.user.id : auth.status === 'offline' ? auth.userId : null
 }
 
 export function meKey(userId: string | null) {
