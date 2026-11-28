@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query'
+import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clearSnapshot,
@@ -132,6 +132,30 @@ describe('snapshot', () => {
     expect(fresh.getQueryData(['board', 'u1', 'today'])).toEqual({ a: 1 })
     expect(fresh.getQueryState(['board', 'u1', 'today'])?.dataUpdatedAt).toBe(savedAt)
     expect(readSnapshotOwner()).toBe('u1')
+    fresh.clear()
+  })
+
+  it('keeps restored queries that nothing observes for longer than the default 5 minutes', () => {
+    startSnapshot(client, () => 'u1')
+    client.setQueryData(['board', 'u1', 'plan', 'a', 'b'], 'p')
+    vi.advanceTimersByTime(WRITE_DELAY_MS)
+    const fresh = new QueryClient()
+    restoreSnapshot(fresh)
+    vi.advanceTimersByTime(10 * 60 * 1000)
+    expect(fresh.getQueryData(['board', 'u1', 'plan', 'a', 'b'])).toBe('p')
+    fresh.clear()
+  })
+
+  it('keeps a restored query after an observer with the default gcTime came and went', () => {
+    startSnapshot(client, () => 'u1')
+    client.setQueryData(['board', 'u1', 'plan', 'a', 'b'], 'p')
+    vi.advanceTimersByTime(WRITE_DELAY_MS)
+    const fresh = new QueryClient()
+    restoreSnapshot(fresh)
+    const observer = new QueryObserver(fresh, { queryKey: ['board', 'u1', 'plan', 'a', 'b'], queryFn: () => 'p', staleTime: Infinity })
+    observer.subscribe(() => undefined)()
+    vi.advanceTimersByTime(10 * 60 * 1000)
+    expect(fresh.getQueryData(['board', 'u1', 'plan', 'a', 'b'])).toBe('p')
     fresh.clear()
   })
 

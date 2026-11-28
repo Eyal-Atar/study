@@ -88,7 +88,9 @@ export function restoreSnapshot(client: QueryClient, now: number = Date.now()): 
       clearSnapshot()
       return null
     }
-    hydrate(client, stored.state)
+    // gcTime of the whole max age: an unobserved week must survive a long offline session. Observers
+    // cannot shorten it (query-core's updateGcTime keeps the longest).
+    hydrate(client, stored.state, { defaultOptions: { queries: { gcTime: MAX_AGE_MS } } })
     return stored.userId
   } catch {
     clearSnapshot()
