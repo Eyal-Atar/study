@@ -18,6 +18,8 @@ export interface TasksSheetProps {
   // sheet of S45 waits for it to close).
   open: boolean
   onOpenChange: (open: boolean) => void
+  // Without a network (S38): the checks and the two buttons are disabled; the bar still opens the list.
+  readOnly?: boolean
 }
 
 const counts = (block: Block) => block.state !== 'missed' && block.state !== 'skipped'
@@ -25,7 +27,16 @@ const counts = (block: Block) => block.state !== 'missed' && block.state !== 'sk
 // The bar above the bottom navigation on a phone (the .peek of the prototype), and the sheet it
 // opens: today's blocks, then the two ways to change the day. The bar says what is left; the sheet
 // is the same list as the side panel's.
-export function TasksSheet({ todayData, tz, onFreeTime, onMarkBusy, onOpenBlock, open, onOpenChange: setOpen }: TasksSheetProps) {
+export function TasksSheet({
+  todayData,
+  tz,
+  onFreeTime,
+  onMarkBusy,
+  onOpenBlock,
+  open,
+  onOpenChange: setOpen,
+  readOnly = false,
+}: TasksSheetProps) {
   const counted = todayData.blocks.filter(counts)
   const left = counted.filter((block) => block.status === 'planned')
   const minutes = left.reduce((sum, block) => sum + blockMinutes(block), 0)
@@ -54,16 +65,21 @@ export function TasksSheet({ todayData, tz, onFreeTime, onMarkBusy, onOpenBlock,
       </div>
       <Dialog title={en.today.blocks} isOpen={open} onOpenChange={setOpen}>
         <div className="flex flex-col gap-4">
-          <TodayTasks blocks={counted} tz={tz} onOpenBlock={(block) => {
+          <TodayTasks
+            blocks={counted}
+            tz={tz}
+            readOnly={readOnly}
+            onOpenBlock={(block) => {
               setOpen(false)
               onOpenBlock(block)
-            }} />
+            }}
+          />
           <div className="flex flex-col gap-2">
-            <Button variant="secondary" className="w-full" onPress={then(onFreeTime)}>
+            <Button variant="secondary" className="w-full" isDisabled={readOnly} onPress={then(onFreeTime)}>
               <FreeTimeIcon size={18} className="text-brand-strong" />
               {en.calendar.side.freeTime}
             </Button>
-            <Button variant="secondary" className="w-full" onPress={then(onMarkBusy)}>
+            <Button variant="secondary" className="w-full" isDisabled={readOnly} onPress={then(onMarkBusy)}>
               <CalendarClock aria-hidden="true" size={18} strokeWidth={ICON_STROKE} className="text-ink-muted" />
               {en.calendar.side.markBusy}
             </Button>

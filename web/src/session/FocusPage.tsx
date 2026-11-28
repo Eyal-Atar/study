@@ -12,6 +12,7 @@ import { formatTime, useProfileTimezone } from '../board/time'
 import type { Block } from '../board/types'
 import { noteArchiInterrupt } from '../calendar/archi'
 import { en } from '../i18n/en'
+import { useReadOnly } from '../offline/useReadOnly'
 import { nextToday } from '../today/chooseNext'
 import { Button } from '../ui/Button'
 import { examColor } from '../ui/examColor'
@@ -108,6 +109,8 @@ export function FocusPage() {
   const userId = useBoardUserId()
   const tz = useProfileTimezone()
   const actions = useBlockActions()
+  // Without a network (S38) Done waits, and says so; the session stays on the device meanwhile.
+  const readOnly = useReadOnly()
   const queryClient = useQueryClient()
   const today = useToday()
   const session = useFocusSession()
@@ -181,7 +184,7 @@ export function FocusPage() {
   }
 
   function done() {
-    if (finished !== null || block === undefined || today.data === undefined) return
+    if (readOnly || finished !== null || block === undefined || today.data === undefined) return
     const at = Date.now()
     // Before the call, while the block is still planned in the cache.
     const brk = breakAfterFocus(today.data.blocks, block, own ?? newSession(block, 'full', at), at)
@@ -232,7 +235,7 @@ export function FocusPage() {
       <Button
         variant={variant}
         aria-label={en.board.completeLabel(blockName(block))}
-        isDisabled={actions.pending(block.id)}
+        isDisabled={readOnly || actions.pending(block.id)}
         onPress={done}
       >
         {en.board.complete}
@@ -323,6 +326,7 @@ export function FocusPage() {
             on it when the time runs out (I2). */}
         <div className="flex w-full flex-col gap-2">
           {hasDone ? doneButton(view === 'over' || view === 'ended' ? 'primary' : 'secondary') : null}
+          {hasDone && readOnly && block !== undefined ? <p className="text-small text-ink-muted">{en.offline.focusDone}</p> : null}
           {view === 'five' || view === 'full' ? (
             <Button variant="quiet" onPress={stop}>
               {en.focus.stop}

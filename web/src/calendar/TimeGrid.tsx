@@ -57,6 +57,9 @@ export interface TimeGridProps {
   onCreateBusy: (range: BusyRange) => void
   // A swipe across empty space on a phone: 1 is the next day.
   onSwipeDay?: (direction: 1 | -1) => void
+  // Without a network (S38): no move, no swipe and no new busy time. A press on a block still opens
+  // it, and a swipe across a day on a phone still goes to the next day (navigation).
+  readOnly?: boolean
 }
 
 interface Placed<T> {
@@ -102,6 +105,7 @@ export function TimeGrid({
   onSwipeAction,
   onCreateBusy,
   onSwipeDay,
+  readOnly = false,
 }: TimeGridProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const reducedMotion = useReducedMotion()
@@ -112,12 +116,26 @@ export function TimeGrid({
     hourPx,
     tz,
     now,
-    onCreateBusy,
+    // Read only, a press on empty space makes no busy time (a touch press would ask for it on release).
+    onCreateBusy: readOnly ? () => undefined : onCreateBusy,
     onSwipeDay,
     blocked: () => drag.busy() || swipe.openId !== null,
   })
 
   const height = toPx(span.endMin, span, hourPx)
+  // The handlers of a column. Read only, a mouse press does not start (it would draw new busy time
+  // under a drag); a touch press does, for the swipe to the next day, and makes nothing on release.
+  function emptyHandlers(date: string) {
+    const handlers = empty.handlers(date)
+    if (!readOnly) return handlers
+    return {
+      ...handlers,
+      onPointerDown: (event: Parameters<typeof handlers.onPointerDown>[0]) => {
+        if (event.pointerType === 'touch') handlers.onPointerDown(event)
+      },
+    }
+  }
+
   const columns = { gridTemplateColumns: `${String(HOURS_PX)}px repeat(${String(days.length)}, minmax(0, 1fr))` }
 
   // A place on the grid: 1px under the hour's line and 2px short of the next, as in the prototype.
@@ -307,7 +325,7 @@ export function TimeGrid({
             // pan-y: the day scrolls under a finger, and a sideways swipe is the grid's (Task 8).
             className={cx('relative touch-pan-y border-s border-line', date === today ? 'bg-canvas' : 'bg-surface')}
             style={{ height }}
-            {...empty.handlers(date)}
+            {...emptyHandlers(date)}
             onLostPointerCapture={empty.handlers(date).onPointerCancel}
           >
             {lines.map((min) => (
@@ -374,10 +392,11 @@ export function TimeGrid({
                       top={at.top}
                       height={at.height}
                       onOpen={openBlock}
+                      readOnly={readOnly}
                       leaving={leaving.has(block.id)}
                       lifted={drag.lifted(block.id)}
                       {...(style === undefined ? {} : { style })}
-                      gestures={{
+                      gestures={readOnly ? undefined : {
                         onPointerDown: (event) => {
                           // An open swipe takes the press: it closes, and does not lift the block.
                           if (swipe.openId !== block.id) moves.onPointerDown(event)

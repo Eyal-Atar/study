@@ -1,11 +1,15 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { onlineManager } from '@tanstack/react-query'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { meKey } from '../api/me'
+import { createQueryClient } from './queryClient'
 import { en } from '../i18n/en'
 import { COMPLETED_AT, examFixture, jobFixture, meFixture, previewFixture } from '../test/onboardingFixtures'
 import { createFakeApi, type ApiCall } from '../test/fakeApi'
 import { createFakeAuth, fakeSession } from '../test/fakeAuth'
 import { renderRoute } from '../test/renderRoute'
+import { SNAPSHOT_KEY } from '../offline/snapshot'
 
 const ZONE = 'Pacific/Auckland'
 
@@ -31,6 +35,11 @@ function server({ completedAt, planAffected }: { completedAt: string | null; pla
 
 const open = (fake: ReturnType<typeof server>, path: string) =>
   renderRoute(path, { auth: createFakeAuth(fakeSession()), api: fake.api })
+
+afterEach(() => {
+  onlineManager.setOnline(true)
+  window.localStorage.clear()
+})
 
 describe('TimezoneSync', () => {
   it('a browser in another zone sends PATCH /me {timezone} once, and a user with a plan gets the replan offer', async () => {
@@ -86,5 +95,29 @@ describe('TimezoneSync', () => {
     expect(await screen.findByRole('heading', { name: en.today.title })).toBeInTheDocument()
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(fake.calls('PATCH', '/me')).toHaveLength(0)
+  })
+
+  it('without a network sends nothing, and sends the one PATCH once the network is back (S38)', async () => {
+    browserIn(ZONE)
+    const fake = server({ completedAt: COMPLETED_AT, planAffected: false })
+    // The app's client: its writes run with networkMode 'always' (they would fail, not wait).
+    const queryClient = createQueryClient()
+    // The profile as the device snapshot holds it, and its owner, so the session keeps the cache.
+    queryClient.setQueryData(meKey('user-a'), meFixture({ timezone: 'Asia/Jerusalem', onboarding_completed_at: COMPLETED_AT }))
+    window.localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({ version: 1, userId: 'user-a', state: { mutations: [], queries: [] } }))
+    onlineManager.setOnline(false)
+    renderRoute('/today', { auth: createFakeAuth(fakeSession()), api: fake.api, queryClient })
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(fake.calls('PATCH', '/me')).toHaveLength(0)
+
+    act(() => {
+      onlineManager.setOnline(true)
+    })
+    await waitFor(() => {
+      expect(fake.calls('PATCH', '/me')).toEqual([{ method: 'PATCH', path: '/me', body: { timezone: ZONE } }])
+    })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(fake.calls('PATCH', '/me')).toHaveLength(1)
   })
 })

@@ -18,6 +18,8 @@ import { useClosures } from '../closure/api'
 import { seenKey, wasShown } from '../closure/seen'
 import { cachedGardenExams } from '../garden/useGardenExams'
 import { en } from '../i18n/en'
+import { OfflineNotice } from '../offline/OfflineNotice'
+import { useReadOnly } from '../offline/useReadOnly'
 import { sortByStart } from '../today/chooseNext'
 import { Button } from '../ui/Button'
 import { ButtonLink } from '../ui/ButtonLink'
@@ -47,6 +49,9 @@ import { XpBurst } from './XpBurst'
 
 const HOUR_MS = 3_600_000
 const NO_DAYS = new Set<string>()
+// The sheets that only read (S38): a block's actions (each one disabled there), a commitment, and the
+// celebration of a Done (which a read-only calendar cannot earn). Every other sheet is a write.
+const READ_ONLY_SHEETS = new Set<NonNullable<SheetState>['kind']>(['block', 'commitment', 'celebration'])
 
 // The blocks of the range, with today's column taken from GET /today (the fresher of the two: the
 // side panel and the minutes read it), each block once.
@@ -92,6 +97,10 @@ function nextHourDraft(date: string, today: string, now: number, tz: string): { 
 //   tasks sheet, GET /closures answered, GET /today and GET /progress not on their way, and no
 //   closure opening by itself in the same pass (that one goes first: it is a decision, the
 //   celebration can wait). Not about the week either, so a move leaves it open.
+// - Without a network (S38): read only (useReadOnly, the one condition, passed down as `readOnly`).
+//   The banner gives its place to the offline notice, no sheet that writes opens (openSheet), the
+//   grid has no gestures, every action button is disabled, and a week the device never saved says so
+//   instead of showing the last week under its header.
 export function CalendarPage() {
   useShellFrame({ fullBleed: true, ownPhoneHeader: true })
   const desktop = useIsDesktop()
@@ -105,6 +114,12 @@ export function CalendarPage() {
   const hidden = useHiddenBusy()
   const location = useLocation()
   const [sheet, setSheet] = useState<SheetState>(null)
+  const readOnly = useReadOnly()
+  // Every sheet the page and its children ask for: while read only, only those that only read.
+  const openSheet = (next: SheetState) => {
+    if (readOnly && next !== null && !READ_ONLY_SHEETS.has(next.kind)) return
+    setSheet(next)
+  }
   // The phone's tasks sheet (TasksSheet): a sheet too, though not one of CalendarSheets'.
   const [tasksOpen, setTasksOpen] = useState(false)
   const userId = useBoardUserId()
@@ -147,13 +162,15 @@ export function CalendarPage() {
   // tasks sheet included (it waits for that one to close). It counts as shown when it shows
   // (CalendarSheets, onShown), not here.
   useEffect(() => {
+    // Read only: the decision waits for the network (the row, and this, come back with it).
+    if (readOnly) return
     if (today === undefined || sheet !== null || tasksOpen || userId === null || pendingClosures === undefined) return
     const item = pendingClosures.find((i) => !wasShown(userId, i) && !offered.current.has(seenKey(i)))
     if (item === undefined) return
     for (const i of pendingClosures) offered.current.add(seenKey(i))
     closureOpening.current = true
     setSheet({ kind: 'closure', examId: item.exam_id })
-  }, [today, sheet, tasksOpen, userId, pendingClosures])
+  }, [readOnly, today, sheet, tasksOpen, userId, pendingClosures])
 
   // The celebration (plan decisions 3, 13–15): after the closure's effect, so a closure that opens by
   // itself goes first. The events are taken out of the inbox and what they earned is stored as
@@ -266,17 +283,17 @@ export function CalendarPage() {
   )
 
   const openBlock = (block: Block) => {
-    setSheet({ kind: 'block', block })
+    openSheet({ kind: 'block', block })
   }
   const deferBlock = (block: Block) => {
-    setSheet({ kind: 'defer', block })
+    openSheet({ kind: 'defer', block })
   }
   const freeTime = () => {
-    setSheet({ kind: 'freeTime' })
+    openSheet({ kind: 'freeTime' })
   }
   const markBusy = () => {
     if (today === undefined || selected === undefined) return
-    setSheet({ kind: 'busyNew', draft: nextHourDraft(selected < today ? today : selected, today, now, tz) })
+    openSheet({ kind: 'busyNew', draft: nextHourDraft(selected < today ? today : selected, today, now, tz) })
   }
   const move = (step: number) => {
     if (selected !== undefined) setDate(addDays(selected, step))
@@ -290,6 +307,9 @@ export function CalendarPage() {
 
   // What stands in the place of the grid: the loading, an error, the empty calendar, or the grid.
   function body(hourPx: number, onSwipeDay?: (direction: 1 | -1) => void) {
+    // Read only, a week the device never saved has nothing to show: not even the last week kept on
+    // screen while it loads (placeholder data), which would sit under the new week's header.
+    if (readOnly && data.plan.isPlaceholderData) return <LoadingState shape="card" />
     if (todayData === undefined || planData === undefined) {
       const failed = todayData === undefined ? data.today : data.plan
       if (failed.isError) {
@@ -323,16 +343,18 @@ export function CalendarPage() {
           showHeader={desktop}
           rangeText={rangeText}
           onOpenBlock={openBlock}
+          readOnly={readOnly}
           onOpenBusy={(item) => {
-            setSheet(item.source === 'event' ? { kind: 'busyEdit', item } : { kind: 'commitment', item })
+            openSheet(item.source === 'event' ? { kind: 'busyEdit', item } : { kind: 'commitment', item })
           }}
           dayBounds={dayBounds}
           onSwipeAction={(block, action) => {
+            if (readOnly) return
             if (action === 'defer') deferBlock(block)
             else actions.skip(block)
           }}
           onCreateBusy={(range) => {
-            setSheet({ kind: 'busyNew', draft: range })
+            openSheet({ kind: 'busyNew', draft: range })
           }}
           {...(onSwipeDay === undefined ? {} : { onSwipeDay })}
         />
@@ -340,7 +362,8 @@ export function CalendarPage() {
     )
   }
 
-  const staleNote = stale ? (
+  // Read only, the notice already says the calendar is as of a time: no second note about it.
+  const staleNote = stale && !readOnly ? (
     <div className="px-4 py-2">
       <Note
         tone="warning"
@@ -355,13 +378,14 @@ export function CalendarPage() {
     </div>
   ) : null
 
-  const banner = ready ? (
+  // Read only, every row of the banner is a write (a review, a preview, a split, a closure).
+  const banner = ready && !readOnly ? (
     <CalendarBanner
       unplacedCount={unplacedCount}
       {...(location.hash === REPORT_HASH ? { expandTo: 'report' as const } : {})}
       onPreview={setBannerGhosts}
       onOpenClosure={(examId) => {
-        setSheet({ kind: 'closure', examId })
+        openSheet({ kind: 'closure', examId })
       }}
       blocks={blocks}
       exams={data.exams.data ?? []}
@@ -377,7 +401,7 @@ export function CalendarPage() {
     today === undefined ? null : (
       <CalendarSheets
         sheet={sheet}
-        setSheet={setSheet}
+        setSheet={openSheet}
         setGhosts={setGhosts}
         blocks={blocks}
         upcoming={upcoming}
@@ -428,6 +452,7 @@ export function CalendarPage() {
                 onMarkBusy={markBusy}
                 onDefer={deferBlock}
                 onOpenBlock={openBlock}
+                readOnly={readOnly}
               />
             )}
           </div>
@@ -437,6 +462,11 @@ export function CalendarPage() {
               {en.calendar.page.planHeading}
             </h2>
             {banner}
+            {readOnly ? (
+              <div className="px-4 py-2">
+                <OfflineNotice />
+              </div>
+            ) : null}
             {staleNote}
             <div ref={scroller} data-calendar-scroller="" className="min-h-0 flex-1 overflow-y-auto">
               {body(HOUR_PX.desktop)}
@@ -454,6 +484,8 @@ export function CalendarPage() {
   return (
     // Room under the last hour for the tasks bar, which floats above the navigation.
     <div className="pb-16">
+      {/* Above the header and not sticky, as in the prototype. */}
+      <OfflineNotice className="mx-3.5 mt-1 mb-1.5" />
       <div {...{ [STICKY_ATTRIBUTE]: '' }} className="sticky top-0 z-30 bg-canvas">
         <PhoneHeader
           date={phoneDate}
@@ -487,6 +519,7 @@ export function CalendarPage() {
           onFreeTime={freeTime}
           onMarkBusy={markBusy}
           onOpenBlock={openBlock}
+          readOnly={readOnly}
           open={tasksOpen}
           onOpenChange={setTasksOpen}
         />

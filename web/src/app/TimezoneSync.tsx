@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useMe, useUserId } from '../api/me'
 import { en } from '../i18n/en'
+import { useReadOnly } from '../offline/useReadOnly'
 import { useUpdateMe } from '../onboarding/api'
 import { useReplanOffer } from '../plan/replanOfferContext'
 import { useToast } from '../ui/useToast'
@@ -17,6 +18,8 @@ function browserTimeZone(): string | undefined {
 // One PATCH /me per user and zone while the app is open (a failed one is not retried, so a server that
 // rejects the zone never loops). A changed zone moves the study windows, so a user with a plan gets
 // the offer to replan; during the onboarding there is no plan yet, so no offer.
+// Read only (S38) it waits: nothing is sent and nothing is noted as sent, so the PATCH goes out once
+// the network is back.
 export function TimezoneSync() {
   const me = useMe()
   const userId = useUserId()
@@ -24,11 +27,12 @@ export function TimezoneSync() {
   const toast = useToast()
   const { offer } = useReplanOffer()
   const sent = useRef<string | null>(null)
+  const readOnly = useReadOnly()
 
   const profileZone = me.data?.timezone
   const completed = me.data?.onboarding_completed_at
   useEffect(() => {
-    if (userId === null || profileZone === undefined) return
+    if (readOnly || userId === null || profileZone === undefined) return
     const zone = browserTimeZone()
     if (zone === undefined || zone === '' || zone === profileZone) return
     const key = `${userId}:${zone}`
@@ -51,7 +55,7 @@ export function TimezoneSync() {
         },
       },
     )
-  }, [userId, profileZone, completed, updateMe, toast, offer])
+  }, [readOnly, userId, profileZone, completed, updateMe, toast, offer])
 
   return null
 }

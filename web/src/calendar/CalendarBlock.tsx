@@ -77,7 +77,9 @@ export interface CalendarBlockProps {
   // About to be moved by a change that is still a preview (new busy time over it).
   leaving?: boolean
   style?: CSSProperties
-  gestures?: BlockGestures
+  gestures?: BlockGestures | undefined
+  // Without a network (S38): the check is disabled.
+  readOnly?: boolean
 }
 
 // A study block on the grid (decision 4, audit guideline 13): the colour says which exam, the icon
@@ -85,7 +87,7 @@ export interface CalendarBlockProps {
 // transparent: a done block is muted and struck through, an overdue one is outlined in dashes.
 //
 // A div with role="button" and not a <button>: the check inside it is a button.
-export function CalendarBlock({ block, tz, view, top, height, onOpen, lifted = false, leaving = false, style, gestures }: CalendarBlockProps) {
+export function CalendarBlock({ block, tz, view, top, height, onOpen, lifted = false, leaving = false, style, gestures, readOnly = false }: CalendarBlockProps) {
   const actions = useBlockActions()
   const color = examColor(block.exam_color_index)
   const look = LOOK[view]
@@ -180,7 +182,7 @@ export function CalendarBlock({ block, tz, view, top, height, onOpen, lifted = f
             else actions.uncomplete(block)
           }}
           aria-label={done ? en.board.uncompleteLabel(name) : en.board.completeLabel(name)}
-          isDisabled={actions.pending(block.id)}
+          isDisabled={readOnly || actions.pending(block.id)}
           dataId={block.id}
           className={cx(
             'absolute inset-y-0 end-0 [&>span]:ms-auto',

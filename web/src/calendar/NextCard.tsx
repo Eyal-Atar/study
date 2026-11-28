@@ -19,6 +19,8 @@ export interface NextCardProps {
   when?: string | undefined
   // Defer is a question (to when?), so the calendar answers it with its defer sheet.
   onDefer: (block: Block) => void
+  // Without a network (S38): both buttons are disabled.
+  readOnly?: boolean
 }
 
 // White on the exam's colour is a checked pair (design language 2.6), and so is ink on surface:
@@ -31,11 +33,11 @@ const DEFER =
 
 // The card Archi stands on in the sidebar: what to do next, filled with the colour of its exam (the
 // .next of the prototype). The only actions here are "Done" and "Defer"; the rest are on the block.
-export function NextCard({ block, tz, when, onDefer }: NextCardProps) {
+export function NextCard({ block, tz, when, onDefer, readOnly = false }: NextCardProps) {
   const actions = useBlockActions()
   const headingId = useId()
   const name = blockName(block)
-  const pending = actions.pending(block.id)
+  const pending = readOnly || actions.pending(block.id)
   const KindIcon = KIND_ICON[block.task_kind]
   // After an action on this block the focus comes back to the card's first button (board/focus.ts).
   const buttonsRef = useRef<HTMLDivElement>(null)

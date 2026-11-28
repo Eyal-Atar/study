@@ -20,12 +20,24 @@ export interface TodayTasksProps {
   tz: string
   heading?: string | undefined
   onOpenBlock: (block: Block) => void
+  // Without a network (S38): the checks are disabled; a row still opens its block.
+  readOnly?: boolean
 }
 
 // One block of the day (the .task of the prototype): the stripe of its exam, when it starts, its
 // name, and the check. The body and the check are two buttons side by side, never one inside the
 // other: the body opens the block's actions, the check marks it.
-function TaskRow({ block, tz, onOpenBlock }: { block: Block; tz: string; onOpenBlock: (block: Block) => void }) {
+function TaskRow({
+  block,
+  tz,
+  onOpenBlock,
+  readOnly,
+}: {
+  block: Block
+  tz: string
+  onOpenBlock: (block: Block) => void
+  readOnly: boolean
+}) {
   const actions = useBlockActions()
   const name = blockName(block)
   const isDone = block.state === 'done'
@@ -64,7 +76,7 @@ function TaskRow({ block, tz, onOpenBlock }: { block: Block; tz: string; onOpenB
       </Button>
       <CheckButton
         isDone={isDone}
-        isDisabled={actions.pending(block.id)}
+        isDisabled={readOnly || actions.pending(block.id)}
         aria-label={isDone ? en.board.uncompleteLabel(name) : en.board.completeLabel(name)}
         onChange={(done) => {
           if (done) actions.complete(block)
@@ -77,7 +89,7 @@ function TaskRow({ block, tz, onOpenBlock }: { block: Block; tz: string; onOpenB
 
 // The blocks of the day as a list of rows. With nothing to show there is nothing at all, not even
 // the heading.
-export function TodayTasks({ blocks, tz, heading, onOpenBlock }: TodayTasksProps) {
+export function TodayTasks({ blocks, tz, heading, onOpenBlock, readOnly = false }: TodayTasksProps) {
   const headingId = useId()
   if (blocks.length === 0) return null
   return (
@@ -89,7 +101,7 @@ export function TodayTasks({ blocks, tz, heading, onOpenBlock }: TodayTasksProps
       )}
       <ul aria-labelledby={heading === undefined ? undefined : headingId} className="flex flex-col gap-1.5">
         {sortByStart(blocks).map((block) => (
-          <TaskRow key={block.id} block={block} tz={tz} onOpenBlock={onOpenBlock} />
+          <TaskRow key={block.id} block={block} tz={tz} onOpenBlock={onOpenBlock} readOnly={readOnly} />
         ))}
       </ul>
     </div>

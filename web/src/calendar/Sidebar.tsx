@@ -25,6 +25,8 @@ export interface SidebarProps {
   onMarkBusy: () => void
   onDefer: (block: Block) => void
   onOpenBlock: (block: Block) => void
+  // Without a network (S38): every button that writes is disabled.
+  readOnly?: boolean
 }
 
 // A block that went by or was given up is not part of what the day still holds.
@@ -33,7 +35,18 @@ const counts = (block: Block) => block.state !== 'missed' && block.state !== 'sk
 // The side panel of the calendar on a computer (the .side of the prototype): Archi opens the day
 // in his own words, standing on the card of the next block; under them the minutes of today, the
 // two ways to change the day, the rest of today's blocks, and the coming exams.
-export function Sidebar({ todayData, ahead, exams, tz, moment, onFreeTime, onMarkBusy, onDefer, onOpenBlock }: SidebarProps) {
+export function Sidebar({
+  todayData,
+  ahead,
+  exams,
+  tz,
+  moment,
+  onFreeTime,
+  onMarkBusy,
+  onDefer,
+  onOpenBlock,
+  readOnly = false,
+}: SidebarProps) {
   const headingId = useId()
   const today = todayData.date
   const counted = todayData.blocks.filter(counts)
@@ -71,13 +84,14 @@ export function Sidebar({ todayData, ahead, exams, tz, moment, onFreeTime, onMar
             <span className="mt-1 block text-small font-normal text-ink-muted">{en.today.noBlocksToday}</span>
           ) : null}
         </ArchiSays>
-        {next !== undefined ? <NextCard block={next} tz={tz} onDefer={onDefer} /> : null}
+        {next !== undefined ? <NextCard block={next} tz={tz} onDefer={onDefer} readOnly={readOnly} /> : null}
         {later !== undefined ? (
           <NextCard
             block={later}
             tz={tz}
             when={en.today.nextAt(dayLabel(later.study_date, today), formatTime(later.starts_at, tz))}
             onDefer={onDefer}
+            readOnly={readOnly}
           />
         ) : null}
       </div>
@@ -94,11 +108,11 @@ export function Sidebar({ todayData, ahead, exams, tz, moment, onFreeTime, onMar
         </div>
       ) : null}
       <div className="flex flex-col gap-2">
-        <Button variant="secondary" className="w-full" onPress={onFreeTime}>
+        <Button variant="secondary" className="w-full" isDisabled={readOnly} onPress={onFreeTime}>
           <FreeTimeIcon size={18} className="text-brand-strong" />
           {en.calendar.side.freeTime}
         </Button>
-        <Button variant="secondary" className="w-full" onPress={onMarkBusy}>
+        <Button variant="secondary" className="w-full" isDisabled={readOnly} onPress={onMarkBusy}>
           <CalendarClock aria-hidden="true" size={18} strokeWidth={ICON_STROKE} className="text-ink-muted" />
           {en.calendar.side.markBusy}
         </Button>
@@ -108,6 +122,7 @@ export function Sidebar({ todayData, ahead, exams, tz, moment, onFreeTime, onMar
         tz={tz}
         heading={en.today.moreBlocks}
         onOpenBlock={onOpenBlock}
+        readOnly={readOnly}
       />
       <ExamsList exams={exams} today={today} />
     </aside>

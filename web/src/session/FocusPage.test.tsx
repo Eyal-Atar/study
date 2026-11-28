@@ -1,3 +1,4 @@
+import { onlineManager } from '@tanstack/react-query'
 import { act, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -122,6 +123,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  onlineManager.setOnline(true)
   vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
@@ -391,6 +393,30 @@ describe('FocusPage, the focus between views', () => {
     await waitFor(() => {
       expect(document.activeElement).toBe(h1)
     })
+  })
+})
+
+describe('FocusPage, without a network (S38)', () => {
+  it('Done is disabled and says why, Stop stays, and the saved session is kept', async () => {
+    writeSession(USER_ID, fullSession())
+    const { fake } = open([RUNNING, LATER])
+    await heading()
+    act(() => {
+      onlineManager.setOnline(false)
+    })
+    const done = screen.getByRole('button', { name: en.board.completeLabel(blockName(RUNNING)) })
+    expect(done).toBeDisabled()
+    expect(screen.getByText(en.offline.focusDone)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.focus.stop })).toBeEnabled()
+    await user.click(done)
+    expect(fake.calls('POST')).toEqual([])
+    expect(stored()).toEqual(fullSession())
+
+    act(() => {
+      onlineManager.setOnline(true)
+    })
+    expect(screen.getByRole('button', { name: en.board.completeLabel(blockName(RUNNING)) })).toBeEnabled()
+    expect(screen.queryByText(en.offline.focusDone)).not.toBeInTheDocument()
   })
 })
 

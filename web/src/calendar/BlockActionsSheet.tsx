@@ -7,6 +7,7 @@ import { blockName } from '../board/blockName'
 import { MoveDialog } from '../board/MoveDialog'
 import type { Block } from '../board/types'
 import { en } from '../i18n/en'
+import { useReadOnly } from '../offline/useReadOnly'
 import {
   canFocus,
   canStartFive,
@@ -34,6 +35,9 @@ export interface BlockActionsSheetProps {
 // then Done is a secondary button, so the sheet keeps one primary.
 // Each action closes the sheet; Move closes it only after the move dialog is closed, so the sheet
 // steps aside (it is not open under the dialog) while the times are chosen.
+// Without a network (S38) the sheet only shows the block: every action is disabled and says why, and
+// only Back to focus (a session already on this device) stays. It reads useReadOnly itself, as
+// FocusPage does: CalendarSheets, which opens it, passes no read-only state down.
 export function BlockActionsSheet({ block, tz, today, now, onClose, onDefer }: BlockActionsSheetProps) {
   const actions = useBlockActions()
   const session = useFocusSession()
@@ -41,6 +45,7 @@ export function BlockActionsSheet({ block, tz, today, now, onClose, onDefer }: B
   const navigate = useNavigate()
   const userId = useBoardUserId()
   const [moving, setMoving] = useState(false)
+  const readOnly = useReadOnly()
   if (block === null) return null
   const name = blockName(block)
   const allowed = actionsFor(block)
@@ -67,6 +72,7 @@ export function BlockActionsSheet({ block, tz, today, now, onClose, onDefer }: B
         }}
       >
         <BlockCard block={block} tz={tz} />
+        {readOnly ? <p className="text-small text-ink-muted">{en.offline.blockOnly}</p> : null}
         <div className="flex flex-col gap-2">
           {focus && live ? (
             <Button
@@ -85,6 +91,7 @@ export function BlockActionsSheet({ block, tz, today, now, onClose, onDefer }: B
           {focus && !live ? (
             <>
               <Button
+                isDisabled={readOnly}
                 variant="primary"
                 className="w-full"
                 aria-label={en.focus.startLabel(name)}
@@ -98,6 +105,7 @@ export function BlockActionsSheet({ block, tz, today, now, onClose, onDefer }: B
               </Button>
               {canStartFive(block, now) ? (
                 <Button
+                  isDisabled={readOnly}
                   variant="secondary"
                   className="w-full"
                   aria-label={en.focus.fiveLabel(name)}
@@ -114,6 +122,7 @@ export function BlockActionsSheet({ block, tz, today, now, onClose, onDefer }: B
           ) : null}
           {allowed.includes('complete') ? (
             <Button
+              isDisabled={readOnly}
               variant={focus ? 'secondary' : 'primary'}
               className="w-full"
               aria-label={en.board.completeLabel(name)}
@@ -129,6 +138,7 @@ export function BlockActionsSheet({ block, tz, today, now, onClose, onDefer }: B
           ) : null}
           {allowed.includes('uncomplete') ? (
             <Button
+              isDisabled={readOnly}
               variant="secondary"
               className="w-full"
               aria-label={en.board.uncompleteLabel(name)}
@@ -143,6 +153,7 @@ export function BlockActionsSheet({ block, tz, today, now, onClose, onDefer }: B
           ) : null}
           {allowed.includes('defer') ? (
             <Button
+              isDisabled={readOnly}
               variant="secondary"
               className="w-full"
               aria-label={en.board.deferLabel(name)}
@@ -155,6 +166,7 @@ export function BlockActionsSheet({ block, tz, today, now, onClose, onDefer }: B
           ) : null}
           {allowed.includes('move') ? (
             <Button
+              isDisabled={readOnly}
               variant="secondary"
               className="w-full"
               aria-label={en.move.moveLabel(name)}
@@ -167,6 +179,7 @@ export function BlockActionsSheet({ block, tz, today, now, onClose, onDefer }: B
           ) : null}
           {allowed.includes('pin') || allowed.includes('unpin') ? (
             <Button
+              isDisabled={readOnly}
               variant="secondary"
               className="w-full"
               aria-label={block.pinned ? en.board.unpinLabel(name) : en.board.pinLabel(name)}
@@ -182,6 +195,7 @@ export function BlockActionsSheet({ block, tz, today, now, onClose, onDefer }: B
           {block.state === 'done' ? null : (
             <>
               <Button
+                isDisabled={readOnly}
                 variant="danger"
                 className="w-full"
                 aria-label={en.review.skipLabel(name)}
