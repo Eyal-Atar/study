@@ -59,6 +59,8 @@ export default defineConfig(({ mode }) => {
         injectManifest: {
           // One classic script: every browser runs it, including those without module workers.
           rollupFormat: 'iife',
+          // The fonts and Archi's drawings (about 372KB) are needed so the calendar looks right without a network (S38).
+          globPatterns: ['**/*.{js,css,html,woff2,webp,png,webmanifest}'],
         },
         devOptions: { enabled: false },
       }),
